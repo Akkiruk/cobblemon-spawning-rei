@@ -2,12 +2,13 @@ package com.cobblemonrei.rei.evolution
 
 import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.EvolutionInfo
+import com.cobblemonrei.rei.entry.PokemonEntry
+import com.cobblemonrei.rei.entry.PokemonEntryType
 import me.shedaniel.rei.api.common.category.CategoryIdentifier
 import me.shedaniel.rei.api.common.display.Display
 import me.shedaniel.rei.api.common.entry.EntryIngredient
-import me.shedaniel.rei.api.common.util.EntryStacks
+import me.shedaniel.rei.api.common.entry.EntryStack
 import net.minecraft.resources.ResourceLocation
-import net.minecraft.world.item.Items
 import java.util.Optional
 
 class EvolutionDisplay(
@@ -15,13 +16,15 @@ class EvolutionDisplay(
 ) : Display {
 
     override fun getInputEntries(): List<EntryIngredient> {
-        // Input = the pre-evolution species (left side, R-click shows this)
-        return listOf(EntryIngredient.of(EntryStacks.of(Items.EXPERIENCE_BOTTLE)))
+        return listOf(EntryIngredient.of(
+            EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(evolution.fromSpecies))
+        ))
     }
 
     override fun getOutputEntries(): List<EntryIngredient> {
-        // Output = the evolved species (right side, U-click shows this)
-        return listOf(EntryIngredient.of(EntryStacks.of(Items.EXPERIENCE_BOTTLE)))
+        return listOf(EntryIngredient.of(
+            EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(evolution.toSpecies))
+        ))
     }
 
     override fun getCategoryIdentifier(): CategoryIdentifier<*> = EvolutionCategory.ID

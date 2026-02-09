@@ -2,12 +2,13 @@ package com.cobblemonrei.rei.spawn
 
 import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.SpawnInfo
+import com.cobblemonrei.rei.entry.PokemonEntry
+import com.cobblemonrei.rei.entry.PokemonEntryType
 import me.shedaniel.rei.api.common.category.CategoryIdentifier
 import me.shedaniel.rei.api.common.display.Display
 import me.shedaniel.rei.api.common.entry.EntryIngredient
-import me.shedaniel.rei.api.common.util.EntryStacks
+import me.shedaniel.rei.api.common.entry.EntryStack
 import net.minecraft.resources.ResourceLocation
-import net.minecraft.world.item.Items
 import java.util.Optional
 
 class SpawnDisplay(
@@ -16,7 +17,7 @@ class SpawnDisplay(
 ) : Display {
 
     private val cachedInputEntries: List<EntryIngredient> by lazy {
-        listOf(EntryIngredient.of(EntryStacks.of(Items.GRASS_BLOCK)))
+        listOf(EntryIngredient.of(EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(speciesName))))
     }
 
     override fun getInputEntries(): List<EntryIngredient> = cachedInputEntries

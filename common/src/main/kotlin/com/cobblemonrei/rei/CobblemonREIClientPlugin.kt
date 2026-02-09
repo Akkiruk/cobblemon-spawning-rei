@@ -2,6 +2,8 @@ package com.cobblemonrei.rei
 
 import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.SpawnDataIndex
+import com.cobblemonrei.rei.entry.PokemonEntry
+import com.cobblemonrei.rei.entry.PokemonEntryType
 import com.cobblemonrei.rei.evolution.EvolutionCategory
 import com.cobblemonrei.rei.evolution.EvolutionDisplay
 import com.cobblemonrei.rei.spawn.SpawnCategory
@@ -10,18 +12,15 @@ import me.shedaniel.rei.api.client.plugins.REIClientPlugin
 import me.shedaniel.rei.api.client.registry.category.CategoryRegistry
 import me.shedaniel.rei.api.client.registry.display.DisplayRegistry
 import me.shedaniel.rei.api.client.registry.entry.EntryRegistry
-import me.shedaniel.rei.api.common.util.EntryStacks
-import net.minecraft.world.item.Items
+import me.shedaniel.rei.api.common.entry.EntryStack
 
 open class CobblemonREIClientPlugin : REIClientPlugin {
 
     override fun registerCategories(registry: CategoryRegistry) {
+        PokemonEntryTypeRegistration.ensureRegistered()
         CobblemonSpawningMod.LOGGER.info("[CobblemonSpawningREI] Registering REI categories")
         registry.add(SpawnCategory())
         registry.add(EvolutionCategory())
-
-        registry.addWorkstations(SpawnCategory.ID, EntryStacks.of(Items.GRASS_BLOCK))
-        registry.addWorkstations(EvolutionCategory.ID, EntryStacks.of(Items.EXPERIENCE_BOTTLE))
     }
 
     override fun registerDisplays(registry: DisplayRegistry) {
@@ -33,7 +32,6 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
         var spawnDisplays = 0
         var evoDisplays = 0
 
-        // Register spawn displays
         for ((species, spawns) in SpawnDataIndex.spawnsBySpecies) {
             if (spawns.isEmpty()) continue
             try {
@@ -44,8 +42,7 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
             }
         }
 
-        // Register evolution displays (forward: R-click to see what this evolves into)
-        for ((species, evolutions) in SpawnDataIndex.evolutionsBySpecies) {
+        for ((_, evolutions) in SpawnDataIndex.evolutionsBySpecies) {
             for (evo in evolutions) {
                 try {
                     registry.add(EvolutionDisplay(evo))
@@ -60,8 +57,16 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
     }
 
     override fun registerEntries(registry: EntryRegistry) {
-        // Pokémon are already in the sidebar via Cobblemon's spawn eggs or species items.
-        // We don't need to add custom entries for v1.0 — REI will link our displays
-        // to Cobblemon items via the species name matching.
+        var count = 0
+        for (species in SpawnDataIndex.allSpeciesNames) {
+            try {
+                val stack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(species))
+                registry.addEntry(stack)
+                count++
+            } catch (e: Exception) {
+                CobblemonSpawningMod.LOGGER.debug("Failed to register entry for $species: ${e.message}")
+            }
+        }
+        CobblemonSpawningMod.LOGGER.info("[CobblemonSpawningREI] Registered $count Pokémon entries in REI sidebar")
     }
 }
