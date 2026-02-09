@@ -24,6 +24,7 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
     }
 
     override fun registerDisplays(registry: DisplayRegistry) {
+        PokemonEntryTypeRegistration.ensureRegistered()
         if (!CobblemonSpawningMod.dataLoaded) {
             CobblemonSpawningMod.LOGGER.warn("[CobblemonSpawningREI] Data not loaded yet, deferring display registration")
             CobblemonSpawningMod.onClientReady()
@@ -57,16 +58,26 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
     }
 
     override fun registerEntries(registry: EntryRegistry) {
+        PokemonEntryTypeRegistration.resetForReload()
+        PokemonEntryTypeRegistration.ensureRegistered()
+        CobblemonSpawningMod.LOGGER.info("[CobblemonSpawningREI] registerEntries called, ${SpawnDataIndex.allSpeciesNames.size} species available")
         var count = 0
+        var errors = 0
         for (species in SpawnDataIndex.allSpeciesNames) {
             try {
                 val stack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(species))
                 registry.addEntry(stack)
                 count++
             } catch (e: Exception) {
-                CobblemonSpawningMod.LOGGER.debug("Failed to register entry for $species: ${e.message}")
+                errors++
+                if (errors <= 3) {
+                    CobblemonSpawningMod.LOGGER.warn("[CobblemonSpawningREI] Failed to register entry for $species: ${e.javaClass.simpleName}: ${e.message}")
+                }
             }
         }
-        CobblemonSpawningMod.LOGGER.info("[CobblemonSpawningREI] Registered $count Pokémon entries in REI sidebar")
+        if (errors > 3) {
+            CobblemonSpawningMod.LOGGER.warn("[CobblemonSpawningREI] ... and ${errors - 3} more entry registration failures")
+        }
+        CobblemonSpawningMod.LOGGER.info("[CobblemonSpawningREI] Registered $count Pokémon entries in REI sidebar ($errors failures)")
     }
 }
