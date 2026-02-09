@@ -10,5 +10,7 @@ data class PokemonEntry(
         get() = ResourceLocation.fromNamespaceAndPath("cobblemon", species.lowercase())
 
     val displayName: String
-        get() = species.replaceFirstChar { it.uppercase() }
+        get() = species.replace("_", " ")
+            .split(" ")
+            .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
 }

@@ -13,22 +13,20 @@ data class EvolutionInfo(
 ) {
     val displayFromName: String
         get() {
-            val base = fromSpecies.replaceFirstChar { it.uppercase() }
+            val base = titleCase(fromSpecies)
             return if (fromAspects.isEmpty()) base
             else "$base (${formatAspects(fromAspects)})"
         }
 
     val displayToName: String
         get() {
-            val base = toSpecies.replaceFirstChar { it.uppercase() }
+            val base = titleCase(toSpecies)
             return if (toAspects.isEmpty()) base
             else "$base (${formatAspects(toAspects)})"
         }
 
     private fun formatAspects(aspects: Set<String>): String {
-        return aspects.joinToString(", ") { 
-            it.replace("_", " ").replaceFirstChar { c -> c.uppercase() }
-        }
+        return aspects.joinToString(", ") { titleCase(it) }
     }
 
     val displayRequirements: String
@@ -99,7 +97,7 @@ data class EvolutionRequirement(
                     "twilight" -> "Twilight"
                     "midnight" -> "Midnight"
                     "time", "" -> "Time-based"
-                    else -> range.replaceFirstChar { it.uppercase() }
+                    else -> titleCase(range)
                 }
             }
             "held_item" -> {
@@ -107,9 +105,7 @@ data class EvolutionRequirement(
                 "Hold $item"
             }
             "has_move_type", "move_type" -> {
-                val type = cleanValue(data["type"])
-                    ?.replace("_", " ")
-                    ?.replaceFirstChar { it.uppercase() } ?: "type"
+                val type = cleanValue(data["type"])?.let { titleCase(it) } ?: "type"
                 "Know $type move"
             }
             "move_set", "has_move" -> {
@@ -135,13 +131,13 @@ data class EvolutionRequirement(
                 }
             }
             "stat_compare" -> {
-                val high = cleanValue(data["highStat"])?.replace("_", " ")?.replaceFirstChar { it.uppercase() } ?: "Stat"
-                val low = cleanValue(data["lowStat"])?.replace("_", " ")?.replaceFirstChar { it.uppercase() } ?: "Stat"
+                val high = cleanValue(data["highStat"])?.let { titleCase(it) } ?: "Stat"
+                val low = cleanValue(data["lowStat"])?.let { titleCase(it) } ?: "Stat"
                 "$high > $low"
             }
             "stat_equal" -> {
-                val s1 = cleanValue(data["statOne"])?.replace("_", " ")?.replaceFirstChar { it.uppercase() } ?: "Stat"
-                val s2 = cleanValue(data["statTwo"])?.replace("_", " ")?.replaceFirstChar { it.uppercase() } ?: "Stat"
+                val s1 = cleanValue(data["statOne"])?.let { titleCase(it) } ?: "Stat"
+                val s2 = cleanValue(data["statTwo"])?.let { titleCase(it) } ?: "Stat"
                 "$s1 = $s2"
             }
             "pokemon_properties", "properties" -> {
@@ -149,7 +145,7 @@ data class EvolutionRequirement(
                 parsePropertiesTarget(target)
             }
             "property_range" -> {
-                val feature = cleanValue(data["feature"])?.replace("_", " ")?.replaceFirstChar { it.uppercase() } ?: ""
+                val feature = cleanValue(data["feature"])?.let { titleCase(it) } ?: ""
                 val range = cleanValue(data["range"]) ?: ""
                 when {
                     feature.isNotBlank() && range.isNotBlank() -> "$feature: $range"
@@ -169,7 +165,7 @@ data class EvolutionRequirement(
             "defeat" -> {
                 val target = cleanValue(data["target"]) ?: ""
                 val amount = (data["amount"] as? Number)?.toInt()
-                val targetName = target.split(" ").firstOrNull()?.replaceFirstChar { it.uppercase() } ?: target
+                val targetName = target.split(" ").firstOrNull()?.let { titleCase(it) } ?: target
                 if (amount != null) "Defeat ${amount}x $targetName" else "Defeat $targetName"
             }
             "recoil" -> {
@@ -185,15 +181,14 @@ data class EvolutionRequirement(
                 if (amount != null) "$amount critical hits" else "Critical hits"
             }
             "party_member", "party" -> {
-                val target = cleanValue(data["target"])?.split(" ")?.firstOrNull()?.replaceFirstChar { it.uppercase() }
+                val target = cleanValue(data["target"])?.split(" ")?.firstOrNull()?.let { titleCase(it) }
                 val contains = data["contains"] as? Boolean ?: true
                 if (target != null && target.isNotBlank()) {
                     if (contains) "$target in party" else "No $target in party"
                 } else "Party condition"
             }
             "moon_phase" -> {
-                val phase = cleanValue(data["moonPhase"])?.replace("_", " ")?.lowercase()
-                    ?.replaceFirstChar { it.uppercase() } ?: "Full Moon"
+                val phase = cleanValue(data["moonPhase"])?.let { titleCase(it) } ?: "Full Moon"
                 phase
             }
             "weather" -> {
@@ -204,13 +199,12 @@ data class EvolutionRequirement(
                 val adv = cleanValue(data["requiredAdvancement"])
                     ?.substringAfterLast("/")
                     ?.substringAfterLast(":")
-                    ?.replace("_", " ")
-                    ?.replaceFirstChar { it.uppercase() }
+                    ?.let { titleCase(it) }
                 adv ?: "Advancement"
             }
             "world" -> {
                 val id = cleanValue(data["identifier"])?.substringAfterLast(":")
-                    ?.replace("_", " ")?.replaceFirstChar { it.uppercase() }
+                    ?.let { titleCase(it) }
                 "In ${id ?: "dimension"}"
             }
             "attack_defence_ratio" -> {
@@ -219,7 +213,7 @@ data class EvolutionRequirement(
                     "attack_higher" -> "Attack > Defense"
                     "defence_higher", "defense_higher" -> "Defense > Attack"
                     "equal" -> "Attack = Defense"
-                    else -> ratio?.replace("_", " ")?.replaceFirstChar { it.uppercase() } ?: "Stat ratio"
+                    else -> ratio?.let { titleCase(it) } ?: "Stat ratio"
                 }
             }
             "owner_holds_item" -> {
@@ -231,12 +225,12 @@ data class EvolutionRequirement(
                 when (gender) {
                     "male" -> "Male"
                     "female" -> "Female"
-                    else -> gender?.replace("_", " ")?.replaceFirstChar { it.uppercase() } ?: "Gender"
+                    else -> gender?.let { titleCase(it) } ?: "Gender"
                 }
             }
             "shiny" -> "Shiny"
             "nature" -> {
-                val nature = cleanValue(data["nature"])?.replace("_", " ")?.replaceFirstChar { it.uppercase() }
+                val nature = cleanValue(data["nature"])?.let { titleCase(it) }
                 if (nature != null) "$nature nature" else "Specific nature"
             }
             "max_pokemon_level" -> {
@@ -252,11 +246,11 @@ data class EvolutionRequirement(
                 if (amount != null) "Deal $amount+ damage" else "Deal damage"
             }
             "status" -> {
-                val status = cleanValue(data["status"])?.replace("_", " ")?.replaceFirstChar { it.uppercase() }
+                val status = cleanValue(data["status"])?.let { titleCase(it) }
                 status ?: "Status condition"
             }
             else -> {
-                val fallback = variant.replace("_", " ").replaceFirstChar { it.uppercase() }
+                val fallback = titleCase(variant)
                 if (fallback.length > 40 || fallback.contains("@") || (fallback.contains(".") && fallback.length > 30))
                     "Special condition"
                 else fallback
@@ -294,7 +288,7 @@ data class EvolutionRequirement(
                 val type = lower.substringAfter("type=").substringBefore(" ").replaceFirstChar { it.uppercase() }
                 "$type type"
             }
-            target.length <= 30 -> target.replace("_", " ").replaceFirstChar { it.uppercase() }
+            target.length <= 30 -> titleCase(target)
             else -> "Special condition"
         }
     }
@@ -324,23 +318,10 @@ data class EvolutionRequirement(
     }
 
     private fun formatBiome(biome: String): String {
-        return biome
-            .removePrefix("#cobblemon:")
-            .removePrefix("#minecraft:")
-            .removePrefix("cobblemon:")
-            .removePrefix("minecraft:")
-            .replace("is_", "")
-            .replace("_", " ")
-            .replaceFirstChar { it.uppercase() }
+        return formatBiomeName(biome)
     }
 
     private fun formatStructure(structure: String): String {
-        return structure
-            .removePrefix("#minecraft:")
-            .removePrefix("#cobblemon:")
-            .removePrefix("minecraft:")
-            .removePrefix("cobblemon:")
-            .replace("_", " ")
-            .replaceFirstChar { it.uppercase() }
+        return titleCase(stripNamespace(structure))
     }
 }

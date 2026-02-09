@@ -147,7 +147,9 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
                     it.formAspects
                         .replace("region_bias=", "")
                         .replace("_", " ")
-                        .replaceFirstChar { c -> c.uppercase() }
+                        .split(" ")
+                        .filter { w -> w.isNotBlank() }
+                        .joinToString(" ") { w -> w.replaceFirstChar { c -> c.uppercase() } }
                 }
                 .distinct()
             MergedSpawn(primary, variants)

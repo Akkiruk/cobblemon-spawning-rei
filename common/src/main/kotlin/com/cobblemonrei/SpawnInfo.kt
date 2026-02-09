@@ -51,7 +51,7 @@ data class SpawnInfo(
             "surface" -> "Water Surface"
             "seafloor" -> "Seafloor"
             "fishing" -> "Fishing"
-            else -> context.replaceFirstChar { it.uppercase() }
+            else -> titleCase(context)
         }
 
     val isFishing: Boolean
@@ -93,19 +93,25 @@ data class WeightMultiplier(
     val conditionSummary: String
 )
 
+fun titleCase(raw: String): String {
+    return raw.replace("_", " ")
+        .split(" ")
+        .filter { it.isNotBlank() }
+        .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+}
+
+fun stripNamespace(id: String): String {
+    return id.removePrefix("#").substringAfter(":")
+}
+
 fun formatId(id: String): String {
-    return id.removePrefix("#")
-        .substringAfter(":")
-        .replace("_", " ")
-        .replaceFirstChar { it.uppercase() }
+    return titleCase(stripNamespace(id))
 }
 
 fun formatBiomeName(id: String): String {
-    return id.removePrefix("#")
-        .substringAfter(":")
-        .removePrefix("is_")
-        .removePrefix("has_")
-        .replace("_", " ")
-        .split(" ")
-        .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+    return titleCase(
+        stripNamespace(id)
+            .removePrefix("is_")
+            .removePrefix("has_")
+    )
 }

@@ -9,6 +9,16 @@ All notable changes to Cobblemon Spawning REI will be documented in this file.
 
 ---
 
+## [1.4.6] - 2026-02-09
+
+### Fixed
+- Pokemon species with underscores now display properly (Mr Mime, Tapu Koko, etc.)
+- All multi-word names use full title case ("Cherry Grove" not "Cherry grove")
+- Biome and structure names from any mod namespace now display correctly
+- Evolution stat comparisons, moon phases, dimensions, and advancement names fully capitalized
+- Defeat/party member targets no longer show raw underscored IDs
+- Spawn preset labels, form aspect names, and time range fallbacks normalized
+
 ## [1.4.5] - 2026-02-09
 
 ### Changed

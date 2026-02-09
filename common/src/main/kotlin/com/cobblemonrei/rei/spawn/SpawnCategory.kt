@@ -4,6 +4,7 @@ import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.SpawnInfo
 import com.cobblemonrei.formatBiomeName
 import com.cobblemonrei.formatId
+import com.cobblemonrei.titleCase
 import com.cobblemonrei.rei.entry.PokemonEntry
 import com.cobblemonrei.rei.entry.PokemonEntryType
 import me.shedaniel.math.Point
@@ -74,7 +75,7 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
             BUCKET_COLORS[bucket.lowercase()] ?: 0xFFAAAAAA.toInt()
 
         fun bucketLabel(bucket: String): String =
-            BUCKET_LABELS[bucket.lowercase()] ?: bucket.replaceFirstChar { it.uppercase() }
+            BUCKET_LABELS[bucket.lowercase()] ?: titleCase(bucket)
 
         fun bucketSortOrder(bucket: String): Int =
             BUCKET_ORDER.indexOf(bucket.lowercase()).let { if (it < 0) 99 else it }
@@ -110,7 +111,7 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
                 .disableHighlight()
         )
 
-        val title = display.speciesName.replaceFirstChar { it.uppercase() }
+        val title = titleCase(display.speciesName)
         widgets.add(
             Widgets.createLabel(Point(left + 24, bounds.y + 9), Component.literal(title))
                 .leftAligned().noShadow().color(0xFF333333.toInt(), 0xFFFFFFFF.toInt())
@@ -145,7 +146,7 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
         val ctxParts = mutableListOf<String>()
         if (spawn.context != "grounded") ctxParts.add(spawn.displayContext)
         if (spawn.presets.isNotEmpty()) {
-            val tags = spawn.presets.mapNotNull { PRESET_LABELS[it] ?: it.replaceFirstChar { c -> c.uppercase() } }
+            val tags = spawn.presets.mapNotNull { PRESET_LABELS[it] ?: titleCase(it) }
             ctxParts.add(tags.joinToString(", "))
         }
         if (display.mergedFormVariants.isNotEmpty()) {
@@ -336,7 +337,7 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
                 it.contains("dusk", true) || it.contains("dawn", true) -> "\u263C "
                 else -> ""
             }
-            list.add("$icon${it.replaceFirstChar { c -> c.uppercase() }}")
+            list.add("$icon${titleCase(it)}")
         }
 
         val weather = spawn.weather.displayText
@@ -377,7 +378,7 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
             }
         }
 
-        spawn.moonPhase?.let { list.add("Moon: ${it.replaceFirstChar { c -> c.uppercase() }}") }
+        spawn.moonPhase?.let { list.add("Moon: ${titleCase(it)}") }
 
         if (spawn.isFishing) {
             val lure = spawn.minLureLevel
@@ -452,10 +453,9 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
     // --- Formatting helpers ---
 
     private fun formatFormAspects(aspects: String): String {
-        return aspects
-            .replace("region_bias=", "")
-            .replace("_", " ")
-            .replaceFirstChar { it.uppercase() }
+        return titleCase(
+            aspects.replace("region_bias=", "")
+        )
     }
 
     private fun formatWeight(weight: Float): String =
