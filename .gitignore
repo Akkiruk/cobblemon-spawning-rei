@@ -6,6 +6,7 @@ run/
 
 # Gradle
 .gradle/
+.kotlin/
 
 # IDE
 .idea/
@@ -17,12 +18,24 @@ run/
 .classpath
 .project
 .factorypath
+*.code-workspace
 
 # OS
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Misc
+# Logs
 *.log
+build-log.txt
+
+# Temporary / one-off files
+temp_icons/
+*.tmp
+*.bak
+*.swp
+*~
 local.properties
+
+# GitHub Copilot (AI development hints - not for public)
+.github/copilot-instructions.md
