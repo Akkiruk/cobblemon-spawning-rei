@@ -3,6 +3,7 @@ package com.cobblemonrei.rei
 import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.SpawnDataIndex
 import com.cobblemonrei.rei.entry.PokemonEntry
+import com.cobblemonrei.rei.entry.PokemonEntryDefinition
 import com.cobblemonrei.rei.entry.PokemonEntryType
 import com.cobblemonrei.rei.evolution.EvolutionCategory
 import com.cobblemonrei.rei.evolution.EvolutionDisplay
@@ -13,20 +14,42 @@ import me.shedaniel.rei.api.client.registry.category.CategoryRegistry
 import me.shedaniel.rei.api.client.registry.display.DisplayRegistry
 import me.shedaniel.rei.api.client.registry.entry.EntryRegistry
 import me.shedaniel.rei.api.common.entry.EntryStack
+import me.shedaniel.rei.api.common.entry.type.EntryTypeRegistry
 
 open class CobblemonREIClientPlugin : REIClientPlugin {
 
+    override fun registerEntryTypes(registry: EntryTypeRegistry) {
+        CobblemonSpawningMod.LOGGER.info("[CobblemonSpawningREI] registerEntryTypes called")
+        try {
+            registry.register(PokemonEntryType.POKEMON.id, PokemonEntryDefinition())
+            CobblemonSpawningMod.LOGGER.info("[CobblemonSpawningREI] Pokémon entry type registered")
+        } catch (e: Exception) {
+            CobblemonSpawningMod.LOGGER.warn("[CobblemonSpawningREI] registerEntryTypes failed: ${e.message}")
+        }
+    }
+
+    private fun ensureEntryTypeAvailable() {
+        try {
+            PokemonEntryType.POKEMON.definition
+        } catch (_: Exception) {
+            try {
+                EntryTypeRegistry.getInstance().register(PokemonEntryType.POKEMON.id, PokemonEntryDefinition())
+                CobblemonSpawningMod.LOGGER.info("[CobblemonSpawningREI] Entry type registered (late)")
+            } catch (_: Exception) { }
+        }
+    }
+
     override fun registerCategories(registry: CategoryRegistry) {
-        PokemonEntryTypeRegistration.ensureRegistered()
+        ensureEntryTypeAvailable()
         CobblemonSpawningMod.LOGGER.info("[CobblemonSpawningREI] Registering REI categories")
         registry.add(SpawnCategory())
         registry.add(EvolutionCategory())
     }
 
     override fun registerDisplays(registry: DisplayRegistry) {
-        PokemonEntryTypeRegistration.ensureRegistered()
+        ensureEntryTypeAvailable()
         if (!CobblemonSpawningMod.dataLoaded) {
-            CobblemonSpawningMod.LOGGER.warn("[CobblemonSpawningREI] Data not loaded yet, deferring display registration")
+            CobblemonSpawningMod.LOGGER.warn("[CobblemonSpawningREI] Data not loaded yet, loading now")
             CobblemonSpawningMod.onClientReady()
         }
 
@@ -58,8 +81,12 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
     }
 
     override fun registerEntries(registry: EntryRegistry) {
-        PokemonEntryTypeRegistration.resetForReload()
-        PokemonEntryTypeRegistration.ensureRegistered()
+        ensureEntryTypeAvailable()
+
+        if (!CobblemonSpawningMod.dataLoaded) {
+            CobblemonSpawningMod.onClientReady()
+        }
+
         CobblemonSpawningMod.LOGGER.info("[CobblemonSpawningREI] registerEntries called, ${SpawnDataIndex.allSpeciesNames.size} species available")
         var count = 0
         var errors = 0

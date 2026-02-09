@@ -1,3 +1,11 @@
+## [1.1.1] - 2026-02-08
+
+### Fixed
+- Pokémon entries not appearing in REI search due to entry type registration lifecycle issue
+- Entry type now registered via proper registerEntryTypes() callback
+- Added fallback text rendering when 3D model not yet loaded
+- Entry type re-registered on each REI reload phase to prevent stale references
+
 ## [1.1.0] - 2025-06-10
 
 ### Added

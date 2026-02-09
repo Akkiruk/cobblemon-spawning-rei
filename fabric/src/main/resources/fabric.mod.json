@@ -26,6 +26,12 @@
         "value": "com.cobblemonrei.fabric.CobblemonSpawningFabricClient"
       }
     ],
+    "rei": [
+      {
+        "adapter": "kotlin",
+        "value": "com.cobblemonrei.rei.CobblemonREIClientPlugin"
+      }
+    ],
     "rei_client": [
       {
         "adapter": "kotlin",

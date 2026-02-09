@@ -28,7 +28,12 @@ class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
         delta: Float
     ) {
         val pokemon = entry.value ?: return
-        val species = PokemonSpecies.getByName(pokemon.species) ?: return
+        val species = PokemonSpecies.getByName(pokemon.species)
+
+        if (species == null) {
+            renderFallbackText(graphics, bounds, pokemon.displayName)
+            return
+        }
 
         val state = stateCache.getOrPut(pokemon.species) { FloatingState() }
         val renderable = RenderablePokemon(species, pokemon.formAspects)
@@ -53,11 +58,23 @@ class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
                 scale = scale
             )
         } catch (_: Exception) {
-            // Species model not loaded yet
+            poseStack.popPose()
+            graphics.disableScissor()
+            renderFallbackText(graphics, bounds, pokemon.displayName)
+            return
         }
 
         poseStack.popPose()
         graphics.disableScissor()
+    }
+
+    private fun renderFallbackText(graphics: GuiGraphics, bounds: Rectangle, name: String) {
+        val label = if (name.length > 4) name.take(3) + "." else name
+        val font = net.minecraft.client.Minecraft.getInstance().font
+        val textWidth = font.width(label)
+        val x = bounds.centerX - textWidth / 2
+        val y = bounds.centerY - font.lineHeight / 2
+        graphics.drawString(font, label, x, y, 0xFFAAAAAA.toInt(), false)
     }
 
     override fun getTooltip(entry: EntryStack<PokemonEntry>, context: TooltipContext): Tooltip? {
