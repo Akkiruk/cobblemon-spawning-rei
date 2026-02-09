@@ -28,7 +28,7 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
         private const val PADDING = 8
         private const val SECTION_GAP = 4
         private const val LINE_HEIGHT = 11
-        private const val HEADER_HEIGHT = 28
+        private const val HEADER_HEIGHT = 40
 
         private val BUCKET_ORDER = listOf("common", "uncommon", "rare", "ultra-rare")
 
@@ -100,7 +100,7 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
         val spawn = display.spawn
         val color = bucketColor(spawn.bucket)
 
-        // === Header: icon + species (left) + rarity + level (right) ===
+        // === Row 1: Pokemon icon + species name ===
         val pokemonStack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(display.speciesName))
         widgets.add(
             Widgets.createSlot(Rectangle(left, bounds.y + 3, 20, 20))
@@ -110,24 +110,22 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
                 .disableHighlight()
         )
 
-        val rightText = "${bucketLabel(spawn.bucket)}  Lv. ${spawn.levelRange}"
-        val rightReserved = rightText.length * 6 + 8
-        val maxNameChars = ((contentWidth - 24 - rightReserved) / 6).coerceIn(6, 30)
-        val title = clip(display.speciesName.replaceFirstChar { it.uppercase() }, maxNameChars)
+        val title = display.speciesName.replaceFirstChar { it.uppercase() }
         widgets.add(
             Widgets.createLabel(Point(left + 24, bounds.y + 9), Component.literal(title))
                 .leftAligned().noShadow().color(0xFF333333.toInt(), 0xFFFFFFFF.toInt())
         )
 
-        widgets.add(
-            Widgets.createLabel(Point(right, bounds.y + 9), Component.literal(bucketLabel(spawn.bucket)))
-                .rightAligned().color(color, color)
-        )
+        // === Row 2: Level range (left) + Rarity (right) ===
+        val row2Y = bounds.y + 24
         val lvText = "Lv. ${spawn.levelRange}"
-        val lvX = right - (bucketLabel(spawn.bucket).length * 6 + 10)
         widgets.add(
-            Widgets.createLabel(Point(lvX, bounds.y + 9), Component.literal(lvText))
-                .rightAligned().color(0xFF666666.toInt(), 0xFFDDDDDD.toInt())
+            Widgets.createLabel(Point(left, row2Y), Component.literal(lvText))
+                .leftAligned().noShadow().color(0xFF0099FF.toInt(), 0xFF00DDFF.toInt())
+        )
+        widgets.add(
+            Widgets.createLabel(Point(right, row2Y), Component.literal(bucketLabel(spawn.bucket)))
+                .rightAligned().color(color, color)
         )
 
         // Separator with breathing room

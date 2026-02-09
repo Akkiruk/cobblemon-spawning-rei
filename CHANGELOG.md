@@ -9,6 +9,22 @@ All notable changes to Cobblemon Spawning REI will be documented in this file.
 
 ---
 
+## [1.4.5] - 2026-02-09
+
+### Changed
+- Level range text color increased to bright cyan for improved visibility
+
+## [1.4.4] - 2026-02-09
+
+### Changed
+- Level range text now uses cyan color for better visibility
+
+## [1.4.3] - 2026-02-09
+
+### Changed
+- Pokemon icon and name now have dedicated row in spawn location display
+- Level and rarity moved to separate row below for better readability
+
 ## [1.4.2] - 2026-02-09
 
 ### Changed
