@@ -9,6 +9,18 @@ All notable changes to Cobblemon Spawning REI will be documented in this file.
 
 ---
 
+## [1.4.7] - 2026-02-09
+
+### Fixed
+- Resource leak: spawn/preset JSON file handles now properly closed after parsing
+- Race condition: concurrent data loading guarded to prevent duplicate loads
+- Thread safety: all shared caches use concurrent collections (DebugLog, SpriteManager, EntryRenderer)
+- Silent failures: preset scanning errors now logged instead of swallowed
+- Duplicate mod root paths deduplicated to eliminate redundant I/O
+- moonPhase field handles both string and integer JSON values
+- Cobblemon dependency version aligned to >=1.7.1 in both Fabric and NeoForge metadata
+- Removed dead imports and unused fields in PokemonSpriteManager
+
 ## [1.4.6] - 2026-02-09
 
 ### Fixed

@@ -28,7 +28,7 @@ side="BOTH"
 [[dependencies.cobblemon_spawning_rei]]
 modId="cobblemon"
 type="required"
-versionRange="[1.6.0,)"
+versionRange="[1.7.1,)"
 ordering="AFTER"
 side="BOTH"
 

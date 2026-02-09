@@ -1,10 +1,14 @@
 package com.cobblemonrei
 
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
+
 object DebugLog {
 
-    private val loggedOnce = mutableSetOf<String>()
-    private val missingModels = mutableSetOf<String>()
-    private val failedSpawnParse = mutableSetOf<String>()
+    private val loggedOnce: MutableSet<String> = Collections.newSetFromMap(ConcurrentHashMap())
+    private val missingModels: MutableSet<String> = Collections.newSetFromMap(ConcurrentHashMap())
+    private val failedSpawnParse: MutableSet<String> = Collections.newSetFromMap(ConcurrentHashMap())
+    @Volatile
     private var summaryPrinted = false
 
     private val logger get() = CobblemonSpawningMod.LOGGER

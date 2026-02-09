@@ -1,16 +1,13 @@
 package com.cobblemonrei
 
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.resources.ResourceLocation
-import com.mojang.blaze3d.platform.NativeImage
-import java.io.InputStream
+import java.util.concurrent.ConcurrentHashMap
 
 object PokemonSpriteManager {
 
     private const val TEXTURE_PATH = "textures/pokemon"
-    private val spriteCache = mutableMapOf<String, ResourceLocation?>()
-    private val registeredTextures = mutableSetOf<String>()
+    private val spriteCache = ConcurrentHashMap<String, ResourceLocation?>()
 
     // Map species name → filename by building an index from our bundled sprites
     private val speciesFileIndex: Map<String, String> by lazy { buildFileIndex() }

@@ -11,18 +11,26 @@ object SpawnDataIndex {
     var loadState = LoadState.NOT_LOADED
         private set
 
+    @Volatile
+    private var isLoading = false
+
+    @Volatile
     var spawnsBySpecies: Map<String, List<SpawnInfo>> = emptyMap()
         private set
 
+    @Volatile
     var evolutionsBySpecies: Map<String, List<EvolutionInfo>> = emptyMap()
         private set
 
+    @Volatile
     var evolutionsToSpecies: Map<String, List<EvolutionInfo>> = emptyMap()
         private set
 
+    @Volatile
     var speciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo> = emptyMap()
         private set
 
+    @Volatile
     var allSpeciesNames: List<String> = emptyList()
         private set
 
@@ -43,6 +51,18 @@ object SpawnDataIndex {
     }
 
     fun loadAll() {
+        if (isLoading) return
+        isLoading = true
+        try {
+            doLoad()
+        } catch (e: Exception) {
+            DebugLog.warn("Data load failed: ${e.message}")
+        } finally {
+            isLoading = false
+        }
+    }
+
+    private fun doLoad() {
         spawnsBySpecies = SpawnDataLoader.loadFromAllSources()
 
         val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }

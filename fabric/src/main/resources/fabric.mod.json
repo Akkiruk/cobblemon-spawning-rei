@@ -37,7 +37,7 @@
   "depends": {
     "fabricloader": ">=0.15.0",
     "minecraft": ">=1.21 <1.22",
-    "cobblemon": ">=1.6.0",
+    "cobblemon": ">=1.7.1",
     "fabric-language-kotlin": ">=1.13.4"
   },
   "recommends": {
@@ -45,6 +45,6 @@
     "roughlyenoughitems": "*"
   },
   "breaks": {
-    "cobblemon": "<1.6.0"
+    "cobblemon": "<1.7.1"
   }
 }

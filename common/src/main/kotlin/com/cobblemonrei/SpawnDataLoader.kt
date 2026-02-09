@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft
 import java.io.InputStreamReader
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.ConcurrentHashMap
 
 object SpawnDataLoader {
 
@@ -90,7 +91,9 @@ object SpawnDataLoader {
                         }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                DebugLog.once("preset-root-${root}") { "Preset scan failed for root: ${e.message}" }
+            }
         }
         return result
     }
@@ -98,7 +101,11 @@ object SpawnDataLoader {
     private fun parsePresetFile(file: Path): Pair<String, PresetData>? {
         return try {
             val name = file.fileName.toString().removeSuffix(".json")
-            val json = JsonParser.parseReader(InputStreamReader(Files.newInputStream(file))).asJsonObject
+            val json = Files.newInputStream(file).use { stream ->
+                InputStreamReader(stream).use { reader ->
+                    JsonParser.parseReader(reader).asJsonObject
+                }
+            }
             name to PresetData(
                 condition = json.getAsJsonObject("condition"),
                 anticondition = json.getAsJsonObject("anticondition")
@@ -114,7 +121,11 @@ object SpawnDataLoader {
     private fun parseSpawnFile(file: Path, result: MutableMap<String, MutableList<SpawnInfo>>): Pair<Boolean, Int> {
         var entryCount = 0
         try {
-            val json = JsonParser.parseReader(InputStreamReader(Files.newInputStream(file))).asJsonObject
+            val json = Files.newInputStream(file).use { stream ->
+                InputStreamReader(stream).use { reader ->
+                    JsonParser.parseReader(reader).asJsonObject
+                }
+            }
             if (json.has("enabled") && !json.get("enabled").asBoolean) return false to 0
             val spawns = json.getAsJsonArray("spawns") ?: return false to 0
 
@@ -244,7 +255,10 @@ object SpawnDataLoader {
             maxY = obj.get("maxY")?.asInt,
             neededNearbyBlocks = obj.getAsJsonArray("neededNearbyBlocks")?.map { it.asString } ?: emptyList(),
             neededBaseBlocks = obj.getAsJsonArray("neededBaseBlocks")?.map { it.asString } ?: emptyList(),
-            moonPhase = obj.get("moonPhase")?.asString,
+            moonPhase = obj.get("moonPhase")?.let {
+                if (it.isJsonPrimitive && it.asJsonPrimitive.isNumber) it.asInt.toString()
+                else it.asString
+            },
             fluid = obj.get("fluid")?.asString
         )
     }
@@ -434,7 +448,7 @@ object SpawnDataLoader {
             }
         } catch (_: Exception) {}
 
-        return paths
+        return paths.distinct()
     }
 
     @Deprecated("Use loadFromAllSources()", ReplaceWith("loadFromAllSources()"))
@@ -444,6 +458,7 @@ object SpawnDataLoader {
         return findCobblemonRootPath()?.resolve("data/cobblemon/$subdir")?.takeIf { Files.exists(it) }
     }
 
+    @Volatile
     private var cachedRootPath: Path? = null
 
     fun findCobblemonRootPath(): Path? {

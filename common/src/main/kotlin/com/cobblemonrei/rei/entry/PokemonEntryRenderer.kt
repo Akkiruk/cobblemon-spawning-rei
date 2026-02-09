@@ -14,8 +14,8 @@ import net.minecraft.world.item.ItemStack
 
 class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
 
-    private val itemCache = HashMap<String, ItemStack?>()
-    private val speciesCache = HashMap<String, com.cobblemon.mod.common.pokemon.Species?>()
+    private val itemCache = java.util.concurrent.ConcurrentHashMap<String, ItemStack?>()
+    private val speciesCache = java.util.concurrent.ConcurrentHashMap<String, com.cobblemon.mod.common.pokemon.Species?>()
 
     override fun render(
         entry: EntryStack<PokemonEntry>,
