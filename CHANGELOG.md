@@ -1,3 +1,10 @@
+## [1.2.3] - 2026-02-08
+
+### Fixed
+- Species list now built from all sources (spawns, evolutions, runtime API)
+- No longer relies solely on runtime API for species discovery
+- Pokemon entries now appear even if Cobblemon species aren't loaded yet
+
 ## [1.2.2] - 2026-02-08
 
 ### Fixed
