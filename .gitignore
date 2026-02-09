@@ -6,7 +6,6 @@ run/
 
 # Gradle
 .gradle/
-gradle/wrapper/gradle-wrapper.jar
 
 # IDE
 .idea/
