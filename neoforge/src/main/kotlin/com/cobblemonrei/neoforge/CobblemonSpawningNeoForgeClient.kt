@@ -14,13 +14,11 @@ class CobblemonSpawningNeoForgeREI : com.cobblemonrei.rei.CobblemonREIClientPlug
 @EventBusSubscriber(modid = CobblemonSpawningMod.NEOFORGE_MOD_ID, bus = EventBusSubscriber.Bus.GAME, value = [Dist.CLIENT])
 object CobblemonSpawningNeoForgeClient {
 
-    private var initialized = false
-
     @SubscribeEvent
+    @JvmStatic
     fun onClientTick(event: ClientTickEvent.Post) {
-        if (!initialized && Minecraft.getInstance().player != null) {
-            initialized = true
-            CobblemonSpawningMod.onClientReady()
+        if (Minecraft.getInstance().player != null) {
+            CobblemonSpawningMod.tickReloadCheck()
         }
     }
 }

@@ -1,10 +1,8 @@
 package com.cobblemonrei.rei.entry
 
 import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
-import com.cobblemon.mod.common.client.gui.drawProfilePokemon
-import com.cobblemon.mod.common.client.render.models.blockbench.FloatingState
-import com.cobblemon.mod.common.entity.PoseType
-import com.cobblemon.mod.common.pokemon.RenderablePokemon
+import com.cobblemon.mod.common.item.PokemonItem
+import com.cobblemonrei.DebugLog
 import me.shedaniel.math.Rectangle
 import me.shedaniel.rei.api.client.entry.renderer.EntryRenderer
 import me.shedaniel.rei.api.client.gui.widgets.Tooltip
@@ -12,20 +10,12 @@ import me.shedaniel.rei.api.client.gui.widgets.TooltipContext
 import me.shedaniel.rei.api.common.entry.EntryStack
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.network.chat.Component
-import org.joml.Quaternionf
+import net.minecraft.world.item.ItemStack
 
 class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
 
-    private val stateCache = HashMap<String, FloatingState>()
-
-    companion object {
-        // Cobblemon PC StorageSlot reference values (25px slots)
-        private const val PC_SLOT_SIZE = 25f
-        private const val PC_PRESCALE = 2.5f
-        private const val PC_PROFILE_SCALE = 4.5f
-        private const val PC_Y_OFFSET = 1.0
-        private const val DEG_TO_RAD = Math.PI.toFloat() / 180f
-    }
+    private val itemCache = HashMap<String, ItemStack?>()
+    private val speciesCache = HashMap<String, com.cobblemon.mod.common.pokemon.Species?>()
 
     override fun render(
         entry: EntryStack<PokemonEntry>,
@@ -36,79 +26,54 @@ class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
         delta: Float
     ) {
         val pokemon = entry.value ?: return
-        
-        val species = try {
-            PokemonSpecies.getByName(pokemon.species)
-        } catch (_: Exception) {
-            null
-        }
+        val itemStack = getOrCreateItem(pokemon.species)
 
-        if (species == null) {
-            renderFallbackText(graphics, bounds, pokemon.displayName)
-            return
-        }
+        if (itemStack != null && !itemStack.isEmpty) {
+            val poseStack = graphics.pose()
+            poseStack.pushPose()
 
-        val state = stateCache.getOrPut(pokemon.species) { FloatingState() }
-        val renderable = RenderablePokemon(species, pokemon.formAspects)
+            val slotSize = bounds.width.coerceAtMost(bounds.height).toFloat()
+            val scale = slotSize / 16f
+            poseStack.translate(bounds.x.toFloat(), bounds.y.toFloat(), 0f)
+            poseStack.scale(scale, scale, 1f)
 
-        val poseStack = graphics.pose()
-        
-        // Scale proportionally to Cobblemon's PC slot (25px with 2.5x prescale, 4.5 profile scale)
-        val slotSize = bounds.width.coerceAtMost(bounds.height).toFloat()
-        val ratio = slotSize / PC_SLOT_SIZE
-        val preScale = PC_PRESCALE * ratio
-
-        // Anchor at horizontal center, near slot top — model hangs downward from anchor
-        val centerX = bounds.x + bounds.width / 2.0
-        val anchorY = bounds.y + PC_Y_OFFSET * ratio
-
-        graphics.enableScissor(bounds.x, bounds.y, bounds.maxX, bounds.maxY)
-        poseStack.pushPose()
-        poseStack.translate(centerX, anchorY, 100.0)
-        poseStack.scale(preScale, preScale, 1f)
-
-        try {
-            drawProfilePokemon(
-                renderablePokemon = renderable,
-                matrixStack = poseStack,
-                rotation = Quaternionf().rotationXYZ(13f * DEG_TO_RAD, 35f * DEG_TO_RAD, 0f),
-                poseType = PoseType.PROFILE,
-                state = state,
-                partialTicks = 0f,
-                scale = PC_PROFILE_SCALE
-            )
-        } catch (_: Exception) {
+            graphics.renderItem(itemStack, 0, 0)
             poseStack.popPose()
-            graphics.disableScissor()
-            renderFallbackText(graphics, bounds, pokemon.displayName)
-            return
         }
-
-        poseStack.popPose()
-        graphics.disableScissor()
     }
 
-    private fun renderFallbackText(graphics: GuiGraphics, bounds: Rectangle, name: String) {
-        val label = if (name.length > 4) name.take(3) + "." else name
-        val font = net.minecraft.client.Minecraft.getInstance().font
-        val textWidth = font.width(label)
-        val x = bounds.centerX - textWidth / 2
-        val y = bounds.centerY - font.lineHeight / 2
-        graphics.drawString(font, label, x, y, 0xFFAAAAAA.toInt(), false)
+    private fun getOrCreateItem(species: String): ItemStack? {
+        return itemCache.getOrPut(species) {
+            val speciesObj = resolveSpecies(species)
+            if (speciesObj != null) {
+                try { PokemonItem.from(speciesObj) } catch (_: Exception) { null }
+            } else null
+        }
+    }
+
+    fun resolveSpecies(species: String): com.cobblemon.mod.common.pokemon.Species? {
+        return speciesCache.getOrPut(species) {
+            try { PokemonSpecies.getByName(species) } catch (_: Exception) { null }
+        }
+    }
+
+    fun canRender(species: String): Boolean {
+        val item = getOrCreateItem(species)
+        return item != null && !item.isEmpty
     }
 
     override fun getTooltip(entry: EntryStack<PokemonEntry>, context: TooltipContext): Tooltip? {
         val pokemon = entry.value ?: return null
-        val species = try {
-            PokemonSpecies.getByName(pokemon.species)
-        } catch (_: Exception) {
-            null
-        }
-
+        val species = resolveSpecies(pokemon.species)
         val tooltip = Tooltip.create(Component.literal(pokemon.displayName))
         if (species != null) {
             tooltip.add(Component.literal("§7#${species.nationalPokedexNumber}"))
         }
         return tooltip
+    }
+
+    fun invalidateCaches() {
+        itemCache.clear()
+        speciesCache.clear()
     }
 }

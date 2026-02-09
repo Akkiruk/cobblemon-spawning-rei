@@ -1,6 +1,15 @@
 package com.cobblemonrei
 
+import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
+
+@Suppress("ObjectPropertyName")
 object SpawnDataIndex {
+
+    enum class LoadState { NOT_LOADED, PARTIAL, FULLY_LOADED }
+
+    @Volatile
+    var loadState = LoadState.NOT_LOADED
+        private set
 
     var spawnsBySpecies: Map<String, List<SpawnInfo>> = emptyMap()
         private set
@@ -8,7 +17,6 @@ object SpawnDataIndex {
     var evolutionsBySpecies: Map<String, List<EvolutionInfo>> = emptyMap()
         private set
 
-    // Reverse lookup: what evolves INTO this species
     var evolutionsToSpecies: Map<String, List<EvolutionInfo>> = emptyMap()
         private set
 
@@ -18,25 +26,47 @@ object SpawnDataIndex {
     var allSpeciesNames: List<String> = emptyList()
         private set
 
-    fun loadAll() {
-        spawnsBySpecies = SpawnDataLoader.loadFromCobblemonJar()
+    fun isFullyLoaded(): Boolean = loadState == LoadState.FULLY_LOADED
 
-        // Try runtime API for evolutions and species info
-        try {
-            evolutionsBySpecies = EvolutionDataLoader.loadFromRuntime()
-        } catch (e: Exception) {
-            CobblemonSpawningMod.LOGGER.warn("[CobblemonSpawningREI] Runtime evolution load failed: ${e.message}")
-            evolutionsBySpecies = emptyMap()
+    fun ensureLoaded() {
+        when (loadState) {
+            LoadState.FULLY_LOADED -> return
+            LoadState.PARTIAL -> {
+                val count = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
+                if (count > 0) {
+                    DebugLog.info("Runtime API now has $count species, reloading")
+                    loadAll()
+                }
+            }
+            LoadState.NOT_LOADED -> loadAll()
         }
+    }
 
-        try {
-            speciesInfo = EvolutionDataLoader.loadSpeciesBasicInfoFromRuntime()
-        } catch (e: Exception) {
-            CobblemonSpawningMod.LOGGER.warn("[CobblemonSpawningREI] Runtime species info load failed: ${e.message}")
+    fun loadAll() {
+        spawnsBySpecies = SpawnDataLoader.loadFromAllSources()
+
+        val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
+
+        if (runtimeCount > 0) {
+            try {
+                evolutionsBySpecies = EvolutionDataLoader.loadFromRuntime()
+            } catch (e: Exception) {
+                DebugLog.warn("Runtime evolution load failed: ${e.message}")
+                evolutionsBySpecies = emptyMap()
+            }
+
+            try {
+                speciesInfo = EvolutionDataLoader.loadSpeciesBasicInfoFromRuntime()
+            } catch (e: Exception) {
+                DebugLog.warn("Runtime species info load failed: ${e.message}")
+                speciesInfo = emptyMap()
+            }
+        } else {
+            DebugLog.warn("PokemonSpecies.implemented empty, spawn data only")
+            evolutionsBySpecies = emptyMap()
             speciesInfo = emptyMap()
         }
 
-        // Build reverse evolution index
         val reverseMap = mutableMapOf<String, MutableList<EvolutionInfo>>()
         for ((_, evolutions) in evolutionsBySpecies) {
             for (evo in evolutions) {
@@ -45,7 +75,6 @@ object SpawnDataIndex {
         }
         evolutionsToSpecies = reverseMap
 
-        // Collect ALL species from every source
         val allNames = mutableSetOf<String>()
         allNames.addAll(spawnsBySpecies.keys)
         allNames.addAll(evolutionsBySpecies.keys)
@@ -54,7 +83,14 @@ object SpawnDataIndex {
         }
         allNames.addAll(speciesInfo.keys)
 
-        // Create placeholder info for species found in spawns but missing from runtime API
+        if (runtimeCount > 0) {
+            try {
+                for (species in PokemonSpecies.implemented) {
+                    allNames.add(species.name.lowercase())
+                }
+            } catch (_: Exception) {}
+        }
+
         val mutableInfo = speciesInfo.toMutableMap()
         for (name in allNames) {
             if (name !in mutableInfo) {
@@ -71,7 +107,6 @@ object SpawnDataIndex {
         }
         speciesInfo = mutableInfo
 
-        // Sort by dex number; unknown (dex=0) at end, alphabetically
         allSpeciesNames = allNames.sortedWith(
             compareBy<String> {
                 val dex = speciesInfo[it]?.nationalDexNumber ?: 0
@@ -79,26 +114,20 @@ object SpawnDataIndex {
             }.thenBy { it }
         )
 
-        CobblemonSpawningMod.LOGGER.info(
-            "[CobblemonSpawningREI] Total species: ${allSpeciesNames.size} " +
-            "(${speciesInfo.count { it.value.nationalDexNumber > 0 }} with dex info, " +
+        loadState = if (runtimeCount > 0) LoadState.FULLY_LOADED else LoadState.PARTIAL
+
+        DebugLog.info(
+            "Load complete (${loadState.name}): ${allSpeciesNames.size} species " +
+            "(${speciesInfo.count { it.value.nationalDexNumber > 0 }} with dex, " +
             "${spawnsBySpecies.size} with spawns, ${evolutionsBySpecies.size} with evolutions)"
         )
     }
 
-    fun getSpawnsFor(species: String): List<SpawnInfo> {
-        return spawnsBySpecies[species.lowercase()] ?: emptyList()
-    }
+    fun getSpawnsFor(species: String): List<SpawnInfo> = spawnsBySpecies[species.lowercase()] ?: emptyList()
 
-    fun getEvolutionsFrom(species: String): List<EvolutionInfo> {
-        return evolutionsBySpecies[species.lowercase()] ?: emptyList()
-    }
+    fun getEvolutionsFrom(species: String): List<EvolutionInfo> = evolutionsBySpecies[species.lowercase()] ?: emptyList()
 
-    fun getEvolutionsTo(species: String): List<EvolutionInfo> {
-        return evolutionsToSpecies[species.lowercase()] ?: emptyList()
-    }
+    fun getEvolutionsTo(species: String): List<EvolutionInfo> = evolutionsToSpecies[species.lowercase()] ?: emptyList()
 
-    fun getSpeciesInfo(species: String): EvolutionDataLoader.SpeciesBasicInfo? {
-        return speciesInfo[species.lowercase()]
-    }
+    fun getSpeciesInfo(species: String): EvolutionDataLoader.SpeciesBasicInfo? = speciesInfo[species.lowercase()]
 }

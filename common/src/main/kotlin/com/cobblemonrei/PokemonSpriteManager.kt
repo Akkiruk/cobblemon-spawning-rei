@@ -30,9 +30,9 @@ object PokemonSpriteManager {
                     index[species] = filename
                 }
             }
-            CobblemonSpawningMod.LOGGER.info("[CobblemonSpawningREI] Indexed ${index.size} sprite files")
+            DebugLog.debug("Indexed ${index.size} sprite files")
         } catch (e: Exception) {
-            CobblemonSpawningMod.LOGGER.warn("[CobblemonSpawningREI] Failed to index sprites: ${e.message}")
+            DebugLog.warn("Failed to index sprites: ${e.message}")
         }
         return index
     }
@@ -77,6 +77,6 @@ object PokemonSpriteManager {
     // Pre-warm: call during data load to ensure index is built
     fun initialize() {
         val count = speciesFileIndex.size
-        CobblemonSpawningMod.LOGGER.info("[CobblemonSpawningREI] Sprite manager ready with $count sprites")
+        DebugLog.debug("Sprite manager ready with $count sprites")
     }
 }

@@ -1,6 +1,9 @@
 package com.cobblemonrei.rei.spawn
 
 import com.cobblemonrei.CobblemonSpawningMod
+import com.cobblemonrei.SpawnInfo
+import com.cobblemonrei.formatBiomeName
+import com.cobblemonrei.formatId
 import com.cobblemonrei.rei.entry.PokemonEntry
 import com.cobblemonrei.rei.entry.PokemonEntryType
 import me.shedaniel.math.Point
@@ -21,15 +24,69 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
         val ID: CategoryIdentifier<SpawnDisplay> = CategoryIdentifier.of(
             CobblemonSpawningMod.MOD_ID, "spawns"
         )
+
+        private const val PADDING = 8
+        private const val SECTION_GAP = 4
+        private const val LINE_HEIGHT = 11
+        private const val HEADER_HEIGHT = 28
+
+        private val BUCKET_ORDER = listOf("common", "uncommon", "rare", "ultra-rare")
+
+        private val BUCKET_COLORS = mapOf(
+            "common" to 0xFF4CAF50.toInt(),
+            "uncommon" to 0xFFFFC107.toInt(),
+            "rare" to 0xFFFF5722.toInt(),
+            "ultra-rare" to 0xFFE040FB.toInt()
+        )
+
+        private val BUCKET_LABELS = mapOf(
+            "common" to "Common",
+            "uncommon" to "Uncommon",
+            "rare" to "Rare",
+            "ultra-rare" to "Ultra Rare"
+        )
+
+        private val PRESET_LABELS = mapOf(
+            "natural" to "Natural",
+            "water" to "Water",
+            "lava" to "Lava",
+            "urban" to "Urban",
+            "wild" to "Wild",
+            "foliage" to "Foliage",
+            "treetop" to "Treetop",
+            "derelict" to "Derelict",
+            "redstone" to "Redstone",
+            "ancient_city" to "Ancient City",
+            "desert_pyramid" to "Desert Pyramid",
+            "end_city" to "End City",
+            "jungle_pyramid" to "Jungle Pyramid",
+            "mansion" to "Mansion",
+            "nether_fossil" to "Nether Fossil",
+            "nether_structures" to "Nether Structure",
+            "ocean_monument" to "Ocean Monument",
+            "ocean_ruins" to "Ocean Ruins",
+            "pillager_outpost" to "Pillager Outpost",
+            "stronghold" to "Stronghold",
+            "trail_ruins" to "Trail Ruins"
+        )
+
+        fun bucketColor(bucket: String): Int =
+            BUCKET_COLORS[bucket.lowercase()] ?: 0xFFAAAAAA.toInt()
+
+        fun bucketLabel(bucket: String): String =
+            BUCKET_LABELS[bucket.lowercase()] ?: bucket.replaceFirstChar { it.uppercase() }
+
+        fun bucketSortOrder(bucket: String): Int =
+            BUCKET_ORDER.indexOf(bucket.lowercase()).let { if (it < 0) 99 else it }
     }
 
     override fun getCategoryIdentifier(): CategoryIdentifier<out SpawnDisplay> = ID
 
-    override fun getTitle(): Component = Component.literal("Cobblemon Spawns")
+    override fun getTitle(): Component = Component.literal("Spawn Locations")
 
     override fun getIcon(): Renderer = EntryStacks.of(Items.GRASS_BLOCK)
 
-    override fun getDisplayHeight(): Int = 160
+    override fun getDisplayHeight(): Int = 210
 
     override fun getFixedDisplaysPerPage(): Int = 1
 
@@ -37,100 +94,400 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
         val widgets = mutableListOf<Widget>()
         widgets.add(Widgets.createRecipeBase(bounds))
 
-        val startX = bounds.x + 6
-        val startY = bounds.y + 6
+        val left = bounds.x + PADDING
+        val right = bounds.maxX - PADDING
+        val contentWidth = right - left
+        val spawn = display.spawn
+        val color = bucketColor(spawn.bucket)
 
-        // Pokémon slot (left side of header)
+        // === Header: icon + species (left) + rarity + level (right) ===
         val pokemonStack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(display.speciesName))
         widgets.add(
-            Widgets.createSlot(Rectangle(startX, startY, 24, 24))
+            Widgets.createSlot(Rectangle(left, bounds.y + 3, 20, 20))
                 .entries(listOf(pokemonStack))
                 .markInput()
                 .disableBackground()
                 .disableHighlight()
         )
 
-        // Species name header
-        val speciesName = display.speciesName.replaceFirstChar { it.uppercase() }
+        val rightText = "${bucketLabel(spawn.bucket)}  Lv. ${spawn.levelRange}"
+        val rightReserved = rightText.length * 6 + 8
+        val maxNameChars = ((contentWidth - 24 - rightReserved) / 6).coerceIn(6, 30)
+        val title = clip(display.speciesName.replaceFirstChar { it.uppercase() }, maxNameChars)
         widgets.add(
-            Widgets.createLabel(Point(startX + 28, startY + 8), Component.literal(speciesName))
-                .leftAligned()
-                .noShadow().color(0xFF333333.toInt(), 0xFFDDDDDD.toInt())
+            Widgets.createLabel(Point(left + 24, bounds.y + 9), Component.literal(title))
+                .leftAligned().noShadow().color(0xFF333333.toInt(), 0xFFFFFFFF.toInt())
         )
 
-        // Spawn entries
-        val spawns = display.spawns
-        var y = startY + 28
+        widgets.add(
+            Widgets.createLabel(Point(right, bounds.y + 9), Component.literal(bucketLabel(spawn.bucket)))
+                .rightAligned().color(color, color)
+        )
+        val lvText = "Lv. ${spawn.levelRange}"
+        val lvX = right - (bucketLabel(spawn.bucket).length * 6 + 10)
+        widgets.add(
+            Widgets.createLabel(Point(lvX, bounds.y + 9), Component.literal(lvText))
+                .rightAligned().color(0xFF666666.toInt(), 0xFFDDDDDD.toInt())
+        )
 
-        for ((index, spawn) in spawns.withIndex()) {
-            if (y + 24 > bounds.maxY - 4) break
+        // Separator with breathing room
+        val sepY = bounds.y + HEADER_HEIGHT + 2
+        widgets.add(Widgets.createDrawableWidget { gfx, _, _, _ ->
+            gfx.fill(left, sepY, right, sepY + 1, 0x50FFFFFF)
+        })
 
-            // Rarity bucket colored bar
-            widgets.add(Widgets.createDrawableWidget { graphics, _, _, _ ->
-                graphics.fill(startX, y, startX + 3, y + 12, spawn.bucketColor)
-            })
+        var y = sepY + SECTION_GAP + 4
 
-            val bucketText = "${spawn.bucket.replaceFirstChar { it.uppercase() }} (${spawn.weight})"
+        // === Context line: rarity pip + context/presets/forms + weight ===
+        val pipY = y
+        widgets.add(Widgets.createDrawableWidget { gfx, _, _, _ ->
+            gfx.fill(left, pipY + 1, left + 3, pipY + LINE_HEIGHT - 1, color)
+        })
+
+        val ctxParts = mutableListOf<String>()
+        if (spawn.context != "grounded") ctxParts.add(spawn.displayContext)
+        if (spawn.presets.isNotEmpty()) {
+            val tags = spawn.presets.mapNotNull { PRESET_LABELS[it] ?: it.replaceFirstChar { c -> c.uppercase() } }
+            ctxParts.add(tags.joinToString(", "))
+        }
+        if (display.mergedFormVariants.isNotEmpty()) {
+            ctxParts.add("Forms: ${display.mergedFormVariants.joinToString(", ")}")
+        } else if (spawn.hasFormVariant) {
+            ctxParts.add("Form: ${formatFormAspects(spawn.formAspects)}")
+        }
+
+        // Weight: hide 0, show readable label
+        val weightLabel = when {
+            spawn.weight <= 0f -> null
+            else -> "Weight: ${formatWeight(spawn.weight)}"
+        }
+        val weightReserved = (weightLabel?.length ?: 0) * 6 + 8
+        val ctxMaxChars = ((contentWidth - 7 - weightReserved) / 5.5).toInt().coerceIn(10, 60)
+
+        if (ctxParts.isNotEmpty()) {
+            val ctxText = clip(ctxParts.joinToString(" \u00B7 "), ctxMaxChars)
             widgets.add(
-                Widgets.createLabel(Point(startX + 7, y + 2), Component.literal(bucketText))
-                    .leftAligned().noShadow().color(0xFF555555.toInt(), 0xFFBBBBBB.toInt())
+                Widgets.createLabel(Point(left + 7, y), Component.literal(ctxText))
+                    .leftAligned().noShadow().color(0xFF555555.toInt(), 0xFFDDDDDD.toInt())
             )
-
-            val levelText = "Lv. ${spawn.levelRange}"
+        }
+        if (weightLabel != null) {
             widgets.add(
-                Widgets.createLabel(Point(bounds.maxX - 8, y + 2), Component.literal(levelText))
-                    .rightAligned().noShadow().color(0xFF555555.toInt(), 0xFFBBBBBB.toInt())
+                Widgets.createLabel(Point(right, y), Component.literal(weightLabel))
+                    .rightAligned().color(0xFF666666.toInt(), 0xFFBBBBBB.toInt())
             )
+        }
+        y += LINE_HEIGHT + SECTION_GAP
 
-            y += 13
-
-            val biomeStr = if (spawn.formattedBiomes.isNotEmpty()) {
-                spawn.formattedBiomes.joinToString(", ")
-            } else {
-                "Any biome"
-            }
+        // === Biomes ===
+        val biomeNames = spawn.biomes.map { formatBiomeName(it) }
+        if (biomeNames.isNotEmpty()) {
+            val header = if (biomeNames.size > 1) "\u2302 Biomes (any of)" else "\u2302 Biome"
             widgets.add(
-                Widgets.createLabel(Point(startX + 7, y + 2), Component.literal("  $biomeStr"))
-                    .leftAligned().noShadow().color(0xFF777777.toInt(), 0xFF999999.toInt())
+                Widgets.createLabel(Point(left, y), Component.literal(header))
+                    .leftAligned().noShadow().color(0xFF333333.toInt(), 0xFFEEEEEE.toInt())
             )
+            y += LINE_HEIGHT
 
-            y += 12
-
-            val conditions = mutableListOf<String>()
-            spawn.timeRange?.let { conditions.add(it.replaceFirstChar { c -> c.uppercase() }) }
-            if (spawn.weather.displayText != "Any") conditions.add(spawn.weather.displayText)
-            if (spawn.context != "grounded") conditions.add(spawn.context.replaceFirstChar { it.uppercase() })
-            spawn.moonPhase?.let { conditions.add("Moon: ${it.replaceFirstChar { c -> c.uppercase() }}") }
-            if (spawn.canSeeSky == true) conditions.add("Sky visible")
-            if (spawn.canSeeSky == false) conditions.add("Underground")
-
-            if (conditions.isNotEmpty()) {
+            val biomeStr = biomeNames.joinToString(", ")
+            val maxChars = ((contentWidth - 8) / 5.5).toInt().coerceIn(20, 80)
+            for (line in wrapText(biomeStr, maxChars).take(4)) {
                 widgets.add(
-                    Widgets.createLabel(
-                        Point(startX + 7, y + 2),
-                        Component.literal("  ${conditions.joinToString(" · ")}")
-                    ).leftAligned().noShadow().color(0xFF999999.toInt(), 0xFF777777.toInt())
+                    Widgets.createLabel(Point(left + 8, y), Component.literal(line))
+                        .leftAligned().noShadow().color(0xFF404040.toInt(), 0xFFDDDDDD.toInt())
                 )
-                y += 12
+                y += LINE_HEIGHT
             }
+            y += SECTION_GAP
+        }
 
-            if (index < spawns.size - 1) {
-                widgets.add(Widgets.createDrawableWidget { graphics, _, _, _ ->
-                    graphics.fill(startX + 4, y + 1, bounds.maxX - 8, y + 2, 0x20FFFFFF)
-                })
-                y += 5
+        // === Conditions (time, weather, sky, light, Y-level, moon, fishing) ===
+        val conditions = buildConditions(spawn)
+        if (conditions.isNotEmpty()) {
+            widgets.add(
+                Widgets.createLabel(Point(left, y), Component.literal("\u2699 Conditions"))
+                    .leftAligned().noShadow().color(0xFF333333.toInt(), 0xFFEEEEEE.toInt())
+            )
+            y += LINE_HEIGHT
+
+            for (cond in conditions) {
+                if (y + LINE_HEIGHT > bounds.maxY - 18) break
+                widgets.add(
+                    Widgets.createLabel(Point(left + 8, y), Component.literal(cond))
+                        .leftAligned().noShadow().color(0xFF404040.toInt(), 0xFFDDDDDD.toInt())
+                )
+                y += LINE_HEIGHT
+            }
+            y += SECTION_GAP
+        }
+
+        // === Location (structures, dimensions, blocks, fluid) ===
+        val specials = buildSpecials(spawn)
+        if (specials.isNotEmpty()) {
+            widgets.add(
+                Widgets.createLabel(Point(left, y), Component.literal("\u2605 Location"))
+                    .leftAligned().noShadow().color(0xFF333333.toInt(), 0xFFEEEEEE.toInt())
+            )
+            y += LINE_HEIGHT
+
+            for (s in specials) {
+                if (y + LINE_HEIGHT > bounds.maxY - 18) break
+                widgets.add(
+                    Widgets.createLabel(Point(left + 8, y), Component.literal(s))
+                        .leftAligned().color(0xFF806020.toInt(), 0xFFFFCC66.toInt())
+                )
+                y += LINE_HEIGHT
+            }
+            y += SECTION_GAP
+        }
+
+        // === Excluded (anti-conditions) ===
+        val anti = spawn.anticondition
+        if (anti != null && !anti.isEmpty) {
+            val lines = buildExclusionLines(anti)
+            if (lines.isNotEmpty()) {
+                widgets.add(
+                    Widgets.createLabel(Point(left, y), Component.literal("\u2718 Excluded"))
+                        .leftAligned().color(0xFFAA3333.toInt(), 0xFFFF7777.toInt())
+                )
+                y += LINE_HEIGHT
+
+                for (line in lines) {
+                    if (y + LINE_HEIGHT > bounds.maxY - 18) break
+                    widgets.add(
+                        Widgets.createLabel(Point(left + 8, y), Component.literal(line))
+                            .leftAligned().color(0xFF993333.toInt(), 0xFFEE8888.toInt())
+                    )
+                    y += LINE_HEIGHT
+                }
+                y += SECTION_GAP
             }
         }
 
-        if (y + 24 > bounds.maxY - 4 && spawns.size > 1) {
+        // === Weight multipliers ===
+        if (spawn.weightMultipliers.isNotEmpty()) {
             widgets.add(
-                Widgets.createLabel(
-                    Point(bounds.centerX, bounds.maxY - 12),
-                    Component.literal("... and more spawn locations")
-                ).centered().noShadow().color(0xFF888888.toInt(), 0xFF888888.toInt())
+                Widgets.createLabel(Point(left, y), Component.literal("\u25B2 Weight Modifiers"))
+                    .leftAligned().noShadow().color(0xFF333333.toInt(), 0xFFEEEEEE.toInt())
+            )
+            y += LINE_HEIGHT
+
+            for (wm in spawn.weightMultipliers) {
+                if (y + LINE_HEIGHT > bounds.maxY - 18) break
+                val arrow: String
+                val lightColor: Int
+                val darkColor: Int
+                when {
+                    wm.multiplier > 1f -> { arrow = "\u25B2"; lightColor = 0xFF336633.toInt(); darkColor = 0xFF88DD88.toInt() }
+                    wm.multiplier < 1f -> { arrow = "\u25BC"; lightColor = 0xFF993333.toInt(); darkColor = 0xFFEE8888.toInt() }
+                    else -> { arrow = "\u25CF"; lightColor = 0xFF555555.toInt(); darkColor = 0xFFBBBBBB.toInt() }
+                }
+                val condText = clip(wm.conditionSummary, 40)
+                widgets.add(
+                    Widgets.createLabel(
+                        Point(left + 8, y),
+                        Component.literal("$arrow ${formatWeight(wm.multiplier)}x $condText")
+                    ).leftAligned().noShadow().color(lightColor, darkColor)
+                )
+                y += LINE_HEIGHT
+            }
+        }
+
+        // === Footer: bucket page context + summary ===
+        val footerY = bounds.maxY - PADDING - 2
+        widgets.add(Widgets.createDrawableWidget { gfx, _, _, _ ->
+            gfx.fill(left, footerY - 4, right, footerY - 3, 0x20FFFFFF)
+        })
+
+        val footerLeft = "${bucketLabel(spawn.bucket)} ${display.bucketIndex}/${display.bucketTotal}"
+        widgets.add(
+            Widgets.createLabel(Point(left, footerY), Component.literal(footerLeft))
+                .leftAligned().color(color, color)
+        )
+
+        val summaryParts = mutableListOf<String>()
+        if (spawn.presets.isNotEmpty()) {
+            spawn.presets.mapNotNull { PRESET_LABELS[it] }.firstOrNull()?.let { summaryParts.add(it) }
+        }
+        if (spawn.structures.isNotEmpty()) {
+            summaryParts.add(formatId(spawn.structures.first()))
+        } else if (spawn.biomes.isNotEmpty()) {
+            summaryParts.add(formatBiomeName(spawn.biomes.first()))
+        }
+        if (summaryParts.isNotEmpty()) {
+            val maxFooterRight = ((contentWidth - footerLeft.length * 6 - 16) / 5.5).toInt().coerceIn(10, 40)
+            val summaryText = clip(summaryParts.joinToString(" \u00B7 "), maxFooterRight)
+            widgets.add(
+                Widgets.createLabel(Point(right, footerY), Component.literal(summaryText))
+                    .rightAligned().color(0xFF777777.toInt(), 0xFFBBBBBB.toInt())
             )
         }
 
         return widgets
     }
+
+    // --- Condition builders ---
+
+    private fun buildConditions(spawn: SpawnInfo): List<String> {
+        val list = mutableListOf<String>()
+
+        spawn.timeRange?.let {
+            val icon = when {
+                it.contains("day", true) -> "\u2600 "
+                it.contains("night", true) -> "\u263D "
+                it.contains("dusk", true) || it.contains("dawn", true) -> "\u263C "
+                else -> ""
+            }
+            list.add("$icon${it.replaceFirstChar { c -> c.uppercase() }}")
+        }
+
+        val weather = spawn.weather.displayText
+        if (weather != "Any") {
+            val icon = when (weather) {
+                "Thunder" -> "\u26A1 "
+                "Rain" -> "\u2602 "
+                "Clear" -> "\u2600 "
+                else -> ""
+            }
+            list.add("$icon$weather")
+        }
+
+        if (spawn.canSeeSky == true) list.add("Open sky")
+        if (spawn.canSeeSky == false) list.add("Underground")
+
+        if (spawn.minSkyLight != null || spawn.maxSkyLight != null) {
+            val min = spawn.minSkyLight ?: 0
+            val max = spawn.maxSkyLight ?: 15
+            when {
+                min == 0 && max <= 7 -> list.add("Dark (sky light \u2264$max)")
+                min >= 8 -> list.add("Bright (sky light \u2265$min)")
+                else -> list.add("Sky light $min\u2013$max")
+            }
+        }
+
+        if (spawn.minLight != null || spawn.maxLight != null) {
+            val min = spawn.minLight ?: 0
+            val max = spawn.maxLight ?: 15
+            if (max == 0) list.add("No light") else list.add("Light $min\u2013$max")
+        }
+
+        if (spawn.minY != null || spawn.maxY != null) {
+            when {
+                spawn.minY != null && spawn.maxY != null -> list.add("Y: ${spawn.minY} to ${spawn.maxY}")
+                spawn.minY != null -> list.add("Y \u2265 ${spawn.minY}")
+                spawn.maxY != null -> list.add("Y \u2264 ${spawn.maxY}")
+            }
+        }
+
+        spawn.moonPhase?.let { list.add("Moon: ${it.replaceFirstChar { c -> c.uppercase() }}") }
+
+        if (spawn.isFishing) {
+            val lure = spawn.minLureLevel
+            if (lure != null && lure > 0) list.add("Fishing (Lure $lure+)") else list.add("Fishing")
+        }
+
+        return list
+    }
+
+    private fun buildSpecials(spawn: SpawnInfo): List<String> {
+        val list = mutableListOf<String>()
+
+        val structNames = spawn.structures.map { formatId(it) }.toSet()
+
+        if (structNames.isNotEmpty()) {
+            val clipped = structNames.joinToString(", ").let { clip(it, 40) }
+            list.add("Near structure: $clipped")
+        }
+
+        if (spawn.dimensions.isNotEmpty()) {
+            list.add("Dimension: ${spawn.dimensions.joinToString(", ") { formatDimension(it) }}")
+        }
+
+        spawn.fluid?.let {
+            val name = when {
+                it.contains("water") -> "Water"
+                it.contains("lava") -> "Lava"
+                else -> formatId(it)
+            }
+            list.add("In fluid: $name")
+        }
+
+        if (spawn.neededBaseBlocks.isNotEmpty()) {
+            val names = spawn.neededBaseBlocks.map { formatId(it) }
+            // Skip if all base blocks look like structure blocks and we already show the structure
+            val redundant = structNames.isNotEmpty() && names.all { it.lowercase().contains("structure") }
+            if (!redundant) {
+                list.add("On block: ${clip(names.joinToString(", "), 40)}")
+            }
+        }
+
+        if (spawn.neededNearbyBlocks.isNotEmpty()) {
+            val names = spawn.neededNearbyBlocks.map { formatId(it) }
+            val redundant = structNames.isNotEmpty() && names.all { it.lowercase().contains("structure") }
+            if (!redundant) {
+                list.add("Near block: ${clip(names.joinToString(", "), 40)}")
+            }
+        }
+
+        return list
+    }
+
+    private fun buildExclusionLines(anti: com.cobblemonrei.SpawnAntiCondition): List<String> {
+        val lines = mutableListOf<String>()
+        if (anti.biomes.isNotEmpty()) {
+            val names = anti.biomes.map { formatBiomeName(it) }
+            lines.add("Biomes: ${names.joinToString(", ")}")
+        }
+        if (anti.structures.isNotEmpty()) {
+            lines.add("Structures: ${anti.structures.map { formatId(it) }.joinToString(", ")}")
+        }
+        if (anti.minY != null || anti.maxY != null) {
+            val range = listOfNotNull(
+                anti.minY?.let { "Y \u2265 $it" },
+                anti.maxY?.let { "Y \u2264 $it" }
+            )
+            lines.add("Height: ${range.joinToString(", ")}")
+        }
+        return lines
+    }
+
+    // --- Formatting helpers ---
+
+    private fun formatFormAspects(aspects: String): String {
+        return aspects
+            .replace("region_bias=", "")
+            .replace("_", " ")
+            .replaceFirstChar { it.uppercase() }
+    }
+
+    private fun formatWeight(weight: Float): String =
+        if (weight == weight.toLong().toFloat()) weight.toLong().toString() else "%.1f".format(weight)
+
+    private fun formatDimension(dim: String): String = when (dim.lowercase()) {
+        "minecraft:overworld" -> "Overworld"
+        "minecraft:the_nether" -> "Nether"
+        "minecraft:the_end" -> "The End"
+        else -> formatId(dim)
+    }
+
+    private fun wrapText(text: String, maxChars: Int): List<String> {
+        if (text.length <= maxChars) return listOf(text)
+        val items = text.split(", ")
+        val lines = mutableListOf<String>()
+        var current = ""
+        for (item in items) {
+            val next = if (current.isEmpty()) item else "$current, $item"
+            if (next.length > maxChars && current.isNotEmpty()) {
+                lines.add(current)
+                current = item
+            } else {
+                current = next
+            }
+        }
+        if (current.isNotEmpty()) lines.add(current)
+        return lines
+    }
+
+    private fun clip(text: String, maxLen: Int): String =
+        if (text.length > maxLen) text.take(maxLen - 1) + "\u2026" else text
 }

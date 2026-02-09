@@ -12,7 +12,9 @@ import net.minecraft.resources.ResourceLocation
 import java.util.Optional
 
 class EvolutionDisplay(
-    val evolution: EvolutionInfo
+    val evolution: EvolutionInfo,
+    val branchIndex: Int = 0,
+    val branchTotal: Int = 0
 ) : Display {
 
     override fun getInputEntries(): List<EntryIngredient> {

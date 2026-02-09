@@ -21,6 +21,9 @@ class EvolutionCategory : DisplayCategory<EvolutionDisplay> {
         val ID: CategoryIdentifier<EvolutionDisplay> = CategoryIdentifier.of(
             CobblemonSpawningMod.MOD_ID, "evolution"
         )
+
+        private const val SLOT_SIZE = 30
+        private const val MAX_NAME_CHARS = 18
     }
 
     override fun getCategoryIdentifier(): CategoryIdentifier<out EvolutionDisplay> = ID
@@ -29,78 +32,109 @@ class EvolutionCategory : DisplayCategory<EvolutionDisplay> {
 
     override fun getIcon(): Renderer = EntryStacks.of(Items.EXPERIENCE_BOTTLE)
 
-    override fun getDisplayHeight(): Int = 80
+    override fun getDisplayHeight(): Int = 100
 
-    override fun getFixedDisplaysPerPage(): Int = 3
+    override fun getFixedDisplaysPerPage(): Int = 2
 
     override fun setupDisplay(display: EvolutionDisplay, bounds: Rectangle): List<Widget> {
         val widgets = mutableListOf<Widget>()
         widgets.add(Widgets.createRecipeBase(bounds))
 
-        val centerY = bounds.centerY
-        val startX = bounds.x + 10
-        val slotSize = 28
+        val centerX = bounds.centerX
+        val padding = 8
+        val availableWidth = bounds.width - padding * 2
 
-        // From species slot (left side)
+        val slotY = bounds.y + 10
+        val nameY = slotY + SLOT_SIZE + 3
+
+        // From species
+        val fromSlotX = bounds.x + padding + 12
         val fromStack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(display.evolution.fromSpecies))
         widgets.add(
-            Widgets.createSlot(Rectangle(startX, centerY - slotSize / 2 - 4, slotSize, slotSize))
+            Widgets.createSlot(Rectangle(fromSlotX, slotY, SLOT_SIZE, SLOT_SIZE))
                 .entries(listOf(fromStack))
                 .markInput()
                 .disableBackground()
-                .disableHighlight()
         )
-
-        // From species name
-        val fromName = display.evolution.fromSpecies.replaceFirstChar { it.uppercase() }
         widgets.add(
-            Widgets.createLabel(Point(startX + slotSize + 2, centerY - 12), Component.literal(fromName))
-                .leftAligned().noShadow().color(0xFF333333.toInt(), 0xFFDDDDDD.toInt())
+            Widgets.createLabel(Point(fromSlotX + SLOT_SIZE / 2, nameY), Component.literal(clip(display.evolution.displayFromName, MAX_NAME_CHARS)))
+                .centered().noShadow().color(0xFF333333.toInt(), 0xFFFFFFFF.toInt())
         )
 
-        // Arrow
-        widgets.add(Widgets.createArrow(Point(bounds.centerX - 12, centerY - 9)))
+        if (display.branchTotal > 1) {
+            widgets.add(
+                Widgets.createLabel(
+                    Point(fromSlotX + SLOT_SIZE / 2, nameY + 10),
+                    Component.literal("${display.branchIndex}/${display.branchTotal}")
+                ).centered().color(0xFF888888.toInt(), 0xFFBBBBBB.toInt())
+            )
+        }
 
-        // To species slot (right side)
+        // Arrow centered on slot row
+        val arrowY = slotY + (SLOT_SIZE - 17) / 2
+        widgets.add(Widgets.createArrow(Point(centerX - 12, arrowY)))
+
+        // To species
+        val toSlotX = bounds.maxX - padding - SLOT_SIZE - 12
         val toStack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(display.evolution.toSpecies))
-        val toSlotX = bounds.centerX + 16
         widgets.add(
-            Widgets.createSlot(Rectangle(toSlotX, centerY - slotSize / 2 - 4, slotSize, slotSize))
+            Widgets.createSlot(Rectangle(toSlotX, slotY, SLOT_SIZE, SLOT_SIZE))
                 .entries(listOf(toStack))
                 .markOutput()
                 .disableBackground()
-                .disableHighlight()
         )
-
-        // To species name
-        val toName = display.evolution.toSpecies.replaceFirstChar { it.uppercase() }
         widgets.add(
-            Widgets.createLabel(Point(toSlotX + slotSize + 2, centerY - 12), Component.literal(toName))
-                .leftAligned().noShadow().color(0xFF333333.toInt(), 0xFFDDDDDD.toInt())
+            Widgets.createLabel(Point(toSlotX + SLOT_SIZE / 2, nameY), Component.literal(clip(display.evolution.displayToName, MAX_NAME_CHARS)))
+                .centered().noShadow().color(0xFF333333.toInt(), 0xFFFFFFFF.toInt())
         )
 
-        // Requirements text
         val reqText = display.evolution.displayRequirements
-        widgets.add(
-            Widgets.createLabel(Point(bounds.centerX, centerY + 10), Component.literal(reqText))
-                .centered().noShadow().color(0xFF777777.toInt(), 0xFF999999.toInt())
-        )
+        val maxCharsPerLine = (availableWidth / 5.5).toInt().coerceIn(24, 50)
+        val reqLines = wrapReqText(reqText, maxCharsPerLine, 2).map { clip(it, maxCharsPerLine) }
+        val totalReqHeight = reqLines.size * 11
+        val reqAreaTop = if (display.branchTotal > 1) nameY + 20 else nameY + 12
+        val reqAreaBottom = bounds.maxY - 4
+        val reqStartY = reqAreaTop + ((reqAreaBottom - reqAreaTop - totalReqHeight) / 2).coerceAtLeast(0)
 
-        // Variant indicator
-        val variantText = when (display.evolution.variant) {
-            "level_up", "passive" -> ""
-            "trade" -> "[Trade]"
-            "item_interact" -> "[Item]"
-            "block_click" -> "[Block]"
-            else -> "[${display.evolution.variant}]"
-        }
-        if (variantText.isNotEmpty()) {
+        for ((i, line) in reqLines.withIndex()) {
             widgets.add(
-                Widgets.createLabel(Point(bounds.maxX - 8, bounds.y + 6), Component.literal(variantText))
-                    .rightAligned().noShadow().color(0xFF999999.toInt(), 0xFF777777.toInt())
+                Widgets.createLabel(Point(centerX, reqStartY + i * 11), Component.literal(line))
+                    .centered().noShadow().color(0xFF444444.toInt(), 0xFFFFDD88.toInt())
             )
         }
 
         return widgets
+    }
+
+    private fun clip(text: String, maxLen: Int): String =
+        if (text.length > maxLen) text.take(maxLen - 1) + "\u2026" else text
+
+    private fun wrapReqText(text: String, maxChars: Int, maxLines: Int): List<String> {
+        if (text.length <= maxChars) return listOf(text)
+        val items = text.split(", ")
+        val lines = mutableListOf<String>()
+        var current = ""
+        for (item in items) {
+            val next = if (current.isEmpty()) item else "$current, $item"
+            if (next.length > maxChars && current.isNotEmpty()) {
+                lines.add(current)
+                if (lines.size >= maxLines) {
+                    val remaining = items.drop(items.indexOf(item))
+                    lines[lines.lastIndex] = clip(lines.last() + ", " + remaining.joinToString(", "), maxChars)
+                    return lines
+                }
+                current = item
+            } else {
+                current = next
+            }
+        }
+        if (current.isNotEmpty()) {
+            if (lines.size >= maxLines) {
+                lines[lines.lastIndex] = clip(lines.last() + ", $current", maxChars)
+            } else {
+                lines.add(current)
+            }
+        }
+        return lines
     }
 }
