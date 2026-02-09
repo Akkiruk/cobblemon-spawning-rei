@@ -19,9 +19,11 @@ class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
     private val stateCache = HashMap<String, FloatingState>()
 
     companion object {
-        private const val COBBLEMON_SLOT_SIZE = 25f
-        private const val COBBLEMON_PRESCALE = 2.5f
-        private const val COBBLEMON_PROFILE_SCALE = 4.5f
+        // Cobblemon PC StorageSlot reference values (25px slots)
+        private const val PC_SLOT_SIZE = 25f
+        private const val PC_PRESCALE = 2.5f
+        private const val PC_PROFILE_SCALE = 4.5f
+        private const val PC_Y_OFFSET = 1.0
         private const val DEG_TO_RAD = Math.PI.toFloat() / 180f
     }
 
@@ -51,16 +53,18 @@ class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
 
         val poseStack = graphics.pose()
         
+        // Scale proportionally to Cobblemon's PC slot (25px with 2.5x prescale, 4.5 profile scale)
         val slotSize = bounds.width.coerceAtMost(bounds.height).toFloat()
-        val sizeRatio = slotSize / COBBLEMON_SLOT_SIZE
-        val preScale = COBBLEMON_PRESCALE * sizeRatio
-        
+        val ratio = slotSize / PC_SLOT_SIZE
+        val preScale = PC_PRESCALE * ratio
+
+        // Anchor at horizontal center, near slot top — model hangs downward from anchor
         val centerX = bounds.x + bounds.width / 2.0
-        val centerY = bounds.y + bounds.height * 0.55
+        val anchorY = bounds.y + PC_Y_OFFSET * ratio
 
         graphics.enableScissor(bounds.x, bounds.y, bounds.maxX, bounds.maxY)
         poseStack.pushPose()
-        poseStack.translate(centerX, centerY, 100.0)
+        poseStack.translate(centerX, anchorY, 100.0)
         poseStack.scale(preScale, preScale, 1f)
 
         try {
@@ -71,7 +75,7 @@ class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
                 poseType = PoseType.PROFILE,
                 state = state,
                 partialTicks = 0f,
-                scale = COBBLEMON_PROFILE_SCALE
+                scale = PC_PROFILE_SCALE
             )
         } catch (_: Exception) {
             poseStack.popPose()

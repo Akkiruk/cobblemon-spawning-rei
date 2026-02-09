@@ -1,3 +1,10 @@
+## [1.2.4] - 2026-02-08
+
+### Fixed
+- Pokemon rendering now matches Cobblemon PC slot exactly (proportional scaling)
+- Model anchor at slot top instead of center — no more cut-off bottoms
+- Per-species profileScale/profileTranslation handles all sizes automatically
+
 ## [1.2.3] - 2026-02-08
 
 ### Fixed
