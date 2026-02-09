@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & Discussions
+    url: https://github.com/Akkiruk/cobblemon-spawning-rei/discussions
+    about: Ask questions, share feedback, or discuss the mod
+  - name: CurseForge Page
+    url: https://www.curseforge.com/minecraft/mc-mods/cobblemon-spawning-rei
+    about: Download the mod, read the description, and see FAQs
+  - name: Documentation
+    url: https://github.com/Akkiruk/cobblemon-spawning-rei/blob/main/README.md
+    about: Read the mod documentation and feature list

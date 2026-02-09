@@ -1,0 +1,152 @@
+name: Publish to CurseForge and Modrinth
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 1.4.2)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+          
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        
+      - name: Build with Gradle
+        run: ./gradlew build
+        
+      - name: Get version from gradle.properties
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=$(grep "^mod_version=" gradle.properties | cut -d'=' -f2)
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Publishing version: $VERSION"
+          
+      - name: Get changelog for this version
+        id: changelog
+        run: |
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | sed '$d' | tail -n +2 > current_changelog.txt
+          echo "Changelog:"
+          cat current_changelog.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "v${{ steps.get_version.outputs.VERSION }}"
+          body_path: current_changelog.txt
+          files: |
+            fabric/build/libs/cobblemon-spawning-rei-fabric-${{ steps.get_version.outputs.VERSION }}.jar
+            neoforge/build/libs/cobblemon-spawning-rei-neoforge-${{ steps.get_version.outputs.VERSION }}.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      # Publish Fabric version
+      - name: Publish Fabric to CurseForge and Modrinth
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          
+          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          
+          files: |
+            fabric/build/libs/!(*-@(dev|shadow|sources|javadoc)).jar
+          
+          name: "[Fabric] v${{ steps.get_version.outputs.VERSION }}"
+          version: ${{ steps.get_version.outputs.VERSION }}+fabric
+          version-type: release
+          
+          changelog-file: current_changelog.txt
+          
+          loaders: fabric
+          
+          game-versions: |
+            1.21
+            1.21.1
+          
+          dependencies: |
+            fabric-api | requires | *
+            fabric-language-kotlin | requires | *
+            cobblemon | requires | *
+            roughly-enough-items | requires | *
+          
+          java: 21
+          
+      # Publish NeoForge version
+      - name: Publish NeoForge to CurseForge and Modrinth
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          
+          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          
+          files: |
+            neoforge/build/libs/!(*-@(dev|shadow|sources|javadoc)).jar
+          
+          name: "[NeoForge] v${{ steps.get_version.outputs.VERSION }}"
+          version: ${{ steps.get_version.outputs.VERSION }}+neoforge
+          version-type: release
+          
+          changelog-file: current_changelog.txt
+          
+          loaders: neoforge
+          
+          game-versions: |
+            1.21
+            1.21.1
+          
+          dependencies: |
+            kotlin-for-forge | requires | *
+            cobblemon | requires | *
+            roughly-enough-items | requires | *
+          
+          java: 21
+          
+      - name: Upload Fabric artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobblemon-spawning-rei-fabric-${{ steps.get_version.outputs.VERSION }}
+          path: |
+            fabric/build/libs/cobblemon-spawning-rei-fabric-*.jar
+            !fabric/build/libs/*-dev*.jar
+            !fabric/build/libs/*-sources.jar
+          
+      - name: Upload NeoForge artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobblemon-spawning-rei-neoforge-${{ steps.get_version.outputs.VERSION }}
+          path: |
+            neoforge/build/libs/cobblemon-spawning-rei-neoforge-*.jar
+            !neoforge/build/libs/*-dev*.jar
+            !neoforge/build/libs/*-sources.jar

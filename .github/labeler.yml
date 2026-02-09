@@ -1,0 +1,45 @@
+# PR Labeler Configuration
+# Labels PRs based on changed file paths
+
+common:
+  - changed-files:
+    - any-glob-to-any-file: 'common/**/*'
+
+fabric:
+  - changed-files:
+    - any-glob-to-any-file: 'fabric/**/*'
+
+neoforge:
+  - changed-files:
+    - any-glob-to-any-file: 'neoforge/**/*'
+
+rei:
+  - changed-files:
+    - any-glob-to-any-file: '**/rei/**/*'
+    - any-glob-to-any-file: '**/*Display*.kt'
+    - any-glob-to-any-file: '**/*Category*.kt'
+
+spawning:
+  - changed-files:
+    - any-glob-to-any-file: '**/*Spawn*.kt'
+    - any-glob-to-any-file: '**/*Biome*.kt'
+
+evolution:
+  - changed-files:
+    - any-glob-to-any-file: '**/*Evolution*.kt'
+
+documentation:
+  - changed-files:
+    - any-glob-to-any-file: '**/*.md'
+    - any-glob-to-any-file: '.github/**/*'
+
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file: 'gradle.properties'
+    - any-glob-to-any-file: 'build.gradle.kts'
+    - any-glob-to-any-file: '**/build.gradle.kts'
+    - any-glob-to-any-file: 'gradle/**/*'
+
+ci:
+  - changed-files:
+    - any-glob-to-any-file: '.github/workflows/**/*'

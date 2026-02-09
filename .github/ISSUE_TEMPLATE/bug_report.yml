@@ -1,0 +1,125 @@
+name: Bug Report
+description: Report a bug or issue with spawn/evolution displays
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the sections below to help us fix it.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      description: Before submitting, please verify these items
+      options:
+        - label: I'm using the latest version of Cobblemon Spawning REI
+          required: true
+        - label: I've searched existing issues and this isn't a duplicate
+          required: true
+        - label: I have REI (Roughly Enough Items) installed
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: What's broken? Be specific.
+      placeholder: "Example: Pikachu doesn't show up in REI search"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this issue?
+      placeholder: |
+        1. Open REI (R key)
+        2. Search for "Pikachu"
+        3. Nothing appears
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should happen instead?
+      placeholder: "Pikachu should appear with spawn/evolution info"
+    validations:
+      required: true
+
+  - type: input
+    id: mod-version
+    attributes:
+      label: Cobblemon Spawning REI Version
+      description: "Check mods menu"
+      placeholder: "1.4.2"
+    validations:
+      required: true
+
+  - type: input
+    id: minecraft-version
+    attributes:
+      label: Minecraft Version
+      placeholder: "1.21.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: loader
+    attributes:
+      label: Mod Loader
+      options:
+        - Fabric
+        - NeoForge
+    validations:
+      required: true
+
+  - type: input
+    id: cobblemon-version
+    attributes:
+      label: Cobblemon Version
+      description: "Check mods menu"
+      placeholder: "1.7.1"
+    validations:
+      required: true
+
+  - type: input
+    id: rei-version
+    attributes:
+      label: REI Version
+      description: "Check mods menu"
+      placeholder: "16.0.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Attach your latest.log file from `.minecraft/logs/` or the CurseForge logs folder.
+        If the game crashed, also attach the crash report.
+      placeholder: |
+        Paste relevant log sections here or link to a paste service
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots to help explain your problem
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other information that might be relevant
+    validations:
+      required: false

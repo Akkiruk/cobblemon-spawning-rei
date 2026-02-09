@@ -1,3 +1,19 @@
+# Changelog
+
+All notable changes to Cobblemon Spawning REI will be documented in this file.
+
+## [Unreleased]
+
+### Added
+- Automated CurseForge and Modrinth publishing via GitHub Actions
+
+---
+
+## [1.4.2] - 2026-02-09
+
+### Changed
+- Set up automated publishing workflow for CurseForge and Modrinth releases
+
 ## [1.2.4] - 2026-02-08
 
 ### Fixed
