@@ -1,3 +1,8 @@
+## [1.1.2] - 2026-02-08
+
+### Fixed
+- Changed deprecated "rei" entrypoint to "rei_common" to suppress deprecation warning
+
 ## [1.1.1] - 2026-02-08
 
 ### Fixed
