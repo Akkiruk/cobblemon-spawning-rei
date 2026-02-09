@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "id": "cobblemon-spawning-rei",
+  "version": "${version}",
+  "name": "Cobblemon Spawning REI Integration",
+  "description": "Adds Cobblemon spawn locations, evolution chains, and species info to REI. Search any Pokémon to see where it spawns, how it evolves, and what conditions are needed.",
+  "authors": ["Akkiruk"],
+  "contact": {
+    "homepage": "https://github.com/Akkiruk/cobblemon-spawning-rei",
+    "sources": "https://github.com/Akkiruk/cobblemon-spawning-rei",
+    "issues": "https://github.com/Akkiruk/cobblemon-spawning-rei/issues"
+  },
+  "license": "MIT",
+  "icon": "assets/cobblemon-spawning-rei/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "main": [
+      {
+        "adapter": "kotlin",
+        "value": "com.cobblemonrei.fabric.CobblemonSpawningFabric"
+      }
+    ],
+    "client": [
+      {
+        "adapter": "kotlin",
+        "value": "com.cobblemonrei.fabric.CobblemonSpawningFabricClient"
+      }
+    ],
+    "rei_client": [
+      {
+        "adapter": "kotlin",
+        "value": "com.cobblemonrei.rei.CobblemonREIClientPlugin"
+      }
+    ]
+  },
+  "mixins": [],
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": ">=1.21 <1.22",
+    "cobblemon": ">=1.6.0",
+    "fabric-language-kotlin": ">=1.13.4"
+  },
+  "recommends": {
+    "fabric-api": "*",
+    "roughlyenoughitems": "*"
+  },
+  "breaks": {
+    "cobblemon": "<1.6.0"
+  }
+}
