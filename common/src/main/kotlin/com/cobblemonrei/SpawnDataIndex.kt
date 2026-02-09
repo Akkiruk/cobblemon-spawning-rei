@@ -20,8 +20,8 @@ object SpawnDataIndex {
 
     fun loadAll() {
         spawnsBySpecies = SpawnDataLoader.loadFromCobblemonJar()
-        evolutionsBySpecies = EvolutionDataLoader.loadFromCobblemonJar()
-        speciesInfo = EvolutionDataLoader.loadSpeciesBasicInfo()
+        evolutionsBySpecies = EvolutionDataLoader.loadFromRuntime()
+        speciesInfo = EvolutionDataLoader.loadSpeciesBasicInfoFromRuntime()
 
         // Build reverse evolution index
         val reverseMap = mutableMapOf<String, MutableList<EvolutionInfo>>()

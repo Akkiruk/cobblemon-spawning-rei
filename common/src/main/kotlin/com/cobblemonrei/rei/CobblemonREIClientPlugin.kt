@@ -88,13 +88,21 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
         }
 
         CobblemonSpawningMod.LOGGER.info("[CobblemonSpawningREI] registerEntries called, ${SpawnDataIndex.allSpeciesNames.size} species available")
+        
+        val hasPikachu = SpawnDataIndex.allSpeciesNames.any { it.lowercase() == "pikachu" }
+        CobblemonSpawningMod.LOGGER.info("[CobblemonSpawningREI] Species list contains pikachu: $hasPikachu")
+        
         var count = 0
         var errors = 0
         for (species in SpawnDataIndex.allSpeciesNames) {
             try {
-                val stack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(species))
+                val entry = PokemonEntry(species)
+                val stack = EntryStack.of(PokemonEntryType.POKEMON, entry)
                 registry.addEntry(stack)
                 count++
+                if (species.lowercase() == "pikachu") {
+                    CobblemonSpawningMod.LOGGER.info("[CobblemonSpawningREI] Registered pikachu entry: species='${entry.species}', displayName='${entry.displayName}'")
+                }
             } catch (e: Exception) {
                 errors++
                 if (errors <= 3) {

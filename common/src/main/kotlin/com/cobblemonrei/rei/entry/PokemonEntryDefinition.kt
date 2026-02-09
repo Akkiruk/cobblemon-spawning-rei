@@ -1,5 +1,6 @@
 package com.cobblemonrei.rei.entry
 
+import com.cobblemonrei.CobblemonSpawningMod
 import me.shedaniel.rei.api.client.entry.renderer.EntryRenderer
 import me.shedaniel.rei.api.common.entry.EntrySerializer
 import me.shedaniel.rei.api.common.entry.EntryStack
@@ -12,6 +13,10 @@ import net.minecraft.tags.TagKey
 import java.util.stream.Stream
 
 class PokemonEntryDefinition : EntryDefinition<PokemonEntry> {
+
+    companion object {
+        private var loggedSample = false
+    }
 
     private val renderer = PokemonEntryRenderer()
 
@@ -64,7 +69,12 @@ class PokemonEntryDefinition : EntryDefinition<PokemonEntry> {
     override fun getSerializer(): EntrySerializer<PokemonEntry>? = null
 
     override fun asFormattedText(entry: EntryStack<PokemonEntry>, value: PokemonEntry): Component {
-        return Component.literal(value.displayName)
+        val text = value.displayName
+        if (!loggedSample && value.species.lowercase() == "pikachu") {
+            CobblemonSpawningMod.LOGGER.info("[CobblemonSpawningREI] asFormattedText for pikachu returning: '$text'")
+            loggedSample = true
+        }
+        return Component.literal(text)
     }
 
     override fun getTagsFor(entry: EntryStack<PokemonEntry>, value: PokemonEntry): Stream<out TagKey<*>> {

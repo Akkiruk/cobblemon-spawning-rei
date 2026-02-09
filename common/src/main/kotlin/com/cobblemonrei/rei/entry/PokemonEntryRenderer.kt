@@ -17,7 +17,13 @@ import org.joml.Quaternionf
 class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
 
     private val stateCache = HashMap<String, FloatingState>()
-    private val DEG_TO_RAD = (Math.PI / 180.0).toFloat()
+
+    companion object {
+        private const val COBBLEMON_SLOT_SIZE = 25f
+        private const val COBBLEMON_PRESCALE = 2.5f
+        private const val COBBLEMON_PROFILE_SCALE = 4.5f
+        private const val DEG_TO_RAD = Math.PI.toFloat() / 180f
+    }
 
     override fun render(
         entry: EntryStack<PokemonEntry>,
@@ -28,7 +34,12 @@ class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
         delta: Float
     ) {
         val pokemon = entry.value ?: return
-        val species = PokemonSpecies.getByName(pokemon.species)
+        
+        val species = try {
+            PokemonSpecies.getByName(pokemon.species)
+        } catch (_: Exception) {
+            null
+        }
 
         if (species == null) {
             renderFallbackText(graphics, bounds, pokemon.displayName)
@@ -39,13 +50,18 @@ class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
         val renderable = RenderablePokemon(species, pokemon.formAspects)
 
         val poseStack = graphics.pose()
-        val centerX = bounds.centerX.toFloat()
-        val centerY = bounds.y.toFloat() + bounds.height * 0.55f
-        val scale = bounds.width.coerceAtMost(bounds.height) * 0.35f
+        
+        val slotSize = bounds.width.coerceAtMost(bounds.height).toFloat()
+        val sizeRatio = slotSize / COBBLEMON_SLOT_SIZE
+        val preScale = COBBLEMON_PRESCALE * sizeRatio
+        
+        val centerX = bounds.x + bounds.width / 2.0
+        val centerY = bounds.y + bounds.height * 0.55
 
         graphics.enableScissor(bounds.x, bounds.y, bounds.maxX, bounds.maxY)
         poseStack.pushPose()
-        poseStack.translate(centerX.toDouble(), centerY.toDouble(), 100.0)
+        poseStack.translate(centerX, centerY, 100.0)
+        poseStack.scale(preScale, preScale, 1f)
 
         try {
             drawProfilePokemon(
@@ -54,8 +70,8 @@ class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
                 rotation = Quaternionf().rotationXYZ(13f * DEG_TO_RAD, 35f * DEG_TO_RAD, 0f),
                 poseType = PoseType.PROFILE,
                 state = state,
-                partialTicks = delta,
-                scale = scale
+                partialTicks = 0f,
+                scale = COBBLEMON_PROFILE_SCALE
             )
         } catch (_: Exception) {
             poseStack.popPose()
@@ -79,7 +95,11 @@ class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
 
     override fun getTooltip(entry: EntryStack<PokemonEntry>, context: TooltipContext): Tooltip? {
         val pokemon = entry.value ?: return null
-        val species = PokemonSpecies.getByName(pokemon.species)
+        val species = try {
+            PokemonSpecies.getByName(pokemon.species)
+        } catch (_: Exception) {
+            null
+        }
 
         val tooltip = Tooltip.create(Component.literal(pokemon.displayName))
         if (species != null) {

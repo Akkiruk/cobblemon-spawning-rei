@@ -1,3 +1,10 @@
+## [1.2.2] - 2026-02-08
+
+### Fixed
+- Pokemon rendering now uses Cobblemon's actual slot rendering approach
+- Proper scale values (2.5x prescale, 4.5f profile scale) matching Cobblemon's UI
+- Pokemon models properly sized and centered in REI slots
+
 ## [1.1.2] - 2026-02-08
 
 ### Fixed
