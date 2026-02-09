@@ -9,7 +9,7 @@ architectury {
 dependencies {
     modImplementation("net.fabricmc:fabric-loader:$fabricLoaderVersion")
     modCompileOnly("com.cobblemon:mod:$cobblemonVersion")
-    compileOnly("dev.architectury:architectury-injectables:1.0.10")
+    compileOnly("dev.architectury:architectury-injectables:1.0.13")
 
     // REI API (common, cross-platform)
     modCompileOnly("me.shedaniel:RoughlyEnoughItems-api:$reiVersion")
