@@ -11,11 +11,11 @@ import com.cobblemonrei.jei.evolution.JeiEvolutionRecipe
 import com.cobblemonrei.jei.spawn.JeiSpawnCategory
 import com.cobblemonrei.jei.spawn.JeiSpawnRecipe
 import mezz.jei.api.IModPlugin
-import mezz.jei.api.JeiPlugin
 import mezz.jei.api.registration.*
 import net.minecraft.resources.ResourceLocation
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
 
-@JeiPlugin
 open class CobblemonJEIPlugin : IModPlugin {
 
     override fun getPluginUid(): ResourceLocation =
@@ -62,8 +62,10 @@ open class CobblemonJEIPlugin : IModPlugin {
     }
 
     override fun registerRecipeCatalysts(registration: IRecipeCatalystRegistration) {
-        // Pokémon ingredients act as catalysts for their own spawn/evo lookups
-        // JEI handles this via ingredient focus, no explicit catalysts needed
+        registration.addRecipeCatalyst(ItemStack(Items.GRASS_BLOCK), JeiSpawnCategory.RECIPE_TYPE)
+        if (CobblemonSpawningConfig.get().showEvolutions) {
+            registration.addRecipeCatalyst(ItemStack(Items.EXPERIENCE_BOTTLE), JeiEvolutionCategory.RECIPE_TYPE)
+        }
     }
 
     // --- Recipe builders (matching REI logic) ---

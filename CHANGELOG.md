@@ -2,6 +2,14 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.7.1] - 2025-07-22
+
+### Fixed
+- JEI evolution arrow using removed gui_vanilla.png texture (now uses proper API arrow)
+- Duplicate JEI plugin registration on NeoForge
+- Missing recipe catalysts — spawn/evolution categories now browsable from JEI
+- Dead imports and deprecated API usage in JEI ingredient helper
+
 ## [1.7.0] - 2025-07-22
 
 ### Added

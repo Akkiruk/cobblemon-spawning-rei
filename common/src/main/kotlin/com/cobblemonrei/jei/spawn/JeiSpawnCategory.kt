@@ -79,6 +79,8 @@ class JeiSpawnCategory(guiHelper: IGuiHelper) : IRecipeCategory<JeiSpawnRecipe> 
     override fun getRecipeType(): RecipeType<JeiSpawnRecipe> = RECIPE_TYPE
     override fun getTitle(): Component = Component.literal("Spawn Locations")
     override fun getBackground(): IDrawable = background
+    override fun getWidth(): Int = WIDTH
+    override fun getHeight(): Int = HEIGHT
     override fun getIcon(): IDrawable = icon
 
     override fun setRecipe(builder: IRecipeLayoutBuilder, recipe: JeiSpawnRecipe, focuses: IFocusGroup) {

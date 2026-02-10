@@ -33,14 +33,13 @@ class JeiEvolutionCategory(guiHelper: IGuiHelper) : IRecipeCategory<JeiEvolution
 
     private val background: IDrawable = guiHelper.createBlankDrawable(WIDTH, HEIGHT)
     private val icon: IDrawable = guiHelper.createDrawableItemStack(ItemStack(Items.EXPERIENCE_BOTTLE))
-    private val arrow: IDrawable = guiHelper.createDrawable(
-        ResourceLocation.fromNamespaceAndPath("jei", "textures/jei/gui/gui_vanilla.png"),
-        82, 128, 24, 17
-    )
+    private val arrow: IDrawable = guiHelper.getRecipeArrow()
 
     override fun getRecipeType(): RecipeType<JeiEvolutionRecipe> = RECIPE_TYPE
     override fun getTitle(): Component = Component.literal("Cobblemon Evolution")
     override fun getBackground(): IDrawable = background
+    override fun getWidth(): Int = WIDTH
+    override fun getHeight(): Int = HEIGHT
     override fun getIcon(): IDrawable = icon
 
     override fun setRecipe(builder: IRecipeLayoutBuilder, recipe: JeiEvolutionRecipe, focuses: IFocusGroup) {

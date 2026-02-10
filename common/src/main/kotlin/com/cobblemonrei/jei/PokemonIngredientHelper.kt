@@ -1,7 +1,5 @@
 package com.cobblemonrei.jei
 
-import com.cobblemonrei.SpawnDataIndex
-import com.cobblemonrei.titleCase
 import mezz.jei.api.ingredients.IIngredientHelper
 import mezz.jei.api.ingredients.IIngredientType
 import mezz.jei.api.ingredients.subtypes.UidContext
