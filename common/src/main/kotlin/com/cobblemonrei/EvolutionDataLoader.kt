@@ -269,6 +269,12 @@ object EvolutionDataLoader {
             }
         }
 
+        if (data.isEmpty()) {
+            DebugLog.once("empty-req-$variant-${className}") {
+                "No data extracted for $variant requirement ($className) — Cobblemon API may have changed"
+            }
+        }
+
         return EvolutionRequirement(variant, data)
     }
 

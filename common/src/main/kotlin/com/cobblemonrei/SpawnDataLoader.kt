@@ -267,16 +267,39 @@ object SpawnDataLoader {
         if (composite == null) return ConditionData()
         val conditions = composite.getAsJsonArray("conditions") ?: return ConditionData()
 
-        // Merge all sub-conditions
+        // Composite sub-conditions use AND semantics — biomes/dimensions must intersect
         var merged = ConditionData()
         for (element in conditions) {
             val sub = parseConditionFields(element.asJsonObject)
-            merged = mergeConditionData(merged, sub)
+            merged = mergeConditionDataAnd(merged, sub)
         }
         return merged
     }
 
-    /** Merges two condition sets. Primary fields win; lists are combined. */
+    /** AND-merge for composite conditions. Biomes/dimensions intersect; scalars use primary-wins. */
+    private fun mergeConditionDataAnd(primary: ConditionData, secondary: ConditionData): ConditionData {
+        return ConditionData(
+            biomes = intersectLists(primary.biomes, secondary.biomes),
+            timeRange = primary.timeRange ?: secondary.timeRange,
+            isRaining = primary.isRaining ?: secondary.isRaining,
+            isThundering = primary.isThundering ?: secondary.isThundering,
+            dimensions = intersectLists(primary.dimensions, secondary.dimensions),
+            structures = intersectLists(primary.structures, secondary.structures),
+            canSeeSky = primary.canSeeSky ?: secondary.canSeeSky,
+            minLight = primary.minLight ?: secondary.minLight,
+            maxLight = primary.maxLight ?: secondary.maxLight,
+            minSkyLight = primary.minSkyLight ?: secondary.minSkyLight,
+            maxSkyLight = primary.maxSkyLight ?: secondary.maxSkyLight,
+            minY = primary.minY ?: secondary.minY,
+            maxY = primary.maxY ?: secondary.maxY,
+            neededNearbyBlocks = combineLists(primary.neededNearbyBlocks, secondary.neededNearbyBlocks),
+            neededBaseBlocks = combineLists(primary.neededBaseBlocks, secondary.neededBaseBlocks),
+            moonPhase = primary.moonPhase ?: secondary.moonPhase,
+            fluid = primary.fluid ?: secondary.fluid
+        )
+    }
+
+    /** OR-merge for presets. Lists are unioned; primary scalars win. */
     private fun mergeConditionData(primary: ConditionData, secondary: ConditionData): ConditionData {
         return ConditionData(
             biomes = combineLists(primary.biomes, secondary.biomes),
@@ -303,6 +326,13 @@ object SpawnDataLoader {
         if (a.isEmpty()) return b
         if (b.isEmpty()) return a
         return (a + b).distinct()
+    }
+
+    /** Intersection treating empty as wildcard (unconstrained). */
+    private fun intersectLists(a: List<String>, b: List<String>): List<String> {
+        if (a.isEmpty()) return b
+        if (b.isEmpty()) return a
+        return a.filter { it in b }
     }
 
     /** Resolves presets and merges their conditions into the base entry data. */

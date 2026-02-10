@@ -35,9 +35,9 @@ object PokemonSpriteManager {
     }
 
     fun getSpriteLocation(species: String): ResourceLocation? {
-        val normalized = species.lowercase().replace("-", "").replace("_", "").replace(" ", "")
-        return spriteCache.getOrPut(normalized) {
-            findSprite(species)
+        val cacheKey = species.lowercase()
+        return spriteCache.getOrPut(cacheKey) {
+            findSprite(cacheKey)
         }
     }
 

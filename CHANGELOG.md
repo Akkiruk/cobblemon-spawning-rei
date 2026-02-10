@@ -2,6 +2,23 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.4.8] - 2026-02-10
+
+### Fixed
+- TOCTOU race in SpawnDataIndex.loadAll() — replaced volatile boolean with AtomicBoolean.compareAndSet
+- Sprite cache poisoning: cache key now preserves separators (lowercase only) so findSprite can try different styles
+- Composite condition biome merge uses intersection (AND semantics) instead of union
+- DebugLog.reset() now called at reload start so stale once-keys don't suppress new warnings
+- tickReloadCheck throttled to every 100 ticks instead of every tick
+
+### Removed
+- Fabricated SpeciesBasicInfo for unknown species — callers already handle null
+
+### Added
+- EvolutionDataLoader logs when reflection extracts no data for a requirement type
+
+---
+
 ## [Unreleased]
 
 ### Added

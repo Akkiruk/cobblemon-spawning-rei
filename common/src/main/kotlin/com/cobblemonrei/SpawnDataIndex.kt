@@ -1,6 +1,7 @@
 package com.cobblemonrei
 
 import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
+import java.util.concurrent.atomic.AtomicBoolean
 
 @Suppress("ObjectPropertyName")
 object SpawnDataIndex {
@@ -11,8 +12,7 @@ object SpawnDataIndex {
     var loadState = LoadState.NOT_LOADED
         private set
 
-    @Volatile
-    private var isLoading = false
+    private val isLoading = AtomicBoolean(false)
 
     @Volatile
     var spawnsBySpecies: Map<String, List<SpawnInfo>> = emptyMap()
@@ -51,18 +51,18 @@ object SpawnDataIndex {
     }
 
     fun loadAll() {
-        if (isLoading) return
-        isLoading = true
+        if (!isLoading.compareAndSet(false, true)) return
         try {
             doLoad()
         } catch (e: Exception) {
             DebugLog.warn("Data load failed: ${e.message}")
         } finally {
-            isLoading = false
+            isLoading.set(false)
         }
     }
 
     private fun doLoad() {
+        DebugLog.reset()
         spawnsBySpecies = SpawnDataLoader.loadFromAllSources()
 
         val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
@@ -110,22 +110,6 @@ object SpawnDataIndex {
                 }
             } catch (_: Exception) {}
         }
-
-        val mutableInfo = speciesInfo.toMutableMap()
-        for (name in allNames) {
-            if (name !in mutableInfo) {
-                mutableInfo[name] = EvolutionDataLoader.SpeciesBasicInfo(
-                    name = name,
-                    nationalDexNumber = 0,
-                    primaryType = "normal",
-                    secondaryType = null,
-                    catchRate = 45,
-                    weight = 0f,
-                    height = 0f
-                )
-            }
-        }
-        speciesInfo = mutableInfo
 
         allSpeciesNames = allNames.sortedWith(
             compareBy<String> {
