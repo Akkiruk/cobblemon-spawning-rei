@@ -6,9 +6,12 @@ import me.shedaniel.rei.api.common.entry.EntryStack
 import me.shedaniel.rei.api.common.entry.comparison.ComparisonContext
 import me.shedaniel.rei.api.common.entry.type.EntryDefinition
 import me.shedaniel.rei.api.common.entry.type.EntryType
+import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.tags.TagKey
+import com.cobblemonrei.SpawnDataIndex
+import com.cobblemonrei.titleCase
 import java.util.stream.Stream
 
 class PokemonEntryDefinition : EntryDefinition<PokemonEntry> {
@@ -61,10 +64,36 @@ class PokemonEntryDefinition : EntryDefinition<PokemonEntry> {
         }
     }
 
-    override fun getSerializer(): EntrySerializer<PokemonEntry>? = null
+    override fun getSerializer(): EntrySerializer<PokemonEntry> = object : EntrySerializer<PokemonEntry> {
+        override fun supportSaving() = true
+        override fun supportReading() = true
+
+        override fun save(entry: EntryStack<PokemonEntry>, value: PokemonEntry): CompoundTag {
+            val tag = CompoundTag()
+            tag.putString("species", value.species)
+            if (value.formAspects.isNotEmpty()) {
+                tag.putString("aspects", value.formAspects.joinToString(","))
+            }
+            return tag
+        }
+
+        override fun read(tag: CompoundTag): PokemonEntry {
+            val species = tag.getString("species")
+            val aspects = tag.getString("aspects").let {
+                if (it.isBlank()) emptySet() else it.split(",").toSet()
+            }
+            return PokemonEntry(species, aspects)
+        }
+    }
 
     override fun asFormattedText(entry: EntryStack<PokemonEntry>, value: PokemonEntry): Component {
-        return Component.literal(value.displayName)
+        val info = SpawnDataIndex.getSpeciesInfo(value.species)
+        return if (info != null) {
+            val types = listOfNotNull(info.primaryType, info.secondaryType).joinToString(" ") { titleCase(it) }
+            Component.literal("${value.displayName} $types")
+        } else {
+            Component.literal(value.displayName)
+        }
     }
 
     override fun getTagsFor(entry: EntryStack<PokemonEntry>, value: PokemonEntry): Stream<out TagKey<*>> {

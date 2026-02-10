@@ -55,7 +55,22 @@ object DataSerializer {
     }
 
     fun decompress(data: ByteArray): ByteArray {
-        return GZIPInputStream(ByteArrayInputStream(data)).use { it.readBytes() }
+        val maxSize = 50 * 1024 * 1024 // 50MB
+        val baos = ByteArrayOutputStream()
+        GZIPInputStream(ByteArrayInputStream(data)).use { gzip ->
+            val buffer = ByteArray(8192)
+            var totalRead = 0
+            while (true) {
+                val read = gzip.read(buffer)
+                if (read == -1) break
+                totalRead += read
+                if (totalRead > maxSize) {
+                    throw IllegalStateException("Decompressed data exceeds 50MB limit")
+                }
+                baos.write(buffer, 0, read)
+            }
+        }
+        return baos.toByteArray()
     }
 
     fun splitIntoChunks(data: ByteArray, maxChunkSize: Int = MAX_CHUNK_SIZE): List<ByteArray> {

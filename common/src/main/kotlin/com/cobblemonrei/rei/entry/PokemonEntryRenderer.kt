@@ -3,6 +3,8 @@ package com.cobblemonrei.rei.entry
 import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
 import com.cobblemon.mod.common.item.PokemonItem
 import com.cobblemonrei.DebugLog
+import com.cobblemonrei.SpawnDataIndex
+import com.cobblemonrei.titleCase
 import me.shedaniel.math.Rectangle
 import me.shedaniel.rei.api.client.entry.renderer.EntryRenderer
 import me.shedaniel.rei.api.client.gui.widgets.Tooltip
@@ -68,6 +70,20 @@ class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
         val tooltip = Tooltip.create(Component.literal(pokemon.displayName))
         if (species != null) {
             tooltip.add(Component.literal("§7#${species.nationalPokedexNumber}"))
+        }
+        val info = SpawnDataIndex.getSpeciesInfo(pokemon.species)
+        if (info != null) {
+            val typeStr = buildString {
+                append("§e")
+                append(titleCase(info.primaryType))
+                info.secondaryType?.let { append(" §7/ §e${titleCase(it)}") }
+            }
+            tooltip.add(Component.literal(typeStr))
+            tooltip.add(Component.literal("§7Catch Rate: ${info.catchRate}"))
+        }
+        val spawns = SpawnDataIndex.getSpawnsFor(pokemon.species)
+        if (spawns.isNotEmpty()) {
+            tooltip.add(Component.literal("§a${spawns.size} spawn location(s)"))
         }
         return tooltip
     }

@@ -270,7 +270,7 @@ object EvolutionDataLoader {
         }
 
         if (data.isEmpty()) {
-            DebugLog.once("empty-req-$variant-${className}") {
+            DebugLog.warnOnce("empty-req-$variant-${className}") {
                 "No data extracted for $variant requirement ($className) — Cobblemon API may have changed"
             }
         }

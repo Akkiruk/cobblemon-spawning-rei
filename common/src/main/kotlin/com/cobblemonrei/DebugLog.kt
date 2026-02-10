@@ -22,7 +22,20 @@ object DebugLog {
     }
 
     fun debug(message: String) {
+        if (!isDebugEnabled()) return
         logger.debug("[CobblemonSpawningREI] $message")
+    }
+
+    fun warnOnce(key: String, message: () -> String) {
+        if (loggedOnce.add(key)) {
+            logger.warn("[CobblemonSpawningREI] ${message()}")
+        }
+    }
+
+    private fun isDebugEnabled(): Boolean {
+        return try {
+            com.cobblemonrei.config.CobblemonSpawningConfig.get().debugMode
+        } catch (_: Exception) { true }
     }
 
     fun once(key: String, message: () -> String) {

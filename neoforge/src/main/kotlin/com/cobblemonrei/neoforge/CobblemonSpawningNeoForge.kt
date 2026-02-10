@@ -6,7 +6,6 @@ import com.cobblemonrei.network.SpawnSyncPayload
 import com.cobblemonrei.server.ServerDataManager
 import net.minecraft.server.level.ServerPlayer
 import net.neoforged.bus.api.IEventBus
-import net.neoforged.bus.api.SubscribeEvent
 import net.neoforged.fml.common.Mod
 import net.neoforged.neoforge.common.NeoForge
 import net.neoforged.neoforge.event.entity.player.PlayerEvent

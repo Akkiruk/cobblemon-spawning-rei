@@ -37,7 +37,7 @@ object SpawnDataLoader {
                     namespaces.filter { Files.isDirectory(it) }.forEach { namespace ->
                         val spawnDir = namespace.resolve("spawn_pool_world")
                         if (Files.exists(spawnDir) && Files.isDirectory(spawnDir)) {
-                            Files.walk(spawnDir).use { files ->
+                            Files.walk(spawnDir, 10).use { files ->
                                 files.filter { it.toString().endsWith(".json") }.forEach { file ->
                                     val (added, count) = parseSpawnFile(file, result)
                                     if (added) totalFiles++
@@ -60,20 +60,15 @@ object SpawnDataLoader {
             }
         }
 
-        // Scan client-side datapacks folder via reflection (safe no-op on dedicated server)
-        try {
-            val mcClass = Class.forName("net.minecraft.client.Minecraft")
-            val instance = mcClass.getMethod("getInstance").invoke(null)
-            val gameDirFile = mcClass.getField("gameDirectory").get(instance) as java.io.File
-            val datapacksDir = gameDirFile.toPath().resolve("datapacks")
-            if (Files.exists(datapacksDir) && Files.isDirectory(datapacksDir)) {
+        // Scan client-side datapacks folder if config allows
+        if (com.cobblemonrei.config.CobblemonSpawningConfig.get().localDatapackScan) {
+            val datapacksDir = getClientDatapacksDir()
+            if (datapacksDir != null && Files.exists(datapacksDir) && Files.isDirectory(datapacksDir)) {
                 scanDatapacksDir(datapacksDir, result) { added, count ->
                     totalFiles += if (added) 1 else 0
                     totalEntries += count
                 }
             }
-        } catch (_: Exception) {
-            // Not on client (dedicated server) or Minecraft not available yet
         }
 
         DebugLog.info("Parsed $totalEntries spawn entries from $totalFiles files (${presetCache.size} presets)")
@@ -437,7 +432,7 @@ object SpawnDataLoader {
                         namespaces.filter { Files.isDirectory(it) }.forEach { namespace ->
                             val spawnDir = namespace.resolve("spawn_pool_world")
                             if (Files.exists(spawnDir)) {
-                                Files.walk(spawnDir).use { files ->
+                                Files.walk(spawnDir, 10).use { files ->
                                     files.filter { it.toString().endsWith(".json") }.forEach { file ->
                                         val (added, count) = parseSpawnFile(file, result)
                                         counter(added, count)
@@ -488,6 +483,23 @@ object SpawnDataLoader {
         } catch (_: Exception) {}
 
         return paths.distinct()
+    }
+
+    @Volatile
+    private var cachedClientDatapacksDir: Path? = null
+    @Volatile
+    private var clientDatapacksDirChecked = false
+
+    private fun getClientDatapacksDir(): Path? {
+        if (clientDatapacksDirChecked) return cachedClientDatapacksDir
+        clientDatapacksDirChecked = true
+        try {
+            val mcClass = Class.forName("net.minecraft.client.Minecraft")
+            val instance = mcClass.getMethod("getInstance").invoke(null)
+            val gameDirFile = mcClass.getField("gameDirectory").get(instance) as java.io.File
+            cachedClientDatapacksDir = gameDirFile.toPath().resolve("datapacks")
+        } catch (_: Exception) { }
+        return cachedClientDatapacksDir
     }
 
     @Deprecated("Use loadFromAllSources()", ReplaceWith("loadFromAllSources()"))

@@ -5,6 +5,8 @@ import com.cobblemonrei.DebugLog
 import com.cobblemonrei.EvolutionInfo
 import com.cobblemonrei.SpawnDataIndex
 import com.cobblemonrei.SpawnInfo
+import com.cobblemonrei.config.CobblemonSpawningConfig
+import com.cobblemonrei.platform.PlatformHelper
 import com.cobblemonrei.rei.entry.PokemonEntry
 import com.cobblemonrei.rei.entry.PokemonEntryDefinition
 import com.cobblemonrei.rei.entry.PokemonEntryRenderer
@@ -47,21 +49,22 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
     override fun registerCategories(registry: CategoryRegistry) {
         ensureEntryTypeAvailable()
         registry.add(SpawnCategory())
-        registry.add(EvolutionCategory())
-        DebugLog.info("REI categories registered (spawns + evolution)")
+        if (CobblemonSpawningConfig.get().showEvolutions) {
+            registry.add(EvolutionCategory())
+        }
+        DebugLog.info("REI categories registered (spawns${if (CobblemonSpawningConfig.get().showEvolutions) " + evolution" else ""})")
     }
 
     override fun registerDisplays(registry: DisplayRegistry) {
         ensureEntryTypeAvailable()
         SpawnDataIndex.ensureLoaded()
 
-        // Use dynamic generators so displays pull live data from SpawnDataIndex.
-        // When server data arrives (replacing local data), subsequent searches
-        // automatically reflect the updated data without needing a REI reload.
         registry.registerDisplayGenerator(SpawnCategory.ID, SpawnDisplayGenerator())
-        registry.registerDisplayGenerator(EvolutionCategory.ID, EvolutionDisplayGenerator())
+        if (CobblemonSpawningConfig.get().showEvolutions) {
+            registry.registerDisplayGenerator(EvolutionCategory.ID, EvolutionDisplayGenerator())
+        }
 
-        DebugLog.info("Registered dynamic display generators for spawns + evolution")
+        DebugLog.info("Registered dynamic display generators")
     }
 
     override fun registerEntries(registry: EntryRegistry) {
@@ -97,6 +100,9 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
 
     private inner class SpawnDisplayGenerator : DynamicDisplayGenerator<SpawnDisplay> {
 
+        @Volatile private var cachedVersion = -1L
+        @Volatile private var cachedDisplays: List<SpawnDisplay>? = null
+
         override fun getRecipeFor(entry: EntryStack<*>): Optional<List<SpawnDisplay>> {
             val value = entry.value ?: return Optional.empty()
             if (value !is PokemonEntry) return Optional.empty()
@@ -109,16 +115,24 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
 
         override fun generate(builder: ViewSearchBuilder): Optional<List<SpawnDisplay>> {
             if (!SpawnDataIndex.isFullyLoaded()) return Optional.empty()
+            val version = SpawnDataIndex.dataVersion
+            cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
+
             val all = mutableListOf<SpawnDisplay>()
             for ((species, spawns) in SpawnDataIndex.spawnsBySpecies) {
                 if (spawns.isEmpty()) continue
                 all.addAll(buildSpawnDisplays(species, spawns))
             }
+            cachedDisplays = all
+            cachedVersion = version
             return if (all.isEmpty()) Optional.empty() else Optional.of(all)
         }
     }
 
     private inner class EvolutionDisplayGenerator : DynamicDisplayGenerator<EvolutionDisplay> {
+
+        @Volatile private var cachedVersion = -1L
+        @Volatile private var cachedDisplays: List<EvolutionDisplay>? = null
 
         override fun getRecipeFor(entry: EntryStack<*>): Optional<List<EvolutionDisplay>> {
             val value = entry.value ?: return Optional.empty()
@@ -134,6 +148,9 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
 
         override fun generate(builder: ViewSearchBuilder): Optional<List<EvolutionDisplay>> {
             if (!SpawnDataIndex.isFullyLoaded()) return Optional.empty()
+            val version = SpawnDataIndex.dataVersion
+            cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
+
             val seen = mutableSetOf<String>()
             val allEvos = mutableListOf<EvolutionInfo>()
             for ((_, evos) in SpawnDataIndex.evolutionsBySpecies) {
@@ -148,6 +165,8 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
                 val siblings = grouped[evo.fromSpecies] ?: listOf(evo)
                 EvolutionDisplay(evo, siblings.indexOf(evo) + 1, siblings.size)
             }
+            cachedDisplays = displays
+            cachedVersion = version
             return if (displays.isEmpty()) Optional.empty() else Optional.of(displays)
         }
 

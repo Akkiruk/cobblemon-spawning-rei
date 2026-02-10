@@ -2,21 +2,34 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
-## [1.5.0] - 2026-02-10
+## [1.5.0] - 2026-02-09
 
 ### Added
-- Server-to-client spawn data synchronization — dedicated servers send authoritative spawn/evolution data to connecting clients via compressed chunked packets
-- DynamicDisplayGenerator for both spawn and evolution categories — displays now reflect live data without needing a REI reload
-- Config system (`cobblemon-spawning-rei.json`) with debugMode, showSpawnWeights, showEvolutions, localDatapackScan options
-- "Server" indicator label on spawn/evolution displays when viewing server-synced data
-- Disconnect cleanup: data clears on server disconnect so local data reloads for the next session
+- Server-to-client spawn data synchronization via compressed chunked packets
+- DynamicDisplayGenerator for both spawn and evolution categories
+- Config system (`cobblemon-spawning-rei.json`) with debugMode, showSpawnWeights, showEvolutions, localDatapackScan
+- "Server" indicator label on displays when viewing server-synced data
+- Disconnect cleanup: data clears on server disconnect for next session
 - PlatformHelper abstraction for cross-platform config/networking
+- REI bookmark/favorites support for Pokémon entries (entry serializer)
+- Pokémon type names included in REI search text
+- Enhanced tooltips showing type, catch rate, and spawn count
+- Missing species logged to `config/cobblemon-spawning-rei-missing-models.txt`
+- REI declared as required dependency in NeoForge metadata
+- Network decompression size limit (50MB) for safety
+- Evolution requirement parsing warns at load time when data extraction fails
 
 ### Changed
-- Mod environment changed from client-only to both sides (`"environment": "*"`) to support server-side data loading
-- SpawnDataLoader now uses reflection for client game directory access (safe no-op on dedicated server)
-- SpawnDataIndex gains DataSource tracking (NONE/LOCAL/SERVER) and awaitingServerData flag
-- tickReloadCheck suppressed while awaiting server data
+- Mod environment changed from client-only to both sides to support server-side data loading
+- Config options now functional (showSpawnWeights, showEvolutions, localDatapackScan, debugMode)
+- Display generation cached by data version for better performance
+- Spawn file walking limited to depth 10
+- Client datapacks path lookup cached across reloads
+
+### Removed
+- Unused PokemonSpriteManager (dead code from pre-1.1.0 renderer)
+- Empty CobblemonREICommonPlugin stub
+- Unused SubscribeEvent import in NeoForge entrypoint
 
 ---
 

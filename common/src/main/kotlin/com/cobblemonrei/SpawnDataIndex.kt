@@ -40,6 +40,10 @@ object SpawnDataIndex {
     var allSpeciesNames: List<String> = emptyList()
         private set
 
+    @Volatile
+    var dataVersion: Long = 0
+        private set
+
     /** Set by ClientDataReceiver; suppresses local loading while waiting for server */
     @Volatile
     var awaitingServerData = false
@@ -102,6 +106,7 @@ object SpawnDataIndex {
 
         loadState = if (runtimeCount > 0) LoadState.FULLY_LOADED else LoadState.PARTIAL
         dataSource = DataSource.LOCAL
+        dataVersion++
 
         DebugLog.info(
             "Load complete (${loadState.name}, ${dataSource.name}): ${allSpeciesNames.size} species " +
@@ -125,6 +130,7 @@ object SpawnDataIndex {
         rebuildDerivedData()
         loadState = LoadState.FULLY_LOADED
         dataSource = DataSource.SERVER
+        dataVersion++
         awaitingServerData = false
 
         DebugLog.info(

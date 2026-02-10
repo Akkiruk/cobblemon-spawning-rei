@@ -6,6 +6,7 @@ import com.cobblemonrei.SpawnInfo
 import com.cobblemonrei.formatBiomeName
 import com.cobblemonrei.formatId
 import com.cobblemonrei.titleCase
+import com.cobblemonrei.config.CobblemonSpawningConfig
 import com.cobblemonrei.rei.entry.PokemonEntry
 import com.cobblemonrei.rei.entry.PokemonEntryType
 import me.shedaniel.math.Point
@@ -164,8 +165,9 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
             ctxParts.add("Form: ${formatFormAspects(spawn.formAspects)}")
         }
 
-        // Weight: hide 0, show readable label
+        // Weight: hide 0 or if config disables
         val weightLabel = when {
+            !CobblemonSpawningConfig.get().showSpawnWeights -> null
             spawn.weight <= 0f -> null
             else -> "Weight: ${formatWeight(spawn.weight)}"
         }
@@ -273,7 +275,7 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
         }
 
         // === Weight multipliers ===
-        if (spawn.weightMultipliers.isNotEmpty()) {
+        if (CobblemonSpawningConfig.get().showSpawnWeights && spawn.weightMultipliers.isNotEmpty()) {
             widgets.add(
                 Widgets.createLabel(Point(left, y), Component.literal("\u25B2 Weight Modifiers"))
                     .leftAligned().noShadow().color(0xFF333333.toInt(), 0xFFEEEEEE.toInt())
