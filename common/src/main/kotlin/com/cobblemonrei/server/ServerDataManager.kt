@@ -4,11 +4,14 @@ import com.cobblemonrei.DebugLog
 import com.cobblemonrei.EvolutionDataLoader
 import com.cobblemonrei.SpawnDataLoader
 import com.cobblemonrei.network.DataSerializer
+import com.cobblemonrei.network.SpawnSyncHashPayload
 import com.cobblemonrei.network.SpawnSyncPayload
 import com.cobblemonrei.platform.PlatformHelper
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.level.storage.LevelResource
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 object ServerDataManager {
 
@@ -16,7 +19,18 @@ object ServerDataManager {
     private var cachedCompressed: ByteArray? = null
 
     @Volatile
+    private var cachedFingerprint: String = ""
+
+    @Volatile
     private var dataLoaded = false
+
+    private data class SyncState(
+        val chunks: List<ByteArray>,
+        var currentIndex: Int,
+        var delayTicks: Int
+    )
+
+    private val pendingSyncs = ConcurrentHashMap<UUID, SyncState>()
 
     fun onServerReady(server: MinecraftServer) {
         if (!server.isDedicatedServer) return
@@ -27,7 +41,65 @@ object ServerDataManager {
         val server = player.server ?: return
         if (!server.isDedicatedServer) return
         if (!dataLoaded) loadAndCache(server)
-        sendToPlayer(player)
+
+        // Send tiny fingerprint first — client compares with local data
+        try {
+            PlatformHelper.sendPayloadToPlayer(player, SpawnSyncHashPayload(cachedFingerprint))
+            DebugLog.info("Sent data fingerprint to ${player.name.string}: $cachedFingerprint")
+        } catch (e: Exception) {
+            DebugLog.warn("Failed to send fingerprint to ${player.name.string}: ${e.message}")
+            return
+        }
+
+        // Queue data chunks for delayed sending (100 ticks = ~5 seconds)
+        val data = cachedCompressed ?: return
+        val chunks = DataSerializer.splitIntoChunks(data)
+        pendingSyncs[player.uuid] = SyncState(chunks, 0, 100)
+        DebugLog.info("Queued ${chunks.size} data chunk(s) for ${player.name.string} (${data.size} bytes, sending after 5s)")
+    }
+
+    fun onServerTick(server: MinecraftServer) {
+        if (!server.isDedicatedServer) return
+        if (pendingSyncs.isEmpty()) return
+
+        val toRemove = mutableListOf<UUID>()
+
+        for ((uuid, state) in pendingSyncs) {
+            if (state.delayTicks > 0) {
+                state.delayTicks--
+                continue
+            }
+
+            val player = server.playerList.getPlayer(uuid)
+            if (player == null) {
+                toRemove.add(uuid)
+                continue
+            }
+
+            try {
+                val chunk = state.chunks[state.currentIndex]
+                PlatformHelper.sendPayloadToPlayer(
+                    player,
+                    SpawnSyncPayload(state.currentIndex, state.chunks.size, chunk)
+                )
+            } catch (e: Exception) {
+                DebugLog.warn("Failed to send chunk ${state.currentIndex} to ${player.name.string}: ${e.message}")
+                toRemove.add(uuid)
+                continue
+            }
+
+            state.currentIndex++
+            if (state.currentIndex >= state.chunks.size) {
+                DebugLog.info("Finished sending data to ${server.playerList.getPlayer(uuid)?.name?.string ?: uuid}")
+                toRemove.add(uuid)
+            }
+        }
+
+        for (uuid in toRemove) pendingSyncs.remove(uuid)
+    }
+
+    fun onPlayerDisconnect(player: ServerPlayer) {
+        pendingSyncs.remove(player.uuid)
     }
 
     private fun loadAndCache(server: MinecraftServer) {
@@ -52,33 +124,22 @@ object ServerDataManager {
             }
 
             cachedCompressed = DataSerializer.serialize(spawns, evolutions, speciesInfo)
+            cachedFingerprint = DataSerializer.computeFingerprint(spawns, evolutions, speciesInfo)
             dataLoaded = true
 
             DebugLog.info(
                 "Server data cached: ${spawns.size} spawn species, ${evolutions.size} evolution species, " +
-                "${speciesInfo.size} species info (${cachedCompressed?.size ?: 0} bytes compressed)"
+                "${speciesInfo.size} species info (${cachedCompressed?.size ?: 0} bytes compressed, fingerprint=$cachedFingerprint)"
             )
         } catch (e: Exception) {
             DebugLog.warn("Server data load failed: ${e.message}")
         }
     }
 
-    private fun sendToPlayer(player: ServerPlayer) {
-        val data = cachedCompressed ?: return
-        val chunks = DataSerializer.splitIntoChunks(data)
-        DebugLog.info("Sending spawn data to ${player.name.string}: ${data.size} bytes in ${chunks.size} chunk(s)")
-
-        try {
-            for ((i, chunk) in chunks.withIndex()) {
-                PlatformHelper.sendPayloadToPlayer(player, SpawnSyncPayload(i, chunks.size, chunk))
-            }
-        } catch (e: Exception) {
-            DebugLog.warn("Failed to send spawn data to ${player.name.string}: ${e.message}")
-        }
-    }
-
     fun reset() {
         cachedCompressed = null
+        cachedFingerprint = ""
         dataLoaded = false
+        pendingSyncs.clear()
     }
 }

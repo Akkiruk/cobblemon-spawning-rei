@@ -2,6 +2,19 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.6.0] - 2026-02-10
+
+### Changed
+- Redesigned server sync: local-first architecture — clients load data immediately, never blocked waiting for server
+- Reduced packet chunk size from 900KB to 32KB to prevent connection drops
+- Server now sends a tiny fingerprint packet first; full sync only if data differs
+- Data chunks are sent 1-per-tick with a 5-second delay instead of all at once
+- Removed `awaitingServerData` blocking — clients always have data in REI
+
+### Fixed
+- "Connection Lost" crash caused by oversized custom_payload packets on dedicated servers
+- Clients seeing empty REI entries when server sync failed silently
+
 ## [1.5.1] - 2026-02-09
 
 ### Fixed

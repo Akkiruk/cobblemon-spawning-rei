@@ -5,12 +5,13 @@ import com.google.gson.*
 import com.google.gson.reflect.TypeToken
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.security.MessageDigest
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
 object DataSerializer {
 
-    const val MAX_CHUNK_SIZE = 900 * 1024 // 900KB per chunk
+    const val MAX_CHUNK_SIZE = 32 * 1024 // 32KB per chunk — gentle on connections
 
     private val GSON: Gson = GsonBuilder().create()
 
@@ -94,5 +95,24 @@ object DataSerializer {
             offset += chunk.size
         }
         return result
+    }
+
+    fun computeFingerprint(
+        spawns: Map<String, List<SpawnInfo>>,
+        evolutions: Map<String, List<EvolutionInfo>>,
+        speciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo>
+    ): String {
+        val sb = StringBuilder()
+        sb.append("s:${spawns.size}:")
+        sb.append(spawns.values.sumOf { it.size })
+        sb.append(":e:${evolutions.size}:")
+        sb.append(evolutions.values.sumOf { it.size })
+        sb.append(":i:${speciesInfo.size}")
+        // Include sorted keys for determinism
+        for (key in spawns.keys.sorted()) {
+            sb.append("|$key:${spawns[key]?.size ?: 0}")
+        }
+        val md = MessageDigest.getInstance("MD5")
+        return md.digest(sb.toString().toByteArray()).joinToString("") { "%02x".format(it) }
     }
 }

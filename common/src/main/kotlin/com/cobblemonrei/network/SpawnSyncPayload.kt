@@ -36,7 +36,7 @@ data class SpawnSyncPayload(
             override fun decode(buf: FriendlyByteBuf): SpawnSyncPayload {
                 val chunkIndex = buf.readVarInt()
                 val totalChunks = buf.readVarInt()
-                val data = buf.readByteArray(1_048_576)
+                val data = buf.readByteArray(49_152) // 48KB max per chunk
                 return SpawnSyncPayload(chunkIndex, totalChunks, data)
             }
 

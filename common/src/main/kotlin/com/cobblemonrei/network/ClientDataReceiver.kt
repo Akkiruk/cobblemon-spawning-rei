@@ -14,13 +14,31 @@ object ClientDataReceiver {
     @Volatile
     private var receivedCount = 0
 
+    /** When true, server data matches local — ignore incoming chunks */
+    @Volatile
+    private var ignoreServerData = false
+
+    fun onHashReceived(payload: SpawnSyncHashPayload) {
+        val serverFingerprint = payload.fingerprint
+        val localFingerprint = SpawnDataIndex.computeFingerprint()
+
+        if (serverFingerprint == localFingerprint) {
+            DebugLog.info("Server fingerprint matches local data ($serverFingerprint) — skipping sync")
+            ignoreServerData = true
+        } else {
+            DebugLog.info("Server fingerprint differs (server=$serverFingerprint, local=$localFingerprint) — accepting sync")
+            ignoreServerData = false
+        }
+    }
+
     fun onChunkReceived(payload: SpawnSyncPayload) {
+        if (ignoreServerData) return
+
         val idx = payload.chunkIndex
         val total = payload.totalChunks
 
         if (total <= 0) return
 
-        // First chunk (or mismatched total) → reset state
         if (idx == 0 || total != expectedTotal) {
             receivedChunks = arrayOfNulls(total)
             expectedTotal = total
@@ -62,20 +80,15 @@ object ClientDataReceiver {
             DebugLog.info("Server data applied: ${data.spawns.size} spawn species, ${data.evolutions.size} evolution species, ${data.speciesInfo.size} species info")
         } catch (e: Exception) {
             DebugLog.warn("Failed to deserialize server spawn data: ${e.message}")
-            // Fall back to local data
-            SpawnDataIndex.awaitingServerData = false
         } finally {
             reset()
         }
-    }
-
-    fun markAwaitingServerData() {
-        SpawnDataIndex.awaitingServerData = true
     }
 
     fun reset() {
         receivedChunks = emptyArray()
         expectedTotal = 0
         receivedCount = 0
+        ignoreServerData = false
     }
 }

@@ -1,6 +1,7 @@
 package com.cobblemonrei
 
 import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
+import com.cobblemonrei.network.DataSerializer
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -44,14 +45,13 @@ object SpawnDataIndex {
     var dataVersion: Long = 0
         private set
 
-    /** Set by ClientDataReceiver; suppresses local loading while waiting for server */
-    @Volatile
-    var awaitingServerData = false
-
     fun isFullyLoaded(): Boolean = loadState == LoadState.FULLY_LOADED
 
+    fun computeFingerprint(): String {
+        return DataSerializer.computeFingerprint(spawnsBySpecies, evolutionsBySpecies, speciesInfo)
+    }
+
     fun ensureLoaded() {
-        if (awaitingServerData) return
         when (loadState) {
             LoadState.FULLY_LOADED -> return
             LoadState.PARTIAL -> {
@@ -131,7 +131,6 @@ object SpawnDataIndex {
         loadState = LoadState.FULLY_LOADED
         dataSource = DataSource.SERVER
         dataVersion++
-        awaitingServerData = false
 
         DebugLog.info(
             "Server data applied: ${allSpeciesNames.size} species " +
@@ -148,7 +147,6 @@ object SpawnDataIndex {
         allSpeciesNames = emptyList()
         loadState = LoadState.NOT_LOADED
         dataSource = DataSource.NONE
-        awaitingServerData = false
         DebugLog.info("Data cleared on disconnect")
     }
 

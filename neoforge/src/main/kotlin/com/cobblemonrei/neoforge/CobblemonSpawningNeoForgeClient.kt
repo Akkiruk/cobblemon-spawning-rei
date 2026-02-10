@@ -27,15 +27,6 @@ object CobblemonSpawningNeoForgeClient {
 
     @SubscribeEvent
     @JvmStatic
-    fun onJoinServer(event: ClientPlayerNetworkEvent.LoggingIn) {
-        val mc = Minecraft.getInstance()
-        if (!mc.isLocalServer) {
-            ClientDataReceiver.markAwaitingServerData()
-        }
-    }
-
-    @SubscribeEvent
-    @JvmStatic
     fun onDisconnect(event: ClientPlayerNetworkEvent.LoggingOut) {
         SpawnDataIndex.onDisconnect()
         ClientDataReceiver.reset()

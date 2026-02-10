@@ -23,8 +23,6 @@ object CobblemonSpawningMod {
     }
 
     fun tickReloadCheck() {
-        // Don't reload while waiting for server data
-        if (SpawnDataIndex.awaitingServerData) return
         if (SpawnDataIndex.isFullyLoaded()) return
         reloadTickCounter++
         if (reloadTickCounter % 100 != 0) return

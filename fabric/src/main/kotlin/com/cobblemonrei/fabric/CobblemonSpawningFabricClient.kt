@@ -3,6 +3,7 @@ package com.cobblemonrei.fabric
 import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.SpawnDataIndex
 import com.cobblemonrei.network.ClientDataReceiver
+import com.cobblemonrei.network.SpawnSyncHashPayload
 import com.cobblemonrei.network.SpawnSyncPayload
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
@@ -19,16 +20,14 @@ class CobblemonSpawningFabricClient : ClientModInitializer {
             }
         }
 
-        // Receive spawn sync chunks from server
-        ClientPlayNetworking.registerGlobalReceiver(SpawnSyncPayload.TYPE) { payload, _ ->
-            ClientDataReceiver.onChunkReceived(payload)
+        // Receive fingerprint from server — compare with local data
+        ClientPlayNetworking.registerGlobalReceiver(SpawnSyncHashPayload.TYPE) { payload, _ ->
+            ClientDataReceiver.onHashReceived(payload)
         }
 
-        // When joining a server, flag that we're waiting for server data
-        ClientPlayConnectionEvents.JOIN.register { _, _, client ->
-            if (!client.isLocalServer) {
-                ClientDataReceiver.markAwaitingServerData()
-            }
+        // Receive spawn sync chunks from server (only applied if fingerprint differed)
+        ClientPlayNetworking.registerGlobalReceiver(SpawnSyncPayload.TYPE) { payload, _ ->
+            ClientDataReceiver.onChunkReceived(payload)
         }
 
         // Clear server data on disconnect so local data reloads next session
