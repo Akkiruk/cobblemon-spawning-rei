@@ -2,6 +2,11 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.5.1] - 2026-02-09
+
+### Fixed
+- Fabric/NeoForge PlatformHelperImpl package paths for Architectury @ExpectPlatform resolution
+
 ## [1.5.0] - 2026-02-09
 
 ### Added

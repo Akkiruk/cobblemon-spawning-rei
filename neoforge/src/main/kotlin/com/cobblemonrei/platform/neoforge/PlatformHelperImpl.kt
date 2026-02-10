@@ -1,6 +1,6 @@
 @file:Suppress("unused")
 
-package com.cobblemonrei.platform
+package com.cobblemonrei.platform.neoforge
 
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload

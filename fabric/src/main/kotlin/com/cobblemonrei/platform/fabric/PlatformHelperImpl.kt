@@ -1,6 +1,6 @@
 @file:Suppress("unused")
 
-package com.cobblemonrei.platform
+package com.cobblemonrei.platform.fabric
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.fabricmc.loader.api.FabricLoader
