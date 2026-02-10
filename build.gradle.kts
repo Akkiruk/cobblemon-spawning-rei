@@ -36,6 +36,8 @@ subprojects {
         maven("https://maven.impactdev.net/repository/development/")
         maven("https://oss.sonatype.org/content/repositories/snapshots")
         maven("https://maven.shedaniel.me/")
+        maven("https://maven.blamejared.com/")
+        maven("https://maven.terraformersmc.com/")
     }
 
     @Suppress("UnstableApiUsage")

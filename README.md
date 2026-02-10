@@ -1,4 +1,4 @@
-# Cobblemon Spawning REI
+  # Cobblemon Spawning REI
 
 [![Build](https://github.com/Akkiruk/cobblemon-spawning-rei/actions/workflows/build.yml/badge.svg)](https://github.com/Akkiruk/cobblemon-spawning-rei/actions/workflows/build.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/Akkiruk/cobblemon-spawning-rei?logo=github)](https://github.com/Akkiruk/cobblemon-spawning-rei/releases/latest)

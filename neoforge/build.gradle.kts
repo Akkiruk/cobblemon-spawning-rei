@@ -2,6 +2,8 @@ val neoforgeVersion = findProperty("neoforge_version")?.toString() ?: "21.1.77"
 val kotlinForForgeVersion = findProperty("kotlin_for_forge_version")?.toString() ?: "5.11.0"
 val cobblemonVersion = findProperty("cobblemon_version")?.toString() ?: "1.6.0+1.21.1"
 val reiVersion = findProperty("rei_version")?.toString() ?: "16.0.799"
+val jeiVersion = findProperty("jei_version")?.toString() ?: "19.27.0.340"
+val emiVersion = findProperty("emi_version")?.toString() ?: "1.1.12+1.21"
 
 plugins {
     id("com.github.johnrengelman.shadow") version "8.1.1"
@@ -47,6 +49,12 @@ dependencies {
     // REI NeoForge
     modCompileOnly("me.shedaniel:RoughlyEnoughItems-api-neoforge:$reiVersion")
     modRuntimeOnly("me.shedaniel:RoughlyEnoughItems-neoforge:$reiVersion")
+
+    // JEI NeoForge
+    modCompileOnly("mezz.jei:jei-1.21.1-neoforge-api:$jeiVersion")
+
+    // EMI NeoForge
+    modCompileOnly("dev.emi:emi-neoforge:$emiVersion")
 }
 
 tasks.processResources {

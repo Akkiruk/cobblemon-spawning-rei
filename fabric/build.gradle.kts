@@ -3,6 +3,8 @@ val fabricApiVersion = findProperty("fabric_api_version")?.toString() ?: "0.116.
 val fabricKotlinVersion = findProperty("fabric_kotlin_version")?.toString() ?: "1.13.4+kotlin.2.2.0"
 val cobblemonVersion = findProperty("cobblemon_version")?.toString() ?: "1.6.0+1.21.1"
 val reiVersion = findProperty("rei_version")?.toString() ?: "16.0.799"
+val jeiVersion = findProperty("jei_version")?.toString() ?: "19.27.0.340"
+val emiVersion = findProperty("emi_version")?.toString() ?: "1.1.12+1.21"
 
 plugins {
     id("com.github.johnrengelman.shadow") version "8.1.1"
@@ -45,6 +47,12 @@ dependencies {
     // REI Fabric
     modCompileOnly("me.shedaniel:RoughlyEnoughItems-api-fabric:$reiVersion")
     modRuntimeOnly("me.shedaniel:RoughlyEnoughItems-fabric:$reiVersion")
+
+    // JEI Fabric
+    modCompileOnly("mezz.jei:jei-1.21.1-fabric-api:$jeiVersion")
+
+    // EMI Fabric
+    modCompileOnly("dev.emi:emi-fabric:$emiVersion")
 }
 
 tasks.processResources {

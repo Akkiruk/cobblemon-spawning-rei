@@ -41,7 +41,7 @@ side="BOTH"
 
 [[dependencies.cobblemon_spawning_rei]]
 modId="roughlyenoughitems"
-type="required"
+type="optional"
 versionRange="[16.0,)"
 ordering="NONE"
 side="CLIENT"

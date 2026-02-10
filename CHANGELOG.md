@@ -2,6 +2,17 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.7.0] - 2025-07-22
+
+### Added
+- Full JEI integration — spawn locations and evolution categories with Pokemon ingredients
+- JEI/EMI/REI multiloader support: single JAR works with any recipe viewer (or none)
+- JEI ingredient type for Pokémon with sprite rendering and tooltips
+
+### Changed
+- REI, JEI, and EMI are now optional dependencies — mod loads without any recipe viewer
+- NeoForge recipe viewer plugins isolated to prevent crashes when a viewer isn't installed
+
 ## [1.6.0] - 2026-02-10
 
 ### Changed
