@@ -1,6 +1,7 @@
 package com.cobblemonrei.rei.evolution
 
 import com.cobblemonrei.CobblemonSpawningMod
+import com.cobblemonrei.SpawnDataIndex
 import com.cobblemonrei.rei.entry.PokemonEntry
 import com.cobblemonrei.rei.entry.PokemonEntryType
 import me.shedaniel.math.Point
@@ -43,6 +44,14 @@ class EvolutionCategory : DisplayCategory<EvolutionDisplay> {
         val centerX = bounds.centerX
         val padding = 8
         val availableWidth = bounds.width - padding * 2
+
+        // Data source indicator (top-right, small)
+        if (SpawnDataIndex.dataSource == SpawnDataIndex.DataSource.SERVER) {
+            widgets.add(
+                Widgets.createLabel(Point(bounds.maxX - padding, bounds.y + 3), Component.literal("Server"))
+                    .rightAligned().noShadow().color(0xFF44AA44.toInt(), 0xFF66DD66.toInt())
+            )
+        }
 
         val slotY = bounds.y + 10
         val nameY = slotY + SLOT_SIZE + 3

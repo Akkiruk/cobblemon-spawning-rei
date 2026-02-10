@@ -12,7 +12,7 @@
   },
   "license": "MIT",
   "icon": "assets/cobblemon-spawning-rei/icon.png",
-  "environment": "client",
+  "environment": "*",
   "entrypoints": {
     "main": [
       {

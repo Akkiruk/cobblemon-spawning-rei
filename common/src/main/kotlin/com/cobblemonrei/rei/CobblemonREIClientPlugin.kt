@@ -16,9 +16,12 @@ import com.cobblemonrei.rei.spawn.SpawnDisplay
 import me.shedaniel.rei.api.client.plugins.REIClientPlugin
 import me.shedaniel.rei.api.client.registry.category.CategoryRegistry
 import me.shedaniel.rei.api.client.registry.display.DisplayRegistry
+import me.shedaniel.rei.api.client.registry.display.DynamicDisplayGenerator
 import me.shedaniel.rei.api.client.registry.entry.EntryRegistry
 import me.shedaniel.rei.api.common.entry.EntryStack
 import me.shedaniel.rei.api.common.entry.type.EntryTypeRegistry
+import me.shedaniel.rei.api.client.view.ViewSearchBuilder
+import java.util.Optional
 
 open class CobblemonREIClientPlugin : REIClientPlugin {
 
@@ -52,56 +55,13 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
         ensureEntryTypeAvailable()
         SpawnDataIndex.ensureLoaded()
 
-        var spawnDisplays = 0
-        var evoDisplays = 0
-        val registeredEvoIds = mutableSetOf<String>()
+        // Use dynamic generators so displays pull live data from SpawnDataIndex.
+        // When server data arrives (replacing local data), subsequent searches
+        // automatically reflect the updated data without needing a REI reload.
+        registry.registerDisplayGenerator(SpawnCategory.ID, SpawnDisplayGenerator())
+        registry.registerDisplayGenerator(EvolutionCategory.ID, EvolutionDisplayGenerator())
 
-        // Spawn displays — one per rule, merge variant-only pools, deterministic order
-        for ((species, spawns) in SpawnDataIndex.spawnsBySpecies) {
-            if (spawns.isEmpty()) continue
-            val merged = mergeVariantSpawns(spawns)
-            val sorted = merged.sortedWith(
-                compareBy<MergedSpawn> { SpawnCategory.bucketSortOrder(it.spawn.bucket) }
-                    .thenBy { it.spawn.context }
-                    .thenByDescending { it.spawn.weight }
-            )
-            val bucketCounts = sorted.groupBy { it.spawn.bucket.lowercase() }.mapValues { it.value.size }
-            val bucketIdx = mutableMapOf<String, Int>()
-            for (ms in sorted) {
-                val b = ms.spawn.bucket.lowercase()
-                val idx = (bucketIdx[b] ?: 0) + 1
-                bucketIdx[b] = idx
-                try {
-                    registry.add(SpawnDisplay(species, ms.spawn, ms.formVariants, idx, bucketCounts[b]!!))
-                    spawnDisplays++
-                } catch (e: Exception) {
-                    DebugLog.once("spawn-display-$species-${ms.spawn.id}") { "Failed: ${e.message}" }
-                }
-            }
-        }
-
-        // Evolution displays — deduplicate, compute branch counts
-        val uniqueEvos = mutableListOf<EvolutionInfo>()
-        for ((_, evolutions) in SpawnDataIndex.evolutionsBySpecies) {
-            for (evo in evolutions) {
-                if (evo.id in registeredEvoIds) continue
-                registeredEvoIds.add(evo.id)
-                uniqueEvos.add(evo)
-            }
-        }
-        val branchCounts = uniqueEvos.groupBy { it.fromSpecies }
-        for (evo in uniqueEvos) {
-            val siblings = branchCounts[evo.fromSpecies] ?: listOf(evo)
-            val idx = siblings.indexOf(evo) + 1
-            try {
-                registry.add(EvolutionDisplay(evo, idx, siblings.size))
-                evoDisplays++
-            } catch (e: Exception) {
-                DebugLog.once("evo-display-${evo.id}") { "Failed evolution display for ${evo.id}: ${e.message}" }
-            }
-        }
-
-        DebugLog.info("Registered $spawnDisplays spawn, $evoDisplays evolution displays")
+        DebugLog.info("Registered dynamic display generators for spawns + evolution")
     }
 
     override fun registerEntries(registry: EntryRegistry) {
@@ -131,6 +91,99 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
 
         DebugLog.info("Registered $registered Pokémon entries ($hidden hidden — no model)")
         DebugLog.printSummary()
+    }
+
+    // --- Dynamic Display Generators ---
+
+    private inner class SpawnDisplayGenerator : DynamicDisplayGenerator<SpawnDisplay> {
+
+        override fun getRecipeFor(entry: EntryStack<*>): Optional<List<SpawnDisplay>> {
+            val value = entry.value ?: return Optional.empty()
+            if (value !is PokemonEntry) return Optional.empty()
+            val spawns = SpawnDataIndex.getSpawnsFor(value.species)
+            if (spawns.isEmpty()) return Optional.empty()
+            return Optional.of(buildSpawnDisplays(value.species, spawns))
+        }
+
+        override fun getUsageFor(entry: EntryStack<*>): Optional<List<SpawnDisplay>> = Optional.empty()
+
+        override fun generate(builder: ViewSearchBuilder): Optional<List<SpawnDisplay>> {
+            if (!SpawnDataIndex.isFullyLoaded()) return Optional.empty()
+            val all = mutableListOf<SpawnDisplay>()
+            for ((species, spawns) in SpawnDataIndex.spawnsBySpecies) {
+                if (spawns.isEmpty()) continue
+                all.addAll(buildSpawnDisplays(species, spawns))
+            }
+            return if (all.isEmpty()) Optional.empty() else Optional.of(all)
+        }
+    }
+
+    private inner class EvolutionDisplayGenerator : DynamicDisplayGenerator<EvolutionDisplay> {
+
+        override fun getRecipeFor(entry: EntryStack<*>): Optional<List<EvolutionDisplay>> {
+            val value = entry.value ?: return Optional.empty()
+            if (value !is PokemonEntry) return Optional.empty()
+            return buildEvoDisplays(SpawnDataIndex.getEvolutionsTo(value.species))
+        }
+
+        override fun getUsageFor(entry: EntryStack<*>): Optional<List<EvolutionDisplay>> {
+            val value = entry.value ?: return Optional.empty()
+            if (value !is PokemonEntry) return Optional.empty()
+            return buildEvoDisplays(SpawnDataIndex.getEvolutionsFrom(value.species))
+        }
+
+        override fun generate(builder: ViewSearchBuilder): Optional<List<EvolutionDisplay>> {
+            if (!SpawnDataIndex.isFullyLoaded()) return Optional.empty()
+            val seen = mutableSetOf<String>()
+            val allEvos = mutableListOf<EvolutionInfo>()
+            for ((_, evos) in SpawnDataIndex.evolutionsBySpecies) {
+                for (evo in evos) {
+                    if (evo.id in seen) continue
+                    seen.add(evo.id)
+                    allEvos.add(evo)
+                }
+            }
+            val grouped = allEvos.groupBy { it.fromSpecies }
+            val displays = allEvos.map { evo ->
+                val siblings = grouped[evo.fromSpecies] ?: listOf(evo)
+                EvolutionDisplay(evo, siblings.indexOf(evo) + 1, siblings.size)
+            }
+            return if (displays.isEmpty()) Optional.empty() else Optional.of(displays)
+        }
+
+        private fun buildEvoDisplays(evos: List<com.cobblemonrei.EvolutionInfo>): Optional<List<EvolutionDisplay>> {
+            if (evos.isEmpty()) return Optional.empty()
+            val grouped = evos.groupBy { it.fromSpecies }
+            val displays = evos.mapIndexed { _, evo ->
+                val siblings = grouped[evo.fromSpecies] ?: listOf(evo)
+                EvolutionDisplay(evo, siblings.indexOf(evo) + 1, siblings.size)
+            }
+            return Optional.of(displays)
+        }
+    }
+
+    // --- Spawn display builder ---
+
+    private fun buildSpawnDisplays(species: String, spawns: List<SpawnInfo>): List<SpawnDisplay> {
+        val merged = mergeVariantSpawns(spawns)
+        val sorted = merged.sortedWith(
+            compareBy<MergedSpawn> { SpawnCategory.bucketSortOrder(it.spawn.bucket) }
+                .thenBy { it.spawn.context }
+                .thenByDescending { it.spawn.weight }
+        )
+        val bucketCounts = sorted.groupBy { it.spawn.bucket.lowercase() }.mapValues { it.value.size }
+        val bucketIdx = mutableMapOf<String, Int>()
+        return sorted.mapNotNull { ms ->
+            val b = ms.spawn.bucket.lowercase()
+            val idx = (bucketIdx[b] ?: 0) + 1
+            bucketIdx[b] = idx
+            try {
+                SpawnDisplay(species, ms.spawn, ms.formVariants, idx, bucketCounts[b]!!)
+            } catch (e: Exception) {
+                DebugLog.once("spawn-display-$species-${ms.spawn.id}") { "Failed: ${e.message}" }
+                null
+            }
+        }
     }
 
     // --- Variant merge helpers ---

@@ -1,5 +1,6 @@
 package com.cobblemonrei
 
+import com.cobblemonrei.config.CobblemonSpawningConfig
 import org.slf4j.LoggerFactory
 
 object CobblemonSpawningMod {
@@ -14,9 +15,16 @@ object CobblemonSpawningMod {
 
     fun init() {
         DebugLog.info("Initializing")
+        try {
+            CobblemonSpawningConfig.load()
+        } catch (e: Exception) {
+            DebugLog.warn("Config load deferred: ${e.message}")
+        }
     }
 
     fun tickReloadCheck() {
+        // Don't reload while waiting for server data
+        if (SpawnDataIndex.awaitingServerData) return
         if (SpawnDataIndex.isFullyLoaded()) return
         reloadTickCounter++
         if (reloadTickCounter % 100 != 0) return

@@ -1,11 +1,14 @@
 package com.cobblemonrei.neoforge
 
 import com.cobblemonrei.CobblemonSpawningMod
+import com.cobblemonrei.SpawnDataIndex
+import com.cobblemonrei.network.ClientDataReceiver
 import me.shedaniel.rei.forge.REIPluginClient
 import net.minecraft.client.Minecraft
 import net.neoforged.api.distmarker.Dist
 import net.neoforged.bus.api.SubscribeEvent
 import net.neoforged.fml.common.EventBusSubscriber
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent
 import net.neoforged.neoforge.client.event.ClientTickEvent
 
 @REIPluginClient
@@ -20,5 +23,21 @@ object CobblemonSpawningNeoForgeClient {
         if (Minecraft.getInstance().player != null) {
             CobblemonSpawningMod.tickReloadCheck()
         }
+    }
+
+    @SubscribeEvent
+    @JvmStatic
+    fun onJoinServer(event: ClientPlayerNetworkEvent.LoggingIn) {
+        val mc = Minecraft.getInstance()
+        if (!mc.isLocalServer) {
+            ClientDataReceiver.markAwaitingServerData()
+        }
+    }
+
+    @SubscribeEvent
+    @JvmStatic
+    fun onDisconnect(event: ClientPlayerNetworkEvent.LoggingOut) {
+        SpawnDataIndex.onDisconnect()
+        ClientDataReceiver.reset()
     }
 }

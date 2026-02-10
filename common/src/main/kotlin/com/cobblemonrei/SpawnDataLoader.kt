@@ -3,7 +3,6 @@ package com.cobblemonrei
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import net.minecraft.client.Minecraft
 import java.io.InputStreamReader
 import java.nio.file.Files
 import java.nio.file.Path
@@ -18,7 +17,7 @@ object SpawnDataLoader {
 
     private var presetCache: Map<String, PresetData> = emptyMap()
 
-    fun loadFromAllSources(): Map<String, List<SpawnInfo>> {
+    fun loadFromAllSources(extraDatapacksDir: Path? = null): Map<String, List<SpawnInfo>> {
         val roots = findAllModRootPaths()
         DebugLog.debug("Scanning ${roots.size} mod roots for spawn data")
 
@@ -53,18 +52,28 @@ object SpawnDataLoader {
             }
         }
 
-        // Datapacks folder
+        // Scan explicitly provided datapacks directory (server world datapacks)
+        if (extraDatapacksDir != null && Files.exists(extraDatapacksDir) && Files.isDirectory(extraDatapacksDir)) {
+            scanDatapacksDir(extraDatapacksDir, result) { added, count ->
+                totalFiles += if (added) 1 else 0
+                totalEntries += count
+            }
+        }
+
+        // Scan client-side datapacks folder via reflection (safe no-op on dedicated server)
         try {
-            val gameDir = Minecraft.getInstance().gameDirectory.toPath()
-            val datapacksDir = gameDir.resolve("datapacks")
+            val mcClass = Class.forName("net.minecraft.client.Minecraft")
+            val instance = mcClass.getMethod("getInstance").invoke(null)
+            val gameDirFile = mcClass.getField("gameDirectory").get(instance) as java.io.File
+            val datapacksDir = gameDirFile.toPath().resolve("datapacks")
             if (Files.exists(datapacksDir) && Files.isDirectory(datapacksDir)) {
                 scanDatapacksDir(datapacksDir, result) { added, count ->
                     totalFiles += if (added) 1 else 0
                     totalEntries += count
                 }
             }
-        } catch (e: Exception) {
-            DebugLog.once("datapack-scan") { "Datapack scan failed: ${e.message}" }
+        } catch (_: Exception) {
+            // Not on client (dedicated server) or Minecraft not available yet
         }
 
         DebugLog.info("Parsed $totalEntries spawn entries from $totalFiles files (${presetCache.size} presets)")

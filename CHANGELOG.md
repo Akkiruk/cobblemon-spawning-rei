@@ -2,6 +2,24 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.5.0] - 2026-02-10
+
+### Added
+- Server-to-client spawn data synchronization — dedicated servers send authoritative spawn/evolution data to connecting clients via compressed chunked packets
+- DynamicDisplayGenerator for both spawn and evolution categories — displays now reflect live data without needing a REI reload
+- Config system (`cobblemon-spawning-rei.json`) with debugMode, showSpawnWeights, showEvolutions, localDatapackScan options
+- "Server" indicator label on spawn/evolution displays when viewing server-synced data
+- Disconnect cleanup: data clears on server disconnect so local data reloads for the next session
+- PlatformHelper abstraction for cross-platform config/networking
+
+### Changed
+- Mod environment changed from client-only to both sides (`"environment": "*"`) to support server-side data loading
+- SpawnDataLoader now uses reflection for client game directory access (safe no-op on dedicated server)
+- SpawnDataIndex gains DataSource tracking (NONE/LOCAL/SERVER) and awaitingServerData flag
+- tickReloadCheck suppressed while awaiting server data
+
+---
+
 ## [1.4.8] - 2026-02-10
 
 ### Fixed

@@ -1,15 +1,21 @@
 package com.cobblemonrei
 
 import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
+import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
 
 @Suppress("ObjectPropertyName")
 object SpawnDataIndex {
 
     enum class LoadState { NOT_LOADED, PARTIAL, FULLY_LOADED }
+    enum class DataSource { NONE, LOCAL, SERVER }
 
     @Volatile
     var loadState = LoadState.NOT_LOADED
+        private set
+
+    @Volatile
+    var dataSource = DataSource.NONE
         private set
 
     private val isLoading = AtomicBoolean(false)
@@ -34,9 +40,14 @@ object SpawnDataIndex {
     var allSpeciesNames: List<String> = emptyList()
         private set
 
+    /** Set by ClientDataReceiver; suppresses local loading while waiting for server */
+    @Volatile
+    var awaitingServerData = false
+
     fun isFullyLoaded(): Boolean = loadState == LoadState.FULLY_LOADED
 
     fun ensureLoaded() {
+        if (awaitingServerData) return
         when (loadState) {
             LoadState.FULLY_LOADED -> return
             LoadState.PARTIAL -> {
@@ -50,10 +61,10 @@ object SpawnDataIndex {
         }
     }
 
-    fun loadAll() {
+    fun loadAll(extraDatapacksDir: Path? = null) {
         if (!isLoading.compareAndSet(false, true)) return
         try {
-            doLoad()
+            doLoad(extraDatapacksDir)
         } catch (e: Exception) {
             DebugLog.warn("Data load failed: ${e.message}")
         } finally {
@@ -61,9 +72,9 @@ object SpawnDataIndex {
         }
     }
 
-    private fun doLoad() {
+    private fun doLoad(extraDatapacksDir: Path? = null) {
         DebugLog.reset()
-        spawnsBySpecies = SpawnDataLoader.loadFromAllSources()
+        spawnsBySpecies = SpawnDataLoader.loadFromAllSources(extraDatapacksDir)
 
         val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
 
@@ -87,6 +98,55 @@ object SpawnDataIndex {
             speciesInfo = emptyMap()
         }
 
+        rebuildDerivedData()
+
+        loadState = if (runtimeCount > 0) LoadState.FULLY_LOADED else LoadState.PARTIAL
+        dataSource = DataSource.LOCAL
+
+        DebugLog.info(
+            "Load complete (${loadState.name}, ${dataSource.name}): ${allSpeciesNames.size} species " +
+            "(${speciesInfo.count { it.value.nationalDexNumber > 0 }} with dex, " +
+            "${spawnsBySpecies.size} with spawns, ${evolutionsBySpecies.size} with evolutions)"
+        )
+    }
+
+    /**
+     * Replace all data with server-provided data.
+     * Called from ClientDataReceiver when the full payload arrives.
+     */
+    fun applyServerData(
+        spawns: Map<String, List<SpawnInfo>>,
+        evolutions: Map<String, List<EvolutionInfo>>,
+        species: Map<String, EvolutionDataLoader.SpeciesBasicInfo>
+    ) {
+        spawnsBySpecies = spawns
+        evolutionsBySpecies = evolutions
+        speciesInfo = species
+        rebuildDerivedData()
+        loadState = LoadState.FULLY_LOADED
+        dataSource = DataSource.SERVER
+        awaitingServerData = false
+
+        DebugLog.info(
+            "Server data applied: ${allSpeciesNames.size} species " +
+            "(${spawns.size} with spawns, ${evolutions.size} with evolutions)"
+        )
+    }
+
+    /** Clear server data on disconnect, allow local reload next tick */
+    fun onDisconnect() {
+        spawnsBySpecies = emptyMap()
+        evolutionsBySpecies = emptyMap()
+        evolutionsToSpecies = emptyMap()
+        speciesInfo = emptyMap()
+        allSpeciesNames = emptyList()
+        loadState = LoadState.NOT_LOADED
+        dataSource = DataSource.NONE
+        awaitingServerData = false
+        DebugLog.info("Data cleared on disconnect")
+    }
+
+    private fun rebuildDerivedData() {
         val reverseMap = mutableMapOf<String, MutableList<EvolutionInfo>>()
         for ((_, evolutions) in evolutionsBySpecies) {
             for (evo in evolutions) {
@@ -103,6 +163,7 @@ object SpawnDataIndex {
         }
         allNames.addAll(speciesInfo.keys)
 
+        val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
         if (runtimeCount > 0) {
             try {
                 for (species in PokemonSpecies.implemented) {
@@ -116,14 +177,6 @@ object SpawnDataIndex {
                 val dex = speciesInfo[it]?.nationalDexNumber ?: 0
                 if (dex == 0) Int.MAX_VALUE else dex
             }.thenBy { it }
-        )
-
-        loadState = if (runtimeCount > 0) LoadState.FULLY_LOADED else LoadState.PARTIAL
-
-        DebugLog.info(
-            "Load complete (${loadState.name}): ${allSpeciesNames.size} species " +
-            "(${speciesInfo.count { it.value.nationalDexNumber > 0 }} with dex, " +
-            "${spawnsBySpecies.size} with spawns, ${evolutionsBySpecies.size} with evolutions)"
         )
     }
 

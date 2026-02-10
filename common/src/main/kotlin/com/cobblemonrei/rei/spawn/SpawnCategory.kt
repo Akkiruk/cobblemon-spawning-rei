@@ -1,6 +1,7 @@
 package com.cobblemonrei.rei.spawn
 
 import com.cobblemonrei.CobblemonSpawningMod
+import com.cobblemonrei.SpawnDataIndex
 import com.cobblemonrei.SpawnInfo
 import com.cobblemonrei.formatBiomeName
 import com.cobblemonrei.formatId
@@ -116,6 +117,14 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
             Widgets.createLabel(Point(left + 24, bounds.y + 9), Component.literal(title))
                 .leftAligned().noShadow().color(0xFF333333.toInt(), 0xFFFFFFFF.toInt())
         )
+
+        // Data source indicator (top-right, small)
+        if (SpawnDataIndex.dataSource == SpawnDataIndex.DataSource.SERVER) {
+            widgets.add(
+                Widgets.createLabel(Point(right, bounds.y + 3), Component.literal("Server"))
+                    .rightAligned().noShadow().color(0xFF44AA44.toInt(), 0xFF66DD66.toInt())
+            )
+        }
 
         // === Row 2: Level range (left) + Rarity (right) ===
         val row2Y = bounds.y + 24
