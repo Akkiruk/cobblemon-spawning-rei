@@ -2,6 +2,14 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.8.0] - 2025-07-22
+
+### Added
+- Full EMI integration — spawn locations and evolution categories with PokemonItem stacks
+- EMI sidebar entries for all Pokémon species with component-based comparison
+- EMI recipe tree linking for spawn and evolution lookups
+- NeoForge EMI discovery via @EmiEntrypoint annotation
+
 ## [1.7.1] - 2025-07-22
 
 ### Fixed
