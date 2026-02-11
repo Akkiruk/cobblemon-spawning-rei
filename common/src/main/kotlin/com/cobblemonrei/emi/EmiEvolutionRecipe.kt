@@ -17,8 +17,10 @@ class EmiEvolutionRecipe(val data: EvolutionRecipeData) : EmiRecipe {
 
     companion object {
         private const val WIDTH = 180
-        private const val HEIGHT = 90
+        private const val HEIGHT = 120
         private const val SLOT_SIZE = 18
+        private const val ITEM_START_Y = 48
+        private const val ITEM_ROW_HEIGHT = 20
     }
 
     private val fromStack: EmiStack? by lazy(LazyThreadSafetyMode.NONE) {
@@ -50,11 +52,21 @@ class EmiEvolutionRecipe(val data: EvolutionRecipeData) : EmiRecipe {
     override fun getDisplayHeight(): Int = HEIGHT
 
     override fun addWidgets(widgets: WidgetHolder) {
-        fromStack?.let { widgets.addSlot(it, 20, 10) }
-        toStack?.let { widgets.addSlot(it, WIDTH - 20 - SLOT_SIZE, 10).recipeContext(this) }
-        widgets.addTexture(EmiTexture.EMPTY_ARROW, WIDTH / 2 - 12, 10)
+        fromStack?.let { widgets.addSlot(it, 20, 8) }
+        toStack?.let { widgets.addSlot(it, WIDTH - 20 - SLOT_SIZE, 8).recipeContext(this) }
+        widgets.addTexture(EmiTexture.EMPTY_ARROW, WIDTH / 2 - 12, 8)
+
+        val items = data.evolution.itemRequirements
+        for ((i, item) in items.withIndex()) {
+            val stack = SpawnDisplayHelper.resolveItemStack(item.itemId)
+            if (!stack.isEmpty) {
+                widgets.addSlot(EmiStack.of(stack), 8, ITEM_START_Y + i * ITEM_ROW_HEIGHT)
+            }
+        }
+
+        val hasItems = items.isNotEmpty()
         widgets.addDrawable(0, 0, WIDTH, HEIGHT) { graphics, _, _, _ ->
-            SpawnDisplayHelper.drawEvolutionText(graphics, data.evolution, data.branchIndex, data.branchTotal)
+            SpawnDisplayHelper.drawEvolutionText(graphics, data.evolution, data.branchIndex, data.branchTotal, hasItemSlots = hasItems)
         }
     }
 }

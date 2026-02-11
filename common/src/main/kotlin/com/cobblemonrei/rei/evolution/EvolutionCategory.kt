@@ -4,6 +4,7 @@ import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.SpawnDisplayHelper
 import com.cobblemonrei.rei.entry.PokemonEntry
 import com.cobblemonrei.rei.entry.PokemonEntryType
+import me.shedaniel.math.Point
 import me.shedaniel.math.Rectangle
 import me.shedaniel.rei.api.client.gui.Renderer
 import me.shedaniel.rei.api.client.gui.widgets.Widget
@@ -22,6 +23,8 @@ class EvolutionCategory : DisplayCategory<EvolutionDisplay> {
             CobblemonSpawningMod.MOD_ID, "evolution"
         )
         private const val SLOT_SIZE = 18
+        private const val ITEM_START_Y = 48
+        private const val ITEM_ROW_HEIGHT = 20
     }
 
     override fun getCategoryIdentifier(): CategoryIdentifier<out EvolutionDisplay> = ID
@@ -30,7 +33,7 @@ class EvolutionCategory : DisplayCategory<EvolutionDisplay> {
 
     override fun getIcon(): Renderer = EntryStacks.of(Items.EXPERIENCE_BOTTLE)
 
-    override fun getDisplayHeight(): Int = 100
+    override fun getDisplayHeight(): Int = 120
 
     override fun getFixedDisplaysPerPage(): Int = 2
 
@@ -38,31 +41,46 @@ class EvolutionCategory : DisplayCategory<EvolutionDisplay> {
         val widgets = mutableListOf<Widget>()
         widgets.add(Widgets.createRecipeBase(bounds))
 
-        val fromStack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(display.evolution.fromSpecies))
+        val evo = display.evolution
+
+        val fromStack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(evo.fromSpecies))
         widgets.add(
-            Widgets.createSlot(Rectangle(bounds.x + 20, bounds.y + 10, SLOT_SIZE, SLOT_SIZE))
+            Widgets.createSlot(Rectangle(bounds.x + 20, bounds.y + 8, SLOT_SIZE, SLOT_SIZE))
                 .entries(listOf(fromStack))
                 .markInput()
                 .disableBackground()
         )
 
-        val arrowY = bounds.y + 10 + (SLOT_SIZE - 17) / 2
-        widgets.add(Widgets.createArrow(me.shedaniel.math.Point(bounds.centerX - 12, arrowY)))
+        val arrowY = bounds.y + 8 + (SLOT_SIZE - 17) / 2
+        widgets.add(Widgets.createArrow(Point(bounds.centerX - 12, arrowY)))
 
-        val toStack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(display.evolution.toSpecies))
+        val toStack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(evo.toSpecies))
         widgets.add(
-            Widgets.createSlot(Rectangle(bounds.maxX - 8 - SLOT_SIZE - 12, bounds.y + 10, SLOT_SIZE, SLOT_SIZE))
+            Widgets.createSlot(Rectangle(bounds.maxX - 8 - SLOT_SIZE - 12, bounds.y + 8, SLOT_SIZE, SLOT_SIZE))
                 .entries(listOf(toStack))
                 .markOutput()
                 .disableBackground()
         )
 
+        val items = evo.itemRequirements
+        for ((i, item) in items.withIndex()) {
+            val stack = SpawnDisplayHelper.resolveItemStack(item.itemId)
+            if (!stack.isEmpty) {
+                widgets.add(
+                    Widgets.createSlot(Rectangle(bounds.x + 8, bounds.y + ITEM_START_Y + i * ITEM_ROW_HEIGHT, SLOT_SIZE, SLOT_SIZE))
+                        .entries(listOf(EntryStacks.of(stack)))
+                        .markInput()
+                )
+            }
+        }
+
         val ox = bounds.x
         val oy = bounds.y
+        val hasItems = items.isNotEmpty()
         widgets.add(Widgets.createDrawableWidget { gfx, _, _, _ ->
             gfx.pose().pushPose()
             gfx.pose().translate(ox.toFloat(), oy.toFloat(), 0f)
-            SpawnDisplayHelper.drawEvolutionText(gfx, display.evolution, display.branchIndex, display.branchTotal)
+            SpawnDisplayHelper.drawEvolutionText(gfx, evo, display.branchIndex, display.branchTotal, hasItemSlots = hasItems)
             gfx.pose().popPose()
         })
 

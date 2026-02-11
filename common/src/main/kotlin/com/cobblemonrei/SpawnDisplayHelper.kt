@@ -3,7 +3,10 @@ package com.cobblemonrei
 import com.cobblemonrei.config.CobblemonSpawningConfig
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.network.chat.Component
+import net.minecraft.resources.ResourceLocation
+import net.minecraft.world.item.ItemStack
 
 object SpawnDisplayHelper {
 
@@ -545,7 +548,22 @@ object SpawnDisplayHelper {
         }
     }
 
-    // --- Evolution text rendering (shared between JEI/EMI) ---
+    // --- Item resolution ---
+
+    fun resolveItemStack(itemId: String): ItemStack {
+        val rl = ResourceLocation.tryParse(itemId) ?: return ItemStack.EMPTY
+        return BuiltInRegistries.ITEM.getOptional(rl)
+            .map { ItemStack(it) }
+            .orElse(ItemStack.EMPTY)
+    }
+
+    private fun formatItemIdFallback(itemId: String): String {
+        val name = if (itemId.contains(":")) itemId.substringAfter(":") else itemId
+        return name.replace("_", " ").split(" ")
+            .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+    }
+
+    // --- Evolution text rendering (shared between REI/JEI/EMI) ---
 
     fun drawEvolutionText(
         graphics: GuiGraphics,
@@ -553,31 +571,54 @@ object SpawnDisplayHelper {
         branchIndex: Int,
         branchTotal: Int,
         width: Int = 180,
-        slotSize: Int = 18
+        slotSize: Int = 18,
+        hasItemSlots: Boolean = false
     ) {
         val font = Minecraft.getInstance().font
         val centerX = width / 2
+        val padding = 6
+        val right = width - padding
 
         val fromName = clip(evolution.displayFromName, 16)
         val fromWidth = font.width(fromName)
-        graphics.drawString(font, fromName, 20 + slotSize / 2 - fromWidth / 2, 32, 0xFFFFFF, false)
+        graphics.drawString(font, fromName, 20 + slotSize / 2 - fromWidth / 2, 30, 0xFFFFFF, false)
 
         val toName = clip(evolution.displayToName, 16)
         val toWidth = font.width(toName)
-        graphics.drawString(font, toName, width - 20 - slotSize / 2 - toWidth / 2, 32, 0xFFFFFF, false)
+        graphics.drawString(font, toName, width - 20 - slotSize / 2 - toWidth / 2, 30, 0xFFFFFF, false)
+
+        graphics.fill(padding, 42, right, 43, 0x40FFFFFF)
 
         if (branchTotal > 1) {
-            val branchText = "$branchIndex/$branchTotal"
+            val branchText = "Evolution $branchIndex/$branchTotal"
             val bw = font.width(branchText)
-            graphics.drawString(font, branchText, 20 + slotSize / 2 - bw / 2, 43, 0xBBBBBB, false)
+            graphics.drawString(font, branchText, right - bw, 44, 0x777777, false)
         }
 
-        val lines = wrapReqText(evolution.displayRequirements, 32, 3)
-        var reqY = 56
-        for (line in lines) {
-            val lw = font.width(line)
-            graphics.drawString(font, line, centerX - lw / 2, reqY, 0xFFDD88, false)
-            reqY += 11
+        val items = evolution.itemRequirements
+        var contentY = 48
+
+        if (hasItemSlots && items.isNotEmpty()) {
+            for (item in items) {
+                val stack = resolveItemStack(item.itemId)
+                val name = if (!stack.isEmpty) stack.hoverName.string else formatItemIdFallback(item.itemId)
+                val labelText = "${item.label} "
+                val labelWidth = font.width(labelText)
+                graphics.drawString(font, labelText, 30, contentY + 4, 0xBBBBBB, false)
+                graphics.drawString(font, name, 30 + labelWidth, contentY + 4, 0xFFFFFF, false)
+                contentY += 20
+            }
+        }
+
+        val reqText = if (hasItemSlots) evolution.textOnlyRequirements else evolution.displayRequirements
+        if (reqText.isNotBlank()) {
+            val lines = wrapReqText(reqText, 30, 3)
+            for (line in lines) {
+                if (contentY + 11 > 110) break
+                val lw = font.width(line)
+                graphics.drawString(font, line, centerX - lw / 2, contentY, 0xFFDD88, false)
+                contentY += 12
+            }
         }
     }
 }

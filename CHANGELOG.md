@@ -1,6 +1,19 @@
 # Changelog
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
+## [1.12.0] - 2026-02-11
+
+### Added
+- Evolution items (Fire Stone, Metal Coat, etc.) now appear as actual clickable item slots in REI, JEI, and EMI
+- Clicking an evolution item opens its crafting recipe or usage info
+- Item names displayed using Minecraft's localized names
+
+### Changed
+- Evolution display height increased for better readability
+- Polished evolution layout with separator line, better spacing, and branch indicator
+- Species names positioned closer to their Pokemon icons
+- Non-item requirements (level, friendship, time, etc.) render below item slots
+
 ## [1.11.1] - 2026-02-11
 
 ### Fixed

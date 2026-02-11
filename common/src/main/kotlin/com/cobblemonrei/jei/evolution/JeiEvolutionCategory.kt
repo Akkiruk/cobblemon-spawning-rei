@@ -28,8 +28,10 @@ class JeiEvolutionCategory(guiHelper: IGuiHelper) : IRecipeCategory<JeiEvolution
         )
 
         private const val WIDTH = 180
-        private const val HEIGHT = 90
+        private const val HEIGHT = 120
         private const val SLOT_SIZE = 18
+        private const val ITEM_START_Y = 48
+        private const val ITEM_ROW_HEIGHT = 20
     }
 
     private val background: IDrawable = guiHelper.createBlankDrawable(WIDTH, HEIGHT)
@@ -44,15 +46,23 @@ class JeiEvolutionCategory(guiHelper: IGuiHelper) : IRecipeCategory<JeiEvolution
     override fun getIcon(): IDrawable = icon
 
     override fun setRecipe(builder: IRecipeLayoutBuilder, recipe: JeiEvolutionRecipe, focuses: IFocusGroup) {
-        builder.addSlot(RecipeIngredientRole.INPUT, 20, 10)
+        builder.addSlot(RecipeIngredientRole.INPUT, 20, 8)
             .addIngredient(PokemonIngredientType, PokemonIngredient(recipe.evolution.fromSpecies, recipe.evolution.fromAspects))
 
-        builder.addSlot(RecipeIngredientRole.OUTPUT, WIDTH - 20 - SLOT_SIZE, 10)
+        builder.addSlot(RecipeIngredientRole.OUTPUT, WIDTH - 20 - SLOT_SIZE, 8)
             .addIngredient(PokemonIngredientType, PokemonIngredient(recipe.evolution.toSpecies, recipe.evolution.toAspects))
+
+        for ((i, item) in recipe.evolution.itemRequirements.withIndex()) {
+            val stack = SpawnDisplayHelper.resolveItemStack(item.itemId)
+            if (!stack.isEmpty) {
+                builder.addSlot(RecipeIngredientRole.CATALYST, 8, ITEM_START_Y + i * ITEM_ROW_HEIGHT)
+                    .addItemStack(stack)
+            }
+        }
     }
 
     override fun draw(recipe: JeiEvolutionRecipe, recipeSlotsView: IRecipeSlotsView, graphics: GuiGraphics, mouseX: Double, mouseY: Double) {
-        arrow.draw(graphics, WIDTH / 2 - 12, 10)
-        SpawnDisplayHelper.drawEvolutionText(graphics, recipe.evolution, recipe.branchIndex, recipe.branchTotal)
+        arrow.draw(graphics, WIDTH / 2 - 12, 8)
+        SpawnDisplayHelper.drawEvolutionText(graphics, recipe.evolution, recipe.branchIndex, recipe.branchTotal, hasItemSlots = recipe.evolution.itemRequirements.isNotEmpty())
     }
 }

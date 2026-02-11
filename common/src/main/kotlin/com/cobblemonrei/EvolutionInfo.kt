@@ -65,7 +65,57 @@ data class EvolutionInfo(
                 }
             } else parts.joinToString(", ")
         }
+
+    val itemRequirements: List<EvolutionItemInfo>
+        get() {
+            val items = mutableListOf<EvolutionItemInfo>()
+            if (requiredContext != null && requiredContext.isNotBlank()) {
+                val rawId = requiredContext.trim()
+                if (rawId.contains(":") && !rawId.contains("@") && rawId.length < 60) {
+                    when {
+                        variant.contains("item_interact") -> items.add(EvolutionItemInfo(rawId, "Use"))
+                        variant.contains("block_click") -> items.add(EvolutionItemInfo(rawId, "Click"))
+                    }
+                }
+            }
+            for (req in requirements) {
+                when (req.variant) {
+                    "held_item" -> {
+                        val id = req.data["itemCondition"]?.toString()
+                        if (id != null && id.contains(":") && !id.contains("@") && id.length < 60)
+                            items.add(EvolutionItemInfo(id, "Hold"))
+                    }
+                    "owner_holds_item" -> {
+                        val id = req.data["itemCondition"]?.toString()
+                        if (id != null && id.contains(":") && !id.contains("@") && id.length < 60)
+                            items.add(EvolutionItemInfo(id, "Player holds"))
+                    }
+                }
+            }
+            return items
+        }
+
+    val textOnlyRequirements: String
+        get() {
+            val parts = mutableListOf<String>()
+            if (variant == "trade") parts.add("Trade")
+            for (req in requirements) {
+                if (req.variant == "held_item" || req.variant == "owner_holds_item") continue
+                parts.add(req.displayText)
+            }
+            if (parts.isEmpty() && itemRequirements.isEmpty()) {
+                when {
+                    variant.contains("level") -> parts.add("Level up")
+                    variant.contains("trade") -> parts.add("Trade")
+                    variant.contains("item") -> parts.add("Use item")
+                    else -> parts.add("Level up")
+                }
+            }
+            return parts.joinToString(", ")
+        }
 }
+
+data class EvolutionItemInfo(val itemId: String, val label: String)
 
 data class EvolutionRequirement(
     val variant: String,
