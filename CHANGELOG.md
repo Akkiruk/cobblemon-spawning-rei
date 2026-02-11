@@ -2,6 +2,13 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.9.0] - 2026-02-11
+
+### Fixed
+- CurseForge and Modrinth now receive correct environment metadata (client required, server optional)
+- Publish workflow sets Modrinth project-level client_side/server_side on every release
+- NeoForge JAR metadata now includes logoFile field
+
 ## [1.8.7] - 2026-02-11
 
 ### Changed

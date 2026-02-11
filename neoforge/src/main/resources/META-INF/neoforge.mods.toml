@@ -9,6 +9,7 @@ version="${version}"
 displayName="Cobblemon Spawning REI Integration"
 description='''Adds Cobblemon spawn locations, evolution chains, and species info to REI. Search any Pokémon to see where it spawns, how it evolves, and what conditions are needed.'''
 authors="Akkiruk"
+logoFile="assets/cobblemon-spawning-rei/icon.png"
 displayURL="https://github.com/Akkiruk/cobblemon-spawning-rei"
 
 [[dependencies.cobblemon_spawning_rei]]

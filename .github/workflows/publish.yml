@@ -70,6 +70,7 @@ jobs:
           
       # Publish Fabric version
       - name: Publish Fabric to CurseForge and Modrinth
+        id: publish_fabric
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
@@ -105,6 +106,7 @@ jobs:
           
       # Publish NeoForge version
       - name: Publish NeoForge to CurseForge and Modrinth
+        id: publish_neoforge
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
@@ -136,6 +138,75 @@ jobs:
             emi | optional | *
           
           java: 21
+
+      # Set Modrinth project-level environment: client required, server optional
+      - name: Set Modrinth environment metadata
+        run: |
+          echo "Setting Modrinth project environment: client=required, server=optional"
+          curl -s -X PATCH "https://api.modrinth.com/v2/project/${{ secrets.MODRINTH_PROJECT_ID }}" \
+            -H "Authorization: ${{ secrets.MODRINTH_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"client_side": "required", "server_side": "optional"}' \
+            -w "\nHTTP Status: %{http_code}\n" -o /dev/null
+          echo "Modrinth environment metadata updated"
+
+      # Resolve CurseForge environment game version IDs and patch uploaded files
+      - name: Set CurseForge environment metadata
+        env:
+          CF_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CF_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+        run: |
+          echo "Fetching CurseForge game version types..."
+          
+          # Get environment type game versions from CurseForge
+          CF_VERSIONS=$(curl -s "https://minecraft.curseforge.com/api/game/versions" \
+            -H "X-Api-Token: $CF_TOKEN")
+          
+          # Extract Client and Server environment game version IDs
+          CLIENT_ID=$(echo "$CF_VERSIONS" | jq '[.[] | select(.name == "Client")] | .[0].id')
+          SERVER_ID=$(echo "$CF_VERSIONS" | jq '[.[] | select(.name == "Server")] | .[0].id')
+          
+          echo "Environment IDs - Client: $CLIENT_ID, Server: $SERVER_ID"
+          
+          if [ "$CLIENT_ID" != "null" ] && [ -n "$CLIENT_ID" ]; then
+            # Get Fabric file ID from mc-publish output and patch it
+            FABRIC_FILE_ID="${{ steps.publish_fabric.outputs.curseforge-version }}"
+            if [ -n "$FABRIC_FILE_ID" ] && [ "$FABRIC_FILE_ID" != "" ]; then
+              echo "Patching Fabric file $FABRIC_FILE_ID with environment versions..."
+              
+              # Build game version array: existing MC versions + environment
+              FABRIC_VERSIONS=$(curl -s "https://minecraft.curseforge.com/api/projects/$CF_PROJECT_ID/files/$FABRIC_FILE_ID" \
+                -H "X-Api-Token: $CF_TOKEN" | jq -r '.gameVersions // []')
+              
+              # Add Client and Server IDs if not already present
+              UPDATED_VERSIONS=$(echo "$FABRIC_VERSIONS" | jq --argjson cid "$CLIENT_ID" --argjson sid "$SERVER_ID" \
+                '. + [$cid, $sid] | unique')
+              
+              curl -s -X POST "https://minecraft.curseforge.com/api/projects/$CF_PROJECT_ID/update-file" \
+                -H "X-Api-Token: $CF_TOKEN" \
+                -F "metadata={\"fileID\": $FABRIC_FILE_ID, \"gameVersions\": $UPDATED_VERSIONS}" \
+                -w "\nFabric patch HTTP Status: %{http_code}\n" -o /dev/null
+            fi
+            
+            # Get NeoForge file ID from mc-publish output and patch it
+            NEOFORGE_FILE_ID="${{ steps.publish_neoforge.outputs.curseforge-version }}"
+            if [ -n "$NEOFORGE_FILE_ID" ] && [ "$NEOFORGE_FILE_ID" != "" ]; then
+              echo "Patching NeoForge file $NEOFORGE_FILE_ID with environment versions..."
+              
+              NEOFORGE_VERSIONS=$(curl -s "https://minecraft.curseforge.com/api/projects/$CF_PROJECT_ID/files/$NEOFORGE_FILE_ID" \
+                -H "X-Api-Token: $CF_TOKEN" | jq -r '.gameVersions // []')
+              
+              UPDATED_VERSIONS=$(echo "$NEOFORGE_VERSIONS" | jq --argjson cid "$CLIENT_ID" --argjson sid "$SERVER_ID" \
+                '. + [$cid, $sid] | unique')
+              
+              curl -s -X POST "https://minecraft.curseforge.com/api/projects/$CF_PROJECT_ID/update-file" \
+                -H "X-Api-Token: $CF_TOKEN" \
+                -F "metadata={\"fileID\": $NEOFORGE_FILE_ID, \"gameVersions\": $UPDATED_VERSIONS}" \
+                -w "\nNeoForge patch HTTP Status: %{http_code}\n" -o /dev/null
+            fi
+          else
+            echo "Warning: Could not resolve CurseForge environment game version IDs"
+          fi
           
       - name: Upload Fabric artifacts
         uses: actions/upload-artifact@v4
