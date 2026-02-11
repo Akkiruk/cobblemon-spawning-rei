@@ -1,7 +1,11 @@
 # Changelog
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
+## [1.10.4] - 2026-02-11
 
+### Fixed
+- EMI crash via JEMI compat layer on NeoForge caused by unsanitized species names in PokemonRef.identifier (Farfetch'd)
+- Affects both JEI ingredient lookups and REI entry identifiers
 ## [1.10.3] - 2026-02-11
 
 ### Fixed

@@ -7,7 +7,7 @@ interface PokemonRef {
     val formAspects: Set<String>
 
     val identifier: ResourceLocation
-        get() = ResourceLocation.fromNamespaceAndPath("cobblemon", species.lowercase())
+        get() = ResourceLocation.fromNamespaceAndPath("cobblemon", sanitizePath(species))
 
     val displayName: String
         get() = species.replace("_", " ")
