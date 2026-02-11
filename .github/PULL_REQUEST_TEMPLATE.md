@@ -6,7 +6,7 @@
 
 **Testing:**
 - [ ] Code builds successfully
-- [ ] Tested in-game with REI
+- [ ] Tested in-game with at least one recipe viewer (REI/JEI/EMI)
 - [ ] No crashes or errors
 - [ ] Works with latest Cobblemon version
 

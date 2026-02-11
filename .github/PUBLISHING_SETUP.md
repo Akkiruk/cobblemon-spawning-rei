@@ -8,7 +8,7 @@ This repository automatically publishes to CurseForge and Modrinth when you push
 
 1. Go to https://www.curseforge.com/settings/api-tokens
 2. Click "Generate Token"
-3. Name it "GitHub Actions - CobblemonSpawningREI"
+3. Name it "GitHub Actions - Cobblemon Spawning REI/JEI/EMI"
 4. Copy the token (you won't see it again!)
 
 ### 2. Get CurseForge Project ID
