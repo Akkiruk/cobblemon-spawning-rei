@@ -1,12 +1,10 @@
 package com.cobblemonrei.emi
 
 import com.cobblemonrei.CobblemonSpawningMod
-import com.cobblemonrei.DebugLog
 import com.cobblemonrei.EvolutionInfo
+import com.cobblemonrei.PokemonItemCache
 import com.cobblemonrei.SpawnDisplayHelper.clip
 import com.cobblemonrei.SpawnDisplayHelper.wrapReqText
-import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
-import com.cobblemon.mod.common.item.PokemonItem
 import dev.emi.emi.api.recipe.EmiRecipe
 import dev.emi.emi.api.recipe.EmiRecipeCategory
 import dev.emi.emi.api.render.EmiTexture
@@ -29,20 +27,14 @@ class EmiEvolutionRecipe(
         private const val SLOT_SIZE = 18
     }
 
-    private val fromStack: EmiStack? = try {
-        val species = PokemonSpecies.getByName(evolution.fromSpecies)
-        if (species != null) EmiStack.of(PokemonItem.from(species)) else null
-    } catch (e: Exception) {
-        DebugLog.once("emi-evo-from-${evolution.fromSpecies}") { "Failed to create EmiStack: ${e.message}" }
-        null
+    private val fromStack: EmiStack? by lazy(LazyThreadSafetyMode.NONE) {
+        val item = PokemonItemCache.getItem(evolution.fromSpecies)
+        if (item != null && !item.isEmpty) EmiStack.of(item) else null
     }
 
-    private val toStack: EmiStack? = try {
-        val species = PokemonSpecies.getByName(evolution.toSpecies)
-        if (species != null) EmiStack.of(PokemonItem.from(species)) else null
-    } catch (e: Exception) {
-        DebugLog.once("emi-evo-to-${evolution.toSpecies}") { "Failed to create EmiStack: ${e.message}" }
-        null
+    private val toStack: EmiStack? by lazy(LazyThreadSafetyMode.NONE) {
+        val item = PokemonItemCache.getItem(evolution.toSpecies)
+        if (item != null && !item.isEmpty) EmiStack.of(item) else null
     }
 
     override fun getCategory(): EmiRecipeCategory = CobblemonEMIPlugin.EVOLUTION_CATEGORY

@@ -2,12 +2,11 @@ package com.cobblemonrei.emi
 
 import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.DebugLog
+import com.cobblemonrei.PokemonItemCache
 import com.cobblemonrei.SpawnDataIndex
 import com.cobblemonrei.SpawnDisplayHelper
 import com.cobblemonrei.SpawnInfo
 import com.cobblemonrei.config.CobblemonSpawningConfig
-import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
-import com.cobblemon.mod.common.item.PokemonItem
 import dev.emi.emi.api.EmiPlugin
 import dev.emi.emi.api.EmiRegistry
 import dev.emi.emi.api.recipe.EmiRecipeCategory
@@ -73,13 +72,8 @@ open class CobblemonEMIPlugin : EmiPlugin {
     }
 
     private fun pokemonStack(speciesName: String): EmiStack? {
-        return try {
-            val species = PokemonSpecies.getByName(speciesName) ?: return null
-            EmiStack.of(PokemonItem.from(species))
-        } catch (e: Exception) {
-            DebugLog.once("emi-stack-$speciesName") { "Failed to create EmiStack for $speciesName: ${e.message}" }
-            null
-        }
+        val item = PokemonItemCache.getItem(speciesName) ?: return null
+        return if (!item.isEmpty) EmiStack.of(item) else null
     }
 
     // --- Spawn recipe builders (same merge/sort logic as JEI) ---

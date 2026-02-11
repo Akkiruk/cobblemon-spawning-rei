@@ -2,6 +2,7 @@ package com.cobblemonrei.jei
 
 import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.DebugLog
+import com.cobblemonrei.PokemonItemCache
 import com.cobblemonrei.SpawnDataIndex
 import com.cobblemonrei.SpawnDisplayHelper
 import com.cobblemonrei.SpawnInfo
@@ -25,12 +26,11 @@ open class CobblemonJEIPlugin : IModPlugin {
     override fun registerIngredients(registration: IModIngredientRegistration) {
         SpawnDataIndex.ensureLoaded()
 
-        val renderer = PokemonIngredientRenderer()
         val allIngredients = SpawnDataIndex.allSpeciesNames
-            .filter { renderer.canRender(it) }
+            .filter { PokemonItemCache.canRender(it) }
             .map { PokemonIngredient(it) }
 
-        registration.register(PokemonIngredientType, allIngredients, PokemonIngredientHelper(), renderer)
+        registration.register(PokemonIngredientType, allIngredients, PokemonIngredientHelper(), PokemonIngredientRenderer())
         DebugLog.info("JEI: Registered ${allIngredients.size} Pokémon ingredients")
     }
 

@@ -3,6 +3,7 @@ package com.cobblemonrei.rei
 import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.DebugLog
 import com.cobblemonrei.EvolutionInfo
+import com.cobblemonrei.PokemonItemCache
 import com.cobblemonrei.SpawnDataIndex
 import com.cobblemonrei.SpawnDisplayHelper
 import com.cobblemonrei.SpawnInfo
@@ -10,7 +11,6 @@ import com.cobblemonrei.config.CobblemonSpawningConfig
 import com.cobblemonrei.platform.PlatformHelper
 import com.cobblemonrei.rei.entry.PokemonEntry
 import com.cobblemonrei.rei.entry.PokemonEntryDefinition
-import com.cobblemonrei.rei.entry.PokemonEntryRenderer
 import com.cobblemonrei.rei.entry.PokemonEntryType
 import com.cobblemonrei.rei.evolution.EvolutionCategory
 import com.cobblemonrei.rei.evolution.EvolutionDisplay
@@ -74,12 +74,11 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
         ensureEntryTypeAvailable()
         SpawnDataIndex.ensureLoaded()
 
-        val renderer = PokemonEntryRenderer()
         var registered = 0
         var hidden = 0
 
         for (species in SpawnDataIndex.allSpeciesNames) {
-            if (!renderer.canRender(species)) {
+            if (!PokemonItemCache.canRender(species)) {
                 DebugLog.trackMissingModel(species)
                 hidden++
                 continue

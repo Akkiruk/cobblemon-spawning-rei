@@ -1,8 +1,6 @@
 package com.cobblemonrei.rei.entry
 
-import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
-import com.cobblemon.mod.common.item.PokemonItem
-import com.cobblemonrei.DebugLog
+import com.cobblemonrei.PokemonItemCache
 import com.cobblemonrei.SpawnDataIndex
 import com.cobblemonrei.titleCase
 import me.shedaniel.math.Rectangle
@@ -12,12 +10,8 @@ import me.shedaniel.rei.api.client.gui.widgets.TooltipContext
 import me.shedaniel.rei.api.common.entry.EntryStack
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.network.chat.Component
-import net.minecraft.world.item.ItemStack
 
 class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
-
-    private val itemCache = java.util.concurrent.ConcurrentHashMap<String, ItemStack>()
-    private val speciesCache = java.util.concurrent.ConcurrentHashMap<String, com.cobblemon.mod.common.pokemon.Species>()
 
     override fun render(
         entry: EntryStack<PokemonEntry>,
@@ -28,7 +22,7 @@ class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
         delta: Float
     ) {
         val pokemon = entry.value ?: return
-        val itemStack = getOrCreateItem(pokemon.species)
+        val itemStack = PokemonItemCache.getItem(pokemon.species)
 
         if (itemStack != null && !itemStack.isEmpty) {
             val poseStack = graphics.pose()
@@ -44,29 +38,11 @@ class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
         }
     }
 
-    private fun getOrCreateItem(species: String): ItemStack? {
-        itemCache[species]?.let { return it }
-        val speciesObj = resolveSpecies(species) ?: return null
-        val item = try { PokemonItem.from(speciesObj) } catch (_: Exception) { null }
-        if (item != null && !item.isEmpty) itemCache[species] = item
-        return item
-    }
-
-    fun resolveSpecies(species: String): com.cobblemon.mod.common.pokemon.Species? {
-        speciesCache[species]?.let { return it }
-        val resolved = try { PokemonSpecies.getByName(species) } catch (_: Exception) { null }
-        if (resolved != null) speciesCache[species] = resolved
-        return resolved
-    }
-
-    fun canRender(species: String): Boolean {
-        val item = getOrCreateItem(species)
-        return item != null && !item.isEmpty
-    }
+    fun canRender(species: String): Boolean = PokemonItemCache.canRender(species)
 
     override fun getTooltip(entry: EntryStack<PokemonEntry>, context: TooltipContext): Tooltip? {
         val pokemon = entry.value ?: return null
-        val species = resolveSpecies(pokemon.species)
+        val species = PokemonItemCache.resolveSpecies(pokemon.species)
         val tooltip = Tooltip.create(Component.literal(pokemon.displayName))
         if (species != null) {
             tooltip.add(Component.literal("§7#${species.nationalPokedexNumber}"))

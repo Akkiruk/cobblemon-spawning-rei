@@ -2,6 +2,15 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.8.3] - 2025-07-23
+
+### Fixed
+- Data reload (PARTIAL → FULLY_LOADED) now runs on a background thread instead of freezing the game
+- Shared PokemonItemCache eliminates 3x duplicate PokemonItem.from() calls across REI/JEI/EMI
+- EMI spawn and evolution recipes use lazy stack resolution instead of eager constructor init
+- Registration no longer creates disposable renderer instances whose caches are immediately discarded
+- Mod root path discovery (reflection-based) is cached instead of re-running on every data reload
+
 ## [1.8.2] - 2025-07-23
 
 ### Fixed

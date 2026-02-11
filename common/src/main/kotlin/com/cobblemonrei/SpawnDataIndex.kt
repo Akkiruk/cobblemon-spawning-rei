@@ -65,6 +65,20 @@ object SpawnDataIndex {
         }
     }
 
+    fun ensureLoadedAsync() {
+        when (loadState) {
+            LoadState.FULLY_LOADED -> return
+            LoadState.PARTIAL -> {
+                val count = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
+                if (count > 0) {
+                    DebugLog.info("Runtime API now has $count species, reloading async")
+                    loadAllAsync()
+                }
+            }
+            LoadState.NOT_LOADED -> loadAllAsync()
+        }
+    }
+
     fun loadAll(extraDatapacksDir: Path? = null) {
         if (!isLoading.compareAndSet(false, true)) return
         try {
@@ -73,6 +87,22 @@ object SpawnDataIndex {
             DebugLog.warn("Data load failed: ${e.message}")
         } finally {
             isLoading.set(false)
+        }
+    }
+
+    private fun loadAllAsync(extraDatapacksDir: Path? = null) {
+        if (!isLoading.compareAndSet(false, true)) return
+        Thread({
+            try {
+                doLoad(extraDatapacksDir)
+            } catch (e: Exception) {
+                DebugLog.warn("Async data load failed: ${e.message}")
+            } finally {
+                isLoading.set(false)
+            }
+        }, "CobblemonSpawningREI-DataLoad").apply {
+            isDaemon = true
+            start()
         }
     }
 

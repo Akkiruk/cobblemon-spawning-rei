@@ -16,6 +16,9 @@ object SpawnDataLoader {
 
     private var presetCache: Map<String, PresetData> = emptyMap()
 
+    @Volatile
+    private var cachedModRoots: List<Path>? = null
+
     fun loadFromAllSources(extraDatapacksDir: Path? = null): Map<String, List<SpawnInfo>> {
         val roots = findAllModRootPaths()
         DebugLog.debug("Scanning ${roots.size} mod roots for spawn data")
@@ -448,6 +451,7 @@ object SpawnDataLoader {
     // --- Utility ---
 
     private fun findAllModRootPaths(): List<Path> {
+        cachedModRoots?.let { return it }
         val paths = mutableListOf<Path>()
 
         // Fabric
@@ -491,7 +495,9 @@ object SpawnDataLoader {
             DebugLog.once("neoforge-mod-paths") { "NeoForge mod path discovery failed: ${e.message}" }
         }
 
-        return paths.distinct()
+        val result = paths.distinct()
+        cachedModRoots = result
+        return result
     }
 
     private fun getClientDatapacksDir(): Path? {

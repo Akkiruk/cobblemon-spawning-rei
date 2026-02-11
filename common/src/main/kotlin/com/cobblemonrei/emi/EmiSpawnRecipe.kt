@@ -1,7 +1,7 @@
 package com.cobblemonrei.emi
 
 import com.cobblemonrei.CobblemonSpawningMod
-import com.cobblemonrei.DebugLog
+import com.cobblemonrei.PokemonItemCache
 import com.cobblemonrei.SpawnDisplayHelper
 import com.cobblemonrei.SpawnDisplayHelper.PRESET_LABELS
 import com.cobblemonrei.SpawnDisplayHelper.buildConditions
@@ -14,8 +14,6 @@ import com.cobblemonrei.SpawnInfo
 import com.cobblemonrei.config.CobblemonSpawningConfig
 import com.cobblemonrei.formatBiomeName
 import com.cobblemonrei.titleCase
-import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
-import com.cobblemon.mod.common.item.PokemonItem
 import dev.emi.emi.api.recipe.EmiRecipe
 import dev.emi.emi.api.recipe.EmiRecipeCategory
 import dev.emi.emi.api.stack.EmiIngredient
@@ -44,12 +42,9 @@ class EmiSpawnRecipe(
         fun bucketLabel(bucket: String): String = SpawnDisplayHelper.bucketLabel(bucket)
     }
 
-    private val pokemonStack: EmiStack? = try {
-        val species = PokemonSpecies.getByName(speciesName)
-        if (species != null) EmiStack.of(PokemonItem.from(species)) else null
-    } catch (e: Exception) {
-        DebugLog.once("emi-stack-$speciesName") { "Failed to create EmiStack for $speciesName: ${e.message}" }
-        null
+    private val pokemonStack: EmiStack? by lazy(LazyThreadSafetyMode.NONE) {
+        val item = PokemonItemCache.getItem(speciesName)
+        if (item != null && !item.isEmpty) EmiStack.of(item) else null
     }
 
     override fun getCategory(): EmiRecipeCategory = CobblemonEMIPlugin.SPAWN_CATEGORY
