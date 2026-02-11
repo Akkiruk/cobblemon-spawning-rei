@@ -97,7 +97,9 @@ jobs:
             fabric-api | requires | *
             fabric-language-kotlin | requires | *
             cobblemon | requires | *
-            roughly-enough-items | requires | *
+            roughly-enough-items | optional | *
+            jei | optional | *
+            emi | optional | *
           
           java: 21
           
@@ -129,12 +131,14 @@ jobs:
           dependencies: |
             kotlin-for-forge | requires | *
             cobblemon | requires | *
-            roughly-enough-items | requires | *
+            roughly-enough-items | optional | *
+            jei | optional | *
+            emi | optional | *
           
           java: 21
           
       - name: Upload Fabric artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: cobblemon-spawning-rei-fabric-${{ steps.get_version.outputs.VERSION }}
           path: |
@@ -143,7 +147,7 @@ jobs:
             !fabric/build/libs/*-sources.jar
           
       - name: Upload NeoForge artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: cobblemon-spawning-rei-neoforge-${{ steps.get_version.outputs.VERSION }}
           path: |
