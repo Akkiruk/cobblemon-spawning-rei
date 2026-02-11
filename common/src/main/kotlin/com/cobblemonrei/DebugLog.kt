@@ -70,9 +70,6 @@ object DebugLog {
         }
     }
 
-    fun getMissingModelCount(): Int = missingModels.size
-    fun hasMissingModel(species: String): Boolean = species.lowercase() in missingModels
-
     fun reset() {
         loggedOnce.clear()
         missingModels.clear()

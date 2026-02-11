@@ -1,6 +1,8 @@
 package com.cobblemonrei.jei.evolution
 
 import com.cobblemonrei.CobblemonSpawningMod
+import com.cobblemonrei.SpawnDisplayHelper.clip
+import com.cobblemonrei.SpawnDisplayHelper.wrapReqText
 import com.cobblemonrei.jei.PokemonIngredient
 import com.cobblemonrei.jei.PokemonIngredientType
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder
@@ -85,37 +87,5 @@ class JeiEvolutionCategory(guiHelper: IGuiHelper) : IRecipeCategory<JeiEvolution
             graphics.drawString(font, line, centerX - lw / 2, reqY, 0xFFDD88, false)
             reqY += 11
         }
-    }
-
-    private fun clip(text: String, maxLen: Int): String =
-        if (text.length > maxLen) text.take(maxLen - 1) + "\u2026" else text
-
-    private fun wrapReqText(text: String, maxChars: Int, maxLines: Int): List<String> {
-        if (text.length <= maxChars) return listOf(text)
-        val items = text.split(", ")
-        val lines = mutableListOf<String>()
-        var current = ""
-        for (item in items) {
-            val next = if (current.isEmpty()) item else "$current, $item"
-            if (next.length > maxChars && current.isNotEmpty()) {
-                lines.add(current)
-                if (lines.size >= maxLines) {
-                    val remaining = items.drop(items.indexOf(item))
-                    lines[lines.lastIndex] = clip(lines.last() + ", " + remaining.joinToString(", "), maxChars)
-                    return lines
-                }
-                current = item
-            } else {
-                current = next
-            }
-        }
-        if (current.isNotEmpty()) {
-            if (lines.size >= maxLines) {
-                lines[lines.lastIndex] = clip(lines.last() + ", $current", maxChars)
-            } else {
-                lines.add(current)
-            }
-        }
-        return lines
     }
 }

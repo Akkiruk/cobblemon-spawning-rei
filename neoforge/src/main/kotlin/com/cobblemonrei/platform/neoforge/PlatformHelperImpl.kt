@@ -20,8 +20,10 @@ object PlatformHelperImpl {
     fun sendPayloadToPlayer(player: ServerPlayer, payload: CustomPacketPayload) {
         try {
             player.connection.send(ClientboundCustomPayloadPacket(payload))
-        } catch (_: Exception) {
-            // Client doesn't support this payload — no mod installed
+        } catch (e: Exception) {
+            com.cobblemonrei.DebugLog.once("send-payload-${player.uuid}") {
+                "Failed to send payload to ${player.name.string}: ${e.message}"
+            }
         }
     }
 }

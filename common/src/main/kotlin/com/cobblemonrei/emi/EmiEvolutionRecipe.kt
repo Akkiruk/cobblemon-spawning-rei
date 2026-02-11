@@ -1,7 +1,10 @@
 package com.cobblemonrei.emi
 
 import com.cobblemonrei.CobblemonSpawningMod
+import com.cobblemonrei.DebugLog
 import com.cobblemonrei.EvolutionInfo
+import com.cobblemonrei.SpawnDisplayHelper.clip
+import com.cobblemonrei.SpawnDisplayHelper.wrapReqText
 import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
 import com.cobblemon.mod.common.item.PokemonItem
 import dev.emi.emi.api.recipe.EmiRecipe
@@ -29,12 +32,18 @@ class EmiEvolutionRecipe(
     private val fromStack: EmiStack? = try {
         val species = PokemonSpecies.getByName(evolution.fromSpecies)
         if (species != null) EmiStack.of(PokemonItem.from(species)) else null
-    } catch (_: Exception) { null }
+    } catch (e: Exception) {
+        DebugLog.once("emi-evo-from-${evolution.fromSpecies}") { "Failed to create EmiStack: ${e.message}" }
+        null
+    }
 
     private val toStack: EmiStack? = try {
         val species = PokemonSpecies.getByName(evolution.toSpecies)
         if (species != null) EmiStack.of(PokemonItem.from(species)) else null
-    } catch (_: Exception) { null }
+    } catch (e: Exception) {
+        DebugLog.once("emi-evo-to-${evolution.toSpecies}") { "Failed to create EmiStack: ${e.message}" }
+        null
+    }
 
     override fun getCategory(): EmiRecipeCategory = CobblemonEMIPlugin.EVOLUTION_CATEGORY
 
@@ -89,37 +98,5 @@ class EmiEvolutionRecipe(
             graphics.drawString(font, line, centerX - lw / 2, reqY, 0xFFDD88, false)
             reqY += 11
         }
-    }
-
-    private fun clip(text: String, maxLen: Int): String =
-        if (text.length > maxLen) text.take(maxLen - 1) + "\u2026" else text
-
-    private fun wrapReqText(text: String, maxChars: Int, maxLines: Int): List<String> {
-        if (text.length <= maxChars) return listOf(text)
-        val items = text.split(", ")
-        val lines = mutableListOf<String>()
-        var current = ""
-        for (item in items) {
-            val next = if (current.isEmpty()) item else "$current, $item"
-            if (next.length > maxChars && current.isNotEmpty()) {
-                lines.add(current)
-                if (lines.size >= maxLines) {
-                    val remaining = items.drop(items.indexOf(item))
-                    lines[lines.lastIndex] = clip(lines.last() + ", " + remaining.joinToString(", "), maxChars)
-                    return lines
-                }
-                current = item
-            } else {
-                current = next
-            }
-        }
-        if (current.isNotEmpty()) {
-            if (lines.size >= maxLines) {
-                lines[lines.lastIndex] = clip(lines.last() + ", $current", maxChars)
-            } else {
-                lines.add(current)
-            }
-        }
-        return lines
     }
 }

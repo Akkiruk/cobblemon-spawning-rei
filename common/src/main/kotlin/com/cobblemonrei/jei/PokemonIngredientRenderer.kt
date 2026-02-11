@@ -14,8 +14,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 class PokemonIngredientRenderer : IIngredientRenderer<PokemonIngredient> {
 
-    private val itemCache = ConcurrentHashMap<String, ItemStack?>()
-    private val speciesCache = ConcurrentHashMap<String, com.cobblemon.mod.common.pokemon.Species?>()
+    private val itemCache = ConcurrentHashMap<String, ItemStack>()
+    private val speciesCache = ConcurrentHashMap<String, com.cobblemon.mod.common.pokemon.Species>()
 
     override fun render(graphics: GuiGraphics, ingredient: PokemonIngredient) {
         val itemStack = getOrCreateItem(ingredient.species) ?: return
@@ -52,18 +52,18 @@ class PokemonIngredientRenderer : IIngredientRenderer<PokemonIngredient> {
     }
 
     private fun getOrCreateItem(species: String): ItemStack? {
-        return itemCache.getOrPut(species) {
-            val speciesObj = resolveSpecies(species)
-            if (speciesObj != null) {
-                try { PokemonItem.from(speciesObj) } catch (_: Exception) { null }
-            } else null
-        }
+        itemCache[species]?.let { return it }
+        val speciesObj = resolveSpecies(species) ?: return null
+        val item = try { PokemonItem.from(speciesObj) } catch (_: Exception) { null }
+        if (item != null && !item.isEmpty) itemCache[species] = item
+        return item
     }
 
     private fun resolveSpecies(species: String): com.cobblemon.mod.common.pokemon.Species? {
-        return speciesCache.getOrPut(species) {
-            try { PokemonSpecies.getByName(species) } catch (_: Exception) { null }
-        }
+        speciesCache[species]?.let { return it }
+        val resolved = try { PokemonSpecies.getByName(species) } catch (_: Exception) { null }
+        if (resolved != null) speciesCache[species] = resolved
+        return resolved
     }
 
     fun canRender(species: String): Boolean {

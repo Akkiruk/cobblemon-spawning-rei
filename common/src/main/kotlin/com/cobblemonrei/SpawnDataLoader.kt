@@ -6,7 +6,6 @@ import com.google.gson.JsonParser
 import java.io.InputStreamReader
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.concurrent.ConcurrentHashMap
 
 object SpawnDataLoader {
 
@@ -462,7 +461,11 @@ object SpawnDataLoader {
                 val rootPaths = mod.javaClass.getMethod("getRootPaths").invoke(mod) as List<Path>
                 paths.addAll(rootPaths)
             }
-        } catch (_: Exception) {}
+        } catch (_: ClassNotFoundException) {
+            // Expected on NeoForge
+        } catch (e: Exception) {
+            DebugLog.once("fabric-mod-paths") { "Fabric mod path discovery failed: ${e.message}" }
+        }
 
         // NeoForge
         try {
@@ -478,81 +481,26 @@ object SpawnDataLoader {
                     if (dataPath != null && Files.exists(dataPath)) {
                         paths.add(dataPath.parent)
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    DebugLog.once("neoforge-modfile-${modFileInfo.hashCode()}") { "NeoForge mod file scan failed: ${e.message}" }
+                }
             }
-        } catch (_: Exception) {}
+        } catch (_: ClassNotFoundException) {
+            // Expected on Fabric
+        } catch (e: Exception) {
+            DebugLog.once("neoforge-mod-paths") { "NeoForge mod path discovery failed: ${e.message}" }
+        }
 
         return paths.distinct()
     }
 
-    @Volatile
-    private var cachedClientDatapacksDir: Path? = null
-    @Volatile
-    private var clientDatapacksDirChecked = false
-
     private fun getClientDatapacksDir(): Path? {
-        if (clientDatapacksDirChecked) return cachedClientDatapacksDir
-        clientDatapacksDirChecked = true
-        try {
-            val mcClass = Class.forName("net.minecraft.client.Minecraft")
-            val instance = mcClass.getMethod("getInstance").invoke(null)
-            val gameDirFile = mcClass.getField("gameDirectory").get(instance) as java.io.File
-            cachedClientDatapacksDir = gameDirFile.toPath().resolve("datapacks")
-        } catch (_: Exception) { }
-        return cachedClientDatapacksDir
+        return try {
+            com.cobblemonrei.platform.PlatformHelper.getGameDir().resolve("datapacks")
+        } catch (e: Exception) {
+            DebugLog.once("datapacks-dir") { "Failed to resolve datapacks dir: ${e.message}" }
+            null
+        }
     }
 
-    @Deprecated("Use loadFromAllSources()", ReplaceWith("loadFromAllSources()"))
-    fun loadFromCobblemonJar(): Map<String, List<SpawnInfo>> = loadFromAllSources()
-
-    fun findCobblemonDataPath(subdir: String): Path? {
-        return findCobblemonRootPath()?.resolve("data/cobblemon/$subdir")?.takeIf { Files.exists(it) }
-    }
-
-    @Volatile
-    private var cachedRootPath: Path? = null
-
-    fun findCobblemonRootPath(): Path? {
-        cachedRootPath?.let { return it }
-
-        try {
-            val fabricLoader = Class.forName("net.fabricmc.loader.api.FabricLoader")
-            val getInstance = fabricLoader.getMethod("getInstance")
-            val loader = getInstance.invoke(null)
-            val getModContainer = loader.javaClass.getMethod("getModContainer", String::class.java)
-            val optional = getModContainer.invoke(loader, "cobblemon") as java.util.Optional<*>
-            if (optional.isPresent) {
-                val container = optional.get()
-                val getRootPaths = container.javaClass.getMethod("getRootPaths")
-                @Suppress("UNCHECKED_CAST")
-                val paths = getRootPaths.invoke(container) as List<Path>
-                if (paths.isNotEmpty()) {
-                    val root = paths.first()
-                    if (Files.exists(root.resolve("data/cobblemon"))) {
-                        cachedRootPath = root
-                        return root
-                    }
-                }
-            }
-        } catch (_: Exception) { }
-
-        try {
-            val modList = Class.forName("net.neoforged.fml.ModList")
-            val get = modList.getMethod("get")
-            val list = get.invoke(null)
-            val getModFileById = list.javaClass.getMethod("getModFileById", String::class.java)
-            val modFileInfo = getModFileById.invoke(list, "cobblemon") ?: return null
-            val getFile = modFileInfo.javaClass.getMethod("getFile")
-            val modFile = getFile.invoke(modFileInfo)
-            val findResource = modFile.javaClass.getMethod("findResource", Array<String>::class.java)
-            val path = findResource.invoke(modFile, arrayOf("data", "cobblemon")) as Path
-            if (Files.exists(path)) {
-                cachedRootPath = path.parent
-                return path.parent
-            }
-        } catch (_: Exception) { }
-
-        DebugLog.once("cobblemon-jar-path") { "Could not locate Cobblemon mod JAR data path" }
-        return null
-    }
 }

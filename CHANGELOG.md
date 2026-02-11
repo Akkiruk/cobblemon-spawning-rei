@@ -2,6 +2,35 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.8.2] - 2025-07-23
+
+### Fixed
+- Silent exception swallowing in 12+ catch blocks across SpawnDataLoader, EvolutionDataLoader, REI, and EMI
+- Platform discovery (Fabric/NeoForge) now catches ClassNotFoundException specifically and logs unexpected failures
+- Reflection-based evolution field extraction distinguishes expected NoSuchFieldException from real errors
+- Species loading failures in EvolutionDataLoader now warn instead of silently returning empty
+- EMI stack creation failures now log once per species for diagnosability
+- REI entry type registration failure now logs instead of silently swallowing
+
+## [1.8.1] - 2025-07-23
+
+### Fixed
+- Species permanently hidden when PokemonItem resolution fails during early loading (null-cache bug)
+- Silent exception swallowing in spawn data indexing and NeoForge payload dispatch
+- Reflection-based datapack directory lookup replaced with stable PlatformHelper call
+- SpawnSyncPayload codec read limit now tied to DataSerializer chunk size constant
+
+### Changed
+- Consolidated ~600 lines of duplicated display helpers across REI/JEI/EMI into shared SpawnDisplayHelper
+- Removed dead code: unused loader methods, debug helpers, and cache invalidation
+
+### Removed
+- Dead `loadFromCobblemonJar`, `findCobblemonDataPath`, `findCobblemonRootPath` methods
+- Dead `getMissingModelCount`, `hasMissingModel`, `invalidateCaches` methods
+- Triplicated MergedSpawn/mergeVariantSpawns/spawnMergeKey across all three plugins
+- Triplicated buildConditions/buildSpecials/buildExclusionLines/formatWeight/clip/wrapText across spawn categories
+- Triplicated clip/wrapReqText across evolution categories
+
 ## [1.8.0] - 2025-07-22
 
 ### Added

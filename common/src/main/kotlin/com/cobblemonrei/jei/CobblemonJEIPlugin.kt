@@ -2,8 +2,8 @@ package com.cobblemonrei.jei
 
 import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.DebugLog
-import com.cobblemonrei.EvolutionInfo
 import com.cobblemonrei.SpawnDataIndex
+import com.cobblemonrei.SpawnDisplayHelper
 import com.cobblemonrei.SpawnInfo
 import com.cobblemonrei.config.CobblemonSpawningConfig
 import com.cobblemonrei.jei.evolution.JeiEvolutionCategory
@@ -70,10 +70,15 @@ open class CobblemonJEIPlugin : IModPlugin {
 
     // --- Recipe builders (matching REI logic) ---
 
+    private fun buildAllEvolutionRecipes(): List<JeiEvolutionRecipe> {
+        return SpawnDisplayHelper.deduplicateEvolutions(SpawnDataIndex.evolutionsBySpecies)
+            .map { (evo, idx, total) -> JeiEvolutionRecipe(evo, idx, total) }
+    }
+
     private fun buildSpawnRecipes(species: String, spawns: List<SpawnInfo>): List<JeiSpawnRecipe> {
-        val merged = mergeVariantSpawns(spawns)
+        val merged = SpawnDisplayHelper.mergeVariantSpawns(spawns)
         val sorted = merged.sortedWith(
-            compareBy<MergedSpawn> { JeiSpawnCategory.bucketSortOrder(it.spawn.bucket) }
+            compareBy<SpawnDisplayHelper.MergedSpawn> { SpawnDisplayHelper.bucketSortOrder(it.spawn.bucket) }
                 .thenBy { it.spawn.context }
                 .thenByDescending { it.spawn.weight }
         )
@@ -90,55 +95,6 @@ open class CobblemonJEIPlugin : IModPlugin {
                 null
             }
         }
-    }
-
-    private fun buildAllEvolutionRecipes(): List<JeiEvolutionRecipe> {
-        val seen = mutableSetOf<String>()
-        val allEvos = mutableListOf<EvolutionInfo>()
-        for ((_, evos) in SpawnDataIndex.evolutionsBySpecies) {
-            for (evo in evos) {
-                if (evo.id in seen) continue
-                seen.add(evo.id)
-                allEvos.add(evo)
-            }
-        }
-        val grouped = allEvos.groupBy { it.fromSpecies }
-        return allEvos.map { evo ->
-            val siblings = grouped[evo.fromSpecies] ?: listOf(evo)
-            JeiEvolutionRecipe(evo, siblings.indexOf(evo) + 1, siblings.size)
-        }
-    }
-
-    // --- Variant merge (same as REI) ---
-
-    private data class MergedSpawn(val spawn: SpawnInfo, val formVariants: List<String>)
-
-    private fun mergeVariantSpawns(spawns: List<SpawnInfo>): List<MergedSpawn> {
-        val groups = spawns.groupBy { spawnMergeKey(it) }
-        return groups.map { (_, group) ->
-            val primary = group.first()
-            val variants = group
-                .filter { it.formAspects.isNotBlank() }
-                .map {
-                    it.formAspects
-                        .replace("region_bias=", "")
-                        .replace("_", " ")
-                        .split(" ")
-                        .filter { w -> w.isNotBlank() }
-                        .joinToString(" ") { w -> w.replaceFirstChar { c -> c.uppercase() } }
-                }
-                .distinct()
-            MergedSpawn(primary, variants)
-        }
-    }
-
-    private fun spawnMergeKey(s: SpawnInfo): String {
-        return "${s.pokemon}|${s.bucket}|${s.weight}|${s.levelRange}|${s.context}|" +
-            "${s.biomes.sorted()}|${s.timeRange}|${s.weather}|${s.dimensions.sorted()}|" +
-            "${s.structures.sorted()}|${s.canSeeSky}|${s.minLight}|${s.maxLight}|" +
-            "${s.minSkyLight}|${s.maxSkyLight}|${s.minY}|${s.maxY}|" +
-            "${s.neededNearbyBlocks.sorted()}|${s.neededBaseBlocks.sorted()}|" +
-            "${s.moonPhase}|${s.presets.sorted()}|${s.fluid}"
     }
 }
 

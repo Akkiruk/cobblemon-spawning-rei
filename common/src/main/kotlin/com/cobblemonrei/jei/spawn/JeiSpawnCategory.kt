@@ -1,12 +1,17 @@
 package com.cobblemonrei.jei.spawn
 
 import com.cobblemonrei.CobblemonSpawningMod
-import com.cobblemonrei.SpawnAntiCondition
 import com.cobblemonrei.SpawnDataIndex
-import com.cobblemonrei.SpawnInfo
+import com.cobblemonrei.SpawnDisplayHelper
+import com.cobblemonrei.SpawnDisplayHelper.PRESET_LABELS
+import com.cobblemonrei.SpawnDisplayHelper.buildConditions
+import com.cobblemonrei.SpawnDisplayHelper.buildExclusionLines
+import com.cobblemonrei.SpawnDisplayHelper.buildSpecials
+import com.cobblemonrei.SpawnDisplayHelper.clip
+import com.cobblemonrei.SpawnDisplayHelper.formatWeight
+import com.cobblemonrei.SpawnDisplayHelper.wrapText
 import com.cobblemonrei.config.CobblemonSpawningConfig
 import com.cobblemonrei.formatBiomeName
-import com.cobblemonrei.formatId
 import com.cobblemonrei.jei.PokemonIngredient
 import com.cobblemonrei.jei.PokemonIngredientType
 import com.cobblemonrei.titleCase
@@ -38,39 +43,9 @@ class JeiSpawnCategory(guiHelper: IGuiHelper) : IRecipeCategory<JeiSpawnRecipe> 
         private const val PADDING = 6
         private const val LINE_HEIGHT = 11
 
-        private val BUCKET_COLORS = mapOf(
-            "common" to 0xFF4CAF50.toInt(),
-            "uncommon" to 0xFFFFC107.toInt(),
-            "rare" to 0xFFFF5722.toInt(),
-            "ultra-rare" to 0xFFE040FB.toInt()
-        )
-
-        private val BUCKET_LABELS = mapOf(
-            "common" to "Common",
-            "uncommon" to "Uncommon",
-            "rare" to "Rare",
-            "ultra-rare" to "Ultra Rare"
-        )
-
-        private val BUCKET_ORDER = listOf("common", "uncommon", "rare", "ultra-rare")
-
-        fun bucketSortOrder(bucket: String): Int =
-            BUCKET_ORDER.indexOf(bucket.lowercase()).let { if (it < 0) 99 else it }
-
-        private val PRESET_LABELS = mapOf(
-            "natural" to "Natural", "water" to "Water", "lava" to "Lava",
-            "urban" to "Urban", "wild" to "Wild", "foliage" to "Foliage",
-            "treetop" to "Treetop", "derelict" to "Derelict", "redstone" to "Redstone",
-            "ancient_city" to "Ancient City", "desert_pyramid" to "Desert Pyramid",
-            "end_city" to "End City", "jungle_pyramid" to "Jungle Pyramid",
-            "mansion" to "Mansion", "nether_fossil" to "Nether Fossil",
-            "nether_structures" to "Nether Structure", "ocean_monument" to "Ocean Monument",
-            "ocean_ruins" to "Ocean Ruins", "pillager_outpost" to "Pillager Outpost",
-            "stronghold" to "Stronghold", "trail_ruins" to "Trail Ruins"
-        )
-
-        fun bucketColor(bucket: String): Int = BUCKET_COLORS[bucket.lowercase()] ?: 0xFFAAAAAA.toInt()
-        fun bucketLabel(bucket: String): String = BUCKET_LABELS[bucket.lowercase()] ?: titleCase(bucket)
+        fun bucketSortOrder(bucket: String): Int = SpawnDisplayHelper.bucketSortOrder(bucket)
+        fun bucketColor(bucket: String): Int = SpawnDisplayHelper.bucketColor(bucket)
+        fun bucketLabel(bucket: String): String = SpawnDisplayHelper.bucketLabel(bucket)
     }
 
     private val background: IDrawable = guiHelper.createBlankDrawable(WIDTH, HEIGHT)
@@ -213,108 +188,4 @@ class JeiSpawnCategory(guiHelper: IGuiHelper) : IRecipeCategory<JeiSpawnRecipe> 
         graphics.drawString(font, footerLeft, PADDING, footerY, color, false)
     }
 
-    // --- Helpers (matching REI SpawnCategory logic) ---
-
-    private fun buildConditions(spawn: SpawnInfo): List<String> {
-        val list = mutableListOf<String>()
-        spawn.timeRange?.let {
-            val icon = when {
-                it.contains("day", true) -> "\u2600 "
-                it.contains("night", true) -> "\u263D "
-                it.contains("dusk", true) || it.contains("dawn", true) -> "\u263C "
-                else -> ""
-            }
-            list.add("$icon${titleCase(it)}")
-        }
-        val weather = spawn.weather.displayText
-        if (weather != "Any") {
-            val icon = when (weather) { "Thunder" -> "\u26A1 "; "Rain" -> "\u2602 "; "Clear" -> "\u2600 "; else -> "" }
-            list.add("$icon$weather")
-        }
-        if (spawn.canSeeSky == true) list.add("Open sky")
-        if (spawn.canSeeSky == false) list.add("Underground")
-        if (spawn.minSkyLight != null || spawn.maxSkyLight != null) {
-            val min = spawn.minSkyLight ?: 0; val max = spawn.maxSkyLight ?: 15
-            when {
-                min == 0 && max <= 7 -> list.add("Dark (sky light \u2264$max)")
-                min >= 8 -> list.add("Bright (sky light \u2265$min)")
-                else -> list.add("Sky light $min\u2013$max")
-            }
-        }
-        if (spawn.minLight != null || spawn.maxLight != null) {
-            val min = spawn.minLight ?: 0; val max = spawn.maxLight ?: 15
-            if (max == 0) list.add("No light") else list.add("Light $min\u2013$max")
-        }
-        if (spawn.minY != null || spawn.maxY != null) {
-            when {
-                spawn.minY != null && spawn.maxY != null -> list.add("Y: ${spawn.minY} to ${spawn.maxY}")
-                spawn.minY != null -> list.add("Y \u2265 ${spawn.minY}")
-                spawn.maxY != null -> list.add("Y \u2264 ${spawn.maxY}")
-            }
-        }
-        spawn.moonPhase?.let { list.add("Moon: ${titleCase(it)}") }
-        if (spawn.isFishing) {
-            val lure = spawn.minLureLevel
-            if (lure != null && lure > 0) list.add("Fishing (Lure $lure+)") else list.add("Fishing")
-        }
-        return list
-    }
-
-    private fun buildSpecials(spawn: SpawnInfo): List<String> {
-        val list = mutableListOf<String>()
-        val structNames = spawn.structures.map { formatId(it) }.toSet()
-        if (structNames.isNotEmpty()) list.add("Near structure: ${clip(structNames.joinToString(", "), 34)}")
-        if (spawn.dimensions.isNotEmpty()) list.add("Dimension: ${spawn.dimensions.joinToString(", ") { formatDimension(it) }}")
-        spawn.fluid?.let {
-            val name = when { it.contains("water") -> "Water"; it.contains("lava") -> "Lava"; else -> formatId(it) }
-            list.add("In fluid: $name")
-        }
-        if (spawn.neededBaseBlocks.isNotEmpty()) {
-            val names = spawn.neededBaseBlocks.map { formatId(it) }
-            val redundant = structNames.isNotEmpty() && names.all { it.lowercase().contains("structure") }
-            if (!redundant) list.add("On block: ${clip(names.joinToString(", "), 34)}")
-        }
-        if (spawn.neededNearbyBlocks.isNotEmpty()) {
-            val names = spawn.neededNearbyBlocks.map { formatId(it) }
-            val redundant = structNames.isNotEmpty() && names.all { it.lowercase().contains("structure") }
-            if (!redundant) list.add("Near block: ${clip(names.joinToString(", "), 34)}")
-        }
-        return list
-    }
-
-    private fun buildExclusionLines(anti: SpawnAntiCondition): List<String> {
-        val lines = mutableListOf<String>()
-        if (anti.biomes.isNotEmpty()) lines.add("Biomes: ${anti.biomes.map { formatBiomeName(it) }.joinToString(", ")}")
-        if (anti.structures.isNotEmpty()) lines.add("Structures: ${anti.structures.map { formatId(it) }.joinToString(", ")}")
-        if (anti.minY != null || anti.maxY != null) {
-            val r = listOfNotNull(anti.minY?.let { "Y \u2265 $it" }, anti.maxY?.let { "Y \u2264 $it" })
-            lines.add("Height: ${r.joinToString(", ")}")
-        }
-        return lines
-    }
-
-    private fun formatWeight(weight: Float): String =
-        if (weight == weight.toLong().toFloat()) weight.toLong().toString() else "%.1f".format(weight)
-
-    private fun formatDimension(dim: String): String = when (dim.lowercase()) {
-        "minecraft:overworld" -> "Overworld"; "minecraft:the_nether" -> "Nether"
-        "minecraft:the_end" -> "The End"; else -> formatId(dim)
-    }
-
-    private fun wrapText(text: String, maxChars: Int): List<String> {
-        if (text.length <= maxChars) return listOf(text)
-        val items = text.split(", ")
-        val lines = mutableListOf<String>()
-        var current = ""
-        for (item in items) {
-            val next = if (current.isEmpty()) item else "$current, $item"
-            if (next.length > maxChars && current.isNotEmpty()) { lines.add(current); current = item }
-            else current = next
-        }
-        if (current.isNotEmpty()) lines.add(current)
-        return lines
-    }
-
-    private fun clip(text: String, maxLen: Int): String =
-        if (text.length > maxLen) text.take(maxLen - 1) + "\u2026" else text
 }

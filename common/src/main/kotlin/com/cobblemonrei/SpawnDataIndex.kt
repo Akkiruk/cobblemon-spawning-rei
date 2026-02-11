@@ -173,7 +173,9 @@ object SpawnDataIndex {
                 for (species in PokemonSpecies.implemented) {
                     allNames.add(species.name.lowercase())
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                DebugLog.warn("Species enumeration interrupted: ${e.message}")
+            }
         }
 
         allSpeciesNames = allNames.sortedWith(

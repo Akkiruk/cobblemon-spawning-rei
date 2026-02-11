@@ -11,7 +11,8 @@ object EvolutionDataLoader {
     fun loadFromRuntime(): Map<String, List<EvolutionInfo>> {
         val implemented = try {
             PokemonSpecies.implemented.toList()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            DebugLog.warnOnce("evo-species-load") { "Failed to access PokemonSpecies.implemented: ${e.message}" }
             return emptyMap()
         }
         if (implemented.isEmpty()) return emptyMap()
@@ -113,13 +114,19 @@ object EvolutionDataLoader {
                 is ResourceLocation -> value.toString()
                 else -> value?.toString()
             }
-        } catch (_: Exception) {
-            // Try superclass
+        } catch (e: NoSuchFieldException) {
             try {
                 val field = evo.javaClass.superclass?.getDeclaredField("requiredContext")
                 field?.isAccessible = true
                 field?.get(evo)?.toString()
-            } catch (_: Exception) { null }
+            } catch (_: NoSuchFieldException) { null }
+            catch (e2: Exception) {
+                DebugLog.once("evo-ctx-${evo.javaClass.simpleName}") { "requiredContext superclass reflection failed: ${e2.message}" }
+                null
+            }
+        } catch (e: Exception) {
+            DebugLog.once("evo-ctx-${evo.javaClass.simpleName}") { "requiredContext reflection failed: ${e.message}" }
+            null
         }
     }
 
@@ -284,13 +291,19 @@ object EvolutionDataLoader {
             field.isAccessible = true
             field.get(obj)
         } catch (_: NoSuchFieldException) {
-            // Try parent class
             try {
                 val field = obj.javaClass.superclass?.getDeclaredField(fieldName)
                 field?.isAccessible = true
                 field?.get(obj)
-            } catch (_: Exception) { null }
-        } catch (_: Exception) { null }
+            } catch (_: NoSuchFieldException) { null }
+            catch (e: Exception) {
+                DebugLog.once("extract-${obj.javaClass.simpleName}-$fieldName") { "Superclass field access failed: ${e.message}" }
+                null
+            }
+        } catch (e: Exception) {
+            DebugLog.once("extract-${obj.javaClass.simpleName}-$fieldName") { "Field access failed: ${e.message}" }
+            null
+        }
     }
 
     // Extract a readable string from an object that might be an enum, ResourceLocation, or complex object
@@ -349,7 +362,8 @@ object EvolutionDataLoader {
     fun loadSpeciesBasicInfoFromRuntime(): Map<String, SpeciesBasicInfo> {
         val implemented = try {
             PokemonSpecies.implemented.toList()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            DebugLog.warnOnce("species-info-load") { "Failed to access PokemonSpecies.implemented: ${e.message}" }
             return emptyMap()
         }
         if (implemented.isEmpty()) return emptyMap()
