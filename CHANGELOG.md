@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
+## [1.12.2] - 2026-02-11
+
+### Fixed
+- Evolution items now correctly extracted from Cobblemon's vanilla ItemPredicate API
+- HeldItem and OwnerHoldsItem requirements scan all field types for item data
+- Generic ContextEvolution fallback handles ItemPredicate in addition to RegistryLikeCondition
+
 ## [1.12.1] - 2026-02-11
 
 ### Fixed

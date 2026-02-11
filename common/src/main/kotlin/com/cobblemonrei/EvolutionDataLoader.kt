@@ -10,7 +10,11 @@ import com.cobblemon.mod.common.api.pokemon.evolution.Evolution
 import com.cobblemon.mod.common.pokemon.evolution.variants.BlockClickEvolution
 import com.cobblemon.mod.common.pokemon.evolution.variants.ItemInteractionEvolution
 import com.cobblemon.mod.common.pokemon.evolution.variants.TradeEvolution
+import net.minecraft.core.Holder
+import net.minecraft.core.HolderSet
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.resources.ResourceLocation
+import net.minecraft.world.item.Item
 
 object EvolutionDataLoader {
 
@@ -121,15 +125,12 @@ object EvolutionDataLoader {
                 str.ifBlank { null }
             }
             is ItemInteractionEvolution -> {
-                val context = extractField(evo, "requiredContext") ?: return null
-                val item = extractField(context, "item")
-                if (item is RegistryLikeCondition<*>) formatRegistryCondition(item) else null
+                extractItemIdFromAny(evo.requiredContext)
             }
             is BlockClickEvolution -> {
                 formatRegistryCondition(evo.requiredContext)
             }
             is ContextEvolution<*, *> -> {
-                // Generic fallback for unknown context evolutions
                 try {
                     val field = findField(evo.javaClass, "requiredContext")
                     field?.isAccessible = true
@@ -138,16 +139,48 @@ object EvolutionDataLoader {
                         value is ResourceLocation -> value.toString()
                         value is PokemonProperties -> value.asString(" ").ifBlank { null }
                         value is RegistryLikeCondition<*> -> formatRegistryCondition(value)
-                        value.javaClass.simpleName.contains("ItemPredicate") -> {
-                            val item = extractField(value, "item")
-                            if (item is RegistryLikeCondition<*>) formatRegistryCondition(item) else null
-                        }
-                        else -> value.toString().takeIf { !it.contains("@") && it.length < 60 }
+                        else -> extractItemIdFromAny(value)
+                            ?: value.toString().takeIf { !it.contains("@") && it.length < 60 }
                     }
                 } catch (_: Exception) { null }
             }
             else -> null
         }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun extractItemIdFromAny(obj: Any?): String? {
+        if (obj == null) return null
+        // Direct HolderSet<Item> field on vanilla ItemPredicate records
+        try {
+            val itemsMethod = obj.javaClass.getMethod("items")
+            val result = itemsMethod.invoke(obj)
+            if (result is java.util.Optional<*>) {
+                val holderSet = result.orElse(null)
+                if (holderSet is HolderSet<*>) {
+                    val first = holderSet.stream().findFirst().orElse(null)
+                    if (first is Holder<*>) {
+                        val key = first.unwrapKey().orElse(null)
+                        if (key != null) return key.location().toString()
+                        val value = first.value()
+                        if (value is Item) {
+                            val rl = BuiltInRegistries.ITEM.getKey(value)
+                            if (rl != null) return rl.toString()
+                        }
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+        // RegistryLikeCondition wrapper
+        if (obj is RegistryLikeCondition<*>) return formatRegistryCondition(obj)
+        // Nested 'item' field (legacy)
+        val item = extractField(obj, "item") ?: extractField(obj, "items")
+        if (item is RegistryLikeCondition<*>) return formatRegistryCondition(item)
+        if (item != null) {
+            val nested = extractItemIdFromAny(item)
+            if (nested != null) return nested
+        }
+        return null
     }
 
     private fun parseResultAspects(aspects: Set<String>): Set<String> {
@@ -175,12 +208,8 @@ object EvolutionDataLoader {
                 resolveTimeRange(range)?.let { data["range"] = it }
             }
             className.contains("HeldItem") || className.contains("OwnerHoldsItem") -> {
-                val itemCondition = extractField(req, "itemCondition")
-                if (itemCondition != null) {
-                    val item = extractField(itemCondition, "item")
-                    val id = if (item is RegistryLikeCondition<*>) formatRegistryCondition(item) else null
-                    if (id != null) data["itemCondition"] = id
-                }
+                val id = extractItemFromRequirement(req)
+                if (id != null) data["itemCondition"] = id
             }
             className == "MoveTypeRequirement" -> {
                 extractField(req, "type")?.let { data["type"] = extractReadableValue(it) ?: "unknown" }
@@ -357,6 +386,35 @@ object EvolutionDataLoader {
                 obj.javaClass.getMethod(fieldName).invoke(obj)
             } catch (_: Exception) { null }
         }
+    }
+
+    private fun extractItemFromRequirement(req: Any): String? {
+        // Try 'itemCondition' field first (may be ItemPredicate or wrapper)
+        val itemCondition = extractField(req, "itemCondition")
+        if (itemCondition != null) {
+            val fromCondition = extractItemIdFromAny(itemCondition)
+            if (fromCondition != null) return fromCondition
+        }
+        // Try direct 'item' field
+        val itemField = extractField(req, "item")
+        if (itemField != null) {
+            val fromItem = extractItemIdFromAny(itemField)
+            if (fromItem != null) return fromItem
+        }
+        // Scan all fields for anything that looks like an ItemPredicate or RegistryLikeCondition
+        for (field in req.javaClass.declaredFields) {
+            try {
+                field.isAccessible = true
+                val value = field.get(req) ?: continue
+                if (value is RegistryLikeCondition<*>) {
+                    val id = formatRegistryCondition(value)
+                    if (id != null) return id
+                }
+                val predResult = extractItemIdFromAny(value)
+                if (predResult != null) return predResult
+            } catch (_: Exception) {}
+        }
+        return null
     }
 
     private fun extractReadableValue(obj: Any?): String? {
