@@ -31,8 +31,9 @@ object RecipeBuilder {
 
     fun buildEvolutionsFor(evos: List<EvolutionInfo>): List<EvolutionRecipeData> {
         if (evos.isEmpty()) return emptyList()
-        val grouped = evos.groupBy { it.fromSpecies }
-        return evos.map { evo ->
+        val unique = evos.distinctBy { it.id }
+        val grouped = unique.groupBy { it.fromSpecies }
+        return unique.map { evo ->
             val siblings = grouped[evo.fromSpecies] ?: listOf(evo)
             EvolutionRecipeData(evo, siblings.indexOf(evo) + 1, siblings.size)
         }

@@ -76,12 +76,16 @@ class EvolutionCategory : DisplayCategory<EvolutionDisplay> {
 
         val ox = bounds.x
         val oy = bounds.y
+        val bw = bounds.width
+        val bh = bounds.height
         val hasItems = items.isNotEmpty()
         widgets.add(Widgets.createDrawableWidget { gfx, _, _, _ ->
+            gfx.enableScissor(ox, oy, ox + bw, oy + bh)
             gfx.pose().pushPose()
             gfx.pose().translate(ox.toFloat(), oy.toFloat(), 0f)
-            SpawnDisplayHelper.drawEvolutionText(gfx, evo, display.branchIndex, display.branchTotal, hasItemSlots = hasItems)
+            SpawnDisplayHelper.drawEvolutionText(gfx, evo, display.branchIndex, display.branchTotal, height = bh, hasItemSlots = hasItems)
             gfx.pose().popPose()
+            gfx.disableScissor()
         })
 
         return widgets

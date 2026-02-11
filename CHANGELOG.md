@@ -1,6 +1,26 @@
 # Changelog
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
+## [1.13.0] - 2026-02-11
+
+### Fixed
+- All text rendering now uses pixel-width measurement instead of character-count estimates, eliminating clipped/truncated names, rarity labels, biome lists, and requirement text across spawn, evolution, and obtainment pages
+- Duplicate evolution entries no longer appear on the same page (form changes like Thundurus no longer double-counted)
+- Ghost "Evolution 1/…" overlay text no longer bleeds through adjacent cards (scissor clipping added to evolution display)
+- "Built-in" source label no longer clipped at bottom of obtainment cards (footer margin uses actual font height)
+- Species name and method/bucket labels no longer overlap when text is long
+- Weight modifier condition text no longer truncated at arbitrary character limits
+
+### Changed
+- Evolution cards now show a "→" direction indicator between from/to names for clearer reading
+- Evolution branch counter ("Evo 1/3") moved from content area to bottom-right corner, preventing visual interference
+- Obtainment counter hidden when there's only 1 entry (no more showing "1/1")
+- Obtainment method name color toned down from gold to warm tan to avoid looking like a clickable link
+- Location labels improved: "On block:" → "Spawns on:", "Near block:" → "Near:", "Near structure:" → "Structure:", "Block:" → "Use:" in obtainment
+- Spawn weight label shortened from "Weight:" to "Wt:" to give more room to context parts on the same line
+- Context parts and weight now properly share their line with pixel-aware width allocation
+- Biome lists, conditions, specials, exclusions, and notes all clip cleanly with ellipsis at actual pixel boundaries
+
 ## [1.12.3] - 2026-02-11
 
 ### Fixed

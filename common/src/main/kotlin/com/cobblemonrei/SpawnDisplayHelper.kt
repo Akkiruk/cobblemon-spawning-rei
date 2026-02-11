@@ -166,11 +166,11 @@ object SpawnDisplayHelper {
         return list
     }
 
-    fun buildSpecials(spawn: SpawnInfo, clipLen: Int = 40): List<String> {
+    fun buildSpecials(spawn: SpawnInfo): List<String> {
         val list = mutableListOf<String>()
         val structNames = spawn.structures.map { formatId(it) }.toSet()
         if (structNames.isNotEmpty()) {
-            list.add("Near structure: ${clip(structNames.joinToString(", "), clipLen)}")
+            list.add("Structure: ${structNames.joinToString(", ")}")
         }
         if (spawn.dimensions.isNotEmpty()) {
             list.add("Dimension: ${spawn.dimensions.joinToString(", ") { formatDimension(it) }}")
@@ -186,12 +186,12 @@ object SpawnDisplayHelper {
         if (spawn.neededBaseBlocks.isNotEmpty()) {
             val names = spawn.neededBaseBlocks.map { formatId(it) }
             val redundant = structNames.isNotEmpty() && names.all { it.lowercase().contains("structure") }
-            if (!redundant) list.add("On block: ${clip(names.joinToString(", "), clipLen)}")
+            if (!redundant) list.add("Spawns on: ${names.joinToString(", ")}")
         }
         if (spawn.neededNearbyBlocks.isNotEmpty()) {
             val names = spawn.neededNearbyBlocks.map { formatId(it) }
             val redundant = structNames.isNotEmpty() && names.all { it.lowercase().contains("structure") }
-            if (!redundant) list.add("Near block: ${clip(names.joinToString(", "), clipLen)}")
+            if (!redundant) list.add("Near: ${names.joinToString(", ")}")
         }
         return list
     }
@@ -231,36 +231,33 @@ object SpawnDisplayHelper {
     fun clip(text: String, maxLen: Int): String =
         if (text.length > maxLen) text.take(maxLen - 1) + "\u2026" else text
 
-    fun wrapText(text: String, maxChars: Int): List<String> {
-        if (text.length <= maxChars) return listOf(text)
-        val items = text.split(", ")
-        val lines = mutableListOf<String>()
-        var current = ""
-        for (item in items) {
-            val next = if (current.isEmpty()) item else "$current, $item"
-            if (next.length > maxChars && current.isNotEmpty()) {
-                lines.add(current)
-                current = item
-            } else {
-                current = next
-            }
+    fun clipToWidth(font: net.minecraft.client.gui.Font, text: String, maxWidth: Int): String {
+        if (maxWidth <= 0) return ""
+        if (font.width(text) <= maxWidth) return text
+        val ellipsis = "\u2026"
+        val ellipsisW = font.width(ellipsis)
+        if (maxWidth <= ellipsisW) return ellipsis
+        var end = text.length
+        while (end > 0) {
+            val sub = text.substring(0, end)
+            if (font.width(sub) + ellipsisW <= maxWidth) return sub + ellipsis
+            end--
         }
-        if (current.isNotEmpty()) lines.add(current)
-        return lines
+        return ellipsis
     }
 
-    fun wrapReqText(text: String, maxChars: Int, maxLines: Int): List<String> {
-        if (text.length <= maxChars) return listOf(text)
+    fun wrapToWidth(font: net.minecraft.client.gui.Font, text: String, maxWidth: Int, maxLines: Int = Int.MAX_VALUE): List<String> {
+        if (font.width(text) <= maxWidth) return listOf(text)
         val items = text.split(", ")
         val lines = mutableListOf<String>()
         var current = ""
         for (item in items) {
             val next = if (current.isEmpty()) item else "$current, $item"
-            if (next.length > maxChars && current.isNotEmpty()) {
+            if (font.width(next) > maxWidth && current.isNotEmpty()) {
                 lines.add(current)
                 if (lines.size >= maxLines) {
-                    val remaining = items.drop(items.indexOf(item))
-                    lines[lines.lastIndex] = clip(lines.last() + ", " + remaining.joinToString(", "), maxChars)
+                    val remaining = items.subList(items.indexOf(item), items.size).joinToString(", ")
+                    lines[lines.lastIndex] = clipToWidth(font, lines.last() + ", " + remaining, maxWidth)
                     return lines
                 }
                 current = item
@@ -270,7 +267,7 @@ object SpawnDisplayHelper {
         }
         if (current.isNotEmpty()) {
             if (lines.size >= maxLines) {
-                lines[lines.lastIndex] = clip(lines.last() + ", $current", maxChars)
+                lines[lines.lastIndex] = clipToWidth(font, lines.last() + ", $current", maxWidth)
             } else {
                 lines.add(current)
             }
@@ -367,25 +364,34 @@ object SpawnDisplayHelper {
         val font = Minecraft.getInstance().font
         val color = bucketColor(spawn.bucket)
         val right = width - padding
+        val indentX = padding + 6
+        val indentWidth = right - indentX
 
-        graphics.drawString(font, titleCase(speciesName), padding + 22, 6, 0xFFFFFF, false)
+        val nameText = clipToWidth(font, titleCase(speciesName), right - (padding + 22))
+        graphics.drawString(font, nameText, padding + 22, 6, 0xFFFFFF, false)
 
-        graphics.drawString(font, "Lv. ${spawn.levelRange}", padding, 22, 0x0099FF, false)
+        val lvText = "Lv. ${spawn.levelRange}"
         val bucketText = bucketLabel(spawn.bucket)
         val bucketWidth = font.width(bucketText)
+        val maxLvWidth = right - bucketWidth - padding - 6
+        graphics.drawString(font, clipToWidth(font, lvText, maxLvWidth), padding, 22, 0x0099FF, false)
         graphics.drawString(font, bucketText, right - bucketWidth, 22, color, false)
 
         graphics.fill(padding, 36, right, 37, 0x50FFFFFF)
         var y = 42
 
         val ctxParts = buildContextParts(spawn, mergedFormVariants)
-        if (CobblemonSpawningConfig.get().showSpawnWeights && spawn.weight > 0f) {
-            val wtText = "Weight: ${formatWeight(spawn.weight)}"
+        val showWeights = CobblemonSpawningConfig.get().showSpawnWeights && spawn.weight > 0f
+        if (showWeights) {
+            val wtText = "Wt: ${formatWeight(spawn.weight)}"
             val wtWidth = font.width(wtText)
             graphics.drawString(font, wtText, right - wtWidth, y, 0xBBBBBB, false)
-        }
-        if (ctxParts.isNotEmpty()) {
-            graphics.drawString(font, clip(ctxParts.joinToString(" \u00B7 "), 30), padding + 4, y, 0xDDDDDD, false)
+            if (ctxParts.isNotEmpty()) {
+                val ctxMax = right - wtWidth - (padding + 4) - 6
+                graphics.drawString(font, clipToWidth(font, ctxParts.joinToString(" \u00B7 "), ctxMax), padding + 4, y, 0xDDDDDD, false)
+            }
+        } else if (ctxParts.isNotEmpty()) {
+            graphics.drawString(font, clipToWidth(font, ctxParts.joinToString(" \u00B7 "), right - padding - 4), padding + 4, y, 0xDDDDDD, false)
         }
         y += lineHeight + 4
 
@@ -394,8 +400,8 @@ object SpawnDisplayHelper {
             val header = if (biomeNames.size > 1) "\u2302 Biomes (any of)" else "\u2302 Biome"
             graphics.drawString(font, header, padding, y, 0xEEEEEE, false)
             y += lineHeight
-            for (line in wrapText(biomeNames.joinToString(", "), 30).take(3)) {
-                graphics.drawString(font, line, padding + 6, y, 0xDDDDDD, false)
+            for (line in wrapToWidth(font, biomeNames.joinToString(", "), indentWidth, 3)) {
+                graphics.drawString(font, line, indentX, y, 0xDDDDDD, false)
                 y += lineHeight
             }
             y += 3
@@ -407,7 +413,7 @@ object SpawnDisplayHelper {
             y += lineHeight
             for (cond in conditions) {
                 if (y + lineHeight > height - 16) break
-                graphics.drawString(font, cond, padding + 6, y, 0xDDDDDD, false)
+                graphics.drawString(font, clipToWidth(font, cond, indentWidth), indentX, y, 0xDDDDDD, false)
                 y += lineHeight
             }
             y += 3
@@ -419,7 +425,7 @@ object SpawnDisplayHelper {
             y += lineHeight
             for (s in specials) {
                 if (y + lineHeight > height - 16) break
-                graphics.drawString(font, s, padding + 6, y, 0xFFCC66, false)
+                graphics.drawString(font, clipToWidth(font, s, indentWidth), indentX, y, 0xFFCC66, false)
                 y += lineHeight
             }
             y += 3
@@ -433,7 +439,7 @@ object SpawnDisplayHelper {
                 y += lineHeight
                 for (line in lines) {
                     if (y + lineHeight > height - 16) break
-                    graphics.drawString(font, line, padding + 6, y, 0xEE8888, false)
+                    graphics.drawString(font, clipToWidth(font, line, indentWidth), indentX, y, 0xEE8888, false)
                     y += lineHeight
                 }
                 y += 3
@@ -452,12 +458,13 @@ object SpawnDisplayHelper {
                     wm.multiplier < 1f -> { arrow = "\u25BC"; c = 0xEE8888 }
                     else -> { arrow = "\u25CF"; c = 0xBBBBBB }
                 }
-                graphics.drawString(font, "$arrow ${formatWeight(wm.multiplier)}x ${clip(wm.conditionSummary, 28)}", padding + 6, y, c, false)
+                val wmText = "$arrow ${formatWeight(wm.multiplier)}x ${wm.conditionSummary}"
+                graphics.drawString(font, clipToWidth(font, wmText, indentWidth), indentX, y, c, false)
                 y += lineHeight
             }
         }
 
-        val footerY = height - padding - 2
+        val footerY = height - padding - font.lineHeight
         graphics.fill(padding, footerY - 4, right, footerY - 3, 0x20FFFFFF)
         val footerLeft = "${bucketLabel(spawn.bucket)} $bucketIndex/$bucketTotal"
         graphics.drawString(font, footerLeft, padding, footerY, color, false)
@@ -478,19 +485,22 @@ object SpawnDisplayHelper {
     ) {
         val font = Minecraft.getInstance().font
         val right = width - padding
-
-        graphics.drawString(font, titleCase(speciesName), padding + 22, 6, 0xFFFFFF, false)
+        val indentX = padding + 4
+        val indentWidth = right - indentX
 
         val methodText = obtainment.displayMethodName
         val methodWidth = font.width(methodText)
-        graphics.drawString(font, methodText, right - methodWidth, 6, 0xFFDD66, false)
+        val nameMaxWidth = right - (padding + 22) - methodWidth - 6
+        val nameText = clipToWidth(font, titleCase(speciesName), nameMaxWidth)
+        graphics.drawString(font, nameText, padding + 22, 6, 0xFFFFFF, false)
+        graphics.drawString(font, methodText, right - methodWidth, 6, 0xDDCC99, false)
 
         graphics.fill(padding, 20, right, 21, 0x50FFFFFF)
         var y = 26
 
-        val descLines = wrapText(obtainment.displayDescription, 32).take(3)
+        val descLines = wrapToWidth(font, obtainment.displayDescription, indentWidth, 3)
         for (line in descLines) {
-            graphics.drawString(font, line, padding + 4, y, 0xEEEEEE, false)
+            graphics.drawString(font, line, indentX, y, 0xEEEEEE, false)
             y += lineHeight
         }
         y += 4
@@ -500,7 +510,7 @@ object SpawnDisplayHelper {
             y += lineHeight
             for (item in obtainment.displayItems) {
                 if (y + lineHeight > height - 16) break
-                graphics.drawString(font, "\u2022 $item", padding + 6, y, 0xFFCC66, false)
+                graphics.drawString(font, clipToWidth(font, "\u2022 $item", indentWidth + 2), padding + 6, y, 0xFFCC66, false)
                 y += lineHeight
             }
             y += 4
@@ -510,15 +520,15 @@ object SpawnDisplayHelper {
             graphics.drawString(font, "\u2605 Location", padding, y, 0xEEEEEE, false)
             y += lineHeight
             obtainment.displayBlock?.let {
-                graphics.drawString(font, "Block: $it", padding + 6, y, 0xDDDDDD, false)
+                graphics.drawString(font, clipToWidth(font, "Use: $it", indentWidth + 2), padding + 6, y, 0xDDDDDD, false)
                 y += lineHeight
             }
             obtainment.displayStructure?.let {
-                graphics.drawString(font, "Structure: $it", padding + 6, y, 0xDDDDDD, false)
+                graphics.drawString(font, clipToWidth(font, "Structure: $it", indentWidth + 2), padding + 6, y, 0xDDDDDD, false)
                 y += lineHeight
             }
             obtainment.displayDimension?.let {
-                graphics.drawString(font, "Dimension: $it", padding + 6, y, 0xDDDDDD, false)
+                graphics.drawString(font, clipToWidth(font, "Dimension: $it", indentWidth + 2), padding + 6, y, 0xDDDDDD, false)
                 y += lineHeight
             }
             y += 4
@@ -527,14 +537,16 @@ object SpawnDisplayHelper {
         if (obtainment.notes.isNotEmpty()) {
             for (note in obtainment.notes) {
                 if (y + lineHeight > height - 16) break
-                graphics.drawString(font, "\u2139 $note", padding + 4, y, 0xBBBBBB, false)
+                graphics.drawString(font, clipToWidth(font, "\u2139 $note", indentWidth), indentX, y, 0xBBBBBB, false)
                 y += lineHeight
             }
         }
 
-        val footerY = height - padding - 2
+        val footerY = height - padding - font.lineHeight
         graphics.fill(padding, footerY - 4, right, footerY - 3, 0x20FFFFFF)
-        graphics.drawString(font, "$entryIndex/$entryTotal", padding, footerY, 0xFFAA00, false)
+        if (entryTotal > 1) {
+            graphics.drawString(font, "$entryIndex/$entryTotal", padding, footerY, 0xFFAA00, false)
+        }
 
         val sourceLabel = when (obtainment.source) {
             "bundled" -> "Built-in"
@@ -571,6 +583,7 @@ object SpawnDisplayHelper {
         branchIndex: Int,
         branchTotal: Int,
         width: Int = 180,
+        height: Int = 120,
         slotSize: Int = 18,
         hasItemSlots: Boolean = false
     ) {
@@ -579,46 +592,57 @@ object SpawnDisplayHelper {
         val padding = 6
         val right = width - padding
 
-        val fromName = clip(evolution.displayFromName, 16)
+        val nameMaxWidth = centerX - 28
+        val fromCenterX = 20 + slotSize / 2
+        val fromName = clipToWidth(font, evolution.displayFromName, nameMaxWidth)
         val fromWidth = font.width(fromName)
-        graphics.drawString(font, fromName, 20 + slotSize / 2 - fromWidth / 2, 30, 0xFFFFFF, false)
+        graphics.drawString(font, fromName, fromCenterX - fromWidth / 2, 30, 0xFFFFFF, false)
 
-        val toName = clip(evolution.displayToName, 16)
+        val dirText = "\u2192"
+        val dirW = font.width(dirText)
+        graphics.drawString(font, dirText, centerX - dirW / 2, 30, 0x888888, false)
+
+        val toCenterX = width - 20 - slotSize / 2
+        val toName = clipToWidth(font, evolution.displayToName, nameMaxWidth)
         val toWidth = font.width(toName)
-        graphics.drawString(font, toName, width - 20 - slotSize / 2 - toWidth / 2, 30, 0xFFFFFF, false)
+        graphics.drawString(font, toName, toCenterX - toWidth / 2, 30, 0xFFFFFF, false)
 
         graphics.fill(padding, 42, right, 43, 0x40FFFFFF)
 
-        if (branchTotal > 1) {
-            val branchText = "Evolution $branchIndex/$branchTotal"
-            val bw = font.width(branchText)
-            graphics.drawString(font, branchText, right - bw, 44, 0x777777, false)
-        }
-
         val items = evolution.itemRequirements
         var contentY = 48
+        val contentMaxY = height - padding - (if (branchTotal > 1) font.lineHeight + 2 else 0)
 
         if (hasItemSlots && items.isNotEmpty()) {
+            val labelX = 30
+            val labelMaxW = right - labelX
             for (item in items) {
                 val stack = resolveItemStack(item.itemId)
                 val name = if (!stack.isEmpty) stack.hoverName.string else formatItemIdFallback(item.itemId)
                 val labelText = "${item.label} "
                 val labelWidth = font.width(labelText)
-                graphics.drawString(font, labelText, 30, contentY + 4, 0xBBBBBB, false)
-                graphics.drawString(font, name, 30 + labelWidth, contentY + 4, 0xFFFFFF, false)
+                graphics.drawString(font, labelText, labelX, contentY + 4, 0xBBBBBB, false)
+                graphics.drawString(font, clipToWidth(font, name, labelMaxW - labelWidth), labelX + labelWidth, contentY + 4, 0xFFFFFF, false)
                 contentY += 20
             }
         }
 
         val reqText = if (hasItemSlots) evolution.textOnlyRequirements else evolution.displayRequirements
         if (reqText.isNotBlank()) {
-            val lines = wrapReqText(reqText, 30, 3)
+            val reqWidth = right - padding
+            val lines = wrapToWidth(font, reqText, reqWidth, 3)
             for (line in lines) {
-                if (contentY + 11 > 110) break
+                if (contentY + 11 > contentMaxY) break
                 val lw = font.width(line)
                 graphics.drawString(font, line, centerX - lw / 2, contentY, 0xFFDD88, false)
                 contentY += 12
             }
+        }
+
+        if (branchTotal > 1) {
+            val branchText = "Evo $branchIndex/$branchTotal"
+            val bw = font.width(branchText)
+            graphics.drawString(font, branchText, right - bw, height - padding - font.lineHeight, 0x666666, false)
         }
     }
 }
