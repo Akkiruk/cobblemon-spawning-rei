@@ -2,6 +2,26 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.8.5] - 2026-02-10
+
+### Fixed
+- Fingerprint now hashes full serialized content instead of just key counts, preventing stale data when server datapacks modify spawn conditions without adding/removing species
+- Data writes (local load, server apply, disconnect clear) are now synchronized via ReentrantLock, eliminating race conditions between async local load and server data arrival
+- Async data loading uses a single-thread ExecutorService with cancellation support instead of spawning unbounded raw threads
+- Server chunk delivery retries failed chunks up to 3 times (1-second delay between retries) instead of silently abandoning the entire sync
+- Client-side chunk receiver now times out after 30 seconds of stalled transfer and falls back to local data
+
+## [1.8.4] - 2026-02-10
+
+### Changed
+- Extracted shared PokemonRef interface for PokemonEntry (REI) and PokemonIngredient (JEI)
+- Consolidated 3x duplicate spawn merge/sort/bucket logic into SpawnDisplayHelper.buildSortedSpawns()
+- Consolidated 2x duplicate spawn rendering into SpawnDisplayHelper.drawSpawnDetails()
+- Consolidated 2x duplicate evolution text rendering into SpawnDisplayHelper.drawEvolutionText()
+- Consolidated 2x duplicate tooltip logic into SpawnDisplayHelper.buildPokemonTooltipLines()
+- Extracted context line assembly into SpawnDisplayHelper.buildContextParts()
+- Removed passthrough bucket delegation functions from SpawnCategory, JeiSpawnCategory, EmiSpawnRecipe
+
 ## [1.8.3] - 2025-07-23
 
 ### Fixed

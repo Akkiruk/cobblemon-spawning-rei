@@ -27,8 +27,11 @@ object ServerDataManager {
     private data class SyncState(
         val chunks: List<ByteArray>,
         var currentIndex: Int,
-        var delayTicks: Int
+        var delayTicks: Int,
+        var retries: Int = 0
     )
+
+    private const val MAX_RETRIES = 3
 
     private val pendingSyncs = ConcurrentHashMap<UUID, SyncState>()
 
@@ -82,9 +85,16 @@ object ServerDataManager {
                     player,
                     SpawnSyncPayload(state.currentIndex, state.chunks.size, chunk)
                 )
+                state.retries = 0
             } catch (e: Exception) {
-                DebugLog.warn("Failed to send chunk ${state.currentIndex} to ${player.name.string}: ${e.message}")
-                toRemove.add(uuid)
+                state.retries++
+                if (state.retries >= MAX_RETRIES) {
+                    DebugLog.warn("Failed to send chunk ${state.currentIndex} to ${player.name.string} after $MAX_RETRIES retries: ${e.message}")
+                    toRemove.add(uuid)
+                } else {
+                    DebugLog.debug("Retrying chunk ${state.currentIndex} for ${player.name.string} (attempt ${state.retries}/$MAX_RETRIES)")
+                    state.delayTicks = 20 // wait 1 second before retry
+                }
                 continue
             }
 

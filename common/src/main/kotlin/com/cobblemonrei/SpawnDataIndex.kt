@@ -3,7 +3,11 @@ package com.cobblemonrei
 import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
 import com.cobblemonrei.network.DataSerializer
 import java.nio.file.Path
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 @Suppress("ObjectPropertyName")
 object SpawnDataIndex {
@@ -19,7 +23,11 @@ object SpawnDataIndex {
     var dataSource = DataSource.NONE
         private set
 
-    private val isLoading = AtomicBoolean(false)
+    private val dataLock = ReentrantLock()
+    private val executor: ExecutorService = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "CobblemonSpawningREI-DataLoad").apply { isDaemon = true }
+    }
+    private var loadFuture: Future<*>? = null
 
     @Volatile
     var spawnsBySpecies: Map<String, List<SpawnInfo>> = emptyMap()
@@ -80,30 +88,35 @@ object SpawnDataIndex {
     }
 
     fun loadAll(extraDatapacksDir: Path? = null) {
-        if (!isLoading.compareAndSet(false, true)) return
+        if (!dataLock.tryLock()) return
         try {
+            cancelPendingLoad()
             doLoad(extraDatapacksDir)
         } catch (e: Exception) {
             DebugLog.warn("Data load failed: ${e.message}")
         } finally {
-            isLoading.set(false)
+            dataLock.unlock()
         }
     }
 
     private fun loadAllAsync(extraDatapacksDir: Path? = null) {
-        if (!isLoading.compareAndSet(false, true)) return
-        Thread({
+        val prev = loadFuture
+        if (prev != null && !prev.isDone) return
+        loadFuture = executor.submit {
+            dataLock.lock()
             try {
                 doLoad(extraDatapacksDir)
             } catch (e: Exception) {
                 DebugLog.warn("Async data load failed: ${e.message}")
             } finally {
-                isLoading.set(false)
+                dataLock.unlock()
             }
-        }, "CobblemonSpawningREI-DataLoad").apply {
-            isDaemon = true
-            start()
         }
+    }
+
+    private fun cancelPendingLoad() {
+        loadFuture?.cancel(true)
+        loadFuture = null
     }
 
     private fun doLoad(extraDatapacksDir: Path? = null) {
@@ -148,35 +161,42 @@ object SpawnDataIndex {
     /**
      * Replace all data with server-provided data.
      * Called from ClientDataReceiver when the full payload arrives.
+     * Acquires dataLock to prevent races with an in-progress local load.
      */
     fun applyServerData(
         spawns: Map<String, List<SpawnInfo>>,
         evolutions: Map<String, List<EvolutionInfo>>,
         species: Map<String, EvolutionDataLoader.SpeciesBasicInfo>
     ) {
-        spawnsBySpecies = spawns
-        evolutionsBySpecies = evolutions
-        speciesInfo = species
-        rebuildDerivedData()
-        loadState = LoadState.FULLY_LOADED
-        dataSource = DataSource.SERVER
-        dataVersion++
+        cancelPendingLoad()
+        dataLock.withLock {
+            spawnsBySpecies = spawns
+            evolutionsBySpecies = evolutions
+            speciesInfo = species
+            rebuildDerivedData()
+            loadState = LoadState.FULLY_LOADED
+            dataSource = DataSource.SERVER
+            dataVersion++
 
-        DebugLog.info(
-            "Server data applied: ${allSpeciesNames.size} species " +
-            "(${spawns.size} with spawns, ${evolutions.size} with evolutions)"
-        )
+            DebugLog.info(
+                "Server data applied: ${allSpeciesNames.size} species " +
+                "(${spawns.size} with spawns, ${evolutions.size} with evolutions)"
+            )
+        }
     }
 
     /** Clear server data on disconnect, allow local reload next tick */
     fun onDisconnect() {
-        spawnsBySpecies = emptyMap()
-        evolutionsBySpecies = emptyMap()
-        evolutionsToSpecies = emptyMap()
-        speciesInfo = emptyMap()
-        allSpeciesNames = emptyList()
-        loadState = LoadState.NOT_LOADED
-        dataSource = DataSource.NONE
+        cancelPendingLoad()
+        dataLock.withLock {
+            spawnsBySpecies = emptyMap()
+            evolutionsBySpecies = emptyMap()
+            evolutionsToSpecies = emptyMap()
+            speciesInfo = emptyMap()
+            allSpeciesNames = emptyList()
+            loadState = LoadState.NOT_LOADED
+            dataSource = DataSource.NONE
+        }
         DebugLog.info("Data cleared on disconnect")
     }
 

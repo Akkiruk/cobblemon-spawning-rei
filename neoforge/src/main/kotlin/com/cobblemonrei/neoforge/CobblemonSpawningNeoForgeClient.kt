@@ -18,6 +18,7 @@ object CobblemonSpawningNeoForgeClient {
     fun onClientTick(event: ClientTickEvent.Post) {
         if (Minecraft.getInstance().player != null) {
             CobblemonSpawningMod.tickReloadCheck()
+            ClientDataReceiver.tick()
         }
     }
 

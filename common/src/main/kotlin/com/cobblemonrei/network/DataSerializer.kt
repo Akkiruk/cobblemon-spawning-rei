@@ -97,22 +97,21 @@ object DataSerializer {
         return result
     }
 
+    /**
+     * Content-based fingerprint — hashes the full serialized JSON so condition
+     * changes (biomes, levels, weights, etc.) are detected, not just key counts.
+     */
     fun computeFingerprint(
         spawns: Map<String, List<SpawnInfo>>,
         evolutions: Map<String, List<EvolutionInfo>>,
         speciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo>
     ): String {
-        val sb = StringBuilder()
-        sb.append("s:${spawns.size}:")
-        sb.append(spawns.values.sumOf { it.size })
-        sb.append(":e:${evolutions.size}:")
-        sb.append(evolutions.values.sumOf { it.size })
-        sb.append(":i:${speciesInfo.size}")
-        // Include sorted keys for determinism
-        for (key in spawns.keys.sorted()) {
-            sb.append("|$key:${spawns[key]?.size ?: 0}")
-        }
+        val wrapper = JsonObject()
+        wrapper.add("spawns", GSON.toJsonTree(spawns))
+        wrapper.add("evolutions", GSON.toJsonTree(evolutions))
+        wrapper.add("speciesInfo", GSON.toJsonTree(speciesInfo))
+        val json = wrapper.toString()
         val md = MessageDigest.getInstance("MD5")
-        return md.digest(sb.toString().toByteArray()).joinToString("") { "%02x".format(it) }
+        return md.digest(json.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
     }
 }

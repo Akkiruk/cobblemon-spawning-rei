@@ -18,6 +18,12 @@ object ClientDataReceiver {
     @Volatile
     private var ignoreServerData = false
 
+    /** Timestamp (ms) when the first chunk was received, for timeout detection */
+    @Volatile
+    private var firstChunkTime = 0L
+
+    private const val CHUNK_TIMEOUT_MS = 30_000L // 30 seconds
+
     fun onHashReceived(payload: SpawnSyncHashPayload) {
         val serverFingerprint = payload.fingerprint
         val localFingerprint = SpawnDataIndex.computeFingerprint()
@@ -43,6 +49,7 @@ object ClientDataReceiver {
             receivedChunks = arrayOfNulls(total)
             expectedTotal = total
             receivedCount = 0
+            firstChunkTime = System.currentTimeMillis()
             DebugLog.debug("Receiving spawn sync data: $total chunk(s)")
         }
 
@@ -59,6 +66,17 @@ object ClientDataReceiver {
 
         if (receivedCount >= expectedTotal) {
             assembleAndApply()
+        }
+    }
+
+    /** Called from client tick — detects stalled chunk transfers and falls back to local data */
+    fun tick() {
+        if (expectedTotal <= 0 || receivedCount >= expectedTotal || ignoreServerData) return
+        if (firstChunkTime <= 0L) return
+        val elapsed = System.currentTimeMillis() - firstChunkTime
+        if (elapsed > CHUNK_TIMEOUT_MS) {
+            DebugLog.warn("Chunk transfer timed out after ${elapsed / 1000}s ($receivedCount/$expectedTotal received), falling back to local data")
+            reset()
         }
     }
 
@@ -90,5 +108,6 @@ object ClientDataReceiver {
         expectedTotal = 0
         receivedCount = 0
         ignoreServerData = false
+        firstChunkTime = 0L
     }
 }

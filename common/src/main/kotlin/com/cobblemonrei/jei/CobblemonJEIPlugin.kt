@@ -76,22 +76,11 @@ open class CobblemonJEIPlugin : IModPlugin {
     }
 
     private fun buildSpawnRecipes(species: String, spawns: List<SpawnInfo>): List<JeiSpawnRecipe> {
-        val merged = SpawnDisplayHelper.mergeVariantSpawns(spawns)
-        val sorted = merged.sortedWith(
-            compareBy<SpawnDisplayHelper.MergedSpawn> { SpawnDisplayHelper.bucketSortOrder(it.spawn.bucket) }
-                .thenBy { it.spawn.context }
-                .thenByDescending { it.spawn.weight }
-        )
-        val bucketCounts = sorted.groupBy { it.spawn.bucket.lowercase() }.mapValues { it.value.size }
-        val bucketIdx = mutableMapOf<String, Int>()
-        return sorted.mapNotNull { ms ->
-            val b = ms.spawn.bucket.lowercase()
-            val idx = (bucketIdx[b] ?: 0) + 1
-            bucketIdx[b] = idx
+        return SpawnDisplayHelper.buildSortedSpawns(spawns).mapNotNull { entry ->
             try {
-                JeiSpawnRecipe(species, ms.spawn, ms.formVariants, idx, bucketCounts[b]!!)
+                JeiSpawnRecipe(species, entry.spawn, entry.formVariants, entry.bucketIndex, entry.bucketTotal)
             } catch (e: Exception) {
-                DebugLog.once("jei-spawn-$species-${ms.spawn.id}") { "Failed: ${e.message}" }
+                DebugLog.once("jei-spawn-$species-${entry.spawn.id}") { "Failed: ${e.message}" }
                 null
             }
         }

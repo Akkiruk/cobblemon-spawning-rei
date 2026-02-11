@@ -1,8 +1,7 @@
 package com.cobblemonrei.jei.evolution
 
 import com.cobblemonrei.CobblemonSpawningMod
-import com.cobblemonrei.SpawnDisplayHelper.clip
-import com.cobblemonrei.SpawnDisplayHelper.wrapReqText
+import com.cobblemonrei.SpawnDisplayHelper
 import com.cobblemonrei.jei.PokemonIngredient
 import com.cobblemonrei.jei.PokemonIngredientType
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder
@@ -53,39 +52,7 @@ class JeiEvolutionCategory(guiHelper: IGuiHelper) : IRecipeCategory<JeiEvolution
     }
 
     override fun draw(recipe: JeiEvolutionRecipe, recipeSlotsView: IRecipeSlotsView, graphics: GuiGraphics, mouseX: Double, mouseY: Double) {
-        val font = net.minecraft.client.Minecraft.getInstance().font
-        val evo = recipe.evolution
-        val centerX = WIDTH / 2
-
-        // Arrow
-        arrow.draw(graphics, centerX - 12, 10)
-
-        // From name
-        val fromName = clip(evo.displayFromName, 16)
-        val fromWidth = font.width(fromName)
-        graphics.drawString(font, fromName, 20 + SLOT_SIZE / 2 - fromWidth / 2, 32, 0xFFFFFF, false)
-
-        // To name
-        val toName = clip(evo.displayToName, 16)
-        val toWidth = font.width(toName)
-        graphics.drawString(font, toName, WIDTH - 20 - SLOT_SIZE / 2 - toWidth / 2, 32, 0xFFFFFF, false)
-
-        // Branch indicator
-        if (recipe.branchTotal > 1) {
-            val branchText = "${recipe.branchIndex}/${recipe.branchTotal}"
-            val bw = font.width(branchText)
-            graphics.drawString(font, branchText, 20 + SLOT_SIZE / 2 - bw / 2, 43, 0xBBBBBB, false)
-        }
-
-        // Requirements text
-        val reqText = evo.displayRequirements
-        val maxCharsPerLine = 32
-        val lines = wrapReqText(reqText, maxCharsPerLine, 3)
-        var reqY = 56
-        for (line in lines) {
-            val lw = font.width(line)
-            graphics.drawString(font, line, centerX - lw / 2, reqY, 0xFFDD88, false)
-            reqY += 11
-        }
+        arrow.draw(graphics, WIDTH / 2 - 12, 10)
+        SpawnDisplayHelper.drawEvolutionText(graphics, recipe.evolution, recipe.branchIndex, recipe.branchTotal)
     }
 }

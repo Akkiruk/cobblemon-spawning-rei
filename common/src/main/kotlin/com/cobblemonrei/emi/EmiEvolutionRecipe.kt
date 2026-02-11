@@ -3,16 +3,13 @@ package com.cobblemonrei.emi
 import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.EvolutionInfo
 import com.cobblemonrei.PokemonItemCache
-import com.cobblemonrei.SpawnDisplayHelper.clip
-import com.cobblemonrei.SpawnDisplayHelper.wrapReqText
+import com.cobblemonrei.SpawnDisplayHelper
 import dev.emi.emi.api.recipe.EmiRecipe
 import dev.emi.emi.api.recipe.EmiRecipeCategory
 import dev.emi.emi.api.render.EmiTexture
 import dev.emi.emi.api.stack.EmiIngredient
 import dev.emi.emi.api.stack.EmiStack
 import dev.emi.emi.api.widget.WidgetHolder
-import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.resources.ResourceLocation
 
 class EmiEvolutionRecipe(
@@ -60,35 +57,7 @@ class EmiEvolutionRecipe(
         toStack?.let { widgets.addSlot(it, WIDTH - 20 - SLOT_SIZE, 10).recipeContext(this) }
         widgets.addTexture(EmiTexture.EMPTY_ARROW, WIDTH / 2 - 12, 10)
         widgets.addDrawable(0, 0, WIDTH, HEIGHT) { graphics, _, _, _ ->
-            drawEvolutionDetails(graphics)
-        }
-    }
-
-    private fun drawEvolutionDetails(graphics: GuiGraphics) {
-        val font = Minecraft.getInstance().font
-        val centerX = WIDTH / 2
-
-        val fromName = clip(evolution.displayFromName, 16)
-        val fromWidth = font.width(fromName)
-        graphics.drawString(font, fromName, 20 + SLOT_SIZE / 2 - fromWidth / 2, 32, 0xFFFFFF, false)
-
-        val toName = clip(evolution.displayToName, 16)
-        val toWidth = font.width(toName)
-        graphics.drawString(font, toName, WIDTH - 20 - SLOT_SIZE / 2 - toWidth / 2, 32, 0xFFFFFF, false)
-
-        if (branchTotal > 1) {
-            val branchText = "$branchIndex/$branchTotal"
-            val bw = font.width(branchText)
-            graphics.drawString(font, branchText, 20 + SLOT_SIZE / 2 - bw / 2, 43, 0xBBBBBB, false)
-        }
-
-        val reqText = evolution.displayRequirements
-        val lines = wrapReqText(reqText, 32, 3)
-        var reqY = 56
-        for (line in lines) {
-            val lw = font.width(line)
-            graphics.drawString(font, line, centerX - lw / 2, reqY, 0xFFDD88, false)
-            reqY += 11
+            SpawnDisplayHelper.drawEvolutionText(graphics, evolution, branchIndex, branchTotal)
         }
     }
 }

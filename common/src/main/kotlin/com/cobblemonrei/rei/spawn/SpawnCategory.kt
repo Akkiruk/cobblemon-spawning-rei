@@ -5,10 +5,12 @@ import com.cobblemonrei.SpawnDataIndex
 import com.cobblemonrei.SpawnInfo
 import com.cobblemonrei.SpawnDisplayHelper.PRESET_LABELS
 import com.cobblemonrei.SpawnDisplayHelper.buildConditions
+import com.cobblemonrei.SpawnDisplayHelper.buildContextParts
 import com.cobblemonrei.SpawnDisplayHelper.buildExclusionLines
+import com.cobblemonrei.SpawnDisplayHelper.bucketColor
+import com.cobblemonrei.SpawnDisplayHelper.bucketLabel
 import com.cobblemonrei.SpawnDisplayHelper.buildSpecials
 import com.cobblemonrei.SpawnDisplayHelper.clip
-import com.cobblemonrei.SpawnDisplayHelper.formatFormAspects
 import com.cobblemonrei.SpawnDisplayHelper.formatWeight
 import com.cobblemonrei.SpawnDisplayHelper.wrapText
 import com.cobblemonrei.formatBiomeName
@@ -40,10 +42,6 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
         private const val SECTION_GAP = 4
         private const val LINE_HEIGHT = 11
         private const val HEADER_HEIGHT = 40
-
-        fun bucketColor(bucket: String) = com.cobblemonrei.SpawnDisplayHelper.bucketColor(bucket)
-        fun bucketLabel(bucket: String) = com.cobblemonrei.SpawnDisplayHelper.bucketLabel(bucket)
-        fun bucketSortOrder(bucket: String) = com.cobblemonrei.SpawnDisplayHelper.bucketSortOrder(bucket)
     }
 
     override fun getCategoryIdentifier(): CategoryIdentifier<out SpawnDisplay> = ID
@@ -116,17 +114,7 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
             gfx.fill(left, pipY + 1, left + 3, pipY + LINE_HEIGHT - 1, color)
         })
 
-        val ctxParts = mutableListOf<String>()
-        if (spawn.context != "grounded") ctxParts.add(spawn.displayContext)
-        if (spawn.presets.isNotEmpty()) {
-            val tags = spawn.presets.mapNotNull { PRESET_LABELS[it] ?: titleCase(it) }
-            ctxParts.add(tags.joinToString(", "))
-        }
-        if (display.mergedFormVariants.isNotEmpty()) {
-            ctxParts.add("Forms: ${display.mergedFormVariants.joinToString(", ")}")
-        } else if (spawn.hasFormVariant) {
-            ctxParts.add("Form: ${formatFormAspects(spawn.formAspects)}")
-        }
+        val ctxParts = buildContextParts(spawn, display.mergedFormVariants)
 
         // Weight: hide 0 or if config disables
         val weightLabel = when {

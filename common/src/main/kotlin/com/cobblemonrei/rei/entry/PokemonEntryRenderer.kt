@@ -1,15 +1,13 @@
 package com.cobblemonrei.rei.entry
 
 import com.cobblemonrei.PokemonItemCache
-import com.cobblemonrei.SpawnDataIndex
-import com.cobblemonrei.titleCase
+import com.cobblemonrei.SpawnDisplayHelper
 import me.shedaniel.math.Rectangle
 import me.shedaniel.rei.api.client.entry.renderer.EntryRenderer
 import me.shedaniel.rei.api.client.gui.widgets.Tooltip
 import me.shedaniel.rei.api.client.gui.widgets.TooltipContext
 import me.shedaniel.rei.api.common.entry.EntryStack
 import net.minecraft.client.gui.GuiGraphics
-import net.minecraft.network.chat.Component
 
 class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
 
@@ -42,25 +40,9 @@ class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
 
     override fun getTooltip(entry: EntryStack<PokemonEntry>, context: TooltipContext): Tooltip? {
         val pokemon = entry.value ?: return null
-        val species = PokemonItemCache.resolveSpecies(pokemon.species)
-        val tooltip = Tooltip.create(Component.literal(pokemon.displayName))
-        if (species != null) {
-            tooltip.add(Component.literal("§7#${species.nationalPokedexNumber}"))
-        }
-        val info = SpawnDataIndex.getSpeciesInfo(pokemon.species)
-        if (info != null) {
-            val typeStr = buildString {
-                append("§e")
-                append(titleCase(info.primaryType))
-                info.secondaryType?.let { append(" §7/ §e${titleCase(it)}") }
-            }
-            tooltip.add(Component.literal(typeStr))
-            tooltip.add(Component.literal("§7Catch Rate: ${info.catchRate}"))
-        }
-        val spawns = SpawnDataIndex.getSpawnsFor(pokemon.species)
-        if (spawns.isNotEmpty()) {
-            tooltip.add(Component.literal("§a${spawns.size} spawn location(s)"))
-        }
+        val lines = SpawnDisplayHelper.buildPokemonTooltipLines(pokemon.species, pokemon.displayName)
+        val tooltip = Tooltip.create(lines.first())
+        lines.drop(1).forEach { tooltip.add(it) }
         return tooltip
     }
 

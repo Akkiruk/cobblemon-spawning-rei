@@ -79,22 +79,11 @@ open class CobblemonEMIPlugin : EmiPlugin {
     // --- Spawn recipe builders (same merge/sort logic as JEI) ---
 
     private fun buildSpawnRecipes(species: String, spawns: List<SpawnInfo>): List<EmiSpawnRecipe> {
-        val merged = SpawnDisplayHelper.mergeVariantSpawns(spawns)
-        val sorted = merged.sortedWith(
-            compareBy<SpawnDisplayHelper.MergedSpawn> { SpawnDisplayHelper.bucketSortOrder(it.spawn.bucket) }
-                .thenBy { it.spawn.context }
-                .thenByDescending { it.spawn.weight }
-        )
-        val bucketCounts = sorted.groupBy { it.spawn.bucket.lowercase() }.mapValues { it.value.size }
-        val bucketIdx = mutableMapOf<String, Int>()
-        return sorted.mapNotNull { ms ->
-            val b = ms.spawn.bucket.lowercase()
-            val idx = (bucketIdx[b] ?: 0) + 1
-            bucketIdx[b] = idx
+        return SpawnDisplayHelper.buildSortedSpawns(spawns).mapNotNull { entry ->
             try {
-                EmiSpawnRecipe(species, ms.spawn, ms.formVariants, idx, bucketCounts[b]!!)
+                EmiSpawnRecipe(species, entry.spawn, entry.formVariants, entry.bucketIndex, entry.bucketTotal)
             } catch (e: Exception) {
-                DebugLog.once("emi-spawn-$species-${ms.spawn.id}") { "Failed: ${e.message}" }
+                DebugLog.once("emi-spawn-$species-${entry.spawn.id}") { "Failed: ${e.message}" }
                 null
             }
         }
