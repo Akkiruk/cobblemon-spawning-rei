@@ -1,9 +1,9 @@
 package com.cobblemonrei.jei.evolution
 
-import com.cobblemonrei.EvolutionInfo
+import com.cobblemonrei.EvolutionRecipeData
 
-data class JeiEvolutionRecipe(
-    val evolution: EvolutionInfo,
-    val branchIndex: Int = 0,
-    val branchTotal: Int = 0
-)
+data class JeiEvolutionRecipe(val data: EvolutionRecipeData) {
+    val evolution get() = data.evolution
+    val branchIndex get() = data.branchIndex
+    val branchTotal get() = data.branchTotal
+}

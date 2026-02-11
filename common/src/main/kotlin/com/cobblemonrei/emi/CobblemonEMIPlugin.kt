@@ -3,9 +3,8 @@ package com.cobblemonrei.emi
 import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.DebugLog
 import com.cobblemonrei.PokemonItemCache
+import com.cobblemonrei.RecipeBuilder
 import com.cobblemonrei.SpawnDataIndex
-import com.cobblemonrei.SpawnDisplayHelper
-import com.cobblemonrei.SpawnInfo
 import com.cobblemonrei.config.CobblemonSpawningConfig
 import dev.emi.emi.api.EmiPlugin
 import dev.emi.emi.api.EmiRegistry
@@ -34,16 +33,17 @@ open class CobblemonEMIPlugin : EmiPlugin {
 
     override fun register(registry: EmiRegistry) {
         SpawnDataIndex.ensureLoaded()
+        val config = CobblemonSpawningConfig.get()
 
         registry.addCategory(SPAWN_CATEGORY)
         registry.addWorkstation(SPAWN_CATEGORY, EmiStack.of(Items.GRASS_BLOCK))
 
-        if (CobblemonSpawningConfig.get().showEvolutions) {
+        if (config.showEvolutions) {
             registry.addCategory(EVOLUTION_CATEGORY)
             registry.addWorkstation(EVOLUTION_CATEGORY, EmiStack.of(Items.EXPERIENCE_BOTTLE))
         }
 
-        if (CobblemonSpawningConfig.get().showObtainment) {
+        if (config.showObtainment) {
             registry.addCategory(OBTAINMENT_CATEGORY)
             registry.addWorkstation(OBTAINMENT_CATEGORY, EmiStack.of(Items.NETHER_STAR))
         }
@@ -63,27 +63,22 @@ open class CobblemonEMIPlugin : EmiPlugin {
             registry.addEmiStack(stack)
             speciesCount++
 
-            val recipes = buildSpawnRecipes(species, spawns)
-            for (recipe in recipes) {
+            for (recipe in RecipeBuilder.buildSpawnRecipes(species, spawns).map { EmiSpawnRecipe(it) }) {
                 registry.addRecipe(recipe)
                 spawnCount++
             }
         }
         DebugLog.info("EMI: Registered $speciesCount Pokémon stacks, $spawnCount spawn recipes")
 
-        if (CobblemonSpawningConfig.get().showEvolutions) {
-            val evoRecipes = buildAllEvolutionRecipes()
-            for (recipe in evoRecipes) {
-                registry.addRecipe(recipe)
-            }
+        if (config.showEvolutions) {
+            val evoRecipes = RecipeBuilder.buildAllEvolutionRecipes().map { EmiEvolutionRecipe(it) }
+            for (recipe in evoRecipes) registry.addRecipe(recipe)
             DebugLog.info("EMI: Registered ${evoRecipes.size} evolution recipes")
         }
 
-        if (CobblemonSpawningConfig.get().showObtainment) {
-            val obtainRecipes = buildAllObtainmentRecipes()
-            for (recipe in obtainRecipes) {
-                registry.addRecipe(recipe)
-            }
+        if (config.showObtainment) {
+            val obtainRecipes = RecipeBuilder.buildAllObtainmentRecipes().map { EmiObtainmentRecipe(it) }
+            for (recipe in obtainRecipes) registry.addRecipe(recipe)
             DebugLog.info("EMI: Registered ${obtainRecipes.size} obtainment recipes")
         }
     }
@@ -91,34 +86,5 @@ open class CobblemonEMIPlugin : EmiPlugin {
     private fun pokemonStack(speciesName: String): EmiStack? {
         val item = PokemonItemCache.getItem(speciesName) ?: return null
         return if (!item.isEmpty) EmiStack.of(item) else null
-    }
-
-    // --- Spawn recipe builders (same merge/sort logic as JEI) ---
-
-    private fun buildSpawnRecipes(species: String, spawns: List<SpawnInfo>): List<EmiSpawnRecipe> {
-        return SpawnDisplayHelper.buildSortedSpawns(spawns).mapNotNull { entry ->
-            try {
-                EmiSpawnRecipe(species, entry.spawn, entry.formVariants, entry.bucketIndex, entry.bucketTotal)
-            } catch (e: Exception) {
-                DebugLog.once("emi-spawn-$species-${entry.spawn.id}") { "Failed: ${e.message}" }
-                null
-            }
-        }
-    }
-
-    private fun buildAllEvolutionRecipes(): List<EmiEvolutionRecipe> {
-        return SpawnDisplayHelper.deduplicateEvolutions(SpawnDataIndex.evolutionsBySpecies)
-            .map { (evo, idx, total) -> EmiEvolutionRecipe(evo, idx, total) }
-    }
-
-    private fun buildAllObtainmentRecipes(): List<EmiObtainmentRecipe> {
-        val recipes = mutableListOf<EmiObtainmentRecipe>()
-        for ((species, obtainments) in SpawnDataIndex.obtainmentBySpecies) {
-            if (obtainments.isEmpty()) continue
-            obtainments.forEachIndexed { i, info ->
-                recipes.add(EmiObtainmentRecipe(species, info, i + 1, obtainments.size))
-            }
-        }
-        return recipes
     }
 }

@@ -2,14 +2,11 @@ package com.cobblemonrei.rei
 
 import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.DebugLog
-import com.cobblemonrei.EvolutionInfo
-import com.cobblemonrei.ObtainmentInfo
 import com.cobblemonrei.PokemonItemCache
+import com.cobblemonrei.RecipeBuilder
 import com.cobblemonrei.SpawnDataIndex
 import com.cobblemonrei.SpawnDisplayHelper
-import com.cobblemonrei.SpawnInfo
 import com.cobblemonrei.config.CobblemonSpawningConfig
-import com.cobblemonrei.platform.PlatformHelper
 import com.cobblemonrei.rei.entry.PokemonEntry
 import com.cobblemonrei.rei.entry.PokemonEntryDefinition
 import com.cobblemonrei.rei.entry.PokemonEntryType
@@ -66,28 +63,22 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
     override fun registerCategories(registry: CategoryRegistry) {
         if (emiActive) return
         ensureEntryTypeAvailable()
+        val config = CobblemonSpawningConfig.get()
         registry.add(SpawnCategory())
-        if (CobblemonSpawningConfig.get().showEvolutions) {
-            registry.add(EvolutionCategory())
-        }
-        if (CobblemonSpawningConfig.get().showObtainment) {
-            registry.add(ObtainmentCategory())
-        }
-        DebugLog.info("REI categories registered (spawns${if (CobblemonSpawningConfig.get().showEvolutions) " + evolution" else ""}${if (CobblemonSpawningConfig.get().showObtainment) " + obtainment" else ""})")
+        if (config.showEvolutions) registry.add(EvolutionCategory())
+        if (config.showObtainment) registry.add(ObtainmentCategory())
+        DebugLog.info("REI categories registered (spawns${if (config.showEvolutions) " + evolution" else ""}${if (config.showObtainment) " + obtainment" else ""})")
     }
 
     override fun registerDisplays(registry: DisplayRegistry) {
         if (emiActive) return
         ensureEntryTypeAvailable()
         SpawnDataIndex.ensureLoaded()
+        val config = CobblemonSpawningConfig.get()
 
         registry.registerDisplayGenerator(SpawnCategory.ID, SpawnDisplayGenerator())
-        if (CobblemonSpawningConfig.get().showEvolutions) {
-            registry.registerDisplayGenerator(EvolutionCategory.ID, EvolutionDisplayGenerator())
-        }
-        if (CobblemonSpawningConfig.get().showObtainment) {
-            registry.registerDisplayGenerator(ObtainmentCategory.ID, ObtainmentDisplayGenerator())
-        }
+        if (config.showEvolutions) registry.registerDisplayGenerator(EvolutionCategory.ID, EvolutionDisplayGenerator())
+        if (config.showObtainment) registry.registerDisplayGenerator(ObtainmentCategory.ID, ObtainmentDisplayGenerator())
 
         DebugLog.info("Registered dynamic display generators")
     }
@@ -133,7 +124,7 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
             if (value !is PokemonEntry) return Optional.empty()
             val spawns = SpawnDataIndex.getSpawnsFor(value.species)
             if (spawns.isEmpty()) return Optional.empty()
-            return Optional.of(buildSpawnDisplays(value.species, spawns))
+            return Optional.of(RecipeBuilder.buildSpawnRecipes(value.species, spawns).map { SpawnDisplay(it) })
         }
 
         override fun getUsageFor(entry: EntryStack<*>): Optional<List<SpawnDisplay>> = Optional.empty()
@@ -147,7 +138,7 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
             val all = mutableListOf<SpawnDisplay>()
             for ((species, spawns) in SpawnDataIndex.spawnsBySpecies) {
                 if (spawns.isEmpty()) continue
-                all.addAll(buildSpawnDisplays(species, spawns))
+                all.addAll(RecipeBuilder.buildSpawnRecipes(species, spawns).map { SpawnDisplay(it) })
             }
             cachedDisplays = all
             cachedVersion = version
@@ -163,13 +154,17 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
         override fun getRecipeFor(entry: EntryStack<*>): Optional<List<EvolutionDisplay>> {
             val value = entry.value ?: return Optional.empty()
             if (value !is PokemonEntry) return Optional.empty()
-            return buildEvoDisplays(SpawnDataIndex.getEvolutionsTo(value.species))
+            val evos = SpawnDataIndex.getEvolutionsTo(value.species)
+            if (evos.isEmpty()) return Optional.empty()
+            return Optional.of(RecipeBuilder.buildEvolutionsFor(evos).map { EvolutionDisplay(it) })
         }
 
         override fun getUsageFor(entry: EntryStack<*>): Optional<List<EvolutionDisplay>> {
             val value = entry.value ?: return Optional.empty()
             if (value !is PokemonEntry) return Optional.empty()
-            return buildEvoDisplays(SpawnDataIndex.getEvolutionsFrom(value.species))
+            val evos = SpawnDataIndex.getEvolutionsFrom(value.species)
+            if (evos.isEmpty()) return Optional.empty()
+            return Optional.of(RecipeBuilder.buildEvolutionsFor(evos).map { EvolutionDisplay(it) })
         }
 
         override fun generate(builder: ViewSearchBuilder): Optional<List<EvolutionDisplay>> {
@@ -178,21 +173,10 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
             val version = SpawnDataIndex.dataVersion
             cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
 
-            val displays = SpawnDisplayHelper.deduplicateEvolutions(SpawnDataIndex.evolutionsBySpecies)
-                .map { (evo, idx, total) -> EvolutionDisplay(evo, idx, total) }
+            val displays = RecipeBuilder.buildAllEvolutionRecipes().map { EvolutionDisplay(it) }
             cachedDisplays = displays
             cachedVersion = version
             return if (displays.isEmpty()) Optional.empty() else Optional.of(displays)
-        }
-
-        private fun buildEvoDisplays(evos: List<com.cobblemonrei.EvolutionInfo>): Optional<List<EvolutionDisplay>> {
-            if (evos.isEmpty()) return Optional.empty()
-            val grouped = evos.groupBy { it.fromSpecies }
-            val displays = evos.mapIndexed { _, evo ->
-                val siblings = grouped[evo.fromSpecies] ?: listOf(evo)
-                EvolutionDisplay(evo, siblings.indexOf(evo) + 1, siblings.size)
-            }
-            return Optional.of(displays)
         }
     }
 
@@ -206,9 +190,7 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
             if (value !is PokemonEntry) return Optional.empty()
             val obtainments = SpawnDataIndex.getObtainmentFor(value.species)
             if (obtainments.isEmpty()) return Optional.empty()
-            return Optional.of(obtainments.mapIndexed { i, info ->
-                ObtainmentDisplay(value.species, info, i + 1, obtainments.size)
-            })
+            return Optional.of(RecipeBuilder.buildObtainmentsFor(value.species, obtainments).map { ObtainmentDisplay(it) })
         }
 
         override fun getUsageFor(entry: EntryStack<*>): Optional<List<ObtainmentDisplay>> = Optional.empty()
@@ -219,29 +201,10 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
             val version = SpawnDataIndex.dataVersion
             cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
 
-            val all = mutableListOf<ObtainmentDisplay>()
-            for ((species, obtainments) in SpawnDataIndex.obtainmentBySpecies) {
-                if (obtainments.isEmpty()) continue
-                obtainments.forEachIndexed { i, info ->
-                    all.add(ObtainmentDisplay(species, info, i + 1, obtainments.size))
-                }
-            }
+            val all = RecipeBuilder.buildAllObtainmentRecipes().map { ObtainmentDisplay(it) }
             cachedDisplays = all
             cachedVersion = version
             return if (all.isEmpty()) Optional.empty() else Optional.of(all)
-        }
-    }
-
-    // --- Spawn display builder ---
-
-    private fun buildSpawnDisplays(species: String, spawns: List<SpawnInfo>): List<SpawnDisplay> {
-        return SpawnDisplayHelper.buildSortedSpawns(spawns).mapNotNull { entry ->
-            try {
-                SpawnDisplay(species, entry.spawn, entry.formVariants, entry.bucketIndex, entry.bucketTotal)
-            } catch (e: Exception) {
-                DebugLog.once("spawn-display-$species-${entry.spawn.id}") { "Failed: ${e.message}" }
-                null
-            }
         }
     }
 }

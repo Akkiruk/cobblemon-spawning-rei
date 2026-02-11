@@ -1,7 +1,7 @@
 package com.cobblemonrei.rei.evolution
 
 import com.cobblemonrei.CobblemonSpawningMod
-import com.cobblemonrei.EvolutionInfo
+import com.cobblemonrei.EvolutionRecipeData
 import com.cobblemonrei.sanitizePath
 import com.cobblemonrei.rei.entry.PokemonEntry
 import com.cobblemonrei.rei.entry.PokemonEntryType
@@ -12,11 +12,11 @@ import me.shedaniel.rei.api.common.entry.EntryStack
 import net.minecraft.resources.ResourceLocation
 import java.util.Optional
 
-class EvolutionDisplay(
-    val evolution: EvolutionInfo,
-    val branchIndex: Int = 0,
-    val branchTotal: Int = 0
-) : Display {
+class EvolutionDisplay(val data: EvolutionRecipeData) : Display {
+
+    val evolution get() = data.evolution
+    val branchIndex get() = data.branchIndex
+    val branchTotal get() = data.branchTotal
 
     override fun getInputEntries(): List<EntryIngredient> {
         return listOf(EntryIngredient.of(

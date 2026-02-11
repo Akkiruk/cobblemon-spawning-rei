@@ -1,12 +1,9 @@
 package com.cobblemonrei.rei.evolution
 
 import com.cobblemonrei.CobblemonSpawningMod
-import com.cobblemonrei.SpawnDataIndex
-import com.cobblemonrei.SpawnDisplayHelper.clip
-import com.cobblemonrei.SpawnDisplayHelper.wrapReqText
+import com.cobblemonrei.SpawnDisplayHelper
 import com.cobblemonrei.rei.entry.PokemonEntry
 import com.cobblemonrei.rei.entry.PokemonEntryType
-import me.shedaniel.math.Point
 import me.shedaniel.math.Rectangle
 import me.shedaniel.rei.api.client.gui.Renderer
 import me.shedaniel.rei.api.client.gui.widgets.Widget
@@ -24,9 +21,7 @@ class EvolutionCategory : DisplayCategory<EvolutionDisplay> {
         val ID: CategoryIdentifier<EvolutionDisplay> = CategoryIdentifier.of(
             CobblemonSpawningMod.MOD_ID, "evolution"
         )
-
-        private const val SLOT_SIZE = 30
-        private const val MAX_NAME_CHARS = 18
+        private const val SLOT_SIZE = 18
     }
 
     override fun getCategoryIdentifier(): CategoryIdentifier<out EvolutionDisplay> = ID
@@ -43,76 +38,33 @@ class EvolutionCategory : DisplayCategory<EvolutionDisplay> {
         val widgets = mutableListOf<Widget>()
         widgets.add(Widgets.createRecipeBase(bounds))
 
-        val centerX = bounds.centerX
-        val padding = 8
-        val availableWidth = bounds.width - padding * 2
-
-        // Data source indicator (top-right, small)
-        if (SpawnDataIndex.dataSource == SpawnDataIndex.DataSource.SERVER) {
-            widgets.add(
-                Widgets.createLabel(Point(bounds.maxX - padding, bounds.y + 3), Component.literal("Server"))
-                    .rightAligned().noShadow().color(0xFF44AA44.toInt(), 0xFF66DD66.toInt())
-            )
-        }
-
-        val slotY = bounds.y + 10
-        val nameY = slotY + SLOT_SIZE + 3
-
-        // From species
-        val fromSlotX = bounds.x + padding + 12
         val fromStack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(display.evolution.fromSpecies))
         widgets.add(
-            Widgets.createSlot(Rectangle(fromSlotX, slotY, SLOT_SIZE, SLOT_SIZE))
+            Widgets.createSlot(Rectangle(bounds.x + 20, bounds.y + 10, SLOT_SIZE, SLOT_SIZE))
                 .entries(listOf(fromStack))
                 .markInput()
                 .disableBackground()
         )
-        widgets.add(
-            Widgets.createLabel(Point(fromSlotX + SLOT_SIZE / 2, nameY), Component.literal(clip(display.evolution.displayFromName, MAX_NAME_CHARS)))
-                .centered().noShadow().color(0xFF333333.toInt(), 0xFFFFFFFF.toInt())
-        )
 
-        if (display.branchTotal > 1) {
-            widgets.add(
-                Widgets.createLabel(
-                    Point(fromSlotX + SLOT_SIZE / 2, nameY + 10),
-                    Component.literal("${display.branchIndex}/${display.branchTotal}")
-                ).centered().color(0xFF888888.toInt(), 0xFFBBBBBB.toInt())
-            )
-        }
+        val arrowY = bounds.y + 10 + (SLOT_SIZE - 17) / 2
+        widgets.add(Widgets.createArrow(me.shedaniel.math.Point(bounds.centerX - 12, arrowY)))
 
-        // Arrow centered on slot row
-        val arrowY = slotY + (SLOT_SIZE - 17) / 2
-        widgets.add(Widgets.createArrow(Point(centerX - 12, arrowY)))
-
-        // To species
-        val toSlotX = bounds.maxX - padding - SLOT_SIZE - 12
         val toStack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(display.evolution.toSpecies))
         widgets.add(
-            Widgets.createSlot(Rectangle(toSlotX, slotY, SLOT_SIZE, SLOT_SIZE))
+            Widgets.createSlot(Rectangle(bounds.maxX - 8 - SLOT_SIZE - 12, bounds.y + 10, SLOT_SIZE, SLOT_SIZE))
                 .entries(listOf(toStack))
                 .markOutput()
                 .disableBackground()
         )
-        widgets.add(
-            Widgets.createLabel(Point(toSlotX + SLOT_SIZE / 2, nameY), Component.literal(clip(display.evolution.displayToName, MAX_NAME_CHARS)))
-                .centered().noShadow().color(0xFF333333.toInt(), 0xFFFFFFFF.toInt())
-        )
 
-        val reqText = display.evolution.displayRequirements
-        val maxCharsPerLine = (availableWidth / 5.5).toInt().coerceIn(24, 50)
-        val reqLines = wrapReqText(reqText, maxCharsPerLine, 2).map { clip(it, maxCharsPerLine) }
-        val totalReqHeight = reqLines.size * 11
-        val reqAreaTop = if (display.branchTotal > 1) nameY + 20 else nameY + 12
-        val reqAreaBottom = bounds.maxY - 4
-        val reqStartY = reqAreaTop + ((reqAreaBottom - reqAreaTop - totalReqHeight) / 2).coerceAtLeast(0)
-
-        for ((i, line) in reqLines.withIndex()) {
-            widgets.add(
-                Widgets.createLabel(Point(centerX, reqStartY + i * 11), Component.literal(line))
-                    .centered().noShadow().color(0xFF444444.toInt(), 0xFFFFDD88.toInt())
-            )
-        }
+        val ox = bounds.x
+        val oy = bounds.y
+        widgets.add(Widgets.createDrawableWidget { gfx, _, _, _ ->
+            gfx.pose().pushPose()
+            gfx.pose().translate(ox.toFloat(), oy.toFloat(), 0f)
+            SpawnDisplayHelper.drawEvolutionText(gfx, display.evolution, display.branchIndex, display.branchTotal)
+            gfx.pose().popPose()
+        })
 
         return widgets
     }

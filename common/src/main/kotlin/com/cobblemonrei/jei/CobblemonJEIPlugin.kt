@@ -3,9 +3,8 @@ package com.cobblemonrei.jei
 import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.DebugLog
 import com.cobblemonrei.PokemonItemCache
+import com.cobblemonrei.RecipeBuilder
 import com.cobblemonrei.SpawnDataIndex
-import com.cobblemonrei.SpawnDisplayHelper
-import com.cobblemonrei.SpawnInfo
 import com.cobblemonrei.config.CobblemonSpawningConfig
 import com.cobblemonrei.jei.evolution.JeiEvolutionCategory
 import com.cobblemonrei.jei.evolution.JeiEvolutionRecipe
@@ -38,77 +37,43 @@ open class CobblemonJEIPlugin : IModPlugin {
 
     override fun registerCategories(registration: IRecipeCategoryRegistration) {
         val guiHelper = registration.jeiHelpers.guiHelper
+        val config = CobblemonSpawningConfig.get()
         registration.addRecipeCategories(JeiSpawnCategory(guiHelper))
-        if (CobblemonSpawningConfig.get().showEvolutions) {
-            registration.addRecipeCategories(JeiEvolutionCategory(guiHelper))
-        }
-        if (CobblemonSpawningConfig.get().showObtainment) {
-            registration.addRecipeCategories(JeiObtainmentCategory(guiHelper))
-        }
+        if (config.showEvolutions) registration.addRecipeCategories(JeiEvolutionCategory(guiHelper))
+        if (config.showObtainment) registration.addRecipeCategories(JeiObtainmentCategory(guiHelper))
         DebugLog.info("JEI: Categories registered")
     }
 
     override fun registerRecipes(registration: IRecipeRegistration) {
         SpawnDataIndex.ensureLoaded()
+        val config = CobblemonSpawningConfig.get()
 
         val spawnRecipes = mutableListOf<JeiSpawnRecipe>()
         for ((species, spawns) in SpawnDataIndex.spawnsBySpecies) {
             if (spawns.isEmpty()) continue
-            spawnRecipes.addAll(buildSpawnRecipes(species, spawns))
+            spawnRecipes.addAll(RecipeBuilder.buildSpawnRecipes(species, spawns).map { JeiSpawnRecipe(it) })
         }
         registration.addRecipes(JeiSpawnCategory.RECIPE_TYPE, spawnRecipes)
         DebugLog.info("JEI: Registered ${spawnRecipes.size} spawn recipes")
 
-        if (CobblemonSpawningConfig.get().showEvolutions) {
-            val evoRecipes = buildAllEvolutionRecipes()
+        if (config.showEvolutions) {
+            val evoRecipes = RecipeBuilder.buildAllEvolutionRecipes().map { JeiEvolutionRecipe(it) }
             registration.addRecipes(JeiEvolutionCategory.RECIPE_TYPE, evoRecipes)
             DebugLog.info("JEI: Registered ${evoRecipes.size} evolution recipes")
         }
 
-        if (CobblemonSpawningConfig.get().showObtainment) {
-            val obtainRecipes = buildAllObtainmentRecipes()
+        if (config.showObtainment) {
+            val obtainRecipes = RecipeBuilder.buildAllObtainmentRecipes().map { JeiObtainmentRecipe(it) }
             registration.addRecipes(JeiObtainmentCategory.RECIPE_TYPE, obtainRecipes)
             DebugLog.info("JEI: Registered ${obtainRecipes.size} obtainment recipes")
         }
     }
 
     override fun registerRecipeCatalysts(registration: IRecipeCatalystRegistration) {
+        val config = CobblemonSpawningConfig.get()
         registration.addRecipeCatalyst(ItemStack(Items.GRASS_BLOCK), JeiSpawnCategory.RECIPE_TYPE)
-        if (CobblemonSpawningConfig.get().showEvolutions) {
-            registration.addRecipeCatalyst(ItemStack(Items.EXPERIENCE_BOTTLE), JeiEvolutionCategory.RECIPE_TYPE)
-        }
-        if (CobblemonSpawningConfig.get().showObtainment) {
-            registration.addRecipeCatalyst(ItemStack(Items.NETHER_STAR), JeiObtainmentCategory.RECIPE_TYPE)
-        }
-    }
-
-    // --- Recipe builders (matching REI logic) ---
-
-    private fun buildAllEvolutionRecipes(): List<JeiEvolutionRecipe> {
-        return SpawnDisplayHelper.deduplicateEvolutions(SpawnDataIndex.evolutionsBySpecies)
-            .map { (evo, idx, total) -> JeiEvolutionRecipe(evo, idx, total) }
-    }
-
-    private fun buildAllObtainmentRecipes(): List<JeiObtainmentRecipe> {
-        val recipes = mutableListOf<JeiObtainmentRecipe>()
-        for ((species, obtainments) in SpawnDataIndex.obtainmentBySpecies) {
-            if (obtainments.isEmpty()) continue
-            obtainments.forEachIndexed { i, info ->
-                recipes.add(JeiObtainmentRecipe(species, info, i + 1, obtainments.size))
-            }
-        }
-        return recipes
-    }
-
-    private fun buildSpawnRecipes(species: String, spawns: List<SpawnInfo>): List<JeiSpawnRecipe> {
-        return SpawnDisplayHelper.buildSortedSpawns(spawns).mapNotNull { entry ->
-            try {
-                JeiSpawnRecipe(species, entry.spawn, entry.formVariants, entry.bucketIndex, entry.bucketTotal)
-            } catch (e: Exception) {
-                DebugLog.once("jei-spawn-$species-${entry.spawn.id}") { "Failed: ${e.message}" }
-                null
-            }
-        }
+        if (config.showEvolutions) registration.addRecipeCatalyst(ItemStack(Items.EXPERIENCE_BOTTLE), JeiEvolutionCategory.RECIPE_TYPE)
+        if (config.showObtainment) registration.addRecipeCatalyst(ItemStack(Items.NETHER_STAR), JeiObtainmentCategory.RECIPE_TYPE)
     }
 }
 

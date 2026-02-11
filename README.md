@@ -48,10 +48,7 @@ A **pure client-side** Architectury mod that integrates Cobblemon spawn data and
 | Fabric API | 0.116.7+ |
 | Fabric Language Kotlin | 1.13.4+ |
 | **NeoForge** | |
-| Neoecipe Viewers** (choose one or more) | |
-| REI (Roughly Enough Items) | 16.0.799+ |
-| JEI (Just Enough Items) | 19.27.0.340+ |
-| EMI (Enough Mod Items) | 1.1.12+ |
+| NeoForge | 21.1.77+ |
 | Kotlin for Forge | 5.11.0+ |
 | **Recipe Viewers** (choose one or more) | |
 | REI (Roughly Enough Items) | 16.0.799+ |
@@ -100,10 +97,10 @@ MIT License — see [LICENSE](LICENSE) for details.
 - [CurseForge](https://www.curseforge.com/minecraft/mc-mods/cobblemon-spawning-rei)
 - [GitHub Issues](https://github.com/Akkiruk/cobblemon-spawning-rei/issues)
 
-## Acknowledgments (Roughly Enough Items)
-- [mezz](https://github.com/mezz) for JEI (Just Enough Items)
-- [emilyploszaj](https://github.com/emilyploszaj) for EMI (Enough Mod Items)
+## Acknowledgments
 
 - [Cobblemon Team](https://cobblemon.com/) for the Pokémon mod
-- [shedaniel](https://github.com/shedaniel) for REI
+- [shedaniel](https://github.com/shedaniel) for REI (Roughly Enough Items)
+- [mezz](https://github.com/mezz) for JEI (Just Enough Items)
+- [emilyploszaj](https://github.com/emilyploszaj) for EMI (Enough Mod Items)
 - [Architectury](https://github.com/architectury/architectury-api) for multiloader support

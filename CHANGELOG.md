@@ -1,6 +1,23 @@
 # Changelog
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
+## [1.11.0] - 2026-02-12
+
+### Changed
+- Unified recipe building logic into shared RecipeBuilder — REI, JEI, and EMI all use identical spawn/evolution/obtainment construction
+- REI categories now use shared draw helpers instead of duplicated widget code (~400 LOC removed)
+- All recipe data classes (SpawnDisplay, JeiSpawnRecipe, EmiSpawnRecipe, etc.) wrap shared RecipeData types
+- PokemonRef.displayName now delegates to titleCase() for consistent formatting
+- README and docs updated to treat REI, JEI, and EMI as equally supported
+
+### Fixed
+- Evolution requirement type extraction now uses reflection-based className matching instead of direct type imports, fixing compilation against Cobblemon 1.7.x
+
+### Removed
+- Dead SpawnInfo.bucketColor property (SpawnDisplayHelper.bucketColor() is the single source)
+- Dead SpawnInfo.formattedBiomes and SpawnAntiCondition.formattedBiomes properties
+- Duplicated private recipe builder methods from all three plugin files
+
 ## [1.10.6] - 2026-02-11
 
 ### Fixed

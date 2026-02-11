@@ -1,11 +1,11 @@
 package com.cobblemonrei.jei.spawn
 
-import com.cobblemonrei.SpawnInfo
+import com.cobblemonrei.SpawnRecipeData
 
-data class JeiSpawnRecipe(
-    val speciesName: String,
-    val spawn: SpawnInfo,
-    val mergedFormVariants: List<String> = emptyList(),
-    val bucketIndex: Int = 1,
-    val bucketTotal: Int = 1
-)
+data class JeiSpawnRecipe(val data: SpawnRecipeData) {
+    val speciesName get() = data.speciesName
+    val spawn get() = data.spawn
+    val mergedFormVariants get() = data.mergedFormVariants
+    val bucketIndex get() = data.bucketIndex
+    val bucketTotal get() = data.bucketTotal
+}

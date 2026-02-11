@@ -29,18 +29,6 @@ data class SpawnInfo(
     val weightMultipliers: List<WeightMultiplier>,
     val minLureLevel: Int?
 ) {
-    val bucketColor: Int
-        get() = when (bucket.lowercase()) {
-            "common" -> 0xFF55FF55.toInt()
-            "uncommon" -> 0xFFFFFF55.toInt()
-            "rare" -> 0xFFFF5555.toInt()
-            "ultra-rare" -> 0xFFFF55FF.toInt()
-            else -> 0xFFFFFFFF.toInt()
-        }
-
-    val formattedBiomes: List<String>
-        get() = biomes.map { formatId(it) }
-
     val hasFormVariant: Boolean
         get() = formAspects.isNotBlank()
 
@@ -83,9 +71,6 @@ data class SpawnAntiCondition(
         get() = biomes.isEmpty() && structures.isEmpty() &&
             neededBaseBlocks.isEmpty() && neededNearbyBlocks.isEmpty() &&
             minY == null && maxY == null
-
-    val formattedBiomes: List<String>
-        get() = biomes.map { formatId(it) }
 }
 
 data class WeightMultiplier(

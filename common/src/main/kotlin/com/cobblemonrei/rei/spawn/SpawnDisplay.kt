@@ -1,7 +1,7 @@
 package com.cobblemonrei.rei.spawn
 
 import com.cobblemonrei.CobblemonSpawningMod
-import com.cobblemonrei.SpawnInfo
+import com.cobblemonrei.SpawnRecipeData
 import com.cobblemonrei.sanitizePath
 import com.cobblemonrei.rei.entry.PokemonEntry
 import com.cobblemonrei.rei.entry.PokemonEntryType
@@ -12,13 +12,13 @@ import me.shedaniel.rei.api.common.entry.EntryStack
 import net.minecraft.resources.ResourceLocation
 import java.util.Optional
 
-class SpawnDisplay(
-    val speciesName: String,
-    val spawn: SpawnInfo,
-    val mergedFormVariants: List<String> = emptyList(),
-    val bucketIndex: Int = 1,
-    val bucketTotal: Int = 1
-) : Display {
+class SpawnDisplay(val data: SpawnRecipeData) : Display {
+
+    val speciesName get() = data.speciesName
+    val spawn get() = data.spawn
+    val mergedFormVariants get() = data.mergedFormVariants
+    val bucketIndex get() = data.bucketIndex
+    val bucketTotal get() = data.bucketTotal
 
     private val cachedOutputEntries: List<EntryIngredient> by lazy {
         listOf(EntryIngredient.of(EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(speciesName))))

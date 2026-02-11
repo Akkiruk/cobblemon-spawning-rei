@@ -1,7 +1,7 @@
 package com.cobblemonrei.emi
 
 import com.cobblemonrei.CobblemonSpawningMod
-import com.cobblemonrei.ObtainmentInfo
+import com.cobblemonrei.ObtainmentRecipeData
 import com.cobblemonrei.PokemonItemCache
 import com.cobblemonrei.SpawnDisplayHelper
 import com.cobblemonrei.sanitizePath
@@ -12,12 +12,7 @@ import dev.emi.emi.api.stack.EmiStack
 import dev.emi.emi.api.widget.WidgetHolder
 import net.minecraft.resources.ResourceLocation
 
-class EmiObtainmentRecipe(
-    val speciesName: String,
-    val obtainment: ObtainmentInfo,
-    val entryIndex: Int = 1,
-    val entryTotal: Int = 1
-) : EmiRecipe {
+class EmiObtainmentRecipe(val data: ObtainmentRecipeData) : EmiRecipe {
 
     companion object {
         private const val WIDTH = 180
@@ -25,7 +20,7 @@ class EmiObtainmentRecipe(
     }
 
     private val pokemonStack: EmiStack? by lazy(LazyThreadSafetyMode.NONE) {
-        val item = PokemonItemCache.getItem(speciesName)
+        val item = PokemonItemCache.getItem(data.speciesName)
         if (item != null && !item.isEmpty) EmiStack.of(item) else null
     }
 
@@ -33,7 +28,7 @@ class EmiObtainmentRecipe(
 
     override fun getId(): ResourceLocation = ResourceLocation.fromNamespaceAndPath(
         CobblemonSpawningMod.MOD_ID,
-        "emi_obtainment/${sanitizePath(speciesName)}/${sanitizePath(obtainment.method)}/$entryIndex"
+        "emi_obtainment/${sanitizePath(data.speciesName)}/${sanitizePath(data.obtainment.method)}/${data.entryIndex}"
     )
 
     override fun getInputs(): List<EmiIngredient> = emptyList()
@@ -46,7 +41,7 @@ class EmiObtainmentRecipe(
         pokemonStack?.let { widgets.addSlot(it, 6, 2).recipeContext(this) }
         widgets.addDrawable(0, 0, WIDTH, HEIGHT) { graphics, _, _, _ ->
             SpawnDisplayHelper.drawObtainmentDetails(
-                graphics, speciesName, obtainment, entryIndex, entryTotal
+                graphics, data.speciesName, data.obtainment, data.entryIndex, data.entryTotal
             )
         }
     }

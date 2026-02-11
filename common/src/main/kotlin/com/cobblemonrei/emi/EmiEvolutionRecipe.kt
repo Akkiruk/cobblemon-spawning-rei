@@ -1,7 +1,7 @@
 package com.cobblemonrei.emi
 
 import com.cobblemonrei.CobblemonSpawningMod
-import com.cobblemonrei.EvolutionInfo
+import com.cobblemonrei.EvolutionRecipeData
 import com.cobblemonrei.PokemonItemCache
 import com.cobblemonrei.SpawnDisplayHelper
 import com.cobblemonrei.sanitizePath
@@ -13,11 +13,7 @@ import dev.emi.emi.api.stack.EmiStack
 import dev.emi.emi.api.widget.WidgetHolder
 import net.minecraft.resources.ResourceLocation
 
-class EmiEvolutionRecipe(
-    val evolution: EvolutionInfo,
-    val branchIndex: Int = 0,
-    val branchTotal: Int = 0
-) : EmiRecipe {
+class EmiEvolutionRecipe(val data: EvolutionRecipeData) : EmiRecipe {
 
     companion object {
         private const val WIDTH = 180
@@ -26,24 +22,24 @@ class EmiEvolutionRecipe(
     }
 
     private val fromStack: EmiStack? by lazy(LazyThreadSafetyMode.NONE) {
-        val item = PokemonItemCache.getItem(evolution.fromSpecies)
+        val item = PokemonItemCache.getItem(data.evolution.fromSpecies)
         if (item != null && !item.isEmpty) EmiStack.of(item) else null
     }
 
     private val toStack: EmiStack? by lazy(LazyThreadSafetyMode.NONE) {
-        val item = PokemonItemCache.getItem(evolution.toSpecies)
+        val item = PokemonItemCache.getItem(data.evolution.toSpecies)
         if (item != null && !item.isEmpty) EmiStack.of(item) else null
     }
 
     override fun getCategory(): EmiRecipeCategory = CobblemonEMIPlugin.EVOLUTION_CATEGORY
 
     override fun getId(): ResourceLocation {
-        val suffix = if (evolution.fromAspects.isNotEmpty() || evolution.toAspects.isNotEmpty()) {
-            "_${(evolution.fromAspects + evolution.toAspects).hashCode().toUInt()}"
+        val suffix = if (data.evolution.fromAspects.isNotEmpty() || data.evolution.toAspects.isNotEmpty()) {
+            "_${(data.evolution.fromAspects + data.evolution.toAspects).hashCode().toUInt()}"
         } else ""
         return ResourceLocation.fromNamespaceAndPath(
             CobblemonSpawningMod.MOD_ID,
-            "emi_evolution/${sanitizePath(evolution.fromSpecies)}_to_${sanitizePath(evolution.toSpecies)}$suffix"
+            "emi_evolution/${sanitizePath(data.evolution.fromSpecies)}_to_${sanitizePath(data.evolution.toSpecies)}$suffix"
         )
     }
 
@@ -58,7 +54,7 @@ class EmiEvolutionRecipe(
         toStack?.let { widgets.addSlot(it, WIDTH - 20 - SLOT_SIZE, 10).recipeContext(this) }
         widgets.addTexture(EmiTexture.EMPTY_ARROW, WIDTH / 2 - 12, 10)
         widgets.addDrawable(0, 0, WIDTH, HEIGHT) { graphics, _, _, _ ->
-            SpawnDisplayHelper.drawEvolutionText(graphics, evolution, branchIndex, branchTotal)
+            SpawnDisplayHelper.drawEvolutionText(graphics, data.evolution, data.branchIndex, data.branchTotal)
         }
     }
 }

@@ -1,7 +1,7 @@
 package com.cobblemonrei.rei.obtainment
 
 import com.cobblemonrei.CobblemonSpawningMod
-import com.cobblemonrei.ObtainmentInfo
+import com.cobblemonrei.ObtainmentRecipeData
 import com.cobblemonrei.sanitizePath
 import com.cobblemonrei.rei.entry.PokemonEntry
 import com.cobblemonrei.rei.entry.PokemonEntryType
@@ -12,12 +12,12 @@ import me.shedaniel.rei.api.common.entry.EntryStack
 import net.minecraft.resources.ResourceLocation
 import java.util.Optional
 
-class ObtainmentDisplay(
-    val speciesName: String,
-    val obtainment: ObtainmentInfo,
-    val entryIndex: Int = 1,
-    val entryTotal: Int = 1
-) : Display {
+class ObtainmentDisplay(val data: ObtainmentRecipeData) : Display {
+
+    val speciesName get() = data.speciesName
+    val obtainment get() = data.obtainment
+    val entryIndex get() = data.entryIndex
+    val entryTotal get() = data.entryTotal
 
     private val cachedOutputEntries: List<EntryIngredient> by lazy {
         listOf(EntryIngredient.of(EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(speciesName))))

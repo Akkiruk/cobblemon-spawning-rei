@@ -1,10 +1,10 @@
 package com.cobblemonrei.jei.obtainment
 
-import com.cobblemonrei.ObtainmentInfo
+import com.cobblemonrei.ObtainmentRecipeData
 
-data class JeiObtainmentRecipe(
-    val speciesName: String,
-    val obtainment: ObtainmentInfo,
-    val entryIndex: Int = 1,
-    val entryTotal: Int = 1
-)
+data class JeiObtainmentRecipe(val data: ObtainmentRecipeData) {
+    val speciesName get() = data.speciesName
+    val obtainment get() = data.obtainment
+    val entryIndex get() = data.entryIndex
+    val entryTotal get() = data.entryTotal
+}

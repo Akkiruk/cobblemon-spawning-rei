@@ -10,7 +10,5 @@ interface PokemonRef {
         get() = ResourceLocation.fromNamespaceAndPath("cobblemon", sanitizePath(species))
 
     val displayName: String
-        get() = species.replace("_", " ")
-            .split(" ")
-            .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+        get() = titleCase(species)
 }
