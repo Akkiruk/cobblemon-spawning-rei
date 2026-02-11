@@ -53,15 +53,18 @@ A **pure client-side** Architectury mod that integrates Cobblemon spawn data and
 | JEI (Just Enough Items) | 19.27.0.340+ |
 | EMI (Enough Mod Items) | 1.1.12+ |
 | Kotlin for Forge | 5.11.0+ |
-| **REI** | 16.0.799+ |
+| **Recipe Viewers** (choose one or more) | |
+| REI (Roughly Enough Items) | 16.0.799+ |
+| JEI (Just Enough Items) | 19.27.0.340+ |
+| EMI (Enough Mod Items) | 1.1.12+ |
 
 ## Installation
-and **ONE of:** REI, JEI, or EMI
 
-**NeoForge:** Minecraft 1.21.1, NeoForge 21.1.77+, Kotlin for Forge 5.11.0+, Cobblemon 1.7.1+, and **ONE of:** REI, JEI, or EM
-**Fabric:** Minecraft 1.21.1, Fabric Loader 0.15.0+, Fabric API 0.116.7+, Fabric Language Kotlin 1.13.4+, Cobblemon 1.7.1+, REI
+### Requirements
 
-**NeoForge:** Minecraft 1.21.1, NeoForge 21.1.77+, Kotlin for Forge 5.11.0+, Cobblemon 1.7.1+, REI
+**Fabric:** Minecraft 1.21.1, Fabric Loader 0.15.0+, Fabric API 0.116.7+, Fabric Language Kotlin 1.13.4+, Cobblemon 1.7.1+, and **ONE of:** REI, JEI, or EMI
+
+**NeoForge:** Minecraft 1.21.1, NeoForge 21.1.77+, Kotlin for Forge 5.11.0+, Cobblemon 1.7.1+, and **ONE of:** REI, JEI, or EMI
 
 ### Client Installation
 
