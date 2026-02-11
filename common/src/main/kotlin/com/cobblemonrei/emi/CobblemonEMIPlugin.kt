@@ -52,8 +52,7 @@ open class CobblemonEMIPlugin : EmiPlugin {
         var speciesCount = 0
         var spawnCount = 0
 
-        for ((species, spawns) in SpawnDataIndex.spawnsBySpecies) {
-            if (spawns.isEmpty()) continue
+        for (species in SpawnDataIndex.allSpeciesNames) {
             val stack = pokemonStack(species) ?: continue
 
             if (!comparisonSet) {
@@ -63,9 +62,12 @@ open class CobblemonEMIPlugin : EmiPlugin {
             registry.addEmiStack(stack)
             speciesCount++
 
-            for (recipe in RecipeBuilder.buildSpawnRecipes(species, spawns).map { EmiSpawnRecipe(it) }) {
-                registry.addRecipe(recipe)
-                spawnCount++
+            val spawns = SpawnDataIndex.getSpawnsFor(species)
+            if (spawns.isNotEmpty()) {
+                for (recipe in RecipeBuilder.buildSpawnRecipes(species, spawns).map { EmiSpawnRecipe(it) }) {
+                    registry.addRecipe(recipe)
+                    spawnCount++
+                }
             }
         }
         DebugLog.info("EMI: Registered $speciesCount Pokémon stacks, $spawnCount spawn recipes")

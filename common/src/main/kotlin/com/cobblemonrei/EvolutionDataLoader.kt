@@ -43,7 +43,7 @@ object EvolutionDataLoader {
                 }
             }
 
-            // Form-specific evolutions
+            // Form-specific evolutions — store under both composite key and base name
             for (form in species.forms) {
                 if (form.evolutions.isEmpty()) continue
                 val formAspects = form.aspects.toSet()
@@ -54,6 +54,9 @@ object EvolutionDataLoader {
                         val info = parseEvolution(baseName, formAspects, evo)
                         if (info != null) {
                             result.getOrPut(formKey) { mutableListOf() }.add(info)
+                            if (formKey != baseName) {
+                                result.getOrPut(baseName) { mutableListOf() }.add(info)
+                            }
                             formEvoCount++
                         }
                     } catch (e: Exception) {

@@ -94,7 +94,10 @@ object SpawnDataIndex {
     }
 
     fun loadAll(extraDatapacksDir: Path? = null) {
-        if (!dataLock.tryLock()) return
+        if (!dataLock.tryLock(10, java.util.concurrent.TimeUnit.SECONDS)) {
+            DebugLog.warn("Data load skipped: lock held by another thread for >10s")
+            return
+        }
         try {
             cancelPendingLoad()
             doLoad(extraDatapacksDir)
@@ -127,6 +130,8 @@ object SpawnDataIndex {
 
     private fun doLoad(extraDatapacksDir: Path? = null) {
         DebugLog.reset()
+        PokemonItemCache.reset()
+        SpawnDataLoader.invalidateCache()
         spawnsBySpecies = SpawnDataLoader.loadFromAllSources(extraDatapacksDir)
 
         val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
@@ -210,6 +215,7 @@ object SpawnDataIndex {
     /** Mark data stale on disconnect, keep as warm cache for instant availability on reconnect */
     fun onDisconnect() {
         cancelPendingLoad()
+        PokemonItemCache.reset()
         dataLock.withLock {
             loadState = LoadState.NOT_LOADED
             dataSource = DataSource.NONE

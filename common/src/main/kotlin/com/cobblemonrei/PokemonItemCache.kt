@@ -35,4 +35,9 @@ object PokemonItemCache {
         val item = getItem(name)
         return item != null && !item.isEmpty
     }
+
+    fun reset() {
+        speciesCache.clear()
+        itemCache.clear()
+    }
 }

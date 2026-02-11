@@ -1,6 +1,18 @@
 # Changelog
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
+## [1.11.1] - 2026-02-11
+
+### Fixed
+- EMI plugin now registers all species (including evolution/obtainment-only Pokémon) instead of only those with spawn data
+- Form-specific evolutions (e.g. Alolan forms) now appear under the base species in recipe viewers
+- NeoForge packet sending checks connection state before dispatching
+- Data loading waits up to 10s for lock instead of silently skipping when another load is in progress
+- PokemonItemCache now clears on data reload and disconnect to prevent stale entries
+- SpawnDataLoader mod root cache invalidated on reload
+- Config only written to disk when file is missing, not on every startup
+- intersectLists uses HashSet for O(n) instead of O(n×m) filtering
+
 ## [1.11.0] - 2026-02-12
 
 ### Changed

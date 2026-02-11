@@ -19,6 +19,10 @@ object SpawnDataLoader {
     @Volatile
     private var cachedModRoots: List<Path>? = null
 
+    fun invalidateCache() {
+        cachedModRoots = null
+    }
+
     fun loadFromAllSources(extraDatapacksDir: Path? = null): Map<String, List<SpawnInfo>> {
         val roots = findAllModRootPaths()
         DebugLog.debug("Scanning ${roots.size} mod roots for spawn data")
@@ -338,7 +342,8 @@ object SpawnDataLoader {
     private fun intersectLists(a: List<String>, b: List<String>): List<String> {
         if (a.isEmpty()) return b
         if (b.isEmpty()) return a
-        return a.filter { it in b }
+        val bSet = b.toHashSet()
+        return a.filter { it in bSet }
     }
 
     /** Resolves presets and merges their conditions into the base entry data. */

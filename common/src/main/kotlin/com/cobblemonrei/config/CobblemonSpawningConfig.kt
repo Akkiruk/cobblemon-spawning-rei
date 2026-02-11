@@ -22,6 +22,7 @@ data class CobblemonSpawningConfig(
 
         fun load() {
             val file = PlatformHelper.getConfigDir().resolve("cobblemon-spawning-rei.json")
+            var needsSave = !Files.exists(file)
             try {
                 if (Files.exists(file)) {
                     val loaded = GSON.fromJson(Files.readString(file), CobblemonSpawningConfig::class.java)
@@ -30,8 +31,9 @@ data class CobblemonSpawningConfig(
             } catch (e: Exception) {
                 DebugLog.warn("Config load failed, using defaults: ${e.message}")
                 instance = CobblemonSpawningConfig()
+                needsSave = true
             }
-            save()
+            if (needsSave) save()
         }
 
         fun save() {
