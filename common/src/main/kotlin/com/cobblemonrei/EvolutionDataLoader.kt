@@ -10,6 +10,7 @@ import com.cobblemon.mod.common.api.pokemon.evolution.Evolution
 import com.cobblemon.mod.common.pokemon.evolution.variants.BlockClickEvolution
 import com.cobblemon.mod.common.pokemon.evolution.variants.ItemInteractionEvolution
 import com.cobblemon.mod.common.pokemon.evolution.variants.TradeEvolution
+import net.minecraft.advancements.critereon.ItemPredicate
 import net.minecraft.core.Holder
 import net.minecraft.core.HolderSet
 import net.minecraft.core.registries.BuiltInRegistries
@@ -151,29 +152,21 @@ object EvolutionDataLoader {
     @Suppress("UNCHECKED_CAST")
     private fun extractItemIdFromAny(obj: Any?): String? {
         if (obj == null) return null
-        // Direct HolderSet<Item> field on vanilla ItemPredicate records
-        try {
-            val itemsMethod = obj.javaClass.getMethod("items")
-            val result = itemsMethod.invoke(obj)
-            if (result is java.util.Optional<*>) {
-                val holderSet = result.orElse(null)
-                if (holderSet is HolderSet<*>) {
-                    val first = holderSet.stream().findFirst().orElse(null)
-                    if (first is Holder<*>) {
-                        val key = first.unwrapKey().orElse(null)
-                        if (key != null) return key.location().toString()
-                        val value = first.value()
-                        if (value is Item) {
-                            val rl = BuiltInRegistries.ITEM.getKey(value)
-                            if (rl != null) return rl.toString()
-                        }
-                    }
-                }
+        // Typed access to vanilla ItemPredicate (Loom-remapped, no reflection strings)
+        if (obj is ItemPredicate) {
+            val holderSet = obj.items().orElse(null) ?: return null
+            val first = holderSet.stream().findFirst().orElse(null) ?: return null
+            if (first is Holder<*>) {
+                val key = first.unwrapKey().orElse(null)
+                if (key != null) return key.location().toString()
+                val value = first.value()
+                if (value is Item) return BuiltInRegistries.ITEM.getKey(value).toString()
             }
-        } catch (_: Exception) {}
-        // RegistryLikeCondition wrapper
+            return null
+        }
+        // RegistryLikeCondition wrapper (Cobblemon class, not obfuscated)
         if (obj is RegistryLikeCondition<*>) return formatRegistryCondition(obj)
-        // Nested 'item' field (legacy)
+        // Nested 'item' field (legacy Cobblemon fields, not obfuscated)
         val item = extractField(obj, "item") ?: extractField(obj, "items")
         if (item is RegistryLikeCondition<*>) return formatRegistryCondition(item)
         if (item != null) {

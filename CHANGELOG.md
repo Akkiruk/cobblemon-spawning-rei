@@ -1,6 +1,11 @@
 # Changelog
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
+## [1.12.3] - 2026-02-11
+
+### Fixed
+- Evolution items now appear correctly — switched from reflection to typed access for vanilla ItemPredicate, fixing Loom obfuscation remapping mismatch at runtime
+
 ## [1.12.2] - 2026-02-11
 
 ### Fixed
