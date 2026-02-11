@@ -450,6 +450,8 @@ object SpawnDataLoader {
 
     // --- Utility ---
 
+    fun getModRootPaths(): List<Path> = findAllModRootPaths()
+
     private fun findAllModRootPaths(): List<Path> {
         cachedModRoots?.let { return it }
         val paths = mutableListOf<Path>()

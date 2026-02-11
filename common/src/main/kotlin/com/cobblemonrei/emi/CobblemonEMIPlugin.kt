@@ -26,6 +26,10 @@ open class CobblemonEMIPlugin : EmiPlugin {
             ResourceLocation.fromNamespaceAndPath(CobblemonSpawningMod.MOD_ID, "emi_evolution"),
             EmiStack.of(Items.EXPERIENCE_BOTTLE)
         )
+        val OBTAINMENT_CATEGORY = EmiRecipeCategory(
+            ResourceLocation.fromNamespaceAndPath(CobblemonSpawningMod.MOD_ID, "emi_obtainment"),
+            EmiStack.of(Items.NETHER_STAR)
+        )
     }
 
     override fun register(registry: EmiRegistry) {
@@ -37,6 +41,11 @@ open class CobblemonEMIPlugin : EmiPlugin {
         if (CobblemonSpawningConfig.get().showEvolutions) {
             registry.addCategory(EVOLUTION_CATEGORY)
             registry.addWorkstation(EVOLUTION_CATEGORY, EmiStack.of(Items.EXPERIENCE_BOTTLE))
+        }
+
+        if (CobblemonSpawningConfig.get().showObtainment) {
+            registry.addCategory(OBTAINMENT_CATEGORY)
+            registry.addWorkstation(OBTAINMENT_CATEGORY, EmiStack.of(Items.NETHER_STAR))
         }
 
         var comparisonSet = false
@@ -69,6 +78,14 @@ open class CobblemonEMIPlugin : EmiPlugin {
             }
             DebugLog.info("EMI: Registered ${evoRecipes.size} evolution recipes")
         }
+
+        if (CobblemonSpawningConfig.get().showObtainment) {
+            val obtainRecipes = buildAllObtainmentRecipes()
+            for (recipe in obtainRecipes) {
+                registry.addRecipe(recipe)
+            }
+            DebugLog.info("EMI: Registered ${obtainRecipes.size} obtainment recipes")
+        }
     }
 
     private fun pokemonStack(speciesName: String): EmiStack? {
@@ -92,5 +109,16 @@ open class CobblemonEMIPlugin : EmiPlugin {
     private fun buildAllEvolutionRecipes(): List<EmiEvolutionRecipe> {
         return SpawnDisplayHelper.deduplicateEvolutions(SpawnDataIndex.evolutionsBySpecies)
             .map { (evo, idx, total) -> EmiEvolutionRecipe(evo, idx, total) }
+    }
+
+    private fun buildAllObtainmentRecipes(): List<EmiObtainmentRecipe> {
+        val recipes = mutableListOf<EmiObtainmentRecipe>()
+        for ((species, obtainments) in SpawnDataIndex.obtainmentBySpecies) {
+            if (obtainments.isEmpty()) continue
+            obtainments.forEachIndexed { i, info ->
+                recipes.add(EmiObtainmentRecipe(species, info, i + 1, obtainments.size))
+            }
+        }
+        return recipes
     }
 }

@@ -3,6 +3,7 @@ package com.cobblemonrei.rei
 import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.DebugLog
 import com.cobblemonrei.EvolutionInfo
+import com.cobblemonrei.ObtainmentInfo
 import com.cobblemonrei.PokemonItemCache
 import com.cobblemonrei.SpawnDataIndex
 import com.cobblemonrei.SpawnDisplayHelper
@@ -14,6 +15,8 @@ import com.cobblemonrei.rei.entry.PokemonEntryDefinition
 import com.cobblemonrei.rei.entry.PokemonEntryType
 import com.cobblemonrei.rei.evolution.EvolutionCategory
 import com.cobblemonrei.rei.evolution.EvolutionDisplay
+import com.cobblemonrei.rei.obtainment.ObtainmentCategory
+import com.cobblemonrei.rei.obtainment.ObtainmentDisplay
 import com.cobblemonrei.rei.spawn.SpawnCategory
 import com.cobblemonrei.rei.spawn.SpawnDisplay
 import me.shedaniel.rei.api.client.plugins.REIClientPlugin
@@ -55,7 +58,10 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
         if (CobblemonSpawningConfig.get().showEvolutions) {
             registry.add(EvolutionCategory())
         }
-        DebugLog.info("REI categories registered (spawns${if (CobblemonSpawningConfig.get().showEvolutions) " + evolution" else ""})")
+        if (CobblemonSpawningConfig.get().showObtainment) {
+            registry.add(ObtainmentCategory())
+        }
+        DebugLog.info("REI categories registered (spawns${if (CobblemonSpawningConfig.get().showEvolutions) " + evolution" else ""}${if (CobblemonSpawningConfig.get().showObtainment) " + obtainment" else ""})")
     }
 
     override fun registerDisplays(registry: DisplayRegistry) {
@@ -65,6 +71,9 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
         registry.registerDisplayGenerator(SpawnCategory.ID, SpawnDisplayGenerator())
         if (CobblemonSpawningConfig.get().showEvolutions) {
             registry.registerDisplayGenerator(EvolutionCategory.ID, EvolutionDisplayGenerator())
+        }
+        if (CobblemonSpawningConfig.get().showObtainment) {
+            registry.registerDisplayGenerator(ObtainmentCategory.ID, ObtainmentDisplayGenerator())
         }
 
         DebugLog.info("Registered dynamic display generators")
@@ -170,6 +179,42 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
                 EvolutionDisplay(evo, siblings.indexOf(evo) + 1, siblings.size)
             }
             return Optional.of(displays)
+        }
+    }
+
+    private inner class ObtainmentDisplayGenerator : DynamicDisplayGenerator<ObtainmentDisplay> {
+
+        @Volatile private var cachedVersion = -1L
+        @Volatile private var cachedDisplays: List<ObtainmentDisplay>? = null
+
+        override fun getRecipeFor(entry: EntryStack<*>): Optional<List<ObtainmentDisplay>> {
+            val value = entry.value ?: return Optional.empty()
+            if (value !is PokemonEntry) return Optional.empty()
+            val obtainments = SpawnDataIndex.getObtainmentFor(value.species)
+            if (obtainments.isEmpty()) return Optional.empty()
+            return Optional.of(obtainments.mapIndexed { i, info ->
+                ObtainmentDisplay(value.species, info, i + 1, obtainments.size)
+            })
+        }
+
+        override fun getUsageFor(entry: EntryStack<*>): Optional<List<ObtainmentDisplay>> = Optional.empty()
+
+        override fun generate(builder: ViewSearchBuilder): Optional<List<ObtainmentDisplay>> {
+            if (builder.recipesFor.isNotEmpty() || builder.usagesFor.isNotEmpty()) return Optional.empty()
+            if (!SpawnDataIndex.hasData()) return Optional.empty()
+            val version = SpawnDataIndex.dataVersion
+            cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
+
+            val all = mutableListOf<ObtainmentDisplay>()
+            for ((species, obtainments) in SpawnDataIndex.obtainmentBySpecies) {
+                if (obtainments.isEmpty()) continue
+                obtainments.forEachIndexed { i, info ->
+                    all.add(ObtainmentDisplay(species, info, i + 1, obtainments.size))
+                }
+            }
+            cachedDisplays = all
+            cachedVersion = version
+            return if (all.isEmpty()) Optional.empty() else Optional.of(all)
         }
     }
 

@@ -46,6 +46,10 @@ object SpawnDataIndex {
         private set
 
     @Volatile
+    var obtainmentBySpecies: Map<String, List<ObtainmentInfo>> = emptyMap()
+        private set
+
+    @Volatile
     var allSpeciesNames: List<String> = emptyList()
         private set
 
@@ -147,6 +151,15 @@ object SpawnDataIndex {
             speciesInfo = emptyMap()
         }
 
+        try {
+            obtainmentBySpecies = ObtainmentDataLoader.loadFromAllSources(
+                SpawnDataLoader.getModRootPaths(), extraDatapacksDir
+            )
+        } catch (e: Exception) {
+            DebugLog.warn("Obtainment data load failed: ${e.message}")
+            obtainmentBySpecies = emptyMap()
+        }
+
         rebuildDerivedData()
 
         loadState = if (runtimeCount > 0) LoadState.FULLY_LOADED else LoadState.PARTIAL
@@ -156,7 +169,8 @@ object SpawnDataIndex {
         DebugLog.info(
             "Load complete (${loadState.name}, ${dataSource.name}): ${allSpeciesNames.size} species " +
             "(${speciesInfo.count { it.value.nationalDexNumber > 0 }} with dex, " +
-            "${spawnsBySpecies.size} with spawns, ${evolutionsBySpecies.size} with evolutions)"
+            "${spawnsBySpecies.size} with spawns, ${evolutionsBySpecies.size} with evolutions, " +
+            "${obtainmentBySpecies.size} with obtainment)"
         )
     }
 
@@ -175,6 +189,12 @@ object SpawnDataIndex {
             spawnsBySpecies = spawns
             evolutionsBySpecies = evolutions
             speciesInfo = species
+            // Obtainment stays locally loaded — no server sync needed for bundled/datapack entries
+            if (obtainmentBySpecies.isEmpty()) {
+                try {
+                    obtainmentBySpecies = ObtainmentDataLoader.loadFromAllSources(SpawnDataLoader.getModRootPaths())
+                } catch (_: Exception) {}
+            }
             rebuildDerivedData()
             loadState = LoadState.FULLY_LOADED
             dataSource = DataSource.SERVER
@@ -213,6 +233,7 @@ object SpawnDataIndex {
             for (evo in evos) allNames.add(evo.toSpecies)
         }
         allNames.addAll(speciesInfo.keys)
+        allNames.addAll(obtainmentBySpecies.keys)
 
         val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
         if (runtimeCount > 0) {
@@ -240,4 +261,6 @@ object SpawnDataIndex {
     fun getEvolutionsTo(species: String): List<EvolutionInfo> = evolutionsToSpecies[species.lowercase()] ?: emptyList()
 
     fun getSpeciesInfo(species: String): EvolutionDataLoader.SpeciesBasicInfo? = speciesInfo[species.lowercase()]
+
+    fun getObtainmentFor(species: String): List<ObtainmentInfo> = obtainmentBySpecies[species.lowercase()] ?: emptyList()
 }

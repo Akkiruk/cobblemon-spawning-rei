@@ -109,6 +109,7 @@ fun formatId(id: String): String {
 }
 
 fun formatBiomeName(id: String): String {
+    if (id.lowercase().endsWith("custom_spawn")) return "\u2726 Altar/Special Only"
     return titleCase(
         stripNamespace(id)
             .removePrefix("is_")

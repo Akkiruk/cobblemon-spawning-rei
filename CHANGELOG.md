@@ -2,6 +2,16 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.10.0] - 2026-02-12
+
+### Added
+- Special Obtainment category for REI, JEI, and EMI showing how to obtain legendary/mythical Pokémon via altars, shrines, resurrection machines, and transformations
+- Bundled data for 25 LumyMon legendary obtainment methods (bird trio, tower duo, regi trio, eon duo, weather trio, mythicals, Calyrex line, Mewtwo, Type: Null, Shadow Lugia)
+- Generic `data/<namespace>/special_obtainment/*.json` format for datapacks to add custom obtainment entries
+- `showObtainment` config option (default: true) to toggle the obtainment category
+- `cobbleverse:custom_spawn` fake biome now displays as "Altar/Special Only" instead of raw ID
+- Pokémon tooltips now show special obtainment count
+
 ## [1.9.0] - 2026-02-11
 
 ### Fixed

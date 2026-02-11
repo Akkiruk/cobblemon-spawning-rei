@@ -8,6 +8,7 @@ import java.nio.file.Files
 data class CobblemonSpawningConfig(
     val showSpawnWeights: Boolean = true,
     val showEvolutions: Boolean = true,
+    val showObtainment: Boolean = true,
     val localDatapackScan: Boolean = false,
     val debugMode: Boolean = false
 ) {

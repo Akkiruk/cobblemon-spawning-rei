@@ -340,6 +340,10 @@ object SpawnDisplayHelper {
         if (spawns.isNotEmpty()) {
             lines.add(Component.literal("§a${spawns.size} spawn location(s)"))
         }
+        val obtainments = SpawnDataIndex.getObtainmentFor(speciesName)
+        if (obtainments.isNotEmpty()) {
+            lines.add(Component.literal("§d${obtainments.size} special obtainment(s)"))
+        }
         return lines
     }
 
@@ -454,6 +458,91 @@ object SpawnDisplayHelper {
         graphics.fill(padding, footerY - 4, right, footerY - 3, 0x20FFFFFF)
         val footerLeft = "${bucketLabel(spawn.bucket)} $bucketIndex/$bucketTotal"
         graphics.drawString(font, footerLeft, padding, footerY, color, false)
+    }
+
+    // --- Obtainment detail rendering (shared between JEI/EMI) ---
+
+    fun drawObtainmentDetails(
+        graphics: GuiGraphics,
+        speciesName: String,
+        obtainment: ObtainmentInfo,
+        entryIndex: Int,
+        entryTotal: Int,
+        width: Int = 180,
+        height: Int = 150,
+        padding: Int = 6,
+        lineHeight: Int = 11
+    ) {
+        val font = Minecraft.getInstance().font
+        val right = width - padding
+
+        graphics.drawString(font, titleCase(speciesName), padding + 22, 6, 0xFFFFFF, false)
+
+        val methodText = obtainment.displayMethodName
+        val methodWidth = font.width(methodText)
+        graphics.drawString(font, methodText, right - methodWidth, 6, 0xFFDD66, false)
+
+        graphics.fill(padding, 20, right, 21, 0x50FFFFFF)
+        var y = 26
+
+        val descLines = wrapText(obtainment.displayDescription, 32).take(3)
+        for (line in descLines) {
+            graphics.drawString(font, line, padding + 4, y, 0xEEEEEE, false)
+            y += lineHeight
+        }
+        y += 4
+
+        if (obtainment.items.isNotEmpty()) {
+            graphics.drawString(font, "\u2726 Required Items", padding, y, 0xEEEEEE, false)
+            y += lineHeight
+            for (item in obtainment.displayItems) {
+                if (y + lineHeight > height - 16) break
+                graphics.drawString(font, "\u2022 $item", padding + 6, y, 0xFFCC66, false)
+                y += lineHeight
+            }
+            y += 4
+        }
+
+        if (obtainment.displayBlock != null || obtainment.displayStructure != null || obtainment.displayDimension != null) {
+            graphics.drawString(font, "\u2605 Location", padding, y, 0xEEEEEE, false)
+            y += lineHeight
+            obtainment.displayBlock?.let {
+                graphics.drawString(font, "Block: $it", padding + 6, y, 0xDDDDDD, false)
+                y += lineHeight
+            }
+            obtainment.displayStructure?.let {
+                graphics.drawString(font, "Structure: $it", padding + 6, y, 0xDDDDDD, false)
+                y += lineHeight
+            }
+            obtainment.displayDimension?.let {
+                graphics.drawString(font, "Dimension: $it", padding + 6, y, 0xDDDDDD, false)
+                y += lineHeight
+            }
+            y += 4
+        }
+
+        if (obtainment.notes.isNotEmpty()) {
+            for (note in obtainment.notes) {
+                if (y + lineHeight > height - 16) break
+                graphics.drawString(font, "\u2139 $note", padding + 4, y, 0xBBBBBB, false)
+                y += lineHeight
+            }
+        }
+
+        val footerY = height - padding - 2
+        graphics.fill(padding, footerY - 4, right, footerY - 3, 0x20FFFFFF)
+        graphics.drawString(font, "$entryIndex/$entryTotal", padding, footerY, 0xFFAA00, false)
+
+        val sourceLabel = when (obtainment.source) {
+            "bundled" -> "Built-in"
+            "datapack" -> "Datapack"
+            "mod" -> "Mod"
+            else -> ""
+        }
+        if (sourceLabel.isNotEmpty()) {
+            val sw = font.width(sourceLabel)
+            graphics.drawString(font, sourceLabel, right - sw, footerY, 0xBBBBBB, false)
+        }
     }
 
     // --- Evolution text rendering (shared between JEI/EMI) ---
