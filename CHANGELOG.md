@@ -2,6 +2,13 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.8.7] - 2026-02-11
+
+### Changed
+- Data is now kept as a warm cache on disconnect instead of being cleared, so REI/JEI/EMI entries are available instantly on reconnect
+- First data load attempt triggers immediately on the first client tick instead of waiting 5 seconds
+- Dynamic display generators serve cached/partial data while fresh data loads in the background
+
 ## [1.8.6] - 2026-02-10
 
 ### Fixed

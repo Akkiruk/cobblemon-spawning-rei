@@ -31,10 +31,11 @@ class CobblemonSpawningFabricClient : ClientModInitializer {
             ClientDataReceiver.onChunkReceived(payload)
         }
 
-        // Clear server data on disconnect so local data reloads next session
+        // Mark data stale on disconnect, keep cached for instant availability on reconnect
         ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
             SpawnDataIndex.onDisconnect()
             ClientDataReceiver.reset()
+            CobblemonSpawningMod.resetReloadTimer()
         }
     }
 }

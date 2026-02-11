@@ -27,5 +27,6 @@ object CobblemonSpawningNeoForgeClient {
     fun onDisconnect(event: ClientPlayerNetworkEvent.LoggingOut) {
         SpawnDataIndex.onDisconnect()
         ClientDataReceiver.reset()
+        CobblemonSpawningMod.resetReloadTimer()
     }
 }

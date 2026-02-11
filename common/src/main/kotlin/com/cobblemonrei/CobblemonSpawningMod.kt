@@ -25,7 +25,13 @@ object CobblemonSpawningMod {
     fun tickReloadCheck() {
         if (SpawnDataIndex.isFullyLoaded()) return
         reloadTickCounter++
-        if (reloadTickCounter % 100 != 0) return
+        if (reloadTickCounter <= 2 || reloadTickCounter % 100 == 0) {
+            SpawnDataIndex.ensureLoadedAsync()
+        }
+    }
+
+    fun resetReloadTimer() {
+        reloadTickCounter = 0
         SpawnDataIndex.ensureLoadedAsync()
     }
 }

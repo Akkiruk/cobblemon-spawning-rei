@@ -55,6 +55,8 @@ object SpawnDataIndex {
 
     fun isFullyLoaded(): Boolean = loadState == LoadState.FULLY_LOADED
 
+    fun hasData(): Boolean = allSpeciesNames.isNotEmpty()
+
     fun computeFingerprint(): String {
         return DataSerializer.computeFingerprint(spawnsBySpecies, evolutionsBySpecies, speciesInfo)
     }
@@ -185,19 +187,14 @@ object SpawnDataIndex {
         }
     }
 
-    /** Clear server data on disconnect, allow local reload next tick */
+    /** Mark data stale on disconnect, keep as warm cache for instant availability on reconnect */
     fun onDisconnect() {
         cancelPendingLoad()
         dataLock.withLock {
-            spawnsBySpecies = emptyMap()
-            evolutionsBySpecies = emptyMap()
-            evolutionsToSpecies = emptyMap()
-            speciesInfo = emptyMap()
-            allSpeciesNames = emptyList()
             loadState = LoadState.NOT_LOADED
             dataSource = DataSource.NONE
         }
-        DebugLog.info("Data cleared on disconnect")
+        DebugLog.info("Marked data stale on disconnect (${allSpeciesNames.size} species cached)")
     }
 
     private fun rebuildDerivedData() {
