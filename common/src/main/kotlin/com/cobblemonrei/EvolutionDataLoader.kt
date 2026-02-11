@@ -106,19 +106,15 @@ object EvolutionDataLoader {
 
     private fun extractRequiredContext(evo: Evolution): String? {
         if (evo !is ContextEvolution<*, *>) return null
-        return try {
+        val value = try {
             val field = evo.javaClass.getDeclaredField("requiredContext")
             field.isAccessible = true
-            val value = field.get(evo)
-            when (value) {
-                is ResourceLocation -> value.toString()
-                else -> value?.toString()
-            }
+            field.get(evo)
         } catch (e: NoSuchFieldException) {
             try {
                 val field = evo.javaClass.superclass?.getDeclaredField("requiredContext")
                 field?.isAccessible = true
-                field?.get(evo)?.toString()
+                field?.get(evo)
             } catch (_: NoSuchFieldException) { null }
             catch (e2: Exception) {
                 DebugLog.once("evo-ctx-${evo.javaClass.simpleName}") { "requiredContext superclass reflection failed: ${e2.message}" }
@@ -127,7 +123,24 @@ object EvolutionDataLoader {
         } catch (e: Exception) {
             DebugLog.once("evo-ctx-${evo.javaClass.simpleName}") { "requiredContext reflection failed: ${e.message}" }
             null
-        }
+        } ?: return null
+
+        if (value is ResourceLocation) return value.toString()
+
+        // PokemonProperties (TradeEvolution): use asString() for readable output
+        val asString = tryInvokeMethod(value, "asString")
+        if (asString is String && asString.isNotBlank()) return asString
+
+        // NbtItemPredicate (ItemInteractionEvolution) or RegistryLikeCondition (BlockClickEvolution)
+        val itemId = extractItemFromPredicate(value)
+        if (itemId != null) return itemId
+
+        val regId = extractRegistryLikeIdentifier(value)
+        if (regId != null) return regId
+
+        // Fallback with garbage filter
+        val str = value.toString()
+        return if (!str.contains("@") && !(str.contains(".") && str.length > 40)) str else null
     }
 
     private fun parseResultAspects(aspects: Set<String>): Set<String> {
@@ -186,7 +199,9 @@ object EvolutionDataLoader {
                 rangeName?.let { data["range"] = it }
             }
             className.contains("HeldItem") -> {
-                extractField(req, "itemCondition")?.let { data["itemCondition"] = it.toString() }
+                val itemCondition = extractField(req, "itemCondition")
+                val itemId = extractItemFromPredicate(itemCondition)
+                if (itemId != null) data["itemCondition"] = itemId
             }
             className.contains("MoveType") -> {
                 extractField(req, "type")?.let { data["type"] = extractReadableValue(it) ?: "unknown" }
@@ -211,7 +226,10 @@ object EvolutionDataLoader {
                 extractField(req, "statTwo")?.let { data["statTwo"] = extractReadableValue(it) ?: "stat" }
             }
             className.contains("PokemonProperties") -> {
-                extractField(req, "target")?.let { data["target"] = it.toString() }
+                val target = extractField(req, "target")
+                val targetStr = tryInvokeMethod(target, "asString") as? String
+                if (targetStr != null && targetStr.isNotBlank()) data["target"] = targetStr
+                else extractReadableValue(target)?.let { data["target"] = it }
             }
             className.contains("PropertyRange") -> {
                 extractField(req, "range")?.let { data["range"] = it.toString() }
@@ -225,7 +243,10 @@ object EvolutionDataLoader {
                 extractField(req, "amount")?.let { data["amount"] = it }
             }
             className.contains("Defeat") -> {
-                extractField(req, "target")?.let { data["target"] = it.toString() }
+                val target = extractField(req, "target")
+                val targetStr = tryInvokeMethod(target, "asString") as? String
+                if (targetStr != null && targetStr.isNotBlank()) data["target"] = targetStr
+                else extractReadableValue(target)?.let { data["target"] = it }
                 extractField(req, "amount")?.let { data["amount"] = it }
             }
             className.contains("Recoil") -> {
@@ -238,7 +259,10 @@ object EvolutionDataLoader {
                 extractField(req, "amount")?.let { data["amount"] = it }
             }
             className.contains("PartyMember") -> {
-                extractField(req, "target")?.let { data["target"] = it.toString() }
+                val target = extractField(req, "target")
+                val targetStr = tryInvokeMethod(target, "asString") as? String
+                if (targetStr != null && targetStr.isNotBlank()) data["target"] = targetStr
+                else extractReadableValue(target)?.let { data["target"] = it }
                 extractField(req, "contains")?.let { data["contains"] = it }
             }
             className.contains("MoonPhase") -> {
@@ -257,7 +281,9 @@ object EvolutionDataLoader {
                 extractField(req, "ratio")?.let { data["ratio"] = extractReadableValue(it) ?: "ratio" }
             }
             className.contains("OwnerHoldsItem") -> {
-                extractField(req, "itemCondition")?.let { data["itemCondition"] = it.toString() }
+                val itemCondition = extractField(req, "itemCondition")
+                val itemId = extractItemFromPredicate(itemCondition)
+                if (itemId != null) data["itemCondition"] = itemId
             }
             className.contains("Gender") -> {
                 extractField(req, "gender")?.let { data["gender"] = extractReadableValue(it) ?: "unknown" }
@@ -319,7 +345,15 @@ object EvolutionDataLoader {
         if (obj.javaClass.isEnum) {
             return (obj as Enum<*>).name.lowercase()
         }
-        
+
+        // PokemonProperties: use asString()
+        val asString = tryInvokeMethod(obj, "asString")
+        if (asString is String && asString.isNotBlank() && !asString.contains("@")) return asString
+
+        // RegistryLikeCondition: extract identifier
+        val regId = extractRegistryLikeIdentifier(obj)
+        if (regId != null) return regId
+
         // Try to get name field (common for named objects)
         val name = extractField(obj, "name")
         if (name is String && !name.contains("@")) return name
@@ -342,11 +376,50 @@ object EvolutionDataLoader {
         // Last resort: try toString but filter out garbage
         val str = obj.toString()
         return if (str.contains("@") || str.contains(".") && str.length > 50) {
-            // Extract class simple name as fallback
             obj.javaClass.simpleName.lowercase().replace("_", " ")
         } else {
             str
         }
+    }
+
+    private fun tryInvokeMethod(obj: Any?, methodName: String): Any? {
+        if (obj == null) return null
+        return try {
+            val method = obj.javaClass.getMethod(methodName)
+            method.invoke(obj)
+        } catch (_: Exception) { null }
+    }
+
+    private fun extractRegistryLikeIdentifier(obj: Any?): String? {
+        if (obj == null) return null
+        // RegistryLikeIdentifierCondition has an 'identifier' field (ResourceLocation)
+        val identifier = extractField(obj, "identifier")
+        if (identifier is ResourceLocation) return identifier.toString()
+        if (identifier != null) {
+            val str = identifier.toString()
+            if (!str.contains("@") && str.contains(":")) return str
+        }
+        // RegistryLikeTagCondition has a 'tag' field (TagKey)
+        val tag = extractField(obj, "tag")
+        if (tag != null) {
+            val location = extractField(tag, "location")
+            if (location is ResourceLocation) return "#${location}"
+            val str = tag.toString()
+            if (!str.contains("@") && str.length < 80) return str
+        }
+        return null
+    }
+
+    private fun extractItemFromPredicate(obj: Any?): String? {
+        if (obj == null) return null
+        // NbtItemPredicate has an 'item' field (RegistryLikeCondition<Item>)
+        val item = extractField(obj, "item")
+        if (item != null) {
+            val id = extractRegistryLikeIdentifier(item)
+            if (id != null) return id
+        }
+        // Might be a RegistryLikeCondition directly
+        return extractRegistryLikeIdentifier(obj)
     }
 
     data class SpeciesBasicInfo(

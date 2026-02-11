@@ -36,12 +36,13 @@ data class EvolutionInfo(
             if (requiredContext != null && requiredContext.isNotBlank()) {
                 val itemName = requiredContext
                     .let { if (it.contains(":")) it.substringAfter(":") else it }
+                    .let { if (it.contains("=")) it.substringAfter("=").substringBefore(" ") else it }
                     .replace("_", " ")
                     .split(" ")
                     .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
                 when {
                     variant.contains("item_interact") -> parts.add("Use $itemName")
-                    variant == "trade" -> parts.add("Trade holding $itemName")
+                    variant == "trade" -> parts.add("Trade with $itemName")
                     variant.contains("block_click") -> parts.add("Click $itemName block")
                     itemName.isNotBlank() -> parts.add("Use $itemName")
                 }

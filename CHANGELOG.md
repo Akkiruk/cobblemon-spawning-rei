@@ -1,6 +1,14 @@
 # Changelog
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
+## [1.10.5] - 2026-02-11
+
+### Fixed
+- Evolution conditions involving items/trade partners showing raw Java object references instead of proper names (e.g. `PokemonProperties@342f4abf`)
+- Held item requirements (like Sachet for Spritzee) now correctly display the item name
+- Trade evolutions with specific partner requirements now show "Trade with [species]" instead of garbage text
+- Deep extraction of item identifiers from NbtItemPredicate, RegistryLikeCondition, and PokemonProperties objects
+
 ## [1.10.4] - 2026-02-11
 
 ### Fixed
