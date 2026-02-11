@@ -6,8 +6,10 @@ import com.cobblemonrei.network.SpawnSyncHashPayload
 import com.cobblemonrei.network.SpawnSyncPayload
 import com.cobblemonrei.server.ServerDataManager
 import net.minecraft.server.level.ServerPlayer
+import net.neoforged.api.distmarker.Dist
 import net.neoforged.bus.api.IEventBus
 import net.neoforged.fml.common.Mod
+import net.neoforged.fml.loading.FMLEnvironment
 import net.neoforged.neoforge.common.NeoForge
 import net.neoforged.neoforge.event.entity.player.PlayerEvent
 import net.neoforged.neoforge.event.server.ServerStartedEvent
@@ -21,6 +23,10 @@ class CobblemonSpawningNeoForge(modBus: IEventBus) {
         CobblemonSpawningMod.init()
 
         modBus.addListener(::onRegisterPayloads)
+
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            CobblemonSpawningNeoForgeClient.register()
+        }
 
         NeoForge.EVENT_BUS.addListener(::onServerStarted)
         NeoForge.EVENT_BUS.addListener(::onServerStopping)
