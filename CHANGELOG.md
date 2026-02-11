@@ -2,6 +2,11 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.10.1] - 2026-02-12
+
+### Fixed
+- NeoForge crash on load due to @JvmStatic on event handler methods
+
 ## [1.10.0] - 2026-02-12
 
 ### Added

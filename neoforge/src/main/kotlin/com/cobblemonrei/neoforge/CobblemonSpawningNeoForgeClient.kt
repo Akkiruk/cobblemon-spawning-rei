@@ -14,7 +14,6 @@ import net.neoforged.neoforge.client.event.ClientTickEvent
 object CobblemonSpawningNeoForgeClient {
 
     @SubscribeEvent
-    @JvmStatic
     fun onClientTick(event: ClientTickEvent.Post) {
         if (Minecraft.getInstance().player != null) {
             CobblemonSpawningMod.tickReloadCheck()
@@ -23,7 +22,6 @@ object CobblemonSpawningNeoForgeClient {
     }
 
     @SubscribeEvent
-    @JvmStatic
     fun onDisconnect(event: ClientPlayerNetworkEvent.LoggingOut) {
         SpawnDataIndex.onDisconnect()
         ClientDataReceiver.reset()
