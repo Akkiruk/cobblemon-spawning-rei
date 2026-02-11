@@ -116,6 +116,7 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
         override fun getUsageFor(entry: EntryStack<*>): Optional<List<SpawnDisplay>> = Optional.empty()
 
         override fun generate(builder: ViewSearchBuilder): Optional<List<SpawnDisplay>> {
+            if (builder.recipesFor.isNotEmpty() || builder.usagesFor.isNotEmpty()) return Optional.empty()
             if (!SpawnDataIndex.isFullyLoaded()) return Optional.empty()
             val version = SpawnDataIndex.dataVersion
             cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
@@ -149,6 +150,7 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
         }
 
         override fun generate(builder: ViewSearchBuilder): Optional<List<EvolutionDisplay>> {
+            if (builder.recipesFor.isNotEmpty() || builder.usagesFor.isNotEmpty()) return Optional.empty()
             if (!SpawnDataIndex.isFullyLoaded()) return Optional.empty()
             val version = SpawnDataIndex.dataVersion
             cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }

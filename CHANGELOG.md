@@ -2,6 +2,11 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.8.6] - 2026-02-10
+
+### Fixed
+- Clicking a specific Pokémon in REI no longer shows all Pokémon paginated; only the selected species' spawn/evolution info is displayed
+
 ## [1.8.5] - 2026-02-10
 
 ### Fixed
