@@ -1,6 +1,12 @@
 # Changelog
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
+## [1.10.6] - 2026-02-11
+
+### Fixed
+- Held item names not displaying in evolution conditions (e.g. "Hold item" instead of "Hold Sachet")
+- Field reflection now walks full class hierarchy to reach inherited fields like RegistryLikeIdentifierCondition.identifier
+
 ## [1.10.5] - 2026-02-11
 
 ### Fixed

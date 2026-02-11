@@ -312,23 +312,28 @@ object EvolutionDataLoader {
     }
 
     private fun extractField(obj: Any, fieldName: String): Any? {
-        return try {
-            val field = obj.javaClass.getDeclaredField(fieldName)
-            field.isAccessible = true
-            field.get(obj)
-        } catch (_: NoSuchFieldException) {
+        // Walk the full class hierarchy looking for the field
+        var clazz: Class<*>? = obj.javaClass
+        while (clazz != null && clazz != Any::class.java) {
             try {
-                val field = obj.javaClass.superclass?.getDeclaredField(fieldName)
-                field?.isAccessible = true
-                field?.get(obj)
-            } catch (_: NoSuchFieldException) { null }
-            catch (e: Exception) {
-                DebugLog.once("extract-${obj.javaClass.simpleName}-$fieldName") { "Superclass field access failed: ${e.message}" }
-                null
+                val field = clazz.getDeclaredField(fieldName)
+                field.isAccessible = true
+                return field.get(obj)
+            } catch (_: NoSuchFieldException) {
+                clazz = clazz.superclass
+            } catch (e: Exception) {
+                DebugLog.once("extract-${obj.javaClass.simpleName}-$fieldName") { "Field access failed on ${clazz?.simpleName}: ${e.message}" }
+                return null
             }
-        } catch (e: Exception) {
-            DebugLog.once("extract-${obj.javaClass.simpleName}-$fieldName") { "Field access failed: ${e.message}" }
-            null
+        }
+        // Fallback: try Kotlin-style getter method
+        return try {
+            val getter = obj.javaClass.getMethod("get${fieldName.replaceFirstChar { it.uppercase() }}")
+            getter.invoke(obj)
+        } catch (_: Exception) {
+            try {
+                obj.javaClass.getMethod(fieldName).invoke(obj)
+            } catch (_: Exception) { null }
         }
     }
 
