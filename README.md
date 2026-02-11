@@ -1,4 +1,4 @@
-  # Cobblemon Spawning REI
+  # Cobblemon Spawning for REI/JEI/EMI
 
 [![Build](https://github.com/Akkiruk/cobblemon-spawning-rei/actions/workflows/build.yml/badge.svg)](https://github.com/Akkiruk/cobblemon-spawning-rei/actions/workflows/build.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/Akkiruk/cobblemon-spawning-rei?logo=github)](https://github.com/Akkiruk/cobblemon-spawning-rei/releases/latest)
@@ -11,7 +11,9 @@
 [![Cobblemon](https://img.shields.io/badge/Cobblemon-1.7.1%2B-blue.svg)](https://cobblemon.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A **pure client-side** Architectury mod that integrates Cobblemon spawn data and evolution chains into [REI (Roughly Enough Items)](https://github.com/shedaniel/RoughlyEnoughItems). Search any Pokémon to see where it spawns, how it evolves, and what conditions are needed.
+A **pure client-side** Architectury mod that integrates Cobblemon spawn data and evolution chains into **REI**, **JEI**, and **EMI**. Works with any of the three recipe viewers — search any Pokémon to see where it spawns, how it evolves, and what conditions are needed.
+
+> **✨ Multi-Viewer Support:** This mod works with [REI (Roughly Enough Items)](https://github.com/shedaniel/RoughlyEnoughItems), [JEI (Just Enough Items)](https://github.com/mezz/JustEnoughItems), AND [EMI (Enough Mod Items)](https://github.com/emilyploszaj/emi)! Install any one of them and the mod will automatically integrate.
 
 ## Features
 
@@ -28,10 +30,12 @@ A **pure client-side** Architectury mod that integrates Cobblemon spawn data and
 - Form-specific evolutions (regional variants, gender-based, etc.)
 - Branching evolutions shown with branch indicators
 
-### Custom REI Integration
+### Universal Recipe Viewer Integration
+- **Works with REI, JEI, or EMI** — no need to choose, install your favorite!
 - Pokémon rendered as 3D models using Cobblemon's `PokemonItem`
-- Searchable by species name in REI's search bar
+- Searchable by species name in your recipe viewer's search bar
 - Click any Pokémon to view its spawn or evolution displays
+- Native plugin for each viewer (not using compatibility layers)
 
 ## Compatibility
 
@@ -44,14 +48,17 @@ A **pure client-side** Architectury mod that integrates Cobblemon spawn data and
 | Fabric API | 0.116.7+ |
 | Fabric Language Kotlin | 1.13.4+ |
 | **NeoForge** | |
-| NeoForge | 21.1.77+ |
+| Neoecipe Viewers** (choose one or more) | |
+| REI (Roughly Enough Items) | 16.0.799+ |
+| JEI (Just Enough Items) | 19.27.0.340+ |
+| EMI (Enough Mod Items) | 1.1.12+ |
 | Kotlin for Forge | 5.11.0+ |
 | **REI** | 16.0.799+ |
 
 ## Installation
+and **ONE of:** REI, JEI, or EMI
 
-### Requirements
-
+**NeoForge:** Minecraft 1.21.1, NeoForge 21.1.77+, Kotlin for Forge 5.11.0+, Cobblemon 1.7.1+, and **ONE of:** REI, JEI, or EM
 **Fabric:** Minecraft 1.21.1, Fabric Loader 0.15.0+, Fabric API 0.116.7+, Fabric Language Kotlin 1.13.4+, Cobblemon 1.7.1+, REI
 
 **NeoForge:** Minecraft 1.21.1, NeoForge 21.1.77+, Kotlin for Forge 5.11.0+, Cobblemon 1.7.1+, REI
@@ -90,7 +97,9 @@ MIT License — see [LICENSE](LICENSE) for details.
 - [CurseForge](https://www.curseforge.com/minecraft/mc-mods/cobblemon-spawning-rei)
 - [GitHub Issues](https://github.com/Akkiruk/cobblemon-spawning-rei/issues)
 
-## Acknowledgments
+## Acknowledgments (Roughly Enough Items)
+- [mezz](https://github.com/mezz) for JEI (Just Enough Items)
+- [emilyploszaj](https://github.com/emilyploszaj) for EMI (Enough Mod Items)
 
 - [Cobblemon Team](https://cobblemon.com/) for the Pokémon mod
 - [shedaniel](https://github.com/shedaniel) for REI

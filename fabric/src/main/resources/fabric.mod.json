@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "cobblemon-spawning-rei",
   "version": "${version}",
-  "name": "Cobblemon Spawning REI Integration",
-  "description": "Adds Cobblemon spawn locations, evolution chains, and species info to REI. Search any Pokémon to see where it spawns, how it evolves, and what conditions are needed.",
+  "name": "Cobblemon Spawning for REI/JEI/EMI",
+  "description": "Adds Cobblemon spawn locations, evolution chains, and species info to REI, JEI, and EMI. Works with any of the three recipe viewers — search any Pokémon to see where it spawns, how it evolves, and what conditions are needed.",
   "authors": ["Akkiruk"],
   "contact": {
     "homepage": "https://github.com/Akkiruk/cobblemon-spawning-rei",
