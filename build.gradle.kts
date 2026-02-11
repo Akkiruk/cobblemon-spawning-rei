@@ -38,6 +38,7 @@ subprojects {
         maven("https://maven.shedaniel.me/")
         maven("https://maven.blamejared.com/")
         maven("https://maven.terraformersmc.com/")
+        maven("https://api.modrinth.com/maven") // Backup for EMI
     }
 
     @Suppress("UnstableApiUsage")
