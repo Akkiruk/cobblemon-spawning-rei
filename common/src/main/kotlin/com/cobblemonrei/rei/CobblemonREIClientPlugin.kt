@@ -31,7 +31,18 @@ import java.util.Optional
 
 open class CobblemonREIClientPlugin : REIClientPlugin {
 
+    private val emiActive: Boolean by lazy {
+        try {
+            Class.forName("dev.emi.emi.api.EmiPlugin")
+            DebugLog.info("EMI detected — skipping REI plugin (native EMI plugin handles registration)")
+            true
+        } catch (_: ClassNotFoundException) {
+            false
+        }
+    }
+
     override fun registerEntryTypes(registry: EntryTypeRegistry) {
+        if (emiActive) return
         try {
             registry.register(PokemonEntryType.POKEMON.id, PokemonEntryDefinition())
             DebugLog.info("Pokémon entry type registered")
@@ -53,6 +64,7 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
     }
 
     override fun registerCategories(registry: CategoryRegistry) {
+        if (emiActive) return
         ensureEntryTypeAvailable()
         registry.add(SpawnCategory())
         if (CobblemonSpawningConfig.get().showEvolutions) {
@@ -65,6 +77,7 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
     }
 
     override fun registerDisplays(registry: DisplayRegistry) {
+        if (emiActive) return
         ensureEntryTypeAvailable()
         SpawnDataIndex.ensureLoaded()
 
@@ -80,6 +93,7 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
     }
 
     override fun registerEntries(registry: EntryRegistry) {
+        if (emiActive) return
         ensureEntryTypeAvailable()
         SpawnDataIndex.ensureLoaded()
 

@@ -2,6 +2,11 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.10.2] - 2026-02-11
+
+### Fixed
+- EMI critical exception on load caused by EMI's REI compatibility layer loading the custom PokemonEntryType; REI plugin now detects EMI and defers to the native EMI plugin
+
 ## [1.10.1] - 2026-02-12
 
 ### Fixed
