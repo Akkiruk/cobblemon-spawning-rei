@@ -2,6 +2,7 @@ package com.cobblemonrei.rei.evolution
 
 import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.EvolutionInfo
+import com.cobblemonrei.sanitizePath
 import com.cobblemonrei.rei.entry.PokemonEntry
 import com.cobblemonrei.rei.entry.PokemonEntryType
 import me.shedaniel.rei.api.common.category.CategoryIdentifier
@@ -33,7 +34,7 @@ class EvolutionDisplay(
 
     override fun getDisplayLocation(): Optional<ResourceLocation> {
         return Optional.of(
-            ResourceLocation.fromNamespaceAndPath(CobblemonSpawningMod.MOD_ID, "evolution/${evolution.id}")
+            ResourceLocation.fromNamespaceAndPath(CobblemonSpawningMod.MOD_ID, "evolution/${sanitizePath(evolution.id)}")
         )
     }
 }

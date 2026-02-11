@@ -4,6 +4,7 @@ import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.ObtainmentInfo
 import com.cobblemonrei.PokemonItemCache
 import com.cobblemonrei.SpawnDisplayHelper
+import com.cobblemonrei.sanitizePath
 import dev.emi.emi.api.recipe.EmiRecipe
 import dev.emi.emi.api.recipe.EmiRecipeCategory
 import dev.emi.emi.api.stack.EmiIngredient
@@ -32,7 +33,7 @@ class EmiObtainmentRecipe(
 
     override fun getId(): ResourceLocation = ResourceLocation.fromNamespaceAndPath(
         CobblemonSpawningMod.MOD_ID,
-        "emi_obtainment/${speciesName.lowercase()}/${obtainment.method.lowercase()}/$entryIndex"
+        "emi_obtainment/${sanitizePath(speciesName)}/${sanitizePath(obtainment.method)}/$entryIndex"
     )
 
     override fun getInputs(): List<EmiIngredient> = emptyList()

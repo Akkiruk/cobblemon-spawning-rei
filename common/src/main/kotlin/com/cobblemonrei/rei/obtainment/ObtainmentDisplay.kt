@@ -2,6 +2,7 @@ package com.cobblemonrei.rei.obtainment
 
 import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.ObtainmentInfo
+import com.cobblemonrei.sanitizePath
 import com.cobblemonrei.rei.entry.PokemonEntry
 import com.cobblemonrei.rei.entry.PokemonEntryType
 import me.shedaniel.rei.api.common.category.CategoryIdentifier
@@ -30,7 +31,7 @@ class ObtainmentDisplay(
         return Optional.of(
             ResourceLocation.fromNamespaceAndPath(
                 CobblemonSpawningMod.MOD_ID,
-                "obtainment/${speciesName}/${obtainment.method}_$entryIndex"
+                "obtainment/${sanitizePath(speciesName)}/${sanitizePath(obtainment.method)}_$entryIndex"
             )
         )
     }

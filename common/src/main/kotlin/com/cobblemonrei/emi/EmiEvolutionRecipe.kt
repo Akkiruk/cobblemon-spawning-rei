@@ -4,6 +4,7 @@ import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.EvolutionInfo
 import com.cobblemonrei.PokemonItemCache
 import com.cobblemonrei.SpawnDisplayHelper
+import com.cobblemonrei.sanitizePath
 import dev.emi.emi.api.recipe.EmiRecipe
 import dev.emi.emi.api.recipe.EmiRecipeCategory
 import dev.emi.emi.api.render.EmiTexture
@@ -42,7 +43,7 @@ class EmiEvolutionRecipe(
         } else ""
         return ResourceLocation.fromNamespaceAndPath(
             CobblemonSpawningMod.MOD_ID,
-            "emi_evolution/${evolution.fromSpecies.lowercase()}_to_${evolution.toSpecies.lowercase()}$suffix"
+            "emi_evolution/${sanitizePath(evolution.fromSpecies)}_to_${sanitizePath(evolution.toSpecies)}$suffix"
         )
     }
 

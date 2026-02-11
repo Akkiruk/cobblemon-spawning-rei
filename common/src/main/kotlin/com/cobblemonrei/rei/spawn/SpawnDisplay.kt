@@ -2,6 +2,7 @@ package com.cobblemonrei.rei.spawn
 
 import com.cobblemonrei.CobblemonSpawningMod
 import com.cobblemonrei.SpawnInfo
+import com.cobblemonrei.sanitizePath
 import com.cobblemonrei.rei.entry.PokemonEntry
 import com.cobblemonrei.rei.entry.PokemonEntryType
 import me.shedaniel.rei.api.common.category.CategoryIdentifier
@@ -33,7 +34,7 @@ class SpawnDisplay(
         return Optional.of(
             ResourceLocation.fromNamespaceAndPath(
                 CobblemonSpawningMod.MOD_ID,
-                "spawn/${speciesName}/${spawn.id}_$bucketIndex"
+                "spawn/${sanitizePath(speciesName)}/${spawn.id}_$bucketIndex"
             )
         )
     }

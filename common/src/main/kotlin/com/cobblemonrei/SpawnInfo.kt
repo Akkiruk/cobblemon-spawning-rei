@@ -116,3 +116,5 @@ fun formatBiomeName(id: String): String {
             .removePrefix("has_")
     )
 }
+
+fun sanitizePath(s: String): String = s.lowercase().replace(Regex("[^a-z0-9/._-]"), "")

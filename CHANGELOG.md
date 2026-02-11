@@ -2,6 +2,12 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.10.3] - 2026-02-11
+
+### Fixed
+- EMI crash on load caused by Unicode characters in species names (e.g. Farfetch’d) producing invalid ResourceLocation paths
+- Applied path sanitization to all recipe/display IDs across REI, EMI, and obtainment displays
+
 ## [1.10.2] - 2026-02-11
 
 ### Fixed
