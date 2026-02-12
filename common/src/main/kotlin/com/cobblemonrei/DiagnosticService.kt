@@ -306,9 +306,14 @@ object DiagnosticService {
             java.nio.file.Paths.get(".")
         }
         
+        val debugDir = gameDir.resolve("spawningrei-debug")
+        if (!Files.exists(debugDir)) {
+            Files.createDirectories(debugDir)
+        }
+        
         val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
-        val fileName = "spawningrei_diagnostic_$timestamp.txt"
-        val outputPath = gameDir.resolve(fileName)
+        val fileName = "diagnostic_$timestamp.txt"
+        val outputPath = debugDir.resolve(fileName)
         
         Files.writeString(outputPath, content)
         return outputPath.toAbsolutePath().toString()

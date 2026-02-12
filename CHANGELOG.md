@@ -2,6 +2,11 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.16.1] - 2026-02-11
+
+### Changed
+- Diagnostic dump files now output to `spawningrei-debug/` folder instead of cluttering the game directory root
+
 ## [1.16.0] - 2026-02-11
 
 ### Fixed
