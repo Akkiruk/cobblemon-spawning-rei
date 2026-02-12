@@ -9,7 +9,7 @@ data class CobblemonSpawningConfig(
     val showSpawnWeights: Boolean = true,
     val showEvolutions: Boolean = true,
     val showObtainment: Boolean = true,
-    val localDatapackScan: Boolean = false,
+    val localDatapackScan: Boolean = true,
     val debugMode: Boolean = false
 ) {
     companion object {

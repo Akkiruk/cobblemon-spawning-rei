@@ -6,6 +6,7 @@ import com.google.gson.JsonParser
 import java.io.InputStreamReader
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.zip.ZipFile
 
 object SpawnDataLoader {
 
@@ -136,7 +137,25 @@ object SpawnDataLoader {
                     JsonParser.parseReader(reader).asJsonObject
                 }
             }
-            if (json.has("enabled") && !json.get("enabled").asBoolean) return false to 0
+            return parseSpawnJson(json, file.fileName.toString(), result)
+        } catch (e: Exception) {
+            DebugLog.trackFailedSpawn(file.fileName.toString(), e.message ?: "unknown")
+            return false to 0
+        }
+    }
+
+    private fun parseSpawnJson(json: JsonObject, sourceName: String, result: MutableMap<String, MutableList<SpawnInfo>>): Pair<Boolean, Int> {
+        var entryCount = 0
+        try {
+            val enabledField = json.get("enabled")
+            val enabled = when {
+                enabledField == null -> true
+                enabledField.isJsonPrimitive && enabledField.asJsonPrimitive.isBoolean -> enabledField.asBoolean
+                enabledField.isJsonPrimitive && enabledField.asJsonPrimitive.isString -> enabledField.asString.equals("true", ignoreCase = true)
+                else -> true
+            }
+            if (!enabled) return false to 0
+            
             val spawns = json.getAsJsonArray("spawns") ?: return false to 0
 
             for (spawnElement in spawns) {
@@ -147,7 +166,7 @@ object SpawnDataLoader {
                 entryCount++
             }
         } catch (e: Exception) {
-            DebugLog.trackFailedSpawn(file.fileName.toString(), e.message ?: "unknown")
+            DebugLog.trackFailedSpawn(sourceName, e.message ?: "unknown")
             return false to 0
         }
         return (entryCount > 0) to entryCount
@@ -432,24 +451,66 @@ object SpawnDataLoader {
         counter: (Boolean, Int) -> Unit
     ) {
         Files.list(datapacksDir).use { packs ->
-            packs.filter { Files.isDirectory(it) }.forEach { pack ->
-                val dataDir = pack.resolve("data")
-                if (Files.exists(dataDir)) {
-                    Files.list(dataDir).use { namespaces ->
-                        namespaces.filter { Files.isDirectory(it) }.forEach { namespace ->
-                            val spawnDir = namespace.resolve("spawn_pool_world")
-                            if (Files.exists(spawnDir)) {
-                                Files.walk(spawnDir, 10).use { files ->
-                                    files.filter { it.toString().endsWith(".json") }.forEach { file ->
-                                        val (added, count) = parseSpawnFile(file, result)
-                                        counter(added, count)
-                                    }
-                                }
+            packs.forEach { pack ->
+                when {
+                    Files.isDirectory(pack) -> scanDatapackDir(pack, result, counter)
+                    pack.toString().endsWith(".zip") -> scanDatapackZip(pack, result, counter)
+                }
+            }
+        }
+    }
+
+    private fun scanDatapackDir(
+        pack: Path,
+        result: MutableMap<String, MutableList<SpawnInfo>>,
+        counter: (Boolean, Int) -> Unit
+    ) {
+        val dataDir = pack.resolve("data")
+        if (Files.exists(dataDir)) {
+            Files.list(dataDir).use { namespaces ->
+                namespaces.filter { Files.isDirectory(it) }.forEach { namespace ->
+                    val spawnDir = namespace.resolve("spawn_pool_world")
+                    if (Files.exists(spawnDir)) {
+                        Files.walk(spawnDir, 10).use { files ->
+                            files.filter { it.toString().endsWith(".json") }.forEach { file ->
+                                val (added, count) = parseSpawnFile(file, result)
+                                counter(added, count)
                             }
                         }
                     }
                 }
             }
+        }
+    }
+
+    private fun scanDatapackZip(
+        zipPath: Path,
+        result: MutableMap<String, MutableList<SpawnInfo>>,
+        counter: (Boolean, Int) -> Unit
+    ) {
+        try {
+            ZipFile(zipPath.toFile()).use { zip ->
+                val spawnEntries = zip.entries().asSequence()
+                    .filter { !it.isDirectory }
+                    .filter { it.name.contains("spawn_pool_world") && it.name.endsWith(".json") }
+                    .toList()
+
+                for (entry in spawnEntries) {
+                    try {
+                        zip.getInputStream(entry).use { stream ->
+                            val json = JsonParser.parseReader(InputStreamReader(stream, Charsets.UTF_8))
+                            if (json.isJsonObject) {
+                                val (added, count) = parseSpawnJson(json.asJsonObject, entry.name, result)
+                                counter(added, count)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        DebugLog.once("zip-entry-${entry.name}") { "Failed to parse ${entry.name}: ${e.message}" }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            DebugLog.once("zip-${zipPath.fileName}") { "Failed to read ZIP ${zipPath.fileName}: ${e.message}" }
         }
     }
 

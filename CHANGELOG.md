@@ -1,6 +1,18 @@
 # Changelog
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
+
+## [1.16.0] - 2026-02-11
+
+### Fixed
+- **ZIP datapack scanning**: Datapacks stored as ZIP files (like COBBLEVERSE-DP-v17-CF.zip) are now correctly scanned for spawn data
+- Previously only extracted/directory datapacks were read, causing Manaphy, Paradox Pokémon, and many legendaries to show as "missing spawn data"
+- Local datapack scanning now enabled by default (was previously disabled)
+
+### Changed
+- Refactored parseSpawnFile to separate JSON parsing logic into reusable parseSpawnJson function
+- More robust "enabled" field parsing (handles boolean strings)
+
 ## [1.15.0] - 2026-02-11
 
 ### Fixed
