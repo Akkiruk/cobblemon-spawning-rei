@@ -17,17 +17,35 @@ object PokemonItemCache {
     private val itemCache = ConcurrentHashMap<String, ItemStack>()
 
     fun resolveSpecies(name: String): Species? {
-        speciesCache[name]?.let { return it }
-        val resolved = try { PokemonSpecies.getByName(name) } catch (_: Exception) { null }
-        if (resolved != null) speciesCache[name] = resolved
-        return resolved
+        // Check cache with normalized key
+        val normalized = SpeciesNameNormalizer.normalize(name)
+        speciesCache[normalized]?.let { return it }
+        
+        // Try multiple name formats to find the species
+        val namesToTry = listOf(
+            name,
+            normalized,
+            SpeciesNameNormalizer.toDisplayName(normalized),
+            name.lowercase(),
+            name.replace(" ", "").replace(".", "").replace("'", "").replace("-", "").replace(":", "").lowercase()
+        ).distinct()
+        
+        for (tryName in namesToTry) {
+            val resolved = try { PokemonSpecies.getByName(tryName) } catch (_: Exception) { null }
+            if (resolved != null) {
+                speciesCache[normalized] = resolved
+                return resolved
+            }
+        }
+        return null
     }
 
     fun getItem(name: String): ItemStack? {
-        itemCache[name]?.let { return it }
+        val normalized = SpeciesNameNormalizer.normalize(name)
+        itemCache[normalized]?.let { return it }
         val species = resolveSpecies(name) ?: return null
         val item = try { PokemonItem.from(species) } catch (_: Exception) { null }
-        if (item != null && !item.isEmpty) itemCache[name] = item
+        if (item != null && !item.isEmpty) itemCache[normalized] = item
         return item
     }
 

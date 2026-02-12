@@ -10,5 +10,5 @@ interface PokemonRef {
         get() = ResourceLocation.fromNamespaceAndPath("cobblemon", sanitizePath(species))
 
     val displayName: String
-        get() = titleCase(species)
+        get() = formatSpeciesName(species)
 }

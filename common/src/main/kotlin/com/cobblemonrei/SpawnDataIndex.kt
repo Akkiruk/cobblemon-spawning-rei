@@ -132,20 +132,20 @@ object SpawnDataIndex {
         DebugLog.reset()
         PokemonItemCache.reset()
         SpawnDataLoader.invalidateCache()
-        spawnsBySpecies = SpawnDataLoader.loadFromAllSources(extraDatapacksDir)
+        spawnsBySpecies = normalizeMapKeys(SpawnDataLoader.loadFromAllSources(extraDatapacksDir))
 
         val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
 
         if (runtimeCount > 0) {
             try {
-                evolutionsBySpecies = EvolutionDataLoader.loadFromRuntime()
+                evolutionsBySpecies = normalizeMapKeys(EvolutionDataLoader.loadFromRuntime())
             } catch (e: Exception) {
                 DebugLog.warn("Runtime evolution load failed: ${e.message}")
                 evolutionsBySpecies = emptyMap()
             }
 
             try {
-                speciesInfo = EvolutionDataLoader.loadSpeciesBasicInfoFromRuntime()
+                speciesInfo = normalizeMapKeys(EvolutionDataLoader.loadSpeciesBasicInfoFromRuntime())
             } catch (e: Exception) {
                 DebugLog.warn("Runtime species info load failed: ${e.message}")
                 speciesInfo = emptyMap()
@@ -157,9 +157,9 @@ object SpawnDataIndex {
         }
 
         try {
-            obtainmentBySpecies = ObtainmentDataLoader.loadFromAllSources(
+            obtainmentBySpecies = normalizeMapKeys(ObtainmentDataLoader.loadFromAllSources(
                 SpawnDataLoader.getModRootPaths(), extraDatapacksDir
-            )
+            ))
         } catch (e: Exception) {
             DebugLog.warn("Obtainment data load failed: ${e.message}")
             obtainmentBySpecies = emptyMap()
@@ -191,13 +191,13 @@ object SpawnDataIndex {
     ) {
         cancelPendingLoad()
         dataLock.withLock {
-            spawnsBySpecies = spawns
-            evolutionsBySpecies = evolutions
-            speciesInfo = species
+            spawnsBySpecies = normalizeMapKeys(spawns)
+            evolutionsBySpecies = normalizeMapKeys(evolutions)
+            speciesInfo = normalizeMapKeys(species)
             // Obtainment stays locally loaded — no server sync needed for bundled/datapack entries
             if (obtainmentBySpecies.isEmpty()) {
                 try {
-                    obtainmentBySpecies = ObtainmentDataLoader.loadFromAllSources(SpawnDataLoader.getModRootPaths())
+                    obtainmentBySpecies = normalizeMapKeys(ObtainmentDataLoader.loadFromAllSources(SpawnDataLoader.getModRootPaths()))
                 } catch (_: Exception) {}
             }
             rebuildDerivedData()
@@ -227,7 +227,8 @@ object SpawnDataIndex {
         val reverseMap = mutableMapOf<String, MutableList<EvolutionInfo>>()
         for ((_, evolutions) in evolutionsBySpecies) {
             for (evo in evolutions) {
-                reverseMap.getOrPut(evo.toSpecies) { mutableListOf() }.add(evo)
+                val normalizedTo = SpeciesNameNormalizer.normalize(evo.toSpecies)
+                reverseMap.getOrPut(normalizedTo) { mutableListOf() }.add(evo)
             }
         }
         evolutionsToSpecies = reverseMap
@@ -236,7 +237,7 @@ object SpawnDataIndex {
         allNames.addAll(spawnsBySpecies.keys)
         allNames.addAll(evolutionsBySpecies.keys)
         for ((_, evos) in evolutionsBySpecies) {
-            for (evo in evos) allNames.add(evo.toSpecies)
+            for (evo in evos) allNames.add(SpeciesNameNormalizer.normalize(evo.toSpecies))
         }
         allNames.addAll(speciesInfo.keys)
         allNames.addAll(obtainmentBySpecies.keys)
@@ -245,7 +246,7 @@ object SpawnDataIndex {
         if (runtimeCount > 0) {
             try {
                 for (species in PokemonSpecies.implemented) {
-                    allNames.add(species.name.lowercase())
+                    allNames.add(SpeciesNameNormalizer.normalize(species.name))
                 }
             } catch (e: Exception) {
                 DebugLog.warn("Species enumeration interrupted: ${e.message}")
@@ -260,13 +261,29 @@ object SpawnDataIndex {
         )
     }
 
-    fun getSpawnsFor(species: String): List<SpawnInfo> = spawnsBySpecies[species.lowercase()] ?: emptyList()
+    private fun <T> normalizeMapKeys(map: Map<String, T>): Map<String, T> {
+        val result = mutableMapOf<String, T>()
+        for ((key, value) in map) {
+            val normalized = SpeciesNameNormalizer.normalize(key)
+            // If there's a collision, merge lists if applicable
+            val existing = result[normalized]
+            if (existing != null && existing is List<*> && value is List<*>) {
+                @Suppress("UNCHECKED_CAST")
+                result[normalized] = (existing + value) as T
+            } else {
+                result[normalized] = value
+            }
+        }
+        return result
+    }
 
-    fun getEvolutionsFrom(species: String): List<EvolutionInfo> = evolutionsBySpecies[species.lowercase()] ?: emptyList()
+    fun getSpawnsFor(species: String): List<SpawnInfo> = spawnsBySpecies[SpeciesNameNormalizer.normalize(species)] ?: emptyList()
 
-    fun getEvolutionsTo(species: String): List<EvolutionInfo> = evolutionsToSpecies[species.lowercase()] ?: emptyList()
+    fun getEvolutionsFrom(species: String): List<EvolutionInfo> = evolutionsBySpecies[SpeciesNameNormalizer.normalize(species)] ?: emptyList()
 
-    fun getSpeciesInfo(species: String): EvolutionDataLoader.SpeciesBasicInfo? = speciesInfo[species.lowercase()]
+    fun getEvolutionsTo(species: String): List<EvolutionInfo> = evolutionsToSpecies[SpeciesNameNormalizer.normalize(species)] ?: emptyList()
 
-    fun getObtainmentFor(species: String): List<ObtainmentInfo> = obtainmentBySpecies[species.lowercase()] ?: emptyList()
+    fun getSpeciesInfo(species: String): EvolutionDataLoader.SpeciesBasicInfo? = speciesInfo[SpeciesNameNormalizer.normalize(species)]
+
+    fun getObtainmentFor(species: String): List<ObtainmentInfo> = obtainmentBySpecies[SpeciesNameNormalizer.normalize(species)] ?: emptyList()
 }

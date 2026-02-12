@@ -113,7 +113,7 @@ object DisplayLayout {
         val font = Minecraft.getInstance().font
         val showWeights = CobblemonSpawningConfig.get().showSpawnWeights && spawn.weight > 0f
 
-        val nameWidth = TEXT_START_X + font.width(titleCase(speciesName)) + PADDING
+        val nameWidth = TEXT_START_X + font.width(formatSpeciesName(speciesName)) + PADDING
         val lvText = "Lv. ${spawn.levelRange}"
         val bucketText = SpawnDisplayHelper.bucketLabel(spawn.bucket)
         val lvBucketWidth = PADDING + font.width(lvText) + 6 + font.width(bucketText) + PADDING
@@ -259,7 +259,7 @@ object DisplayLayout {
     ): PanelSize {
         val font = Minecraft.getInstance().font
         val methodText = obtainment.displayMethodName
-        val headerWidth = TEXT_START_X + font.width(titleCase(speciesName)) + 6 + font.width(methodText) + PADDING
+        val headerWidth = TEXT_START_X + font.width(formatSpeciesName(speciesName)) + 6 + font.width(methodText) + PADDING
 
         val width = maxOf(headerWidth, MIN_WIDTH).coerceAtMost(MAX_WIDTH)
 

@@ -1,11 +1,20 @@
 # Changelog
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
-## [1.14.1] - 2026-02-11
+## [1.15.0] - 2026-02-11
 
 ### Fixed
-- Spawn and obtainment panels now position correctly within REI's allocated display bounds
-- All category display widgets use bounds directly instead of re-measured sizes to match REI's layout expectations
+- **Major fix**: Pokémon with special characters in names (Mr. Mime, Farfetch'd, Nidoran-F, Porygon-Z, Ho-Oh, Type: Null, etc.) now correctly show spawn data
+- Species name normalization now handles the mismatch between Cobblemon display names and spawn file names
+- Covers all special cases: apostrophes, periods, hyphens, colons, spaces in names
+- Also affects Gen 9 Paradox Pokémon with spaces (Great Tusk, Iron Treads, etc.) and Tapu guardians
+
+### Added
+- Diagnostic commands for troubleshooting data coverage:
+  - `/spawningrei stats` - quick summary in chat
+  - `/spawningrei missing` - lists Pokémon missing spawn/obtainment data
+  - `/spawningrei dump` - writes full diagnostic report to file
+  - `/spawningrei reload` - forces data reload
 
 ## [1.14.0] - 2026-02-11
 

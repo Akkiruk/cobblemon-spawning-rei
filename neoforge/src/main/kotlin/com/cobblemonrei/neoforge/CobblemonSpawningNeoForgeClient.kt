@@ -1,11 +1,15 @@
 package com.cobblemonrei.neoforge
 
 import com.cobblemonrei.CobblemonSpawningMod
+import com.cobblemonrei.DiagnosticService
 import com.cobblemonrei.SpawnDataIndex
 import com.cobblemonrei.network.ClientDataReceiver
 import net.minecraft.client.Minecraft
+import net.minecraft.commands.Commands
+import net.minecraft.network.chat.Component
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent
 import net.neoforged.neoforge.client.event.ClientTickEvent
+import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent
 import net.neoforged.neoforge.common.NeoForge
 
 object CobblemonSpawningNeoForgeClient {
@@ -13,6 +17,7 @@ object CobblemonSpawningNeoForgeClient {
     fun register() {
         NeoForge.EVENT_BUS.addListener(::onClientTick)
         NeoForge.EVENT_BUS.addListener(::onDisconnect)
+        NeoForge.EVENT_BUS.addListener(::onRegisterCommands)
     }
 
     private fun onClientTick(event: ClientTickEvent.Post) {
@@ -26,5 +31,39 @@ object CobblemonSpawningNeoForgeClient {
         SpawnDataIndex.onDisconnect()
         ClientDataReceiver.reset()
         CobblemonSpawningMod.resetReloadTimer()
+    }
+
+    private fun onRegisterCommands(event: RegisterClientCommandsEvent) {
+        event.dispatcher.register(
+            Commands.literal("spawningrei")
+                .then(Commands.literal("dump")
+                    .executes { ctx ->
+                        DiagnosticService.dumpDiagnostics { msg ->
+                            ctx.source.sendSuccess({ Component.literal(msg) }, false)
+                        }
+                    }
+                )
+                .then(Commands.literal("stats")
+                    .executes { ctx ->
+                        DiagnosticService.showStats { msg ->
+                            ctx.source.sendSuccess({ Component.literal(msg) }, false)
+                        }
+                    }
+                )
+                .then(Commands.literal("missing")
+                    .executes { ctx ->
+                        DiagnosticService.showMissing { msg ->
+                            ctx.source.sendSuccess({ Component.literal(msg) }, false)
+                        }
+                    }
+                )
+                .then(Commands.literal("reload")
+                    .executes { ctx ->
+                        DiagnosticService.reloadData { msg ->
+                            ctx.source.sendSuccess({ Component.literal(msg) }, false)
+                        }
+                    }
+                )
+        )
     }
 }

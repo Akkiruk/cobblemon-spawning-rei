@@ -375,7 +375,7 @@ object SpawnDisplayHelper {
         val indentX = padding + 6
         val indentWidth = right - indentX
 
-        graphics.drawString(font, titleCase(speciesName), padding + 22, 6, 0xFFFFFF, false)
+        graphics.drawString(font, formatSpeciesName(speciesName), padding + 22, 6, 0xFFFFFF, false)
 
         val lvText = "Lv. ${spawn.levelRange}"
         val bucketText = bucketLabel(spawn.bucket)
@@ -511,7 +511,7 @@ object SpawnDisplayHelper {
 
         val methodText = obtainment.displayMethodName
         val methodWidth = font.width(methodText)
-        graphics.drawString(font, titleCase(speciesName), padding + 22, 6, 0xFFFFFF, false)
+        graphics.drawString(font, formatSpeciesName(speciesName), padding + 22, 6, 0xFFFFFF, false)
         graphics.drawString(font, methodText, right - methodWidth, 6, 0xDDCC99, false)
 
         graphics.fill(padding, 20, right, 21, 0x50FFFFFF)

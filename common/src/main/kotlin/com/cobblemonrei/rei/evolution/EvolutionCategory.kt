@@ -44,22 +44,29 @@ class EvolutionCategory : DisplayCategory<EvolutionDisplay> {
     override fun setupDisplay(display: EvolutionDisplay, bounds: Rectangle): List<Widget> {
         val widgets = mutableListOf<Widget>()
         val evo = display.evolution
-        widgets.add(Widgets.createRecipeBase(bounds))
+        val size = DisplayLayout.measureEvolutionPanel(evo, display.branchIndex, display.branchTotal)
+        
+        // Center panel vertically within allocated bounds
+        val yOffset = (bounds.height - size.height).coerceAtLeast(0) / 2
+        val panelX = bounds.x
+        val panelY = bounds.y + yOffset
+        
+        widgets.add(Widgets.createRecipeBase(Rectangle(panelX, panelY, size.width, size.height)))
 
         val fromStack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(evo.fromSpecies))
         widgets.add(
-            Widgets.createSlot(Rectangle(bounds.x + 20, bounds.y + 8, SLOT_SIZE, SLOT_SIZE))
+            Widgets.createSlot(Rectangle(panelX + 20, panelY + 8, SLOT_SIZE, SLOT_SIZE))
                 .entries(listOf(fromStack))
                 .markInput()
                 .disableBackground()
         )
 
-        val arrowY = bounds.y + 8 + (SLOT_SIZE - 17) / 2
-        widgets.add(Widgets.createArrow(Point(bounds.x + bounds.width / 2 - 12, arrowY)))
+        val arrowY = panelY + 8 + (SLOT_SIZE - 17) / 2
+        widgets.add(Widgets.createArrow(Point(panelX + size.width / 2 - 12, arrowY)))
 
         val toStack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(evo.toSpecies))
         widgets.add(
-            Widgets.createSlot(Rectangle(bounds.x + bounds.width - 20 - SLOT_SIZE - 12, bounds.y + 8, SLOT_SIZE, SLOT_SIZE))
+            Widgets.createSlot(Rectangle(panelX + size.width - 20 - SLOT_SIZE - 12, panelY + 8, SLOT_SIZE, SLOT_SIZE))
                 .entries(listOf(toStack))
                 .markOutput()
                 .disableBackground()
@@ -70,21 +77,19 @@ class EvolutionCategory : DisplayCategory<EvolutionDisplay> {
             val stack = SpawnDisplayHelper.resolveItemStack(item.itemId)
             if (!stack.isEmpty) {
                 widgets.add(
-                    Widgets.createSlot(Rectangle(bounds.x + 8, bounds.y + ITEM_START_Y + i * ITEM_ROW_HEIGHT, SLOT_SIZE, SLOT_SIZE))
+                    Widgets.createSlot(Rectangle(panelX + 8, panelY + ITEM_START_Y + i * ITEM_ROW_HEIGHT, SLOT_SIZE, SLOT_SIZE))
                         .entries(listOf(EntryStacks.of(stack)))
                         .markInput()
                 )
             }
         }
 
-        val ox = bounds.x
-        val oy = bounds.y
-        val w = bounds.width
-        val h = bounds.height
+        val w = size.width
+        val h = size.height
         val hasItems = items.isNotEmpty()
         widgets.add(Widgets.createDrawableWidget { gfx, _, _, _ ->
             gfx.pose().pushPose()
-            gfx.pose().translate(ox.toFloat(), oy.toFloat(), 0f)
+            gfx.pose().translate(panelX.toFloat(), panelY.toFloat(), 0f)
             SpawnDisplayHelper.drawEvolutionText(gfx, evo, display.branchIndex, display.branchTotal, width = w, height = h, hasItemSlots = hasItems)
             gfx.pose().popPose()
         })
