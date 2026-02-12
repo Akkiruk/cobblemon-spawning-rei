@@ -35,8 +35,7 @@ class ObtainmentCategory : DisplayCategory<ObtainmentDisplay> {
 
     override fun setupDisplay(display: ObtainmentDisplay, bounds: Rectangle): List<Widget> {
         val widgets = mutableListOf<Widget>()
-        val size = DisplayLayout.measureObtainmentPanel(display.speciesName, display.obtainment, display.entryIndex, display.entryTotal)
-        widgets.add(Widgets.createRecipeBase(Rectangle(bounds.x, bounds.y, size.width, size.height)))
+        widgets.add(Widgets.createRecipeBase(bounds))
 
         val pokemonStack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(display.speciesName))
         widgets.add(
@@ -49,8 +48,8 @@ class ObtainmentCategory : DisplayCategory<ObtainmentDisplay> {
 
         val ox = bounds.x
         val oy = bounds.y
-        val w = size.width
-        val h = size.height
+        val w = bounds.width
+        val h = bounds.height
         widgets.add(Widgets.createDrawableWidget { gfx, _, _, _ ->
             gfx.pose().pushPose()
             gfx.pose().translate(ox.toFloat(), oy.toFloat(), 0f)

@@ -1,6 +1,12 @@
 # Changelog
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
+## [1.14.1] - 2026-02-11
+
+### Fixed
+- Spawn and obtainment panels now position correctly within REI's allocated display bounds
+- All category display widgets use bounds directly instead of re-measured sizes to match REI's layout expectations
+
 ## [1.14.0] - 2026-02-11
 
 ### Changed

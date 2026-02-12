@@ -39,8 +39,7 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
 
     override fun setupDisplay(display: SpawnDisplay, bounds: Rectangle): List<Widget> {
         val widgets = mutableListOf<Widget>()
-        val size = DisplayLayout.measureSpawnPanel(display.speciesName, display.spawn, display.mergedFormVariants, display.bucketIndex, display.bucketTotal)
-        widgets.add(Widgets.createRecipeBase(Rectangle(bounds.x, bounds.y, size.width, size.height)))
+        widgets.add(Widgets.createRecipeBase(bounds))
 
         val pokemonStack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(display.speciesName))
         widgets.add(
@@ -53,8 +52,8 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
 
         val ox = bounds.x
         val oy = bounds.y
-        val w = size.width
-        val h = size.height
+        val w = bounds.width
+        val h = bounds.height
         widgets.add(Widgets.createDrawableWidget { gfx, _, _, _ ->
             gfx.pose().pushPose()
             gfx.pose().translate(ox.toFloat(), oy.toFloat(), 0f)
