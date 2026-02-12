@@ -2,6 +2,16 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.17.0] - 2026-02-11
+
+### Fixed
+- **ZIP datapack scanning now actually works** - Fixed config migration to auto-enable `localDatapackScan` for users with old config files
+- Diagnostic runtime check now properly compares species names using normalization ("great tusk" vs "greattusk" no longer shows as mismatch)
+
+### Added  
+- Extensive debug logging for datapack scanning - logs each ZIP/directory scanned and spawn entries found
+- Config auto-migration: old configs with `localDatapackScan: false` are now automatically updated
+
 ## [1.16.1] - 2026-02-11
 
 ### Changed

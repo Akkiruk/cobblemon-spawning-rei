@@ -68,13 +68,18 @@ object SpawnDataLoader {
         }
 
         // Scan client-side datapacks folder if config allows
-        if (com.cobblemonrei.config.CobblemonSpawningConfig.get().localDatapackScan) {
+        val scanDatapacks = com.cobblemonrei.config.CobblemonSpawningConfig.get().localDatapackScan
+        DebugLog.info("Local datapack scan enabled: $scanDatapacks")
+        if (scanDatapacks) {
             val datapacksDir = getClientDatapacksDir()
+            DebugLog.info("Datapacks directory: $datapacksDir (exists: ${datapacksDir?.let { Files.exists(it) }})")
             if (datapacksDir != null && Files.exists(datapacksDir) && Files.isDirectory(datapacksDir)) {
+                val preCount = result.size
                 scanDatapacksDir(datapacksDir, result) { added, count ->
                     totalFiles += if (added) 1 else 0
                     totalEntries += count
                 }
+                DebugLog.info("Datapack scan added ${result.size - preCount} new species, ${totalEntries} total entries")
             }
         }
 
@@ -450,11 +455,18 @@ object SpawnDataLoader {
         result: MutableMap<String, MutableList<SpawnInfo>>,
         counter: (Boolean, Int) -> Unit
     ) {
+        DebugLog.info("Scanning datapacks in: $datapacksDir")
         Files.list(datapacksDir).use { packs ->
             packs.forEach { pack ->
                 when {
-                    Files.isDirectory(pack) -> scanDatapackDir(pack, result, counter)
-                    pack.toString().endsWith(".zip") -> scanDatapackZip(pack, result, counter)
+                    Files.isDirectory(pack) -> {
+                        DebugLog.info("  Scanning directory datapack: ${pack.fileName}")
+                        scanDatapackDir(pack, result, counter)
+                    }
+                    pack.toString().endsWith(".zip") -> {
+                        DebugLog.info("  Scanning ZIP datapack: ${pack.fileName}")
+                        scanDatapackZip(pack, result, counter)
+                    }
                 }
             }
         }
@@ -494,7 +506,10 @@ object SpawnDataLoader {
                     .filter { !it.isDirectory }
                     .filter { it.name.contains("spawn_pool_world") && it.name.endsWith(".json") }
                     .toList()
+                
+                DebugLog.info("    Found ${spawnEntries.size} spawn files in ${zipPath.fileName}")
 
+                var zipCount = 0
                 for (entry in spawnEntries) {
                     try {
                         zip.getInputStream(entry).use { stream ->
@@ -502,15 +517,17 @@ object SpawnDataLoader {
                             if (json.isJsonObject) {
                                 val (added, count) = parseSpawnJson(json.asJsonObject, entry.name, result)
                                 counter(added, count)
+                                zipCount += count
                             }
                         }
                     } catch (e: Exception) {
                         DebugLog.once("zip-entry-${entry.name}") { "Failed to parse ${entry.name}: ${e.message}" }
                     }
                 }
+                DebugLog.info("    Parsed $zipCount spawn entries from ${zipPath.fileName}")
             }
         } catch (e: Exception) {
-            DebugLog.once("zip-${zipPath.fileName}") { "Failed to read ZIP ${zipPath.fileName}: ${e.message}" }
+            DebugLog.warn("Failed to read ZIP ${zipPath.fileName}: ${e.message}")
         }
     }
 

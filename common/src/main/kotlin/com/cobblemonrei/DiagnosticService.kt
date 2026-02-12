@@ -259,11 +259,12 @@ object DiagnosticService {
         sb.appendLine()
         
         try {
-            val runtimeSpecies = PokemonSpecies.implemented.map { it.name.lowercase() }.toSet()
-            val inIndexButNotRuntime = allSpecies.filter { !runtimeSpecies.contains(it) }
-            val inRuntimeButNotIndex = runtimeSpecies.filter { !allSpecies.contains(it) }
+            val runtimeSpeciesRaw = PokemonSpecies.implemented.map { it.name.lowercase() }.toSet()
+            val runtimeSpeciesNormalized = runtimeSpeciesRaw.map { SpeciesNameNormalizer.normalize(it) }.toSet()
+            val inIndexButNotRuntime = allSpecies.filter { !runtimeSpeciesNormalized.contains(it) }
+            val inRuntimeButNotIndex = runtimeSpeciesRaw.filter { !allSpecies.contains(SpeciesNameNormalizer.normalize(it)) }
             
-            sb.appendLine("Cobblemon runtime species count: ${runtimeSpecies.size}")
+            sb.appendLine("Cobblemon runtime species count: ${runtimeSpeciesRaw.size}")
             sb.appendLine("In index but not runtime: ${inIndexButNotRuntime.size}")
             sb.appendLine("In runtime but not index: ${inRuntimeButNotIndex.size}")
             

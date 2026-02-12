@@ -14,6 +14,7 @@ data class CobblemonSpawningConfig(
 ) {
     companion object {
         private val GSON = GsonBuilder().setPrettyPrinting().create()
+        private const val CONFIG_VERSION = 2  // Increment when defaults change
 
         @Volatile
         private var instance: CobblemonSpawningConfig = CobblemonSpawningConfig()
@@ -25,8 +26,19 @@ data class CobblemonSpawningConfig(
             var needsSave = !Files.exists(file)
             try {
                 if (Files.exists(file)) {
-                    val loaded = GSON.fromJson(Files.readString(file), CobblemonSpawningConfig::class.java)
-                    if (loaded != null) instance = loaded
+                    val jsonText = Files.readString(file)
+                    val loaded = GSON.fromJson(jsonText, CobblemonSpawningConfig::class.java)
+                    if (loaded != null) {
+                        // Force enable localDatapackScan if old config had it disabled
+                        // This ensures ZIP datapack scanning works after update
+                        instance = if (!loaded.localDatapackScan) {
+                            DebugLog.info("Migrating config: enabling localDatapackScan for ZIP datapack support")
+                            needsSave = true
+                            loaded.copy(localDatapackScan = true)
+                        } else {
+                            loaded
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 DebugLog.warn("Config load failed, using defaults: ${e.message}")
