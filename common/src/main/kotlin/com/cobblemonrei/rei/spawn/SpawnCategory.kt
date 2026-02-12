@@ -39,24 +39,29 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
 
     override fun setupDisplay(display: SpawnDisplay, bounds: Rectangle): List<Widget> {
         val widgets = mutableListOf<Widget>()
-        widgets.add(Widgets.createRecipeBase(bounds))
+        val size = DisplayLayout.measureSpawnPanel(display.speciesName, display.spawn, display.mergedFormVariants, display.bucketIndex, display.bucketTotal)
+        
+        // Center panel vertically within allocated bounds
+        val yOffset = (bounds.height - size.height).coerceAtLeast(0) / 2
+        val panelX = bounds.x
+        val panelY = bounds.y + yOffset
+        
+        widgets.add(Widgets.createRecipeBase(Rectangle(panelX, panelY, size.width, size.height)))
 
         val pokemonStack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(display.speciesName))
         widgets.add(
-            Widgets.createSlot(Rectangle(bounds.x + 8, bounds.y + 3, 20, 20))
+            Widgets.createSlot(Rectangle(panelX + 8, panelY + 3, 20, 20))
                 .entries(listOf(pokemonStack))
                 .markInput()
                 .disableBackground()
                 .disableHighlight()
         )
 
-        val ox = bounds.x
-        val oy = bounds.y
-        val w = bounds.width
-        val h = bounds.height
+        val w = size.width
+        val h = size.height
         widgets.add(Widgets.createDrawableWidget { gfx, _, _, _ ->
             gfx.pose().pushPose()
-            gfx.pose().translate(ox.toFloat(), oy.toFloat(), 0f)
+            gfx.pose().translate(panelX.toFloat(), panelY.toFloat(), 0f)
             SpawnDisplayHelper.drawSpawnDetails(
                 gfx, display.speciesName, display.spawn, display.mergedFormVariants,
                 display.bucketIndex, display.bucketTotal,

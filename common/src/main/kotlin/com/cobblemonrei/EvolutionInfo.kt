@@ -13,14 +13,14 @@ data class EvolutionInfo(
 ) {
     val displayFromName: String
         get() {
-            val base = titleCase(fromSpecies)
+            val base = formatSpeciesName(fromSpecies)
             return if (fromAspects.isEmpty()) base
             else "$base (${formatAspects(fromAspects)})"
         }
 
     val displayToName: String
         get() {
-            val base = titleCase(toSpecies)
+            val base = formatSpeciesName(toSpecies)
             return if (toAspects.isEmpty()) base
             else "$base (${formatAspects(toAspects)})"
         }

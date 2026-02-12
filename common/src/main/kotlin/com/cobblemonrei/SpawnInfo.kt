@@ -85,6 +85,15 @@ fun titleCase(raw: String): String {
         .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
 }
 
+/**
+ * Format a species name for display, handling special characters properly.
+ * Converts normalized names like "mrmime" to "Mr. Mime".
+ */
+fun formatSpeciesName(speciesName: String): String {
+    val displayName = SpeciesNameNormalizer.toDisplayName(speciesName)
+    return titleCase(displayName)
+}
+
 fun stripNamespace(id: String): String {
     return id.removePrefix("#").substringAfter(":")
 }
