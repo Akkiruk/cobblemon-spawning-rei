@@ -1,6 +1,7 @@
 package com.cobblemonrei.jei.spawn
 
 import com.cobblemonrei.CobblemonSpawningMod
+import com.cobblemonrei.DisplayLayout
 import com.cobblemonrei.SpawnDisplayHelper
 import com.cobblemonrei.jei.PokemonIngredient
 import com.cobblemonrei.jei.PokemonIngredientType
@@ -38,8 +39,8 @@ class JeiSpawnCategory(guiHelper: IGuiHelper) : IRecipeCategory<JeiSpawnRecipe> 
     override fun getRecipeType(): RecipeType<JeiSpawnRecipe> = RECIPE_TYPE
     override fun getTitle(): Component = Component.literal("Spawn Locations")
     override fun getBackground(): IDrawable = background
-    override fun getWidth(): Int = WIDTH
-    override fun getHeight(): Int = HEIGHT
+    override fun getWidth(): Int = DisplayLayout.getMaxSpawnSize().width
+    override fun getHeight(): Int = DisplayLayout.getMaxSpawnSize().height
     override fun getIcon(): IDrawable = icon
 
     override fun setRecipe(builder: IRecipeLayoutBuilder, recipe: JeiSpawnRecipe, focuses: IFocusGroup) {
@@ -49,9 +50,11 @@ class JeiSpawnCategory(guiHelper: IGuiHelper) : IRecipeCategory<JeiSpawnRecipe> 
     }
 
     override fun draw(recipe: JeiSpawnRecipe, recipeSlotsView: IRecipeSlotsView, graphics: GuiGraphics, mouseX: Double, mouseY: Double) {
+        val size = DisplayLayout.getMaxSpawnSize()
         SpawnDisplayHelper.drawSpawnDetails(
             graphics, recipe.speciesName, recipe.spawn, recipe.mergedFormVariants,
-            recipe.bucketIndex, recipe.bucketTotal
+            recipe.bucketIndex, recipe.bucketTotal,
+            width = size.width, height = size.height
         )
     }
 

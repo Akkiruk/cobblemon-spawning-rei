@@ -1,6 +1,7 @@
 package com.cobblemonrei.rei.evolution
 
 import com.cobblemonrei.CobblemonSpawningMod
+import com.cobblemonrei.DisplayLayout
 import com.cobblemonrei.SpawnDisplayHelper
 import com.cobblemonrei.rei.entry.PokemonEntry
 import com.cobblemonrei.rei.entry.PokemonEntryType
@@ -33,15 +34,18 @@ class EvolutionCategory : DisplayCategory<EvolutionDisplay> {
 
     override fun getIcon(): Renderer = EntryStacks.of(Items.EXPERIENCE_BOTTLE)
 
-    override fun getDisplayHeight(): Int = 120
+    override fun getDisplayHeight(): Int = DisplayLayout.getMaxEvolutionSize().height
 
-    override fun getFixedDisplaysPerPage(): Int = 2
+    override fun getFixedDisplaysPerPage(): Int = 1
+
+    override fun getDisplayWidth(display: EvolutionDisplay): Int =
+        DisplayLayout.measureEvolutionPanel(display.evolution, display.branchIndex, display.branchTotal).width
 
     override fun setupDisplay(display: EvolutionDisplay, bounds: Rectangle): List<Widget> {
         val widgets = mutableListOf<Widget>()
-        widgets.add(Widgets.createRecipeBase(bounds))
-
         val evo = display.evolution
+        val size = DisplayLayout.measureEvolutionPanel(evo, display.branchIndex, display.branchTotal)
+        widgets.add(Widgets.createRecipeBase(Rectangle(bounds.x, bounds.y, size.width, size.height)))
 
         val fromStack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(evo.fromSpecies))
         widgets.add(
@@ -52,11 +56,11 @@ class EvolutionCategory : DisplayCategory<EvolutionDisplay> {
         )
 
         val arrowY = bounds.y + 8 + (SLOT_SIZE - 17) / 2
-        widgets.add(Widgets.createArrow(Point(bounds.centerX - 12, arrowY)))
+        widgets.add(Widgets.createArrow(Point(bounds.x + size.width / 2 - 12, arrowY)))
 
         val toStack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(evo.toSpecies))
         widgets.add(
-            Widgets.createSlot(Rectangle(bounds.maxX - 8 - SLOT_SIZE - 12, bounds.y + 8, SLOT_SIZE, SLOT_SIZE))
+            Widgets.createSlot(Rectangle(bounds.x + size.width - 20 - SLOT_SIZE - 12, bounds.y + 8, SLOT_SIZE, SLOT_SIZE))
                 .entries(listOf(toStack))
                 .markOutput()
                 .disableBackground()
@@ -76,16 +80,14 @@ class EvolutionCategory : DisplayCategory<EvolutionDisplay> {
 
         val ox = bounds.x
         val oy = bounds.y
-        val bw = bounds.width
-        val bh = bounds.height
+        val w = size.width
+        val h = size.height
         val hasItems = items.isNotEmpty()
         widgets.add(Widgets.createDrawableWidget { gfx, _, _, _ ->
-            gfx.enableScissor(ox, oy, ox + bw, oy + bh)
             gfx.pose().pushPose()
             gfx.pose().translate(ox.toFloat(), oy.toFloat(), 0f)
-            SpawnDisplayHelper.drawEvolutionText(gfx, evo, display.branchIndex, display.branchTotal, height = bh, hasItemSlots = hasItems)
+            SpawnDisplayHelper.drawEvolutionText(gfx, evo, display.branchIndex, display.branchTotal, width = w, height = h, hasItemSlots = hasItems)
             gfx.pose().popPose()
-            gfx.disableScissor()
         })
 
         return widgets

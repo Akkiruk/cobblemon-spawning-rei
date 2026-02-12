@@ -1,6 +1,7 @@
 package com.cobblemonrei.rei.spawn
 
 import com.cobblemonrei.CobblemonSpawningMod
+import com.cobblemonrei.DisplayLayout
 import com.cobblemonrei.SpawnDisplayHelper
 import com.cobblemonrei.rei.entry.PokemonEntry
 import com.cobblemonrei.rei.entry.PokemonEntryType
@@ -29,13 +30,17 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
 
     override fun getIcon(): Renderer = EntryStacks.of(Items.GRASS_BLOCK)
 
-    override fun getDisplayHeight(): Int = 210
+    override fun getDisplayHeight(): Int = DisplayLayout.getMaxSpawnSize().height
 
     override fun getFixedDisplaysPerPage(): Int = 1
 
+    override fun getDisplayWidth(display: SpawnDisplay): Int =
+        DisplayLayout.measureSpawnPanel(display.speciesName, display.spawn, display.mergedFormVariants, display.bucketIndex, display.bucketTotal).width
+
     override fun setupDisplay(display: SpawnDisplay, bounds: Rectangle): List<Widget> {
         val widgets = mutableListOf<Widget>()
-        widgets.add(Widgets.createRecipeBase(bounds))
+        val size = DisplayLayout.measureSpawnPanel(display.speciesName, display.spawn, display.mergedFormVariants, display.bucketIndex, display.bucketTotal)
+        widgets.add(Widgets.createRecipeBase(Rectangle(bounds.x, bounds.y, size.width, size.height)))
 
         val pokemonStack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(display.speciesName))
         widgets.add(
@@ -48,12 +53,15 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
 
         val ox = bounds.x
         val oy = bounds.y
+        val w = size.width
+        val h = size.height
         widgets.add(Widgets.createDrawableWidget { gfx, _, _, _ ->
             gfx.pose().pushPose()
             gfx.pose().translate(ox.toFloat(), oy.toFloat(), 0f)
             SpawnDisplayHelper.drawSpawnDetails(
                 gfx, display.speciesName, display.spawn, display.mergedFormVariants,
-                display.bucketIndex, display.bucketTotal
+                display.bucketIndex, display.bucketTotal,
+                width = w, height = h
             )
             gfx.pose().popPose()
         })

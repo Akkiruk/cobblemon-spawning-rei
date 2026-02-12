@@ -1,6 +1,7 @@
 package com.cobblemonrei.emi
 
 import com.cobblemonrei.CobblemonSpawningMod
+import com.cobblemonrei.DisplayLayout
 import com.cobblemonrei.PokemonItemCache
 import com.cobblemonrei.SpawnDisplayHelper
 import com.cobblemonrei.SpawnRecipeData
@@ -15,9 +16,11 @@ import net.minecraft.resources.ResourceLocation
 class EmiSpawnRecipe(val data: SpawnRecipeData) : EmiRecipe {
 
     companion object {
-        private const val WIDTH = 180
-        private const val HEIGHT = 200
         private const val PADDING = 6
+    }
+
+    private val measuredSize by lazy(LazyThreadSafetyMode.NONE) {
+        DisplayLayout.measureSpawnPanel(data.speciesName, data.spawn, data.mergedFormVariants, data.bucketIndex, data.bucketTotal)
     }
 
     private val pokemonStack: EmiStack? by lazy(LazyThreadSafetyMode.NONE) {
@@ -35,14 +38,17 @@ class EmiSpawnRecipe(val data: SpawnRecipeData) : EmiRecipe {
     override fun getInputs(): List<EmiIngredient> = emptyList()
     override fun getOutputs(): List<EmiStack> = listOfNotNull(pokemonStack)
     override fun supportsRecipeTree(): Boolean = false
-    override fun getDisplayWidth(): Int = WIDTH
-    override fun getDisplayHeight(): Int = HEIGHT
+    override fun getDisplayWidth(): Int = measuredSize.width
+    override fun getDisplayHeight(): Int = measuredSize.height
 
     override fun addWidgets(widgets: WidgetHolder) {
+        val w = measuredSize.width
+        val h = measuredSize.height
         pokemonStack?.let { widgets.addSlot(it, PADDING, 2).recipeContext(this) }
-        widgets.addDrawable(0, 0, WIDTH, HEIGHT) { graphics, _, _, _ ->
+        widgets.addDrawable(0, 0, w, h) { graphics, _, _, _ ->
             SpawnDisplayHelper.drawSpawnDetails(
-                graphics, data.speciesName, data.spawn, data.mergedFormVariants, data.bucketIndex, data.bucketTotal
+                graphics, data.speciesName, data.spawn, data.mergedFormVariants, data.bucketIndex, data.bucketTotal,
+                width = w, height = h
             )
         }
     }

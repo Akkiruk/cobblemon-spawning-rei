@@ -1,6 +1,7 @@
 package com.cobblemonrei.jei.obtainment
 
 import com.cobblemonrei.CobblemonSpawningMod
+import com.cobblemonrei.DisplayLayout
 import com.cobblemonrei.SpawnDisplayHelper
 import com.cobblemonrei.jei.PokemonIngredient
 import com.cobblemonrei.jei.PokemonIngredientType
@@ -38,8 +39,8 @@ class JeiObtainmentCategory(guiHelper: IGuiHelper) : IRecipeCategory<JeiObtainme
     override fun getRecipeType(): RecipeType<JeiObtainmentRecipe> = RECIPE_TYPE
     override fun getTitle(): Component = Component.literal("Special Obtainment")
     override fun getBackground(): IDrawable = background
-    override fun getWidth(): Int = WIDTH
-    override fun getHeight(): Int = HEIGHT
+    override fun getWidth(): Int = DisplayLayout.getMaxObtainmentSize().width
+    override fun getHeight(): Int = DisplayLayout.getMaxObtainmentSize().height
     override fun getIcon(): IDrawable = icon
 
     override fun setRecipe(builder: IRecipeLayoutBuilder, recipe: JeiObtainmentRecipe, focuses: IFocusGroup) {
@@ -49,9 +50,11 @@ class JeiObtainmentCategory(guiHelper: IGuiHelper) : IRecipeCategory<JeiObtainme
     }
 
     override fun draw(recipe: JeiObtainmentRecipe, recipeSlotsView: IRecipeSlotsView, graphics: GuiGraphics, mouseX: Double, mouseY: Double) {
+        val size = DisplayLayout.getMaxObtainmentSize()
         SpawnDisplayHelper.drawObtainmentDetails(
             graphics, recipe.speciesName, recipe.obtainment,
-            recipe.entryIndex, recipe.entryTotal
+            recipe.entryIndex, recipe.entryTotal,
+            width = size.width, height = size.height
         )
     }
 }

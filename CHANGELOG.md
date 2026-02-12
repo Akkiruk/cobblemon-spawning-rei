@@ -1,6 +1,19 @@
 # Changelog
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
+## [1.14.0] - 2026-02-11
+
+### Changed
+- All panels (spawn, evolution, obtainment) now dynamically resize to fit their content — no more fixed 180×200 boxes
+- Width expands to accommodate long species names, biome lists, evolution requirements, and obtainment descriptions
+- Height grows to show every line of text — biomes, conditions, specials, exclusions, and weight modifiers are never cut off
+- Removed all hardcoded dimension constants from REI, JEI, and EMI category/recipe files
+- New centralized DisplayLayout engine measures every recipe and computes exact panel dimensions
+- EMI gets true per-recipe sizing (each recipe has its own measured width/height)
+- REI and JEI use max-measured dimensions across all recipes so every display fits perfectly
+- Eliminated all text clipping — clipToWidth removed from all rendering paths, replaced with full word-wrapping
+- Removed biome line cap (was limited to 3 lines) — all biomes now display in full
+
 ## [1.13.0] - 2026-02-11
 
 ### Fixed

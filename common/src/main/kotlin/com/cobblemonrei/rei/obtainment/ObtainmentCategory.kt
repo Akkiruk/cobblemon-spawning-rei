@@ -1,6 +1,7 @@
 package com.cobblemonrei.rei.obtainment
 
 import com.cobblemonrei.CobblemonSpawningMod
+import com.cobblemonrei.DisplayLayout
 import com.cobblemonrei.SpawnDisplayHelper
 import com.cobblemonrei.rei.entry.PokemonEntry
 import com.cobblemonrei.rei.entry.PokemonEntryType
@@ -26,12 +27,16 @@ class ObtainmentCategory : DisplayCategory<ObtainmentDisplay> {
     override fun getCategoryIdentifier(): CategoryIdentifier<out ObtainmentDisplay> = ID
     override fun getTitle(): Component = Component.literal("Special Obtainment")
     override fun getIcon(): Renderer = EntryStacks.of(Items.NETHER_STAR)
-    override fun getDisplayHeight(): Int = 160
+    override fun getDisplayHeight(): Int = DisplayLayout.getMaxObtainmentSize().height
     override fun getFixedDisplaysPerPage(): Int = 1
+
+    override fun getDisplayWidth(display: ObtainmentDisplay): Int =
+        DisplayLayout.measureObtainmentPanel(display.speciesName, display.obtainment, display.entryIndex, display.entryTotal).width
 
     override fun setupDisplay(display: ObtainmentDisplay, bounds: Rectangle): List<Widget> {
         val widgets = mutableListOf<Widget>()
-        widgets.add(Widgets.createRecipeBase(bounds))
+        val size = DisplayLayout.measureObtainmentPanel(display.speciesName, display.obtainment, display.entryIndex, display.entryTotal)
+        widgets.add(Widgets.createRecipeBase(Rectangle(bounds.x, bounds.y, size.width, size.height)))
 
         val pokemonStack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(display.speciesName))
         widgets.add(
@@ -44,11 +49,14 @@ class ObtainmentCategory : DisplayCategory<ObtainmentDisplay> {
 
         val ox = bounds.x
         val oy = bounds.y
+        val w = size.width
+        val h = size.height
         widgets.add(Widgets.createDrawableWidget { gfx, _, _, _ ->
             gfx.pose().pushPose()
             gfx.pose().translate(ox.toFloat(), oy.toFloat(), 0f)
             SpawnDisplayHelper.drawObtainmentDetails(
-                gfx, display.speciesName, display.obtainment, display.entryIndex, display.entryTotal
+                gfx, display.speciesName, display.obtainment, display.entryIndex, display.entryTotal,
+                width = w, height = h
             )
             gfx.pose().popPose()
         })

@@ -1,6 +1,7 @@
 package com.cobblemonrei.jei.evolution
 
 import com.cobblemonrei.CobblemonSpawningMod
+import com.cobblemonrei.DisplayLayout
 import com.cobblemonrei.SpawnDisplayHelper
 import com.cobblemonrei.jei.PokemonIngredient
 import com.cobblemonrei.jei.PokemonIngredientType
@@ -41,15 +42,16 @@ class JeiEvolutionCategory(guiHelper: IGuiHelper) : IRecipeCategory<JeiEvolution
     override fun getRecipeType(): RecipeType<JeiEvolutionRecipe> = RECIPE_TYPE
     override fun getTitle(): Component = Component.literal("Cobblemon Evolution")
     override fun getBackground(): IDrawable = background
-    override fun getWidth(): Int = WIDTH
-    override fun getHeight(): Int = HEIGHT
+    override fun getWidth(): Int = DisplayLayout.getMaxEvolutionSize().width
+    override fun getHeight(): Int = DisplayLayout.getMaxEvolutionSize().height
     override fun getIcon(): IDrawable = icon
 
     override fun setRecipe(builder: IRecipeLayoutBuilder, recipe: JeiEvolutionRecipe, focuses: IFocusGroup) {
+        val w = getWidth()
         builder.addSlot(RecipeIngredientRole.INPUT, 20, 8)
             .addIngredient(PokemonIngredientType, PokemonIngredient(recipe.evolution.fromSpecies, recipe.evolution.fromAspects))
 
-        builder.addSlot(RecipeIngredientRole.OUTPUT, WIDTH - 20 - SLOT_SIZE, 8)
+        builder.addSlot(RecipeIngredientRole.OUTPUT, w - 20 - SLOT_SIZE, 8)
             .addIngredient(PokemonIngredientType, PokemonIngredient(recipe.evolution.toSpecies, recipe.evolution.toAspects))
 
         for ((i, item) in recipe.evolution.itemRequirements.withIndex()) {
@@ -62,7 +64,9 @@ class JeiEvolutionCategory(guiHelper: IGuiHelper) : IRecipeCategory<JeiEvolution
     }
 
     override fun draw(recipe: JeiEvolutionRecipe, recipeSlotsView: IRecipeSlotsView, graphics: GuiGraphics, mouseX: Double, mouseY: Double) {
-        arrow.draw(graphics, WIDTH / 2 - 12, 8)
-        SpawnDisplayHelper.drawEvolutionText(graphics, recipe.evolution, recipe.branchIndex, recipe.branchTotal, hasItemSlots = recipe.evolution.itemRequirements.isNotEmpty())
+        val w = getWidth()
+        val h = getHeight()
+        arrow.draw(graphics, w / 2 - 12, 8)
+        SpawnDisplayHelper.drawEvolutionText(graphics, recipe.evolution, recipe.branchIndex, recipe.branchTotal, width = w, height = h, hasItemSlots = recipe.evolution.itemRequirements.isNotEmpty())
     }
 }
