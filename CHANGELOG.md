@@ -2,6 +2,11 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.17.1] - 2026-02-11
+
+### Fixed
+- Tooltip spawn count now accurately reflects the number of spawn displays you'll actually see when clicking (was sometimes showing higher due to using pre-deduplication count)
+
 ## [1.17.0] - 2026-02-11
 
 ### Fixed

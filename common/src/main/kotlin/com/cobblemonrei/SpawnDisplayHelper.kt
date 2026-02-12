@@ -346,7 +346,9 @@ object SpawnDisplayHelper {
         }
         val spawns = SpawnDataIndex.getSpawnsFor(speciesName)
         if (spawns.isNotEmpty()) {
-            lines.add(Component.literal("§a${spawns.size} spawn location(s)"))
+            // Count actual display entries (deduped and sorted - matches what RecipeBuilder returns)
+            val displayCount = buildSortedSpawns(spawns).size
+            lines.add(Component.literal("§a$displayCount spawn location(s)"))
         }
         val obtainments = SpawnDataIndex.getObtainmentFor(speciesName)
         if (obtainments.isNotEmpty()) {
