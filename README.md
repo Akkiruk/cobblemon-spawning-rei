@@ -1,9 +1,8 @@
   # Cobblemon Spawning for REI/JEI/EMI
 
-[![Build](https://github.com/Akkiruk/cobblemon-spawning-rei/actions/workflows/build.yml/badge.svg)](https://github.com/Akkiruk/cobblemon-spawning-rei/actions/workflows/build.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/Akkiruk/cobblemon-spawning-rei?logo=github)](https://github.com/Akkiruk/cobblemon-spawning-rei/releases/latest)
-[![CurseForge Downloads](https://img.shields.io/curseforge/dt/cobblemon-spawning-rei?logo=curseforge&color=F16436)](https://www.curseforge.com/minecraft/mc-mods/cobblemon-spawning-rei)
-[![Modrinth Downloads](https://img.shields.io/modrinth/dt/cobblemon-spawning-rei?logo=modrinth&color=00AF5C)](https://modrinth.com/mod/cobblemon-spawning-rei)
+[![CurseForge Downloads](https://img.shields.io/curseforge/dt/cobblemon-spawning-rei?logo=curseforge&color=F16436)](https://www.curseforge.com/minecraft/mc-mods/cobblemon-spawn-evolution-info-rei-integration)
+[![Modrinth Downloads](https://img.shields.io/modrinth/dt/cobblemon-spawning-rei?logo=modrinth&color=00AF5C)](https://modrinth.com/mod/cobblemon-spawn-evolution-info-(rei-integration))
 
 [![Minecraft Version](https://img.shields.io/badge/Minecraft-1.21.1-green.svg)](https://www.minecraft.net/)
 [![Fabric API](https://img.shields.io/badge/Fabric%20API-0.116%2B-orange.svg)](https://fabricmc.net/)
