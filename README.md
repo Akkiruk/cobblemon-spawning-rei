@@ -10,7 +10,7 @@
 [![Cobblemon](https://img.shields.io/badge/Cobblemon-1.7.1%2B-blue.svg)](https://cobblemon.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A **pure client-side** Architectury mod that integrates Cobblemon spawn data and evolution chains into **REI**, **JEI**, and **EMI**. Works with any of the three recipe viewers — search any Pokémon to see where it spawns, how it evolves, and what conditions are needed.
+A **client-side** (mostly) Architectury mod that integrates Cobblemon spawn data and evolution chains into **REI**, **JEI**, and **EMI**. Works with any of the three recipe viewers — search any Pokémon to see where it spawns, how it evolves, and what conditions are needed.
 
 > **✨ Multi-Viewer Support:** This mod works with [REI (Roughly Enough Items)](https://github.com/shedaniel/RoughlyEnoughItems), [JEI (Just Enough Items)](https://github.com/mezz/JustEnoughItems), AND [EMI (Enough Mod Items)](https://github.com/emilyploszaj/emi)! Install any one of them and the mod will automatically integrate.
 
