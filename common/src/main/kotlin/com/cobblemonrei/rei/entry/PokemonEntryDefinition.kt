@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.tags.TagKey
 import com.cobblemonrei.SpawnDataIndex
+import com.cobblemonrei.formatTypeName
 import com.cobblemonrei.titleCase
 import java.util.stream.Stream
 
@@ -89,7 +90,7 @@ class PokemonEntryDefinition : EntryDefinition<PokemonEntry> {
     override fun asFormattedText(entry: EntryStack<PokemonEntry>, value: PokemonEntry): Component {
         val info = SpawnDataIndex.getSpeciesInfo(value.species)
         return if (info != null) {
-            val types = listOfNotNull(info.primaryType, info.secondaryType).joinToString(" ") { titleCase(it) }
+            val types = listOfNotNull(info.primaryType, info.secondaryType).joinToString(" ") { formatTypeName(it) }
             Component.literal("${value.displayName} $types")
         } else {
             Component.literal(value.displayName)

@@ -30,21 +30,14 @@ data class ObtainmentInfo(
         get() = description.ifBlank { displayMethodName }
 
     val displayItems: List<String>
-        get() = items.map { formatItemId(it) }
+        get() = items.map { SpawnDisplayHelper.resolveItemName(it) }
 
     val displayBlock: String?
-        get() = block?.let { formatItemId(it) }
+        get() = block?.let { SpawnDisplayHelper.resolveItemName(it) }
 
     val displayStructure: String?
         get() = structure?.let { formatId(it) }
 
     val displayDimension: String?
         get() = dimension?.let { SpawnDisplayHelper.formatDimension(it) }
-
-    private fun formatItemId(id: String): String {
-        val name = if (id.contains(":")) id.substringAfter(":") else id
-        return name.replace("_", " ")
-            .split(" ")
-            .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
-    }
 }

@@ -72,11 +72,9 @@ object SpawnDisplayHelper {
                 .filter { it.formAspects.isNotBlank() }
                 .map {
                     it.formAspects
-                        .replace("region_bias=", "")
-                        .replace("_", " ")
                         .split(" ")
                         .filter { w -> w.isNotBlank() }
-                        .joinToString(" ") { w -> w.replaceFirstChar { c -> c.uppercase() } }
+                        .joinToString(", ") { w -> formatAspect(w) }
                 }
                 .distinct()
             MergedSpawn(primary, variants)
@@ -224,7 +222,7 @@ object SpawnDisplayHelper {
     }
 
     fun formatFormAspects(aspects: String): String =
-        titleCase(aspects.replace("region_bias=", ""))
+        aspects.split(" ").filter { it.isNotBlank() }.joinToString(", ") { formatAspect(it) }
 
     // --- Text layout ---
 
@@ -338,8 +336,8 @@ object SpawnDisplayHelper {
         if (info != null) {
             val typeStr = buildString {
                 append("§e")
-                append(titleCase(info.primaryType))
-                info.secondaryType?.let { append(" §7/ §e${titleCase(it)}") }
+                append(formatTypeName(info.primaryType))
+                info.secondaryType?.let { append(" §7/ §e${formatTypeName(it)}") }
             }
             lines.add(Component.literal(typeStr))
             lines.add(Component.literal("§7" + tr("cobblemon-spawning-rei.tooltip.catch_rate", info.catchRate)))
@@ -589,6 +587,11 @@ object SpawnDisplayHelper {
         return BuiltInRegistries.ITEM.getOptional(rl)
             .map { ItemStack(it) }
             .orElse(ItemStack.EMPTY)
+    }
+
+    fun resolveItemName(itemId: String): String {
+        val stack = resolveItemStack(itemId)
+        return if (!stack.isEmpty) stack.hoverName.string else formatItemIdFallback(itemId)
     }
 
     private fun formatItemIdFallback(itemId: String): String {

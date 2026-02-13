@@ -26,7 +26,7 @@ data class EvolutionInfo(
         }
 
     private fun formatAspects(aspects: Set<String>): String {
-        return aspects.joinToString(", ") { titleCase(it) }
+        return aspects.joinToString(", ") { formatAspect(it) }
     }
 
     val displayRequirements: String

@@ -2,6 +2,19 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.18.1] - 2026-02-12
+
+### Fixed
+- Form aspects now display cleanly — "Alolan" instead of "Region Bias=alola", "Female" instead of "gender=female"
+- Obtainment items and blocks now show their actual in-game names from the registry instead of ID-derived text
+- Biome tag qualifiers no longer leak through (e.g., "Dry" instead of "Dry/overworld")
+- Path separators in structure/block IDs cleaned up for display
+- Pokémon type names in tooltips now use Cobblemon's own translated names
+
+### Removed
+- Dead `BUCKET_LABELS` and `PRESET_LABELS` maps superseded by localized functions
+- Unused `formatItemId` method in ObtainmentInfo
+
 ## [1.18.0] - 2026-02-12
 
 ### Added
