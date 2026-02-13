@@ -34,11 +34,11 @@ data class SpawnInfo(
 
     val displayContext: String
         get() = when (context.lowercase()) {
-            "grounded" -> "Land"
-            "submerged" -> "Underwater"
-            "surface" -> "Water Surface"
-            "seafloor" -> "Seafloor"
-            "fishing" -> "Fishing"
+            "grounded" -> tr("cobblemon-spawning-rei.context.land")
+            "submerged" -> tr("cobblemon-spawning-rei.context.underwater")
+            "surface" -> tr("cobblemon-spawning-rei.context.surface")
+            "seafloor" -> tr("cobblemon-spawning-rei.context.seafloor")
+            "fishing" -> tr("cobblemon-spawning-rei.context.fishing")
             else -> titleCase(context)
         }
 
@@ -52,10 +52,10 @@ data class SpawnWeather(
 ) {
     val displayText: String
         get() = when {
-            isThundering == true -> "Thunder"
-            isRaining == true -> "Rain"
-            isRaining == false -> "Clear"
-            else -> "Any"
+            isThundering == true -> tr("cobblemon-spawning-rei.weather.thunder")
+            isRaining == true -> tr("cobblemon-spawning-rei.weather.rain")
+            isRaining == false -> tr("cobblemon-spawning-rei.weather.clear")
+            else -> tr("cobblemon-spawning-rei.weather.any")
         }
 }
 
@@ -103,7 +103,7 @@ fun formatId(id: String): String {
 }
 
 fun formatBiomeName(id: String): String {
-    if (id.lowercase().endsWith("custom_spawn")) return "\u2726 Altar/Special Only"
+    if (id.lowercase().endsWith("custom_spawn")) return tr("cobblemon-spawning-rei.biome.altar_only")
     return titleCase(
         stripNamespace(id)
             .removePrefix("is_")

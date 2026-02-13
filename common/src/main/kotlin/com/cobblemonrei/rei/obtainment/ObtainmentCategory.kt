@@ -25,7 +25,7 @@ class ObtainmentCategory : DisplayCategory<ObtainmentDisplay> {
     }
 
     override fun getCategoryIdentifier(): CategoryIdentifier<out ObtainmentDisplay> = ID
-    override fun getTitle(): Component = Component.literal("Special Obtainment")
+    override fun getTitle(): Component = Component.translatable("category.cobblemon-spawning-rei.obtainment")
     override fun getIcon(): Renderer = EntryStacks.of(Items.NETHER_STAR)
     override fun getDisplayHeight(): Int = DisplayLayout.getMaxObtainmentSize().height
     override fun getFixedDisplaysPerPage(): Int = 1

@@ -30,7 +30,7 @@ class EvolutionCategory : DisplayCategory<EvolutionDisplay> {
 
     override fun getCategoryIdentifier(): CategoryIdentifier<out EvolutionDisplay> = ID
 
-    override fun getTitle(): Component = Component.literal("Cobblemon Evolution")
+    override fun getTitle(): Component = Component.translatable("category.cobblemon-spawning-rei.evolution")
 
     override fun getIcon(): Renderer = EntryStacks.of(Items.EXPERIENCE_BOTTLE)
 

@@ -14,16 +14,16 @@ data class ObtainmentInfo(
 ) {
     val displayMethodName: String
         get() = when (method.lowercase()) {
-            "altar" -> "\u2726 Altar Summoning"
-            "shrine" -> "\u2726 Shrine Ritual"
-            "resurrection" -> "\u2699 Resurrection Machine"
-            "transformation" -> "\u2605 Transformation"
-            "event" -> "\u2605 Special Event"
-            "quest" -> "\u2605 Quest Reward"
-            "npc" -> "\u2605 NPC Trade"
-            "raid" -> "\u2694 Raid Battle"
-            "gift" -> "\u2605 Gift"
-            else -> "\u2605 ${titleCase(method)}"
+            "altar" -> tr("cobblemon-spawning-rei.obtainment.method.altar")
+            "shrine" -> tr("cobblemon-spawning-rei.obtainment.method.shrine")
+            "resurrection" -> tr("cobblemon-spawning-rei.obtainment.method.resurrection")
+            "transformation" -> tr("cobblemon-spawning-rei.obtainment.method.transformation")
+            "event" -> tr("cobblemon-spawning-rei.obtainment.method.event")
+            "quest" -> tr("cobblemon-spawning-rei.obtainment.method.quest")
+            "npc" -> tr("cobblemon-spawning-rei.obtainment.method.npc")
+            "raid" -> tr("cobblemon-spawning-rei.obtainment.method.raid")
+            "gift" -> tr("cobblemon-spawning-rei.obtainment.method.gift")
+            else -> tr("cobblemon-spawning-rei.obtainment.method.other", titleCase(method))
         }
 
     val displayDescription: String

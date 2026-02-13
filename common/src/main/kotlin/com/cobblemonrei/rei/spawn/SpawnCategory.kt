@@ -26,7 +26,7 @@ class SpawnCategory : DisplayCategory<SpawnDisplay> {
 
     override fun getCategoryIdentifier(): CategoryIdentifier<out SpawnDisplay> = ID
 
-    override fun getTitle(): Component = Component.literal("Spawn Locations")
+    override fun getTitle(): Component = Component.translatable("category.cobblemon-spawning-rei.spawn")
 
     override fun getIcon(): Renderer = EntryStacks.of(Items.GRASS_BLOCK)
 

@@ -40,7 +40,7 @@ class JeiEvolutionCategory(guiHelper: IGuiHelper) : IRecipeCategory<JeiEvolution
     private val arrow: IDrawable = guiHelper.getRecipeArrow()
 
     override fun getRecipeType(): RecipeType<JeiEvolutionRecipe> = RECIPE_TYPE
-    override fun getTitle(): Component = Component.literal("Cobblemon Evolution")
+    override fun getTitle(): Component = Component.translatable("category.cobblemon-spawning-rei.evolution")
     override fun getBackground(): IDrawable = background
     override fun getWidth(): Int = DisplayLayout.getMaxEvolutionSize().width
     override fun getHeight(): Int = DisplayLayout.getMaxEvolutionSize().height

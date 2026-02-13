@@ -158,94 +158,81 @@ object ObtainmentDataLoader {
 
     private fun loadBundledDefaults(): Map<String, List<ObtainmentInfo>> {
         val result = mutableMapOf<String, MutableList<ObtainmentInfo>>()
-        for (entry in BUNDLED_OBTAINMENT) {
+        for (entry in buildBundledObtainment()) {
             result.getOrPut(entry.pokemon) { mutableListOf() }.add(entry)
         }
         return result
     }
 
     @Suppress("LongMethod")
-    private val BUNDLED_OBTAINMENT: List<ObtainmentInfo> by lazy {
-        listOf(
-            // LumyMon Bird Trio
+    private fun buildBundledObtainment(): List<ObtainmentInfo> = listOf(
             altar("articuno", "lumymon:glacier_feather", "lumymon:articuno_altar",
-                "Use Glacier Feather on Articuno Altar"),
+                tr("cobblemon-spawning-rei.bundled.articuno")),
             altar("zapdos", "lumymon:thunder_feather", "lumymon:zapdos_altar",
-                "Use Thunder Feather on Zapdos Altar"),
+                tr("cobblemon-spawning-rei.bundled.zapdos")),
             altar("moltres", "lumymon:ember_feather", "lumymon:moltres_altar",
-                "Use Ember Feather on Moltres Altar"),
+                tr("cobblemon-spawning-rei.bundled.moltres")),
 
-            // LumyMon Tower Duo
             altar("lugia", "lumymon:silver_wing", "lumymon:lugia_altar",
-                "Use Silver Wing on Lugia Altar"),
+                tr("cobblemon-spawning-rei.bundled.lugia")),
             altar("hooh", "lumymon:rainbow_wing", "lumymon:hooh_altar",
-                "Use Rainbow Wing on Ho-Oh Altar"),
+                tr("cobblemon-spawning-rei.bundled.hooh")),
 
-            // LumyMon Mythicals
             shrine("celebi", "lumymon:gs_ball", "lumymon:ilex_shrine",
-                "Use GS Ball on Ilex Shrine"),
+                tr("cobblemon-spawning-rei.bundled.celebi")),
             shrine("mew", "lumymon:melodic_tape_vol_1", "lumymon:mew_shrine",
-                "Use Melodic Tape Vol. 1 on Mew Shrine"),
+                tr("cobblemon-spawning-rei.bundled.mew")),
             shrine("jirachi", "lumymon:meteorite_crystal", "lumymon:jirachi_shrine",
-                "Use Meteorite Crystal on Jirachi Shrine"),
+                tr("cobblemon-spawning-rei.bundled.jirachi")),
 
-            // LumyMon Regi Trio
             altar("regirock", "lumymon:pebble_relic", "lumymon:regirock_altar",
-                "Use Pebble Relic on Regirock Altar"),
+                tr("cobblemon-spawning-rei.bundled.regirock")),
             altar("regice", "lumymon:cryo_relic", "lumymon:regice_altar",
-                "Use Cryo Relic on Regice Altar"),
+                tr("cobblemon-spawning-rei.bundled.regice")),
             altar("registeel", "lumymon:metal_relic", "lumymon:registeel_altar",
-                "Use Metal Relic on Registeel Altar"),
+                tr("cobblemon-spawning-rei.bundled.registeel")),
 
-            // LumyMon Regi Extras
             altar("regieleki", "lumymon:metal_relic", "lumymon:regieleki_altar",
-                "Use Metal Relic on Regieleki Altar",
-                notes = listOf("Requires Regirock, Regice, Registeel nearby")),
+                tr("cobblemon-spawning-rei.bundled.regieleki"),
+                notes = listOf(tr("cobblemon-spawning-rei.bundled.note.regi_nearby"))),
             altar("regidrago", "lumymon:metal_relic", "lumymon:regidrago_altar",
-                "Use Metal Relic on Regidrago Altar",
-                notes = listOf("Requires Regirock, Regice, Registeel nearby")),
+                tr("cobblemon-spawning-rei.bundled.regidrago"),
+                notes = listOf(tr("cobblemon-spawning-rei.bundled.note.regi_nearby"))),
 
-            // LumyMon Eon Duo
             altar("latias", "lumymon:ruby_dew", "lumymon:latias_altar",
-                "Use Ruby Dew on Latias Altar"),
+                tr("cobblemon-spawning-rei.bundled.latias")),
             altar("latios", "lumymon:sapphire_dew", "lumymon:latios_altar",
-                "Use Sapphire Dew on Latios Altar"),
+                tr("cobblemon-spawning-rei.bundled.latios")),
 
-            // LumyMon Weather Trio
             altar("kyogre", "lumymon:ocean_core", "lumymon:kyogre_altar",
-                "Use Ocean Core on Kyogre Altar"),
+                tr("cobblemon-spawning-rei.bundled.kyogre")),
             altar("groudon", "lumymon:earth_core", "lumymon:groudon_altar",
-                "Use Earth Core on Groudon Altar"),
+                tr("cobblemon-spawning-rei.bundled.groudon")),
             altar("rayquaza", "lumymon:sky_core", "lumymon:rayquaza_altar",
-                "Use Sky Core on Rayquaza Altar"),
+                tr("cobblemon-spawning-rei.bundled.rayquaza")),
 
-            // LumyMon Deoxys
             shrine("deoxys", "lumymon:meteorite_crystal", "lumymon:deoxys_shrine",
-                "Use Meteorite Crystal on Deoxys Shrine"),
+                tr("cobblemon-spawning-rei.bundled.deoxys")),
 
-            // LumyMon Calyrex line
             altar("calyrex", "lumymon:calyrex_crown", "lumymon:calyrex_statue",
-                "Use Calyrex Crown on Calyrex Statue"),
+                tr("cobblemon-spawning-rei.bundled.calyrex")),
             altar("glastrier", "lumymon:iceroot_carrot", "lumymon:summon_trigger",
-                "Plant Iceroot Carrot near Summon Anchor",
-                notes = listOf("Requires Calyrex nearby")),
+                tr("cobblemon-spawning-rei.bundled.glastrier"),
+                notes = listOf(tr("cobblemon-spawning-rei.bundled.note.calyrex_nearby"))),
             altar("spectrier", "lumymon:shaderoot_carrot", "lumymon:summon_trigger",
-                "Plant Shaderoot Carrot near Summon Anchor",
-                notes = listOf("Requires Calyrex nearby")),
+                tr("cobblemon-spawning-rei.bundled.spectrier"),
+                notes = listOf(tr("cobblemon-spawning-rei.bundled.note.calyrex_nearby"))),
 
-            // LumyMon Resurrection Machine
             resurrection("mewtwo", "lumymon:ancient_dna", "cobblemon:resurrection_machine",
-                "Insert Ancient DNA + Cloning Catalyst into Resurrection Machine"),
+                tr("cobblemon-spawning-rei.bundled.mewtwo")),
             resurrection("type_null", "lumymon:fossilized_helmet", "cobblemon:resurrection_machine",
-                "Insert Fossilized Helmet into Resurrection Machine"),
+                tr("cobblemon-spawning-rei.bundled.type_null")),
 
-            // LumyMon Shadow Lugia
             transformation("lugia", "lumymon:shadow_soul_stone", null,
-                "Use Shadow Soul Stone on Lugia",
+                tr("cobblemon-spawning-rei.bundled.lugia_shadow"),
                 form = "shadow",
-                notes = listOf("Transforms Lugia into Shadow Lugia"))
-        )
-    }
+                notes = listOf(tr("cobblemon-spawning-rei.bundled.note.shadow_transform")))
+    )
 
     private fun altar(pokemon: String, item: String, block: String, description: String,
                       notes: List<String> = emptyList()) =

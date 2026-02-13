@@ -21,47 +21,46 @@ object SpawnDisplayHelper {
         "ultra-rare" to 0xFFE040FB.toInt()
     )
 
-    val BUCKET_LABELS = mapOf(
-        "common" to "Common",
-        "uncommon" to "Uncommon",
-        "rare" to "Rare",
-        "ultra-rare" to "Ultra Rare"
-    )
-
     private val BUCKET_ORDER = listOf("common", "uncommon", "rare", "ultra-rare")
-
-    val PRESET_LABELS = mapOf(
-        "natural" to "Natural",
-        "water" to "Water",
-        "lava" to "Lava",
-        "urban" to "Urban",
-        "wild" to "Wild",
-        "foliage" to "Foliage",
-        "treetop" to "Treetop",
-        "derelict" to "Derelict",
-        "redstone" to "Redstone",
-        "ancient_city" to "Ancient City",
-        "desert_pyramid" to "Desert Pyramid",
-        "end_city" to "End City",
-        "jungle_pyramid" to "Jungle Pyramid",
-        "mansion" to "Mansion",
-        "nether_fossil" to "Nether Fossil",
-        "nether_structures" to "Nether Structure",
-        "ocean_monument" to "Ocean Monument",
-        "ocean_ruins" to "Ocean Ruins",
-        "pillager_outpost" to "Pillager Outpost",
-        "stronghold" to "Stronghold",
-        "trail_ruins" to "Trail Ruins"
-    )
 
     fun bucketColor(bucket: String): Int =
         BUCKET_COLORS[bucket.lowercase()] ?: 0xFFAAAAAA.toInt()
 
-    fun bucketLabel(bucket: String): String =
-        BUCKET_LABELS[bucket.lowercase()] ?: titleCase(bucket)
+    fun bucketLabel(bucket: String): String = when (bucket.lowercase()) {
+        "common" -> tr("cobblemon-spawning-rei.bucket.common")
+        "uncommon" -> tr("cobblemon-spawning-rei.bucket.uncommon")
+        "rare" -> tr("cobblemon-spawning-rei.bucket.rare")
+        "ultra-rare" -> tr("cobblemon-spawning-rei.bucket.ultra_rare")
+        else -> titleCase(bucket)
+    }
 
     fun bucketSortOrder(bucket: String): Int =
         BUCKET_ORDER.indexOf(bucket.lowercase()).let { if (it < 0) 99 else it }
+
+    fun presetLabel(preset: String): String = when (preset.lowercase()) {
+        "natural" -> tr("cobblemon-spawning-rei.preset.natural")
+        "water" -> tr("cobblemon-spawning-rei.preset.water")
+        "lava" -> tr("cobblemon-spawning-rei.preset.lava")
+        "urban" -> tr("cobblemon-spawning-rei.preset.urban")
+        "wild" -> tr("cobblemon-spawning-rei.preset.wild")
+        "foliage" -> tr("cobblemon-spawning-rei.preset.foliage")
+        "treetop" -> tr("cobblemon-spawning-rei.preset.treetop")
+        "derelict" -> tr("cobblemon-spawning-rei.preset.derelict")
+        "redstone" -> tr("cobblemon-spawning-rei.preset.redstone")
+        "ancient_city" -> tr("cobblemon-spawning-rei.preset.ancient_city")
+        "desert_pyramid" -> tr("cobblemon-spawning-rei.preset.desert_pyramid")
+        "end_city" -> tr("cobblemon-spawning-rei.preset.end_city")
+        "jungle_pyramid" -> tr("cobblemon-spawning-rei.preset.jungle_pyramid")
+        "mansion" -> tr("cobblemon-spawning-rei.preset.mansion")
+        "nether_fossil" -> tr("cobblemon-spawning-rei.preset.nether_fossil")
+        "nether_structures" -> tr("cobblemon-spawning-rei.preset.nether_structures")
+        "ocean_monument" -> tr("cobblemon-spawning-rei.preset.ocean_monument")
+        "ocean_ruins" -> tr("cobblemon-spawning-rei.preset.ocean_ruins")
+        "pillager_outpost" -> tr("cobblemon-spawning-rei.preset.pillager_outpost")
+        "stronghold" -> tr("cobblemon-spawning-rei.preset.stronghold")
+        "trail_ruins" -> tr("cobblemon-spawning-rei.preset.trail_ruins")
+        else -> titleCase(preset)
+    }
 
     // --- Spawn merge ---
 
@@ -125,43 +124,44 @@ object SpawnDisplayHelper {
             }
             list.add("$icon${titleCase(it)}")
         }
-        val weather = spawn.weather.displayText
-        if (weather != "Any") {
-            val icon = when (weather) {
-                "Thunder" -> "\u26A1 "
-                "Rain" -> "\u2602 "
-                "Clear" -> "\u2600 "
+        val weatherData = spawn.weather
+        val weatherText = weatherData.displayText
+        if (weatherData.isRaining != null || weatherData.isThundering != null) {
+            val icon = when {
+                weatherData.isThundering == true -> "\u26A1 "
+                weatherData.isRaining == true -> "\u2602 "
+                weatherData.isRaining == false -> "\u2600 "
                 else -> ""
             }
-            list.add("$icon$weather")
+            list.add("$icon$weatherText")
         }
-        if (spawn.canSeeSky == true) list.add("Open sky")
-        if (spawn.canSeeSky == false) list.add("Underground")
+        if (spawn.canSeeSky == true) list.add(tr("cobblemon-spawning-rei.spawn.cond.open_sky"))
+        if (spawn.canSeeSky == false) list.add(tr("cobblemon-spawning-rei.spawn.cond.underground"))
         if (spawn.minSkyLight != null || spawn.maxSkyLight != null) {
             val min = spawn.minSkyLight ?: 0
             val max = spawn.maxSkyLight ?: 15
             when {
-                min == 0 && max <= 7 -> list.add("Dark (sky light \u2264$max)")
-                min >= 8 -> list.add("Bright (sky light \u2265$min)")
-                else -> list.add("Sky light $min\u2013$max")
+                min == 0 && max <= 7 -> list.add(tr("cobblemon-spawning-rei.spawn.cond.dark", max))
+                min >= 8 -> list.add(tr("cobblemon-spawning-rei.spawn.cond.bright", min))
+                else -> list.add(tr("cobblemon-spawning-rei.spawn.cond.sky_light_range", min, max))
             }
         }
         if (spawn.minLight != null || spawn.maxLight != null) {
             val min = spawn.minLight ?: 0
             val max = spawn.maxLight ?: 15
-            if (max == 0) list.add("No light") else list.add("Light $min\u2013$max")
+            if (max == 0) list.add(tr("cobblemon-spawning-rei.spawn.cond.no_light")) else list.add(tr("cobblemon-spawning-rei.spawn.cond.light_range", min, max))
         }
         if (spawn.minY != null || spawn.maxY != null) {
             when {
-                spawn.minY != null && spawn.maxY != null -> list.add("Y: ${spawn.minY} to ${spawn.maxY}")
-                spawn.minY != null -> list.add("Y \u2265 ${spawn.minY}")
-                spawn.maxY != null -> list.add("Y \u2264 ${spawn.maxY}")
+                spawn.minY != null && spawn.maxY != null -> list.add(tr("cobblemon-spawning-rei.spawn.cond.y_range", spawn.minY!!, spawn.maxY!!))
+                spawn.minY != null -> list.add(tr("cobblemon-spawning-rei.spawn.cond.y_min", spawn.minY!!))
+                spawn.maxY != null -> list.add(tr("cobblemon-spawning-rei.spawn.cond.y_max", spawn.maxY!!))
             }
         }
-        spawn.moonPhase?.let { list.add("Moon: ${titleCase(it)}") }
+        spawn.moonPhase?.let { list.add(tr("cobblemon-spawning-rei.spawn.cond.moon", titleCase(it))) }
         if (spawn.isFishing) {
             val lure = spawn.minLureLevel
-            if (lure != null && lure > 0) list.add("Fishing (Lure $lure+)") else list.add("Fishing")
+            if (lure != null && lure > 0) list.add(tr("cobblemon-spawning-rei.spawn.cond.fishing_lure", lure)) else list.add(tr("cobblemon-spawning-rei.spawn.cond.fishing"))
         }
         return list
     }
@@ -170,28 +170,28 @@ object SpawnDisplayHelper {
         val list = mutableListOf<String>()
         val structNames = spawn.structures.map { formatId(it) }.toSet()
         if (structNames.isNotEmpty()) {
-            list.add("Structure: ${structNames.joinToString(", ")}")
+            list.add(tr("cobblemon-spawning-rei.spawn.special.structure", structNames.joinToString(", ")))
         }
         if (spawn.dimensions.isNotEmpty()) {
-            list.add("Dimension: ${spawn.dimensions.joinToString(", ") { formatDimension(it) }}")
+            list.add(tr("cobblemon-spawning-rei.spawn.special.dimension", spawn.dimensions.joinToString(", ") { formatDimension(it) }))
         }
         spawn.fluid?.let {
             val name = when {
-                it.contains("water") -> "Water"
-                it.contains("lava") -> "Lava"
+                it.contains("water") -> tr("cobblemon-spawning-rei.fluid.water")
+                it.contains("lava") -> tr("cobblemon-spawning-rei.fluid.lava")
                 else -> formatId(it)
             }
-            list.add("In fluid: $name")
+            list.add(tr("cobblemon-spawning-rei.spawn.special.in_fluid", name))
         }
         if (spawn.neededBaseBlocks.isNotEmpty()) {
             val names = spawn.neededBaseBlocks.map { formatId(it) }
             val redundant = structNames.isNotEmpty() && names.all { it.lowercase().contains("structure") }
-            if (!redundant) list.add("Spawns on: ${names.joinToString(", ")}")
+            if (!redundant) list.add(tr("cobblemon-spawning-rei.spawn.special.spawns_on", names.joinToString(", ")))
         }
         if (spawn.neededNearbyBlocks.isNotEmpty()) {
             val names = spawn.neededNearbyBlocks.map { formatId(it) }
             val redundant = structNames.isNotEmpty() && names.all { it.lowercase().contains("structure") }
-            if (!redundant) list.add("Near: ${names.joinToString(", ")}")
+            if (!redundant) list.add(tr("cobblemon-spawning-rei.spawn.special.near", names.joinToString(", ")))
         }
         return list
     }
@@ -199,14 +199,14 @@ object SpawnDisplayHelper {
     fun buildExclusionLines(anti: SpawnAntiCondition): List<String> {
         val lines = mutableListOf<String>()
         if (anti.biomes.isNotEmpty()) {
-            lines.add("Biomes: ${anti.biomes.map { formatBiomeName(it) }.joinToString(", ")}")
+            lines.add(tr("cobblemon-spawning-rei.spawn.excluded.biomes", anti.biomes.map { formatBiomeName(it) }.joinToString(", ")))
         }
         if (anti.structures.isNotEmpty()) {
-            lines.add("Structures: ${anti.structures.map { formatId(it) }.joinToString(", ")}")
+            lines.add(tr("cobblemon-spawning-rei.spawn.excluded.structures", anti.structures.map { formatId(it) }.joinToString(", ")))
         }
         if (anti.minY != null || anti.maxY != null) {
             val r = listOfNotNull(anti.minY?.let { "Y \u2265 $it" }, anti.maxY?.let { "Y \u2264 $it" })
-            lines.add("Height: ${r.joinToString(", ")}")
+            lines.add(tr("cobblemon-spawning-rei.spawn.excluded.height", r.joinToString(", ")))
         }
         return lines
     }
@@ -217,9 +217,9 @@ object SpawnDisplayHelper {
         if (weight == weight.toLong().toFloat()) weight.toLong().toString() else "%.1f".format(weight)
 
     fun formatDimension(dim: String): String = when (dim.lowercase()) {
-        "minecraft:overworld" -> "Overworld"
-        "minecraft:the_nether" -> "Nether"
-        "minecraft:the_end" -> "The End"
+        "minecraft:overworld" -> tr("cobblemon-spawning-rei.dimension.overworld")
+        "minecraft:the_nether" -> tr("cobblemon-spawning-rei.dimension.nether")
+        "minecraft:the_end" -> tr("cobblemon-spawning-rei.dimension.the_end")
         else -> formatId(dim)
     }
 
@@ -315,12 +315,12 @@ object SpawnDisplayHelper {
         val parts = mutableListOf<String>()
         if (spawn.context != "grounded") parts.add(spawn.displayContext)
         if (spawn.presets.isNotEmpty()) {
-            parts.add(spawn.presets.mapNotNull { PRESET_LABELS[it] ?: titleCase(it) }.joinToString(", "))
+            parts.add(spawn.presets.map { presetLabel(it) }.joinToString(", "))
         }
         if (mergedFormVariants.isNotEmpty()) {
-            parts.add("Forms: ${mergedFormVariants.joinToString(", ")}")
+            parts.add(tr("cobblemon-spawning-rei.spawn.forms", mergedFormVariants.joinToString(", ")))
         } else if (spawn.hasFormVariant) {
-            parts.add("Form: ${formatFormAspects(spawn.formAspects)}")
+            parts.add(tr("cobblemon-spawning-rei.spawn.form", formatFormAspects(spawn.formAspects)))
         }
         return parts
     }
@@ -332,7 +332,7 @@ object SpawnDisplayHelper {
         lines.add(Component.literal(displayName))
         val species = PokemonItemCache.resolveSpecies(speciesName)
         if (species != null) {
-            lines.add(Component.literal("§7#${species.nationalPokedexNumber}"))
+            lines.add(Component.literal("§7" + tr("cobblemon-spawning-rei.tooltip.pokedex_number", species.nationalPokedexNumber)))
         }
         val info = SpawnDataIndex.getSpeciesInfo(speciesName)
         if (info != null) {
@@ -342,17 +342,17 @@ object SpawnDisplayHelper {
                 info.secondaryType?.let { append(" §7/ §e${titleCase(it)}") }
             }
             lines.add(Component.literal(typeStr))
-            lines.add(Component.literal("§7Catch Rate: ${info.catchRate}"))
+            lines.add(Component.literal("§7" + tr("cobblemon-spawning-rei.tooltip.catch_rate", info.catchRate)))
         }
         val spawns = SpawnDataIndex.getSpawnsFor(speciesName)
         if (spawns.isNotEmpty()) {
             // Count actual display entries (deduped and sorted - matches what RecipeBuilder returns)
             val displayCount = buildSortedSpawns(spawns).size
-            lines.add(Component.literal("§a$displayCount spawn location(s)"))
+            lines.add(Component.literal("§a" + tr("cobblemon-spawning-rei.tooltip.spawn_count", displayCount)))
         }
         val obtainments = SpawnDataIndex.getObtainmentFor(speciesName)
         if (obtainments.isNotEmpty()) {
-            lines.add(Component.literal("§d${obtainments.size} special obtainment(s)"))
+            lines.add(Component.literal("§d" + tr("cobblemon-spawning-rei.tooltip.obtainment_count", obtainments.size)))
         }
         return lines
     }
@@ -379,7 +379,7 @@ object SpawnDisplayHelper {
 
         graphics.drawString(font, formatSpeciesName(speciesName), padding + 22, 6, 0xFFFFFF, false)
 
-        val lvText = "Lv. ${spawn.levelRange}"
+        val lvText = levelText(spawn.levelRange)
         val bucketText = bucketLabel(spawn.bucket)
         val bucketWidth = font.width(bucketText)
         graphics.drawString(font, lvText, padding, 22, 0x0099FF, false)
@@ -391,7 +391,7 @@ object SpawnDisplayHelper {
         val ctxParts = buildContextParts(spawn, mergedFormVariants)
         val showWeights = CobblemonSpawningConfig.get().showSpawnWeights && spawn.weight > 0f
         if (showWeights) {
-            val wtText = "Wt: ${formatWeight(spawn.weight)}"
+            val wtText = weightText(spawn.weight)
             val wtWidth = font.width(wtText)
             graphics.drawString(font, wtText, right - wtWidth, y, 0xBBBBBB, false)
             if (ctxParts.isNotEmpty()) {
@@ -415,7 +415,7 @@ object SpawnDisplayHelper {
 
         val biomeNames = spawn.biomes.map { formatBiomeName(it) }
         if (biomeNames.isNotEmpty()) {
-            val header = if (biomeNames.size > 1) "\u2302 Biomes (any of)" else "\u2302 Biome"
+            val header = if (biomeNames.size > 1) tr("cobblemon-spawning-rei.spawn.section.biomes") else tr("cobblemon-spawning-rei.spawn.section.biome")
             graphics.drawString(font, header, padding, y, 0xEEEEEE, false)
             y += lineHeight
             for (line in wrapToWidth(font, biomeNames.joinToString(", "), indentWidth)) {
@@ -427,7 +427,7 @@ object SpawnDisplayHelper {
 
         val conditions = buildConditions(spawn)
         if (conditions.isNotEmpty()) {
-            graphics.drawString(font, "\u2699 Conditions", padding, y, 0xEEEEEE, false)
+            graphics.drawString(font, tr("cobblemon-spawning-rei.spawn.section.conditions"), padding, y, 0xEEEEEE, false)
             y += lineHeight
             for (cond in conditions) {
                 for (line in wrapText(font, cond, indentWidth)) {
@@ -440,7 +440,7 @@ object SpawnDisplayHelper {
 
         val specials = buildSpecials(spawn)
         if (specials.isNotEmpty()) {
-            graphics.drawString(font, "\u2605 Location", padding, y, 0xEEEEEE, false)
+            graphics.drawString(font, tr("cobblemon-spawning-rei.spawn.section.location"), padding, y, 0xEEEEEE, false)
             y += lineHeight
             for (s in specials) {
                 for (line in wrapText(font, s, indentWidth)) {
@@ -455,7 +455,7 @@ object SpawnDisplayHelper {
         if (anti != null && !anti.isEmpty) {
             val exLines = buildExclusionLines(anti)
             if (exLines.isNotEmpty()) {
-                graphics.drawString(font, "\u2718 Excluded", padding, y, 0xFF7777, false)
+                graphics.drawString(font, tr("cobblemon-spawning-rei.spawn.section.excluded"), padding, y, 0xFF7777, false)
                 y += lineHeight
                 for (line in exLines) {
                     for (wrapped in wrapText(font, line, indentWidth)) {
@@ -468,7 +468,7 @@ object SpawnDisplayHelper {
         }
 
         if (CobblemonSpawningConfig.get().showSpawnWeights && spawn.weightMultipliers.isNotEmpty()) {
-            graphics.drawString(font, "\u25B2 Weight Modifiers", padding, y, 0xEEEEEE, false)
+            graphics.drawString(font, tr("cobblemon-spawning-rei.spawn.section.weight_mods"), padding, y, 0xEEEEEE, false)
             y += lineHeight
             for (wm in spawn.weightMultipliers) {
                 val arrow: String
@@ -526,7 +526,7 @@ object SpawnDisplayHelper {
         y += 4
 
         if (obtainment.items.isNotEmpty()) {
-            graphics.drawString(font, "\u2726 Required Items", padding, y, 0xEEEEEE, false)
+            graphics.drawString(font, tr("cobblemon-spawning-rei.obtainment.required_items"), padding, y, 0xEEEEEE, false)
             y += lineHeight
             for (item in obtainment.displayItems) {
                 for (line in wrapText(font, "\u2022 $item", indentWidth)) {
@@ -538,22 +538,22 @@ object SpawnDisplayHelper {
         }
 
         if (obtainment.displayBlock != null || obtainment.displayStructure != null || obtainment.displayDimension != null) {
-            graphics.drawString(font, "\u2605 Location", padding, y, 0xEEEEEE, false)
+            graphics.drawString(font, tr("cobblemon-spawning-rei.spawn.section.location"), padding, y, 0xEEEEEE, false)
             y += lineHeight
             obtainment.displayBlock?.let {
-                for (line in wrapText(font, "Use: $it", indentWidth)) {
+                for (line in wrapText(font, obtainmentUseText(it), indentWidth)) {
                     graphics.drawString(font, line, padding + 6, y, 0xDDDDDD, false)
                     y += lineHeight
                 }
             }
             obtainment.displayStructure?.let {
-                for (line in wrapText(font, "Structure: $it", indentWidth)) {
+                for (line in wrapText(font, obtainmentStructureText(it), indentWidth)) {
                     graphics.drawString(font, line, padding + 6, y, 0xDDDDDD, false)
                     y += lineHeight
                 }
             }
             obtainment.displayDimension?.let {
-                for (line in wrapText(font, "Dimension: $it", indentWidth)) {
+                for (line in wrapText(font, obtainmentDimensionText(it), indentWidth)) {
                     graphics.drawString(font, line, padding + 6, y, 0xDDDDDD, false)
                     y += lineHeight
                 }
@@ -575,15 +575,10 @@ object SpawnDisplayHelper {
             graphics.drawString(font, "$entryIndex/$entryTotal", padding, y, 0xFFAA00, false)
         }
 
-        val sourceLabel = when (obtainment.source) {
-            "bundled" -> "Built-in"
-            "datapack" -> "Datapack"
-            "mod" -> "Mod"
-            else -> ""
-        }
-        if (sourceLabel.isNotEmpty()) {
-            val sw = font.width(sourceLabel)
-            graphics.drawString(font, sourceLabel, right - sw, y, 0xBBBBBB, false)
+        val srcLabel = sourceLabel(obtainment.source)
+        if (srcLabel.isNotEmpty()) {
+            val sw = font.width(srcLabel)
+            graphics.drawString(font, srcLabel, right - sw, y, 0xBBBBBB, false)
         }
     }
 
@@ -667,7 +662,7 @@ object SpawnDisplayHelper {
 
         if (branchTotal > 1) {
             contentY += 2
-            val branchText = "Evo $branchIndex/$branchTotal"
+            val branchText = evoBranchText(branchIndex, branchTotal)
             val bw = font.width(branchText)
             graphics.drawString(font, branchText, right - bw, contentY, 0x666666, false)
         }

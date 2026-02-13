@@ -434,18 +434,18 @@ object SpawnDataLoader {
     }
 
     private fun summarizeCondition(cond: JsonObject?): String {
-        if (cond == null) return "always"
+        if (cond == null) return tr("cobblemon-spawning-rei.weight.always")
         val parts = mutableListOf<String>()
-        cond.get("isThundering")?.asBoolean?.let { if (it) parts.add("thunderstorm") }
-        cond.get("isRaining")?.asBoolean?.let { if (it) parts.add("rain") }
+        cond.get("isThundering")?.asBoolean?.let { if (it) parts.add(tr("cobblemon-spawning-rei.weight.thunderstorm")) }
+        cond.get("isRaining")?.asBoolean?.let { if (it) parts.add(tr("cobblemon-spawning-rei.weight.rain")) }
         cond.get("timeRange")?.asString?.let { parts.add(it) }
         cond.getAsJsonArray("biomes")?.let { arr ->
             val names = arr.map { formatId(it.asString) }
             if (names.size <= 3) parts.add(names.joinToString(", "))
-            else parts.add("${names.take(2).joinToString(", ")} +${names.size - 2} more")
+            else parts.add("${names.take(2).joinToString(", ")} " + tr("cobblemon-spawning-rei.weight.and_more", names.size - 2))
         }
-        cond.get("minLureLevel")?.asInt?.let { parts.add("lure $it+") }
-        return if (parts.isEmpty()) "conditional" else parts.joinToString(", ")
+        cond.get("minLureLevel")?.asInt?.let { parts.add(tr("cobblemon-spawning-rei.weight.lure", it)) }
+        return if (parts.isEmpty()) tr("cobblemon-spawning-rei.weight.conditional") else parts.joinToString(", ")
     }
 
     // --- Datapacks Scanning ---

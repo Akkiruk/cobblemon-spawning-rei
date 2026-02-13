@@ -37,7 +37,7 @@ class JeiSpawnCategory(guiHelper: IGuiHelper) : IRecipeCategory<JeiSpawnRecipe> 
     private val icon: IDrawable = guiHelper.createDrawableItemStack(ItemStack(Items.GRASS_BLOCK))
 
     override fun getRecipeType(): RecipeType<JeiSpawnRecipe> = RECIPE_TYPE
-    override fun getTitle(): Component = Component.literal("Spawn Locations")
+    override fun getTitle(): Component = Component.translatable("category.cobblemon-spawning-rei.spawn")
     override fun getBackground(): IDrawable = background
     override fun getWidth(): Int = DisplayLayout.getMaxSpawnSize().width
     override fun getHeight(): Int = DisplayLayout.getMaxSpawnSize().height

@@ -114,13 +114,13 @@ object DisplayLayout {
         val showWeights = CobblemonSpawningConfig.get().showSpawnWeights && spawn.weight > 0f
 
         val nameWidth = TEXT_START_X + font.width(formatSpeciesName(speciesName)) + PADDING
-        val lvText = "Lv. ${spawn.levelRange}"
+        val lvText = levelText(spawn.levelRange)
         val bucketText = SpawnDisplayHelper.bucketLabel(spawn.bucket)
         val lvBucketWidth = PADDING + font.width(lvText) + 6 + font.width(bucketText) + PADDING
 
         val ctxParts = SpawnDisplayHelper.buildContextParts(spawn, mergedFormVariants)
         val ctxText = ctxParts.joinToString(" \u00B7 ")
-        val wtText = if (showWeights) "Wt: ${SpawnDisplayHelper.formatWeight(spawn.weight)}" else ""
+        val wtText = if (showWeights) weightText(spawn.weight) else ""
         val ctxRowWidth = if (ctxText.isNotEmpty() || wtText.isNotEmpty()) {
             PADDING + 4 + font.width(ctxText) + (if (wtText.isNotEmpty()) 6 + font.width(wtText) else 0) + PADDING
         } else 0
@@ -281,9 +281,9 @@ object DisplayLayout {
 
         if (obtainment.displayBlock != null || obtainment.displayStructure != null || obtainment.displayDimension != null) {
             y += LINE_HEIGHT
-            obtainment.displayBlock?.let { y += SpawnDisplayHelper.wrapText(font, "Use: $it", indentWidth).size * LINE_HEIGHT }
-            obtainment.displayStructure?.let { y += SpawnDisplayHelper.wrapText(font, "Structure: $it", indentWidth).size * LINE_HEIGHT }
-            obtainment.displayDimension?.let { y += SpawnDisplayHelper.wrapText(font, "Dimension: $it", indentWidth).size * LINE_HEIGHT }
+            obtainment.displayBlock?.let { y += SpawnDisplayHelper.wrapText(font, obtainmentUseText(it), indentWidth).size * LINE_HEIGHT }
+            obtainment.displayStructure?.let { y += SpawnDisplayHelper.wrapText(font, obtainmentStructureText(it), indentWidth).size * LINE_HEIGHT }
+            obtainment.displayDimension?.let { y += SpawnDisplayHelper.wrapText(font, obtainmentDimensionText(it), indentWidth).size * LINE_HEIGHT }
             y += 4
         }
 

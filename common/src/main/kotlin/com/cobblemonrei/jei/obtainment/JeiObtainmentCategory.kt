@@ -37,7 +37,7 @@ class JeiObtainmentCategory(guiHelper: IGuiHelper) : IRecipeCategory<JeiObtainme
     private val icon: IDrawable = guiHelper.createDrawableItemStack(ItemStack(Items.NETHER_STAR))
 
     override fun getRecipeType(): RecipeType<JeiObtainmentRecipe> = RECIPE_TYPE
-    override fun getTitle(): Component = Component.literal("Special Obtainment")
+    override fun getTitle(): Component = Component.translatable("category.cobblemon-spawning-rei.obtainment")
     override fun getBackground(): IDrawable = background
     override fun getWidth(): Int = DisplayLayout.getMaxObtainmentSize().width
     override fun getHeight(): Int = DisplayLayout.getMaxObtainmentSize().height

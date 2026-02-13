@@ -41,15 +41,15 @@ data class EvolutionInfo(
                     .split(" ")
                     .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
                 when {
-                    variant.contains("item_interact") -> parts.add("Use $itemName")
-                    variant == "trade" -> parts.add("Trade with $itemName")
-                    variant.contains("block_click") -> parts.add("Click $itemName block")
-                    itemName.isNotBlank() -> parts.add("Use $itemName")
+                    variant.contains("item_interact") -> parts.add(tr("cobblemon-spawning-rei.evo.use_item_named", itemName))
+                    variant == "trade" -> parts.add(tr("cobblemon-spawning-rei.evo.trade_with", itemName))
+                    variant.contains("block_click") -> parts.add(tr("cobblemon-spawning-rei.evo.click_block", itemName))
+                    itemName.isNotBlank() -> parts.add(tr("cobblemon-spawning-rei.evo.use_item_named", itemName))
                 }
             }
 
             if (variant == "trade" && requiredContext == null) {
-                parts.add("Trade")
+                parts.add(tr("cobblemon-spawning-rei.evo.trade"))
             }
 
             for (req in requirements) {
@@ -58,10 +58,10 @@ data class EvolutionInfo(
 
             return if (parts.isEmpty()) {
                 when {
-                    variant.contains("level") -> "Level up"
-                    variant.contains("trade") -> "Trade"
-                    variant.contains("item") -> "Use item"
-                    else -> "Level up"
+                    variant.contains("level") -> tr("cobblemon-spawning-rei.evo.level_up")
+                    variant.contains("trade") -> tr("cobblemon-spawning-rei.evo.trade")
+                    variant.contains("item") -> tr("cobblemon-spawning-rei.evo.use_item")
+                    else -> tr("cobblemon-spawning-rei.evo.level_up")
                 }
             } else parts.joinToString(", ")
         }
@@ -73,8 +73,8 @@ data class EvolutionInfo(
                 val rawId = requiredContext.trim()
                 if (rawId.contains(":") && !rawId.contains("@") && rawId.length < 60) {
                     when {
-                        variant.contains("item_interact") -> items.add(EvolutionItemInfo(rawId, "Use"))
-                        variant.contains("block_click") -> items.add(EvolutionItemInfo(rawId, "Click"))
+                        variant.contains("item_interact") -> items.add(EvolutionItemInfo(rawId, tr("cobblemon-spawning-rei.evo.item.use")))
+                        variant.contains("block_click") -> items.add(EvolutionItemInfo(rawId, tr("cobblemon-spawning-rei.evo.item.click")))
                     }
                 }
             }
@@ -83,12 +83,12 @@ data class EvolutionInfo(
                     "held_item" -> {
                         val id = req.data["itemCondition"]?.toString()
                         if (id != null && id.contains(":") && !id.contains("@") && id.length < 60)
-                            items.add(EvolutionItemInfo(id, "Hold"))
+                            items.add(EvolutionItemInfo(id, tr("cobblemon-spawning-rei.evo.item.hold")))
                     }
                     "owner_holds_item" -> {
                         val id = req.data["itemCondition"]?.toString()
                         if (id != null && id.contains(":") && !id.contains("@") && id.length < 60)
-                            items.add(EvolutionItemInfo(id, "Player holds"))
+                            items.add(EvolutionItemInfo(id, tr("cobblemon-spawning-rei.evo.item.player_holds")))
                     }
                 }
             }
@@ -98,17 +98,17 @@ data class EvolutionInfo(
     val textOnlyRequirements: String
         get() {
             val parts = mutableListOf<String>()
-            if (variant == "trade") parts.add("Trade")
+            if (variant == "trade") parts.add(tr("cobblemon-spawning-rei.evo.trade"))
             for (req in requirements) {
                 if (req.variant == "held_item" || req.variant == "owner_holds_item") continue
                 parts.add(req.displayText)
             }
             if (parts.isEmpty() && itemRequirements.isEmpty()) {
                 when {
-                    variant.contains("level") -> parts.add("Level up")
-                    variant.contains("trade") -> parts.add("Trade")
-                    variant.contains("item") -> parts.add("Use item")
-                    else -> parts.add("Level up")
+                    variant.contains("level") -> parts.add(tr("cobblemon-spawning-rei.evo.level_up"))
+                    variant.contains("trade") -> parts.add(tr("cobblemon-spawning-rei.evo.trade"))
+                    variant.contains("item") -> parts.add(tr("cobblemon-spawning-rei.evo.use_item"))
+                    else -> parts.add(tr("cobblemon-spawning-rei.evo.level_up"))
                 }
             }
             return parts.joinToString(", ")
@@ -132,64 +132,64 @@ data class EvolutionRequirement(
         get() = when (variant) {
             "level" -> {
                 val min = (data["minLevel"] as? Number)?.toInt()
-                if (min != null && min > 0) "Lv. $min+" else "Level up"
+                if (min != null && min > 0) tr("cobblemon-spawning-rei.evo.level_min", min) else tr("cobblemon-spawning-rei.evo.level_up")
             }
             "friendship" -> {
                 val amount = (data["amount"] as? Number)?.toInt() ?: 160
-                "Friendship $amount+"
+                tr("cobblemon-spawning-rei.evo.friendship", amount)
             }
             "time_range" -> {
                 val range = cleanValue(data["range"])?.lowercase() ?: "time"
                 when (range) {
-                    "day" -> "Daytime"
-                    "night" -> "Nighttime"
-                    "dusk" -> "Dusk"
-                    "dawn" -> "Dawn"
-                    "twilight" -> "Twilight"
-                    "midnight" -> "Midnight"
-                    "time", "" -> "Time-based"
+                    "day" -> tr("cobblemon-spawning-rei.evo.time.daytime")
+                    "night" -> tr("cobblemon-spawning-rei.evo.time.nighttime")
+                    "dusk" -> tr("cobblemon-spawning-rei.evo.time.dusk")
+                    "dawn" -> tr("cobblemon-spawning-rei.evo.time.dawn")
+                    "twilight" -> tr("cobblemon-spawning-rei.evo.time.twilight")
+                    "midnight" -> tr("cobblemon-spawning-rei.evo.time.midnight")
+                    "time", "" -> tr("cobblemon-spawning-rei.evo.time.time_based")
                     else -> titleCase(range)
                 }
             }
             "held_item" -> {
                 val item = formatItemName(cleanValue(data["itemCondition"]))
-                "Hold $item"
+                tr("cobblemon-spawning-rei.evo.hold", item)
             }
             "has_move_type", "move_type" -> {
                 val type = cleanValue(data["type"])?.let { titleCase(it) } ?: "type"
-                "Know $type move"
+                tr("cobblemon-spawning-rei.evo.know_type_move", type)
             }
             "move_set", "has_move" -> {
                 val move = formatMoveName(cleanValue(data["move"]))
-                "Know $move"
+                tr("cobblemon-spawning-rei.evo.know_move", move)
             }
             "biome" -> {
                 val biome = cleanValue(data["biomeCondition"])
                 val antibiome = cleanValue(data["biomeAnticondition"])
                 when {
-                    biome != null -> "In ${formatBiome(biome)}"
-                    antibiome != null -> "Not in ${formatBiome(antibiome)}"
-                    else -> "Biome-specific"
+                    biome != null -> tr("cobblemon-spawning-rei.evo.in_biome", formatBiome(biome))
+                    antibiome != null -> tr("cobblemon-spawning-rei.evo.not_in_biome", formatBiome(antibiome))
+                    else -> tr("cobblemon-spawning-rei.evo.biome_specific")
                 }
             }
             "structure" -> {
                 val struct = cleanValue(data["structureCondition"])
                 val antiStruct = cleanValue(data["structureAnticondition"])
                 when {
-                    struct != null -> "In ${formatStructure(struct)}"
-                    antiStruct != null -> "Not in ${formatStructure(antiStruct)}"
-                    else -> "Structure-specific"
+                    struct != null -> tr("cobblemon-spawning-rei.evo.in_structure", formatStructure(struct))
+                    antiStruct != null -> tr("cobblemon-spawning-rei.evo.not_in_structure", formatStructure(antiStruct))
+                    else -> tr("cobblemon-spawning-rei.evo.structure_specific")
                 }
             }
             "stat_compare" -> {
                 val high = cleanValue(data["highStat"])?.let { titleCase(it) } ?: "Stat"
                 val low = cleanValue(data["lowStat"])?.let { titleCase(it) } ?: "Stat"
-                "$high > $low"
+                tr("cobblemon-spawning-rei.evo.stat_higher", high, low)
             }
             "stat_equal" -> {
                 val s1 = cleanValue(data["statOne"])?.let { titleCase(it) } ?: "Stat"
                 val s2 = cleanValue(data["statTwo"])?.let { titleCase(it) } ?: "Stat"
-                "$s1 = $s2"
+                tr("cobblemon-spawning-rei.evo.stat_equal", s1, s2)
             }
             "pokemon_properties", "properties" -> {
                 val target = cleanValue(data["target"]) ?: ""
@@ -199,44 +199,44 @@ data class EvolutionRequirement(
                 val feature = cleanValue(data["feature"])?.let { titleCase(it) } ?: ""
                 val range = cleanValue(data["range"]) ?: ""
                 when {
-                    feature.isNotBlank() && range.isNotBlank() -> "$feature: $range"
+                    feature.isNotBlank() && range.isNotBlank() -> tr("cobblemon-spawning-rei.evo.feature_range", feature, range)
                     feature.isNotBlank() -> feature
-                    else -> "Special condition"
+                    else -> tr("cobblemon-spawning-rei.evo.special_condition")
                 }
             }
             "blocks_traveled" -> {
                 val amount = (data["amount"] as? Number)?.toInt()
-                if (amount != null) "Walk $amount blocks" else "Walk distance"
+                if (amount != null) tr("cobblemon-spawning-rei.evo.walk_blocks", amount) else tr("cobblemon-spawning-rei.evo.walk_distance")
             }
             "use_move" -> {
                 val move = formatMoveName(cleanValue(data["move"]))
                 val amount = (data["amount"] as? Number)?.toInt()
-                if (amount != null) "Use $move ${amount}x" else "Use $move"
+                if (amount != null) tr("cobblemon-spawning-rei.evo.use_move_times", move, amount) else tr("cobblemon-spawning-rei.evo.use_move", move)
             }
             "defeat" -> {
                 val target = cleanValue(data["target"]) ?: ""
                 val amount = (data["amount"] as? Number)?.toInt()
                 val targetName = target.split(" ").firstOrNull()?.let { titleCase(it) } ?: target
-                if (amount != null) "Defeat ${amount}x $targetName" else "Defeat $targetName"
+                if (amount != null) tr("cobblemon-spawning-rei.evo.defeat_count", amount, targetName) else tr("cobblemon-spawning-rei.evo.defeat", targetName)
             }
             "recoil" -> {
                 val amount = (data["amount"] as? Number)?.toInt()
-                if (amount != null) "$amount recoil damage" else "Recoil damage"
+                if (amount != null) tr("cobblemon-spawning-rei.evo.recoil_amount", amount) else tr("cobblemon-spawning-rei.evo.recoil")
             }
             "damage_taken" -> {
                 val amount = (data["amount"] as? Number)?.toInt()
-                if (amount != null) "Take $amount+ damage" else "Take damage"
+                if (amount != null) tr("cobblemon-spawning-rei.evo.damage_taken_amount", amount) else tr("cobblemon-spawning-rei.evo.damage_taken")
             }
             "battle_critical_hits" -> {
                 val amount = (data["amount"] as? Number)?.toInt()
-                if (amount != null) "$amount critical hits" else "Critical hits"
+                if (amount != null) tr("cobblemon-spawning-rei.evo.critical_hits_count", amount) else tr("cobblemon-spawning-rei.evo.critical_hits")
             }
             "party_member", "party" -> {
                 val target = cleanValue(data["target"])?.split(" ")?.firstOrNull()?.let { titleCase(it) }
                 val contains = data["contains"] as? Boolean ?: true
                 if (target != null && target.isNotBlank()) {
-                    if (contains) "$target in party" else "No $target in party"
-                } else "Party condition"
+                    if (contains) tr("cobblemon-spawning-rei.evo.party_has", target) else tr("cobblemon-spawning-rei.evo.party_no", target)
+                } else tr("cobblemon-spawning-rei.evo.party_condition")
             }
             "moon_phase" -> {
                 val phase = cleanValue(data["moonPhase"])?.let { titleCase(it) } ?: "Full Moon"
@@ -244,103 +244,103 @@ data class EvolutionRequirement(
             }
             "weather" -> {
                 val raining = data["isRaining"] as? Boolean
-                if (raining == true) "Raining" else "Clear weather"
+                if (raining == true) tr("cobblemon-spawning-rei.evo.raining") else tr("cobblemon-spawning-rei.evo.clear_weather")
             }
             "advancement" -> {
                 val adv = cleanValue(data["requiredAdvancement"])
                     ?.substringAfterLast("/")
                     ?.substringAfterLast(":")
                     ?.let { titleCase(it) }
-                adv ?: "Advancement"
+                adv ?: tr("cobblemon-spawning-rei.evo.advancement")
             }
             "world" -> {
                 val id = cleanValue(data["identifier"])?.substringAfterLast(":")
                     ?.let { titleCase(it) }
-                "In ${id ?: "dimension"}"
+                tr("cobblemon-spawning-rei.evo.in_dimension", id ?: "dimension")
             }
             "attack_defence_ratio" -> {
                 val ratio = cleanValue(data["ratio"])?.lowercase()
                 when (ratio) {
-                    "attack_higher" -> "Attack > Defense"
-                    "defence_higher", "defense_higher" -> "Defense > Attack"
-                    "equal" -> "Attack = Defense"
-                    else -> ratio?.let { titleCase(it) } ?: "Stat ratio"
+                    "attack_higher" -> tr("cobblemon-spawning-rei.evo.attack_gt_defense")
+                    "defence_higher", "defense_higher" -> tr("cobblemon-spawning-rei.evo.defense_gt_attack")
+                    "equal" -> tr("cobblemon-spawning-rei.evo.attack_eq_defense")
+                    else -> ratio?.let { titleCase(it) } ?: tr("cobblemon-spawning-rei.evo.stat_ratio")
                 }
             }
             "owner_holds_item" -> {
                 val item = formatItemName(cleanValue(data["itemCondition"]))
-                "Player holds $item"
+                tr("cobblemon-spawning-rei.evo.player_holds", item)
             }
             "gender" -> {
                 val gender = cleanValue(data["gender"])?.lowercase()
                 when (gender) {
-                    "male" -> "Male"
-                    "female" -> "Female"
-                    else -> gender?.let { titleCase(it) } ?: "Gender"
+                    "male" -> tr("cobblemon-spawning-rei.evo.male")
+                    "female" -> tr("cobblemon-spawning-rei.evo.female")
+                    else -> gender?.let { titleCase(it) } ?: tr("cobblemon-spawning-rei.evo.gender_condition")
                 }
             }
-            "shiny" -> "Shiny"
+            "shiny" -> tr("cobblemon-spawning-rei.evo.shiny")
             "nature" -> {
                 val nature = cleanValue(data["nature"])?.let { titleCase(it) }
-                if (nature != null) "$nature nature" else "Specific nature"
+                if (nature != null) tr("cobblemon-spawning-rei.evo.nature", nature) else tr("cobblemon-spawning-rei.evo.specific_nature")
             }
             "max_pokemon_level" -> {
                 val max = (data["maxLevel"] as? Number)?.toInt()
-                if (max != null) "Max Lv. $max" else "Level cap"
+                if (max != null) tr("cobblemon-spawning-rei.evo.max_level", max) else tr("cobblemon-spawning-rei.evo.level_cap")
             }
             "walking_steps" -> {
                 val amount = (data["amount"] as? Number)?.toInt()
-                if (amount != null) "Walk $amount steps" else "Walk distance"
+                if (amount != null) tr("cobblemon-spawning-rei.evo.walk_steps", amount) else tr("cobblemon-spawning-rei.evo.walk_distance")
             }
             "damage_dealt" -> {
                 val amount = (data["amount"] as? Number)?.toInt()
-                if (amount != null) "Deal $amount+ damage" else "Deal damage"
+                if (amount != null) tr("cobblemon-spawning-rei.evo.deal_damage_amount", amount) else tr("cobblemon-spawning-rei.evo.deal_damage")
             }
             "status" -> {
                 val status = cleanValue(data["status"])?.let { titleCase(it) }
-                status ?: "Status condition"
+                status ?: tr("cobblemon-spawning-rei.evo.status_condition")
             }
             else -> {
                 val fallback = titleCase(variant)
                 if (fallback.length > 40 || fallback.contains("@") || (fallback.contains(".") && fallback.length > 30))
-                    "Special condition"
+                    tr("cobblemon-spawning-rei.evo.special_condition")
                 else fallback
             }
         }
 
     private fun parsePropertiesTarget(target: String): String {
-        if (target.isBlank()) return "Special condition"
-        if (target.contains("@") || (target.contains(".") && target.length > 40)) return "Special condition"
+        if (target.isBlank()) return tr("cobblemon-spawning-rei.evo.special_condition")
+        if (target.contains("@") || (target.contains(".") && target.length > 40)) return tr("cobblemon-spawning-rei.evo.special_condition")
         val lower = target.lowercase().trim()
         return when {
-            lower == "male" || lower.contains("gender=male") -> "Male"
-            lower == "female" || lower.contains("gender=female") -> "Female"
+            lower == "male" || lower.contains("gender=male") -> tr("cobblemon-spawning-rei.evo.male")
+            lower == "female" || lower.contains("gender=female") -> tr("cobblemon-spawning-rei.evo.female")
             lower.contains("gender=") -> {
                 val g = lower.substringAfter("gender=").substringBefore(" ").replaceFirstChar { it.uppercase() }
-                g.ifBlank { "Gender condition" }
+                g.ifBlank { tr("cobblemon-spawning-rei.evo.gender_condition") }
             }
             lower.contains("form=") -> {
                 val form = lower.substringAfter("form=").substringBefore(" ").trim()
                     .replace("_", " ").split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
-                "Form: $form"
+                tr("cobblemon-spawning-rei.evo.form", form)
             }
             lower.contains("aspect=") -> {
                 val aspect = lower.substringAfter("aspect=").substringBefore(" ").trim()
                     .replace("_", " ").split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
-                "Form: $aspect"
+                tr("cobblemon-spawning-rei.evo.form", aspect)
             }
-            lower.contains("shiny") -> "Shiny"
+            lower.contains("shiny") -> tr("cobblemon-spawning-rei.evo.shiny")
             lower.contains("region_bias=") -> {
                 val region = lower.substringAfter("region_bias=").substringBefore(" ")
                     .replace("_", " ").split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
-                "Region: $region"
+                tr("cobblemon-spawning-rei.evo.region", region)
             }
             lower.contains("type=") -> {
                 val type = lower.substringAfter("type=").substringBefore(" ").replaceFirstChar { it.uppercase() }
-                "$type type"
+                tr("cobblemon-spawning-rei.evo.type", type)
             }
             target.length <= 30 -> titleCase(target)
-            else -> "Special condition"
+            else -> tr("cobblemon-spawning-rei.evo.special_condition")
         }
     }
 

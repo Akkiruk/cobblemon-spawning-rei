@@ -2,6 +2,19 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.18.0] - 2026-02-12
+
+### Added
+- Complete localization system with ~190 translation keys
+- All user-facing text now goes through Minecraft's language system
+- Resource pack authors can override any string via lang files
+- Shared measurement/rendering text helpers to maintain panel sizing integrity
+
+### Changed
+- Category titles, spawn conditions, evolution requirements, obtainment methods, and diagnostic commands all use translatable strings
+- Bucket labels, preset labels, and dimension names pulled from lang file
+- Weather condition checks use data properties instead of comparing translated strings
+
 ## [1.17.1] - 2026-02-11
 
 ### Fixed

@@ -19,7 +19,7 @@ object DiagnosticService {
         val index = SpawnDataIndex
         
         if (!index.hasData()) {
-            sender.send("§cNo data loaded yet. Try again in a few seconds.")
+            sender.send(tr("cobblemon-spawning-rei.cmd.no_data"))
             return 0
         }
         
@@ -29,15 +29,15 @@ object DiagnosticService {
         val withObtainment = index.obtainmentBySpecies.keys
         val withDex = index.speciesInfo.count { it.value.nationalDexNumber > 0 }
         
-        sender.send("§6=== Cobblemon Spawning REI Stats ===")
-        sender.send("§7Total species: §f${allSpecies.size}")
-        sender.send("§7With National Dex #: §f$withDex")
-        sender.send("§7With spawn data: §a${withSpawns.size} §7(§c${allSpecies.size - withSpawns.size}§7 missing)")
-        sender.send("§7With evolution data: §a${withEvolutions.size}")
-        sender.send("§7With obtainment data: §a${withObtainment.size}")
-        sender.send("§7Data source: §f${index.dataSource.name}")
-        sender.send("§7Load state: §f${index.loadState.name}")
-        sender.send("§oUse /spawningrei dump for full report§r")
+        sender.send(tr("cobblemon-spawning-rei.cmd.stats_header"))
+        sender.send(tr("cobblemon-spawning-rei.cmd.total_species", allSpecies.size))
+        sender.send(tr("cobblemon-spawning-rei.cmd.with_dex", withDex))
+        sender.send(tr("cobblemon-spawning-rei.cmd.with_spawns", withSpawns.size, allSpecies.size - withSpawns.size))
+        sender.send(tr("cobblemon-spawning-rei.cmd.with_evolutions", withEvolutions.size))
+        sender.send(tr("cobblemon-spawning-rei.cmd.with_obtainment", withObtainment.size))
+        sender.send(tr("cobblemon-spawning-rei.cmd.data_source", index.dataSource.name))
+        sender.send(tr("cobblemon-spawning-rei.cmd.load_state", index.loadState.name))
+        sender.send(tr("cobblemon-spawning-rei.cmd.dump_hint"))
         
         return 1
     }
@@ -46,7 +46,7 @@ object DiagnosticService {
         val index = SpawnDataIndex
         
         if (!index.hasData()) {
-            sender.send("§cNo data loaded yet.")
+            sender.send(tr("cobblemon-spawning-rei.cmd.no_data_short"))
             return 0
         }
         
@@ -59,25 +59,25 @@ object DiagnosticService {
             .keys
             .sorted()
         
-        sender.send("§6=== Official Pokémon Missing Spawn & Obtainment Data ===")
+        sender.send(tr("cobblemon-spawning-rei.cmd.missing_header"))
         
         if (officialMissingBoth.isEmpty()) {
-            sender.send("§aAll official Pokémon have spawn or obtainment data!")
+            sender.send(tr("cobblemon-spawning-rei.cmd.all_have_data"))
         } else {
-            sender.send("§c${officialMissingBoth.size} Pokémon missing both spawn and obtainment:")
+            sender.send(tr("cobblemon-spawning-rei.cmd.missing_count", officialMissingBoth.size))
             val preview = officialMissingBoth.take(20).joinToString(", ")
-            val suffix = if (officialMissingBoth.size > 20) " ... and ${officialMissingBoth.size - 20} more" else ""
+            val suffix = if (officialMissingBoth.size > 20) tr("cobblemon-spawning-rei.cmd.and_more", officialMissingBoth.size - 20) else ""
             sender.send("§7$preview$suffix")
         }
         
-        sender.send("§oUse /spawningrei dump for complete list§r")
+        sender.send(tr("cobblemon-spawning-rei.cmd.dump_hint_complete"))
         return 1
     }
     
     fun reloadData(sender: MessageSender): Int {
-        sender.send("§6Reloading spawn data...")
+        sender.send(tr("cobblemon-spawning-rei.cmd.reloading"))
         SpawnDataIndex.loadAll()
-        sender.send("§aReload complete. ${SpawnDataIndex.allSpeciesNames.size} species loaded.")
+        sender.send(tr("cobblemon-spawning-rei.cmd.reload_complete", SpawnDataIndex.allSpeciesNames.size))
         return 1
     }
     
@@ -85,7 +85,7 @@ object DiagnosticService {
         val index = SpawnDataIndex
         
         if (!index.hasData()) {
-            sender.send("§cNo data loaded yet.")
+            sender.send(tr("cobblemon-spawning-rei.cmd.no_data_short"))
             return 0
         }
         
@@ -93,11 +93,11 @@ object DiagnosticService {
             val report = buildDiagnosticReport()
             val outputFile = writeDiagnosticFile(report)
             
-            sender.send("§aDiagnostic report written to:")
+            sender.send(tr("cobblemon-spawning-rei.cmd.report_written"))
             sender.send("§7$outputFile")
-            sender.send("§7Total lines: ${report.lines().size}")
+            sender.send(tr("cobblemon-spawning-rei.cmd.total_lines", report.lines().size))
         } catch (e: Exception) {
-            sender.send("§cFailed to write report: ${e.message}")
+            sender.send(tr("cobblemon-spawning-rei.cmd.report_failed", e.message ?: "unknown"))
             DebugLog.warn("Diagnostic dump failed: ${e.message}")
             return 0
         }
