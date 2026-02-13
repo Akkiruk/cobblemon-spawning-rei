@@ -2,6 +2,12 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.18.2] - 2026-02-12
+
+### Added
+- 27 new language files — mod now supports 28 languages total
+- Languages: English (US/UK/Pirate), German, Spanish (Spain/Mexico), French (France/Canada), Italian, Portuguese (Brazil/Portugal), Dutch, Polish, Czech, Hungarian, Swedish, Turkish, Greek, Russian, Ukrainian, Japanese, Korean, Chinese (Simplified/Traditional/Hong Kong), Thai, Vietnamese, Esperanto
+
 ## [1.18.1] - 2026-02-12
 
 ### Fixed
