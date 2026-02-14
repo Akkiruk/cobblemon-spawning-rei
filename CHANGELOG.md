@@ -1,6 +1,16 @@
 # Changelog
 
-All notable changes to Cobblemon Spawning REI will be documented in this file.
+All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
+
+## [1.22.0] - 2026-02-13
+
+### Changed
+- **Rebranded from "Cobblemon Spawning REI" to "CobbleDex REI/EMI/JEI"** — reflects expanded scope as a full Pokédex companion
+- Mod ID changed to `cobbledex-rei-emi-jei` (Fabric) / `cobbledex_rei_emi_jei` (NeoForge)
+- Package renamed from `com.cobblemonrei` to `com.cobbledex`
+- Config file automatically migrates from `cobblemon-spawning-rei.json` to `cobbledex-rei-emi-jei.json`
+- Debug output folder renamed to `cobbledex-debug/`
+- All translation keys updated to `cobbledex-rei-emi-jei.*` prefix
 
 ## [1.21.0] - 2026-02-13
 
