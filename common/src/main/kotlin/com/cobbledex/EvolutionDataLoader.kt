@@ -35,27 +35,42 @@ object EvolutionDataLoader {
         var baseEvoCount = 0
         var formEvoCount = 0
 
+        var speciesWithEvoAccess = 0
+        var speciesEvoAccessFailed = 0
+
         for (species in implemented) {
             val baseName = species.name.lowercase()
 
-            for (evo in species.evolutions) {
-                try {
-                    val info = parseEvolution(baseName, null, evo)
-                    if (info != null) {
-                        result.getOrPut(baseName) { mutableListOf() }.add(info)
-                        baseEvoCount++
+            val baseEvos = try {
+                species.evolutions.also { speciesWithEvoAccess++ }
+            } catch (e: Exception) {
+                speciesEvoAccessFailed++
+                DebugLog.once("evo-access-$baseName") { "Cannot access evolutions for $baseName: ${e.message}" }
+                null
+            }
+
+            if (baseEvos != null) {
+                for (evo in baseEvos) {
+                    try {
+                        val info = parseEvolution(baseName, null, evo)
+                        if (info != null) {
+                            result.getOrPut(baseName) { mutableListOf() }.add(info)
+                            baseEvoCount++
+                        }
+                    } catch (e: Exception) {
+                        DebugLog.once("evo-parse-$baseName") { "Failed to parse base evolution: ${e.message}" }
                     }
-                } catch (e: Exception) {
-                    DebugLog.once("evo-parse-$baseName") { "Failed to parse base evolution: ${e.message}" }
                 }
             }
 
-            for (form in species.forms) {
-                if (form.evolutions.isEmpty()) continue
+            val forms = try { species.forms } catch (_: Exception) { emptyList() }
+            for (form in forms) {
+                val formEvos = try { form.evolutions } catch (_: Exception) { continue }
+                if (formEvos.isEmpty()) continue
                 val formAspects = form.aspects.toSet()
                 val formKey = buildFormKey(baseName, formAspects)
 
-                for (evo in form.evolutions) {
+                for (evo in formEvos) {
                     try {
                         val info = parseEvolution(baseName, formAspects, evo)
                         if (info != null) {
@@ -70,6 +85,10 @@ object EvolutionDataLoader {
                     }
                 }
             }
+        }
+
+        if (speciesEvoAccessFailed > 0) {
+            DebugLog.warn("Evolution access failed for $speciesEvoAccessFailed/$speciesWithEvoAccess species (evolutions may not be available client-side)")
         }
 
         DebugLog.info("Parsed $baseEvoCount base + $formEvoCount form evolutions")

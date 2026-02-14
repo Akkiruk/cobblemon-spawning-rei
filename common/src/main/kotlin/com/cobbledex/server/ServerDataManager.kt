@@ -36,13 +36,15 @@ object ServerDataManager {
     private val pendingSyncs = ConcurrentHashMap<UUID, SyncState>()
 
     fun onServerReady(server: MinecraftServer) {
-        if (!server.isDedicatedServer) return
-        loadAndCache(server)
+        if (server.isDedicatedServer) {
+            loadAndCache(server)
+        }
     }
 
     fun onPlayerJoin(player: ServerPlayer) {
         val server = player.server ?: return
-        if (!server.isDedicatedServer) return
+        // Skip sync for host player on integrated servers (they load locally)
+        if (!server.isDedicatedServer && server.isSingleplayerOwner(player.gameProfile)) return
         if (!dataLoaded) loadAndCache(server)
 
         // Send tiny fingerprint first — client compares with local data
@@ -62,7 +64,6 @@ object ServerDataManager {
     }
 
     fun onServerTick(server: MinecraftServer) {
-        if (!server.isDedicatedServer) return
         if (pendingSyncs.isEmpty()) return
 
         val toRemove = mutableListOf<UUID>()
@@ -115,7 +116,7 @@ object ServerDataManager {
     private fun loadAndCache(server: MinecraftServer) {
         try {
             val datapacksDir = server.getWorldPath(LevelResource.DATAPACK_DIR)
-            DebugLog.info("Loading spawn data on dedicated server (datapacks: $datapacksDir)")
+            DebugLog.info("Loading spawn data on server (datapacks: $datapacksDir)")
 
             val spawns = SpawnDataLoader.loadFromAllSources(datapacksDir)
 

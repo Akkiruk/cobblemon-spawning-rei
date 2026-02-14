@@ -23,7 +23,12 @@ object CobbleDexMod {
     }
 
     fun tickReloadCheck() {
-        if (SpawnDataIndex.isFullyLoaded()) return
+        val fullyLoaded = SpawnDataIndex.isFullyLoaded()
+        val hasEvolutions = SpawnDataIndex.evolutionsBySpecies.isNotEmpty()
+
+        // Stop retrying once fully loaded AND we have evolution data (or server data was applied)
+        if (fullyLoaded && (hasEvolutions || SpawnDataIndex.dataSource == SpawnDataIndex.DataSource.SERVER)) return
+
         reloadTickCounter++
         if (reloadTickCounter <= 2 || reloadTickCounter % 100 == 0) {
             SpawnDataIndex.ensureLoadedAsync()

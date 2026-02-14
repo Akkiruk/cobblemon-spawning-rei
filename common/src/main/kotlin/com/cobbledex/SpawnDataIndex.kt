@@ -61,6 +61,11 @@ object SpawnDataIndex {
     var dataVersion: Long = 0
         private set
 
+    /** Tracks local load attempts where species exist but evolutions are empty */
+    @Volatile
+    private var emptyEvoRetries = 0
+    private const val MAX_EMPTY_EVO_RETRIES = 5
+
     fun isFullyLoaded(): Boolean = loadState == LoadState.FULLY_LOADED
 
     fun hasData(): Boolean = allSpeciesNames.isNotEmpty()
@@ -178,7 +183,23 @@ object SpawnDataIndex {
 
         rebuildDerivedData()
 
-        loadState = if (runtimeCount > 0) LoadState.FULLY_LOADED else LoadState.PARTIAL
+        val hasEvolutions = evolutionsBySpecies.isNotEmpty()
+        loadState = when {
+            runtimeCount == 0 -> LoadState.PARTIAL
+            !hasEvolutions && emptyEvoRetries < MAX_EMPTY_EVO_RETRIES -> {
+                emptyEvoRetries++
+                DebugLog.info("Species loaded ($runtimeCount) but no evolutions found (attempt $emptyEvoRetries/$MAX_EMPTY_EVO_RETRIES) — staying PARTIAL for server sync or retry")
+                LoadState.PARTIAL
+            }
+            !hasEvolutions -> {
+                DebugLog.warn("Species loaded ($runtimeCount) but evolutions still empty after $MAX_EMPTY_EVO_RETRIES retries — accepting as final state")
+                LoadState.FULLY_LOADED
+            }
+            else -> {
+                emptyEvoRetries = 0
+                LoadState.FULLY_LOADED
+            }
+        }
         dataSource = DataSource.LOCAL
         dataVersion++
 

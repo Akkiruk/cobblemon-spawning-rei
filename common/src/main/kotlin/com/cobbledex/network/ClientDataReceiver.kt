@@ -27,8 +27,12 @@ object ClientDataReceiver {
     fun onHashReceived(payload: SpawnSyncHashPayload) {
         val serverFingerprint = payload.fingerprint
         val localFingerprint = SpawnDataIndex.computeFingerprint()
+        val localEvolutionCount = SpawnDataIndex.evolutionsBySpecies.size
 
-        if (serverFingerprint == localFingerprint) {
+        if (localEvolutionCount == 0) {
+            DebugLog.info("Local evolution data is empty — always accepting server sync (server=$serverFingerprint)")
+            ignoreServerData = false
+        } else if (serverFingerprint == localFingerprint) {
             DebugLog.info("Server fingerprint matches local data ($serverFingerprint) — skipping sync")
             ignoreServerData = true
         } else {

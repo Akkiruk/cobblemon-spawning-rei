@@ -2,6 +2,15 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.24.4] - 2026-02-14
+
+### Fixed
+- Evolutions and species data now properly sync to clients in multiplayer
+- Evolution loader no longer fails entirely when a single species access throws
+- Client stays receptive to server data when local evolution data is empty
+- LAN players now receive server data sync (previously only dedicated servers synced)
+- Packet drops are now logged for easier debugging
+
 ## [1.24.3] - 2026-02-14
 
 ### Fixed

@@ -20,6 +20,10 @@ object PlatformHelperImpl {
     fun sendPayloadToPlayer(player: ServerPlayer, payload: CustomPacketPayload) {
         if (ServerPlayNetworking.canSend(player, payload.type().id())) {
             ServerPlayNetworking.send(player, payload)
+        } else {
+            com.cobbledex.DebugLog.once("cantsend-${player.uuid}-${payload.type().id()}") {
+                "Cannot send ${payload.type().id()} to ${player.name.string} (client may not have mod installed)"
+            }
         }
     }
 }
