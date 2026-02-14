@@ -1,9 +1,17 @@
 package com.cobbledex
 
-import net.minecraft.client.resources.language.I18n
+/**
+ * Localization helper. All user-facing strings go through [tr].
+ * Falls back to the raw key if I18n is unavailable (e.g. accidentally loaded on a dedicated server).
+ */
+fun tr(key: String, vararg args: Any): String = try {
+    ClientI18n.get(key, *args)
+} catch (_: NoClassDefFoundError) { key }
 
-/** Localization helper. All user-facing strings go through [tr]. */
-fun tr(key: String, vararg args: Any): String = I18n.get(key, *args)
+private object ClientI18n {
+    fun get(key: String, vararg args: Any): String =
+        net.minecraft.client.resources.language.I18n.get(key, *args)
+}
 
 // --- Shared text producers (single source of truth for measurement + rendering) ---
 

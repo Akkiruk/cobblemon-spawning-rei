@@ -10,8 +10,12 @@ import net.neoforged.fml.loading.FMLEnvironment
 class CobbleDexNeoForge(modBus: IEventBus) {
     init {
         if (FMLEnvironment.dist == Dist.CLIENT) {
-            CobbleDexMod.init()
-            CobbleDexNeoForgeClient.register()
+            try {
+                CobbleDexMod.init()
+                CobbleDexNeoForgeClient.register()
+            } catch (e: Exception) {
+                CobbleDexMod.LOGGER.error("[CobbleDex] Client init failed: ${e.message}")
+            }
         }
     }
 }

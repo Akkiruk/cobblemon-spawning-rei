@@ -2,6 +2,13 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.24.9] - 2026-02-14
+
+### Fixed
+- Mod now gracefully does nothing if accidentally placed on a dedicated server instead of crashing
+- Translation system falls back to raw keys if client I18n is unavailable
+- NeoForge init wrapped in safety catch for unexpected server-side class loading
+
 ## [1.24.8] - 2026-02-14
 
 ### Changed
