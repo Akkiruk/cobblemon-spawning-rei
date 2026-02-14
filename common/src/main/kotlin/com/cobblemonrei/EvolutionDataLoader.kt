@@ -3,10 +3,13 @@ package com.cobblemonrei
 import com.cobblemon.mod.common.api.conditional.RegistryLikeCondition
 import com.cobblemon.mod.common.api.conditional.RegistryLikeIdentifierCondition
 import com.cobblemon.mod.common.api.conditional.RegistryLikeTagCondition
+import com.cobblemon.mod.common.api.drop.ItemDropEntry
 import com.cobblemon.mod.common.api.pokemon.PokemonProperties
 import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
 import com.cobblemon.mod.common.api.pokemon.evolution.ContextEvolution
 import com.cobblemon.mod.common.api.pokemon.evolution.Evolution
+import com.cobblemon.mod.common.api.pokemon.stats.Stats
+import com.cobblemon.mod.common.pokemon.abilities.HiddenAbility
 import com.cobblemon.mod.common.pokemon.evolution.variants.BlockClickEvolution
 import com.cobblemon.mod.common.pokemon.evolution.variants.ItemInteractionEvolution
 import com.cobblemon.mod.common.pokemon.evolution.variants.TradeEvolution
@@ -440,7 +443,21 @@ object EvolutionDataLoader {
         val secondaryType: String?,
         val catchRate: Int,
         val weight: Float,
-        val height: Float
+        val height: Float,
+        val baseStats: Map<String, Int>? = null,
+        val baseStatTotal: Int? = null,
+        val abilities: List<String>? = null,
+        val hiddenAbility: String? = null,
+        val eggGroups: List<String>? = null,
+        val labels: Set<String>? = null,
+        val preEvolution: String? = null,
+        val description: String? = null,
+        val drops: List<DropEntryInfo>? = null,
+        val maleRatio: Float? = null,
+        val eggCycles: Int? = null,
+        val experienceGroup: String? = null,
+        val baseExperienceYield: Int? = null,
+        val baseFriendship: Int? = null
     )
 
     fun loadSpeciesBasicInfoFromRuntime(): Map<String, SpeciesBasicInfo> {
@@ -453,10 +470,76 @@ object EvolutionDataLoader {
         if (implemented.isEmpty()) return emptyMap()
 
         val result = mutableMapOf<String, SpeciesBasicInfo>()
+        var dropSpeciesCount = 0
 
         for (species in implemented) {
             try {
                 val name = species.name.lowercase()
+                val form = species.standardForm
+
+                val stats = try {
+                    val statMap = mutableMapOf<String, Int>()
+                    for (stat in Stats.PERMANENT) {
+                        val value = form.baseStats[stat] ?: species.baseStats[stat] ?: 0
+                        statMap[stat.showdownId] = value
+                    }
+                    statMap.ifEmpty { null }
+                } catch (_: Exception) { null }
+
+                val bst = stats?.values?.sum()
+
+                val abilityNames = try {
+                    val common = mutableListOf<String>()
+                    var hidden: String? = null
+                    for (ability in form.abilities) {
+                        val abilityName = titleCase(ability.template.name)
+                        if (ability is HiddenAbility) {
+                            hidden = abilityName
+                        } else {
+                            common.add(abilityName)
+                        }
+                    }
+                    Pair(common.ifEmpty { null }, hidden)
+                } catch (_: Exception) { Pair(null, null) }
+
+                val eggGroups = try {
+                    val groups = form.eggGroups.ifEmpty { species.eggGroups }
+                    groups.map { it.showdownID }.ifEmpty { null }
+                } catch (_: Exception) { null }
+
+                val labels = try {
+                    species.labels.ifEmpty { null }
+                } catch (_: Exception) { null }
+
+                val preEvolution = try {
+                    species.preEvolution?.species?.name?.lowercase()
+                } catch (_: Exception) { null }
+
+                val description = try {
+                    species.pokedex.firstOrNull()
+                } catch (_: Exception) { null }
+
+                val drops = try {
+                    val entries = form.drops.entries
+                        .filterIsInstance<ItemDropEntry>()
+                        .map { entry ->
+                            DropEntryInfo(
+                                itemId = entry.item.toString(),
+                                percentage = entry.percentage,
+                                quantity = entry.quantity,
+                                quantityRange = entry.quantityRange?.let { "${it.first}-${it.last}" }
+                            )
+                        }
+                    if (entries.isNotEmpty()) dropSpeciesCount++
+                    entries.ifEmpty { null }
+                } catch (_: Exception) { null }
+
+                val maleRatio = try { species.maleRatio } catch (_: Exception) { null }
+                val eggCycles = try { species.eggCycles } catch (_: Exception) { null }
+                val expGroup = try { species.experienceGroup.name } catch (_: Exception) { null }
+                val baseExpYield = try { species.baseExperienceYield } catch (_: Exception) { null }
+                val friendship = try { species.baseFriendship } catch (_: Exception) { null }
+
                 result[name] = SpeciesBasicInfo(
                     name = name,
                     nationalDexNumber = species.nationalPokedexNumber,
@@ -464,14 +547,28 @@ object EvolutionDataLoader {
                     secondaryType = species.secondaryType?.name?.lowercase(),
                     catchRate = species.catchRate,
                     weight = species.weight,
-                    height = species.height
+                    height = species.height,
+                    baseStats = stats,
+                    baseStatTotal = bst,
+                    abilities = abilityNames.first,
+                    hiddenAbility = abilityNames.second,
+                    eggGroups = eggGroups,
+                    labels = labels,
+                    preEvolution = preEvolution,
+                    description = description,
+                    drops = drops,
+                    maleRatio = maleRatio,
+                    eggCycles = eggCycles,
+                    experienceGroup = expGroup,
+                    baseExperienceYield = baseExpYield,
+                    baseFriendship = friendship
                 )
             } catch (e: Exception) {
                 DebugLog.once("species-info-${species.name}") { "Failed to load species info for ${species.name}: ${e.message}" }
             }
         }
 
-        DebugLog.info("Loaded ${result.size} species from runtime API")
+        DebugLog.info("Loaded ${result.size} species from runtime API ($dropSpeciesCount with drops)")
         return result
     }
 }

@@ -6,6 +6,8 @@ import com.cobblemonrei.PokemonItemCache
 import com.cobblemonrei.RecipeBuilder
 import com.cobblemonrei.SpawnDataIndex
 import com.cobblemonrei.config.CobblemonSpawningConfig
+import com.cobblemonrei.jei.drops.JeiDropCategory
+import com.cobblemonrei.jei.drops.JeiDropRecipe
 import com.cobblemonrei.jei.evolution.JeiEvolutionCategory
 import com.cobblemonrei.jei.evolution.JeiEvolutionRecipe
 import com.cobblemonrei.jei.obtainment.JeiObtainmentCategory
@@ -41,6 +43,7 @@ open class CobblemonJEIPlugin : IModPlugin {
         registration.addRecipeCategories(JeiSpawnCategory(guiHelper))
         if (config.showEvolutions) registration.addRecipeCategories(JeiEvolutionCategory(guiHelper))
         if (config.showObtainment) registration.addRecipeCategories(JeiObtainmentCategory(guiHelper))
+        if (config.showDrops) registration.addRecipeCategories(JeiDropCategory(guiHelper))
         DebugLog.info("JEI: Categories registered")
     }
 
@@ -67,6 +70,12 @@ open class CobblemonJEIPlugin : IModPlugin {
             registration.addRecipes(JeiObtainmentCategory.RECIPE_TYPE, obtainRecipes)
             DebugLog.info("JEI: Registered ${obtainRecipes.size} obtainment recipes")
         }
+
+        if (config.showDrops) {
+            val dropRecipes = RecipeBuilder.buildAllDropRecipes().map { JeiDropRecipe(it) }
+            registration.addRecipes(JeiDropCategory.RECIPE_TYPE, dropRecipes)
+            DebugLog.info("JEI: Registered ${dropRecipes.size} drop recipes")
+        }
     }
 
     override fun registerRecipeCatalysts(registration: IRecipeCatalystRegistration) {
@@ -74,6 +83,7 @@ open class CobblemonJEIPlugin : IModPlugin {
         registration.addRecipeCatalyst(ItemStack(Items.GRASS_BLOCK), JeiSpawnCategory.RECIPE_TYPE)
         if (config.showEvolutions) registration.addRecipeCatalyst(ItemStack(Items.EXPERIENCE_BOTTLE), JeiEvolutionCategory.RECIPE_TYPE)
         if (config.showObtainment) registration.addRecipeCatalyst(ItemStack(Items.NETHER_STAR), JeiObtainmentCategory.RECIPE_TYPE)
+        if (config.showDrops) registration.addRecipeCatalyst(ItemStack(Items.DIAMOND), JeiDropCategory.RECIPE_TYPE)
     }
 }
 

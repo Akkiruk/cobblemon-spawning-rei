@@ -45,4 +45,21 @@ object RecipeBuilder {
             ObtainmentRecipeData(species, info, i + 1, obtainments.size)
         }
     }
+
+    fun buildAllDropRecipes(): List<DropRecipeData> {
+        val recipes = mutableListOf<DropRecipeData>()
+        for ((species, info) in SpawnDataIndex.speciesInfo) {
+            val drops = info.drops ?: continue
+            if (drops.isEmpty()) continue
+            recipes.add(DropRecipeData(species, drops))
+        }
+        return recipes
+    }
+
+    fun buildDropsFor(speciesName: String): List<DropRecipeData> {
+        val info = SpawnDataIndex.getSpeciesInfo(speciesName) ?: return emptyList()
+        val drops = info.drops ?: return emptyList()
+        if (drops.isEmpty()) return emptyList()
+        return listOf(DropRecipeData(speciesName, drops))
+    }
 }

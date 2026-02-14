@@ -22,12 +22,14 @@ object DisplayLayout {
     @Volatile private var cachedSpawnMax: PanelSize? = null
     @Volatile private var cachedEvolutionMax: PanelSize? = null
     @Volatile private var cachedObtainmentMax: PanelSize? = null
+    @Volatile private var cachedDropMax: PanelSize? = null
     @Volatile private var cachedDataVersion: Long = -1L
 
     fun invalidateCache() {
         cachedSpawnMax = null
         cachedEvolutionMax = null
         cachedObtainmentMax = null
+        cachedDropMax = null
         cachedDataVersion = -1L
     }
 
@@ -49,12 +51,19 @@ object DisplayLayout {
         return computeMaxObtainmentSize().also { cachedObtainmentMax = it }
     }
 
+    fun getMaxDropSize(): PanelSize {
+        checkCacheValidity()
+        cachedDropMax?.let { return it }
+        return computeMaxDropSize().also { cachedDropMax = it }
+    }
+
     private fun checkCacheValidity() {
         val ver = SpawnDataIndex.dataVersion
         if (ver != cachedDataVersion) {
             cachedSpawnMax = null
             cachedEvolutionMax = null
             cachedObtainmentMax = null
+            cachedDropMax = null
             cachedDataVersion = ver
         }
     }
@@ -292,6 +301,47 @@ object DisplayLayout {
         }
 
         y += 1 + 1 + 4 + font.lineHeight + PADDING
+
+        return PanelSize(width, y)
+    }
+
+    // --- Drop panel measurement ---
+
+    private fun computeMaxDropSize(): PanelSize {
+        if (!SpawnDataIndex.hasData()) return PanelSize(180, 120)
+        var maxW = MIN_WIDTH
+        var maxH = 80
+        for ((species, info) in SpawnDataIndex.speciesInfo) {
+            val drops = info.drops ?: continue
+            if (drops.isEmpty()) continue
+            val size = measureDropPanel(species, drops)
+            if (size.width > maxW) maxW = size.width
+            if (size.height > maxH) maxH = size.height
+        }
+        return PanelSize(maxW, maxH)
+    }
+
+    fun measureDropPanel(speciesName: String, drops: List<DropEntryInfo>): PanelSize {
+        val font = Minecraft.getInstance().font
+
+        val nameWidth = TEXT_START_X + font.width(formatSpeciesName(speciesName)) + PADDING
+        val headerTag = tr("category.cobblemon-spawning-rei.drops")
+        val headerWidth = nameWidth + 6 + font.width(headerTag) + PADDING
+
+        var maxItemRowWidth = 0
+        for (drop in drops) {
+            val itemName = SpawnDisplayHelper.resolveItemName(drop.itemId)
+            val rightText = "${drop.displayPercentage} \u00D7${drop.displayQuantity}"
+            val rowWidth = PADDING + 22 + font.width(itemName) + 8 + font.width(rightText) + PADDING
+            if (rowWidth > maxItemRowWidth) maxItemRowWidth = rowWidth
+        }
+
+        val width = maxOf(headerWidth, maxItemRowWidth, MIN_WIDTH).coerceAtMost(MAX_WIDTH)
+
+        // header (22px) + separator (1px) + gap (4px) + label header (12px) + drops + footer
+        var y = 22 + 1 + 4 + LINE_HEIGHT + 1
+        y += drops.size * ITEM_ROW_HEIGHT
+        y += 2 + 1 + 4 + font.lineHeight + PADDING
 
         return PanelSize(width, y)
     }

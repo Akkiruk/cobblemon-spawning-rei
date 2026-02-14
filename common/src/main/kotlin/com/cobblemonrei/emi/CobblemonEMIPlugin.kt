@@ -29,6 +29,10 @@ open class CobblemonEMIPlugin : EmiPlugin {
             ResourceLocation.fromNamespaceAndPath(CobblemonSpawningMod.MOD_ID, "emi_obtainment"),
             EmiStack.of(Items.NETHER_STAR)
         )
+        val DROP_CATEGORY = EmiRecipeCategory(
+            ResourceLocation.fromNamespaceAndPath(CobblemonSpawningMod.MOD_ID, "emi_drops"),
+            EmiStack.of(Items.DIAMOND)
+        )
     }
 
     override fun register(registry: EmiRegistry) {
@@ -46,6 +50,11 @@ open class CobblemonEMIPlugin : EmiPlugin {
         if (config.showObtainment) {
             registry.addCategory(OBTAINMENT_CATEGORY)
             registry.addWorkstation(OBTAINMENT_CATEGORY, EmiStack.of(Items.NETHER_STAR))
+        }
+
+        if (config.showDrops) {
+            registry.addCategory(DROP_CATEGORY)
+            registry.addWorkstation(DROP_CATEGORY, EmiStack.of(Items.DIAMOND))
         }
 
         var comparisonSet = false
@@ -82,6 +91,12 @@ open class CobblemonEMIPlugin : EmiPlugin {
             val obtainRecipes = RecipeBuilder.buildAllObtainmentRecipes().map { EmiObtainmentRecipe(it) }
             for (recipe in obtainRecipes) registry.addRecipe(recipe)
             DebugLog.info("EMI: Registered ${obtainRecipes.size} obtainment recipes")
+        }
+
+        if (config.showDrops) {
+            val dropRecipes = RecipeBuilder.buildAllDropRecipes().map { EmiDropRecipe(it) }
+            for (recipe in dropRecipes) registry.addRecipe(recipe)
+            DebugLog.info("EMI: Registered ${dropRecipes.size} drop recipes")
         }
     }
 

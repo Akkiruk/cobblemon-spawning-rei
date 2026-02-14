@@ -2,6 +2,7 @@
   "category.cobblemon-spawning-rei.spawn": "Spawn Locations",
   "category.cobblemon-spawning-rei.evolution": "Cobblemon Evolution",
   "category.cobblemon-spawning-rei.obtainment": "Special Obtainment",
+  "category.cobblemon-spawning-rei.drops": "Item Drops",
 
   "cobblemon-spawning-rei.context.land": "Land",
   "cobblemon-spawning-rei.context.underwater": "Underwater",
@@ -171,9 +172,16 @@
   "cobblemon-spawning-rei.dimension.the_end": "The End",
 
   "cobblemon-spawning-rei.tooltip.catch_rate": "Catch Rate: %d",
+  "cobblemon-spawning-rei.tooltip.bst": "BST: %d",
+  "cobblemon-spawning-rei.tooltip.egg_groups": "Egg Groups: %s",
   "cobblemon-spawning-rei.tooltip.spawn_count": "%d spawn location(s)",
+  "cobblemon-spawning-rei.tooltip.evolution_count": "%d evolution(s)",
+  "cobblemon-spawning-rei.tooltip.drop_count": "%d item drop(s)",
   "cobblemon-spawning-rei.tooltip.obtainment_count": "%d special obtainment(s)",
   "cobblemon-spawning-rei.tooltip.pokedex_number": "#%d",
+
+  "cobblemon-spawning-rei.drops.header": "\u25C6 Dropped Items",
+  "cobblemon-spawning-rei.drops.count": "%d item(s)",
 
   "cobblemon-spawning-rei.source.builtin": "Built-in",
   "cobblemon-spawning-rei.source.datapack": "Datapack",

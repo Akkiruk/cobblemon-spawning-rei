@@ -2,6 +2,15 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.19.0] - 2026-02-14
+
+### Added
+- Item Drops category — view what items each Pokémon drops when defeated (REI/JEI/EMI)
+- Enriched tooltips: BST, abilities (with hidden ability marked), egg groups, evolution count, drop count
+- Label badges in tooltips for Legendary, Mythical, Ultra Beast, and Paradox Pokémon
+- `showDrops` config option to toggle the Item Drops category
+- Species data now includes base stats, abilities, egg groups, labels, drops, and more
+
 ## [1.18.3] - 2026-02-13
 
 ### Fixed

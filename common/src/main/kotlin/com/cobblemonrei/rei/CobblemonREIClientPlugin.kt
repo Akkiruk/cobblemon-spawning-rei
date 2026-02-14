@@ -7,6 +7,8 @@ import com.cobblemonrei.RecipeBuilder
 import com.cobblemonrei.SpawnDataIndex
 import com.cobblemonrei.SpawnDisplayHelper
 import com.cobblemonrei.config.CobblemonSpawningConfig
+import com.cobblemonrei.rei.drops.DropCategory
+import com.cobblemonrei.rei.drops.DropDisplay
 import com.cobblemonrei.rei.entry.PokemonEntry
 import com.cobblemonrei.rei.entry.PokemonEntryDefinition
 import com.cobblemonrei.rei.entry.PokemonEntryType
@@ -67,7 +69,8 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
         registry.add(SpawnCategory())
         if (config.showEvolutions) registry.add(EvolutionCategory())
         if (config.showObtainment) registry.add(ObtainmentCategory())
-        DebugLog.info("REI categories registered (spawns${if (config.showEvolutions) " + evolution" else ""}${if (config.showObtainment) " + obtainment" else ""})")
+        if (config.showDrops) registry.add(DropCategory())
+        DebugLog.info("REI categories registered (spawns${if (config.showEvolutions) " + evolution" else ""}${if (config.showObtainment) " + obtainment" else ""}${if (config.showDrops) " + drops" else ""})")
     }
 
     override fun registerDisplays(registry: DisplayRegistry) {
@@ -79,6 +82,7 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
         registry.registerDisplayGenerator(SpawnCategory.ID, SpawnDisplayGenerator())
         if (config.showEvolutions) registry.registerDisplayGenerator(EvolutionCategory.ID, EvolutionDisplayGenerator())
         if (config.showObtainment) registry.registerDisplayGenerator(ObtainmentCategory.ID, ObtainmentDisplayGenerator())
+        if (config.showDrops) registry.registerDisplayGenerator(DropCategory.ID, DropDisplayGenerator())
 
         DebugLog.info("Registered dynamic display generators")
     }
@@ -202,6 +206,34 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
             cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
 
             val all = RecipeBuilder.buildAllObtainmentRecipes().map { ObtainmentDisplay(it) }
+            cachedDisplays = all
+            cachedVersion = version
+            return if (all.isEmpty()) Optional.empty() else Optional.of(all)
+        }
+    }
+
+    private inner class DropDisplayGenerator : DynamicDisplayGenerator<DropDisplay> {
+
+        @Volatile private var cachedVersion = -1L
+        @Volatile private var cachedDisplays: List<DropDisplay>? = null
+
+        override fun getRecipeFor(entry: EntryStack<*>): Optional<List<DropDisplay>> {
+            val value = entry.value ?: return Optional.empty()
+            if (value !is PokemonEntry) return Optional.empty()
+            val recipes = RecipeBuilder.buildDropsFor(value.species)
+            if (recipes.isEmpty()) return Optional.empty()
+            return Optional.of(recipes.map { DropDisplay(it) })
+        }
+
+        override fun getUsageFor(entry: EntryStack<*>): Optional<List<DropDisplay>> = Optional.empty()
+
+        override fun generate(builder: ViewSearchBuilder): Optional<List<DropDisplay>> {
+            if (builder.recipesFor.isNotEmpty() || builder.usagesFor.isNotEmpty()) return Optional.empty()
+            if (!SpawnDataIndex.hasData()) return Optional.empty()
+            val version = SpawnDataIndex.dataVersion
+            cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
+
+            val all = RecipeBuilder.buildAllDropRecipes().map { DropDisplay(it) }
             cachedDisplays = all
             cachedVersion = version
             return if (all.isEmpty()) Optional.empty() else Optional.of(all)

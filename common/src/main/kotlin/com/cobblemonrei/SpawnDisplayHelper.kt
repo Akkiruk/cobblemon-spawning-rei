@@ -340,13 +340,60 @@ object SpawnDisplayHelper {
                 info.secondaryType?.let { append(" §7/ §e${formatTypeName(it)}") }
             }
             lines.add(Component.literal(typeStr))
+
+            // Labels (Legendary, Mythical, etc.)
+            val labelBadges = info.labels?.filter {
+                it in setOf("legendary", "mythical", "ultra_beast", "paradox")
+            }
+            if (!labelBadges.isNullOrEmpty()) {
+                val badge = labelBadges.joinToString(", ") { "§d${titleCase(it.replace("_", " "))}" }
+                lines.add(Component.literal(badge))
+            }
+
             lines.add(Component.literal("§7" + tr("cobblemon-spawning-rei.tooltip.catch_rate", info.catchRate)))
+
+            // BST
+            info.baseStatTotal?.let { bst ->
+                lines.add(Component.literal("§7" + tr("cobblemon-spawning-rei.tooltip.bst", bst)))
+            }
+
+            // Abilities
+            val abilityText = buildString {
+                info.abilities?.let { abs ->
+                    append("§b")
+                    append(abs.joinToString(", "))
+                }
+                info.hiddenAbility?.let { ha ->
+                    if (isNotEmpty()) append(" §7| ")
+                    append("§3$ha §7(HA)")
+                }
+            }
+            if (abilityText.isNotEmpty()) {
+                lines.add(Component.literal(abilityText))
+            }
+
+            // Egg Groups
+            info.eggGroups?.let { groups ->
+                if (groups.isNotEmpty()) {
+                    lines.add(Component.literal("§7" + tr("cobblemon-spawning-rei.tooltip.egg_groups", groups.joinToString(", "))))
+                }
+            }
         }
         val spawns = SpawnDataIndex.getSpawnsFor(speciesName)
         if (spawns.isNotEmpty()) {
-            // Count actual display entries (deduped and sorted - matches what RecipeBuilder returns)
             val displayCount = buildSortedSpawns(spawns).size
             lines.add(Component.literal("§a" + tr("cobblemon-spawning-rei.tooltip.spawn_count", displayCount)))
+        }
+        val evosFrom = SpawnDataIndex.getEvolutionsFrom(speciesName)
+        val evosTo = SpawnDataIndex.getEvolutionsTo(speciesName)
+        val evoCount = evosFrom.size + evosTo.size
+        if (evoCount > 0) {
+            lines.add(Component.literal("§6" + tr("cobblemon-spawning-rei.tooltip.evolution_count", evoCount)))
+        }
+        // Drop count
+        val dropCount = info?.drops?.size ?: 0
+        if (dropCount > 0) {
+            lines.add(Component.literal("§b" + tr("cobblemon-spawning-rei.tooltip.drop_count", dropCount)))
         }
         val obtainments = SpawnDataIndex.getObtainmentFor(speciesName)
         if (obtainments.isNotEmpty()) {
@@ -598,6 +645,57 @@ object SpawnDisplayHelper {
         val name = if (itemId.contains(":")) itemId.substringAfter(":") else itemId
         return name.replace("_", " ").split(" ")
             .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+    }
+
+    // --- Drop detail rendering (shared between REI/JEI/EMI) ---
+
+    fun drawDropDetails(
+        graphics: GuiGraphics,
+        speciesName: String,
+        drops: List<DropEntryInfo>,
+        width: Int = 180,
+        height: Int = 150,
+        padding: Int = 6,
+        lineHeight: Int = 11
+    ) {
+        val font = Minecraft.getInstance().font
+        val right = width - padding
+
+        graphics.drawString(font, formatSpeciesName(speciesName), padding + 22, 6, 0xFFFFFF, false)
+
+        val headerText = tr("category.cobblemon-spawning-rei.drops")
+        val headerWidth = font.width(headerText)
+        graphics.drawString(font, headerText, right - headerWidth, 6, 0xDDCC99, false)
+
+        graphics.fill(padding, 20, right, 21, 0x50FFFFFF)
+
+        val labelHeader = tr("cobblemon-spawning-rei.drops.header")
+        graphics.drawString(font, labelHeader, padding, 26, 0xEEEEEE, false)
+
+        var y = 38
+
+        for (drop in drops) {
+            val itemName = resolveItemName(drop.itemId)
+            val qtyText = "\u00D7${drop.displayQuantity}"
+            val pctText = drop.displayPercentage
+
+            val nameX = padding + 22
+            val rightInfo = "$pctText $qtyText"
+            val rightInfoWidth = font.width(rightInfo)
+            val nameMaxWidth = right - nameX - rightInfoWidth - 4
+
+            val clippedName = clipToWidth(font, itemName, nameMaxWidth)
+            graphics.drawString(font, clippedName, nameX, y + 4, 0xFFFFFF, false)
+            graphics.drawString(font, rightInfo, right - rightInfoWidth, y + 4, 0xBBBBBB, false)
+
+            y += 20
+        }
+
+        y += 2
+        graphics.fill(padding, y, right, y + 1, 0x20FFFFFF)
+        y += 4
+        val countText = tr("cobblemon-spawning-rei.drops.count", drops.size)
+        graphics.drawString(font, countText, padding, y, 0x888888, false)
     }
 
     // --- Evolution text rendering (shared between REI/JEI/EMI) ---
