@@ -20,6 +20,12 @@ import com.cobbledex.jei.spawn.JeiSpawnCategory
 import com.cobbledex.jei.spawn.JeiSpawnRecipe
 import com.cobbledex.jei.stats.JeiStatsCategory
 import com.cobbledex.jei.stats.JeiStatsRecipe
+import com.cobbledex.jei.fossil.JeiFossilCategory
+import com.cobbledex.jei.fossil.JeiFossilRecipe
+import com.cobbledex.jei.typechart.JeiTypeChartCategory
+import com.cobbledex.jei.typechart.JeiTypeChartRecipe
+import com.cobbledex.jei.nature.JeiNatureCategory
+import com.cobbledex.jei.nature.JeiNatureRecipe
 import mezz.jei.api.IModPlugin
 import mezz.jei.api.registration.*
 import net.minecraft.resources.ResourceLocation
@@ -53,6 +59,9 @@ open class CobbleDexJEIPlugin : IModPlugin {
         if (config.showStats) registration.addRecipeCategories(JeiStatsCategory(guiHelper))
         if (config.showMoves) registration.addRecipeCategories(JeiMovesCategory(guiHelper))
         if (config.showPokedexInfo) registration.addRecipeCategories(JeiPokedexInfoCategory(guiHelper))
+        if (config.showFossils) registration.addRecipeCategories(JeiFossilCategory(guiHelper))
+        if (config.showTypeChart) registration.addRecipeCategories(JeiTypeChartCategory(guiHelper))
+        if (config.showNatures) registration.addRecipeCategories(JeiNatureCategory(guiHelper))
         DebugLog.info("JEI: Categories registered")
     }
 
@@ -103,6 +112,24 @@ open class CobbleDexJEIPlugin : IModPlugin {
             registration.addRecipes(JeiPokedexInfoCategory.RECIPE_TYPE, pokedexRecipes)
             DebugLog.info("JEI: Registered ${pokedexRecipes.size} pokédex info recipes")
         }
+
+        if (config.showFossils) {
+            val fossilRecipes = RecipeBuilder.buildAllFossilRecipes().map { JeiFossilRecipe(it) }
+            registration.addRecipes(JeiFossilCategory.RECIPE_TYPE, fossilRecipes)
+            DebugLog.info("JEI: Registered ${fossilRecipes.size} fossil recipes")
+        }
+
+        if (config.showTypeChart) {
+            val typeChartRecipes = RecipeBuilder.buildAllTypeChartRecipes().map { JeiTypeChartRecipe(it) }
+            registration.addRecipes(JeiTypeChartCategory.RECIPE_TYPE, typeChartRecipes)
+            DebugLog.info("JEI: Registered ${typeChartRecipes.size} type chart recipes")
+        }
+
+        if (config.showNatures) {
+            val natureRecipes = RecipeBuilder.buildNatureRecipes().map { JeiNatureRecipe(it) }
+            registration.addRecipes(JeiNatureCategory.RECIPE_TYPE, natureRecipes)
+            DebugLog.info("JEI: Registered ${natureRecipes.size} nature recipes")
+        }
     }
 
     override fun registerRecipeCatalysts(registration: IRecipeCatalystRegistration) {
@@ -114,6 +141,9 @@ open class CobbleDexJEIPlugin : IModPlugin {
         if (config.showStats) registration.addRecipeCatalyst(ItemStack(Items.BOOK), JeiStatsCategory.RECIPE_TYPE)
         if (config.showMoves) registration.addRecipeCatalyst(ItemStack(Items.PAPER), JeiMovesCategory.RECIPE_TYPE)
         if (config.showPokedexInfo) registration.addRecipeCatalyst(ItemStack(Items.WRITABLE_BOOK), JeiPokedexInfoCategory.RECIPE_TYPE)
+        if (config.showFossils) registration.addRecipeCatalyst(ItemStack(Items.BONE), JeiFossilCategory.RECIPE_TYPE)
+        if (config.showTypeChart) registration.addRecipeCatalyst(ItemStack(Items.SHIELD), JeiTypeChartCategory.RECIPE_TYPE)
+        if (config.showNatures) registration.addRecipeCatalyst(ItemStack(Items.WRITABLE_BOOK), JeiNatureCategory.RECIPE_TYPE)
     }
 }
 

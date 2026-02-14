@@ -45,6 +45,18 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "emi_moves"),
             EmiStack.of(Items.PAPER)
         )
+        val FOSSIL_CATEGORY = EmiRecipeCategory(
+            ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "emi_fossils"),
+            EmiStack.of(Items.BONE)
+        )
+        val TYPE_CHART_CATEGORY = EmiRecipeCategory(
+            ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "emi_type_chart"),
+            EmiStack.of(Items.SHIELD)
+        )
+        val NATURE_CATEGORY = EmiRecipeCategory(
+            ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "emi_natures"),
+            EmiStack.of(Items.WRITABLE_BOOK)
+        )
     }
 
     override fun register(registry: EmiRegistry) {
@@ -82,6 +94,21 @@ open class CobbleDexEMIPlugin : EmiPlugin {
         if (config.showMoves) {
             registry.addCategory(MOVES_CATEGORY)
             registry.addWorkstation(MOVES_CATEGORY, EmiStack.of(Items.PAPER))
+        }
+
+        if (config.showFossils) {
+            registry.addCategory(FOSSIL_CATEGORY)
+            registry.addWorkstation(FOSSIL_CATEGORY, EmiStack.of(Items.BONE))
+        }
+
+        if (config.showTypeChart) {
+            registry.addCategory(TYPE_CHART_CATEGORY)
+            registry.addWorkstation(TYPE_CHART_CATEGORY, EmiStack.of(Items.SHIELD))
+        }
+
+        if (config.showNatures) {
+            registry.addCategory(NATURE_CATEGORY)
+            registry.addWorkstation(NATURE_CATEGORY, EmiStack.of(Items.WRITABLE_BOOK))
         }
 
         var comparisonSet = false
@@ -142,6 +169,24 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             val movesRecipes = RecipeBuilder.buildAllMovesRecipes().map { EmiMovesRecipe(it) }
             for (recipe in movesRecipes) registry.addRecipe(recipe)
             DebugLog.info("EMI: Registered ${movesRecipes.size} moves recipes")
+        }
+
+        if (config.showFossils) {
+            val fossilRecipes = RecipeBuilder.buildAllFossilRecipes().map { EmiFossilRecipe(it) }
+            for (recipe in fossilRecipes) registry.addRecipe(recipe)
+            DebugLog.info("EMI: Registered ${fossilRecipes.size} fossil recipes")
+        }
+
+        if (config.showTypeChart) {
+            val typeChartRecipes = RecipeBuilder.buildAllTypeChartRecipes().map { EmiTypeChartRecipe(it) }
+            for (recipe in typeChartRecipes) registry.addRecipe(recipe)
+            DebugLog.info("EMI: Registered ${typeChartRecipes.size} type chart recipes")
+        }
+
+        if (config.showNatures) {
+            val natureRecipes = RecipeBuilder.buildNatureRecipes().map { EmiNatureRecipe(it) }
+            for (recipe in natureRecipes) registry.addRecipe(recipe)
+            DebugLog.info("EMI: Registered ${natureRecipes.size} nature recipes")
         }
     }
 

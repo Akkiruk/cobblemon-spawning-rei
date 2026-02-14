@@ -341,7 +341,8 @@ object EvolutionDataLoader {
         val baseFriendship: Int? = null,
         val levelUpMoves: List<LevelUpMove>? = null,
         val eggMoves: List<String>? = null,
-        val tutorMoves: List<String>? = null
+        val tutorMoves: List<String>? = null,
+        val shoulderMountable: Boolean = false
     )
 
     fun loadSpeciesBasicInfoFromRuntime(): Map<String, SpeciesBasicInfo> {
@@ -454,6 +455,8 @@ object EvolutionDataLoader {
                     form.moves.tutorMoves.map { titleCase(it.name) }.ifEmpty { null }
                 } catch (_: Exception) { null }
 
+                val shoulderMount = try { species.shoulderMountable } catch (_: Exception) { false }
+
                 result[name] = SpeciesBasicInfo(
                     name = name,
                     nationalDexNumber = species.nationalPokedexNumber,
@@ -479,7 +482,8 @@ object EvolutionDataLoader {
                     baseFriendship = friendship,
                     levelUpMoves = levelUpMoves,
                     eggMoves = eggMoves,
-                    tutorMoves = tutorMoves
+                    tutorMoves = tutorMoves,
+                    shoulderMountable = shoulderMount
                 )
             } catch (e: Exception) {
                 DebugLog.once("species-info-${species.name}") { "Failed to load species info for ${species.name}: ${e.message}" }

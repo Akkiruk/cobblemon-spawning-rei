@@ -2,6 +2,15 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.24.0] - 2026-02-16
+
+### Added
+- **Fossil Resurrection category**: Shows fossil item combos needed to resurrect each Pokémon
+- **Type Effectiveness Chart category**: Per-species defensive matchups with weaknesses, resistances, and immunities
+- **Natures reference table**: Standalone category listing all 25 natures with stat modifiers
+- Shoulder-mountable indicator on Pokédex Info panel
+- `showFossils`, `showTypeChart`, `showNatures` config toggles
+
 ## [1.23.0] - 2026-02-15
 
 ### Added

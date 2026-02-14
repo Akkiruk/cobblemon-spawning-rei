@@ -24,6 +24,12 @@ import com.cobbledex.rei.moves.MovesCategory
 import com.cobbledex.rei.moves.MovesDisplay
 import com.cobbledex.rei.stats.StatsCategory
 import com.cobbledex.rei.stats.StatsDisplay
+import com.cobbledex.rei.fossil.FossilCategory
+import com.cobbledex.rei.fossil.FossilDisplay
+import com.cobbledex.rei.typechart.TypeChartCategory
+import com.cobbledex.rei.typechart.TypeChartDisplay
+import com.cobbledex.rei.nature.NatureCategory
+import com.cobbledex.rei.nature.NatureDisplay
 import me.shedaniel.rei.api.client.plugins.REIClientPlugin
 import me.shedaniel.rei.api.client.registry.category.CategoryRegistry
 import me.shedaniel.rei.api.client.registry.display.DisplayRegistry
@@ -79,6 +85,9 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         if (config.showStats) registry.add(StatsCategory())
         if (config.showMoves) registry.add(MovesCategory())
         if (config.showPokedexInfo) registry.add(PokedexInfoCategory())
+        if (config.showFossils) registry.add(FossilCategory())
+        if (config.showTypeChart) registry.add(TypeChartCategory())
+        if (config.showNatures) registry.add(NatureCategory())
         DebugLog.info("REI categories registered (spawns${if (config.showEvolutions) " + evolution" else ""}${if (config.showObtainment) " + obtainment" else ""}${if (config.showDrops) " + drops" else ""}${if (config.showStats) " + stats" else ""}${if (config.showMoves) " + moves" else ""}${if (config.showPokedexInfo) " + pokedex" else ""})")
     }
 
@@ -95,6 +104,12 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         if (config.showStats) registry.registerDisplayGenerator(StatsCategory.ID, StatsDisplayGenerator())
         if (config.showMoves) registry.registerDisplayGenerator(MovesCategory.ID, MovesDisplayGenerator())
         if (config.showPokedexInfo) registry.registerDisplayGenerator(PokedexInfoCategory.ID, PokedexInfoDisplayGenerator())
+        if (config.showFossils) registry.registerDisplayGenerator(FossilCategory.ID, FossilDisplayGenerator())
+        if (config.showTypeChart) registry.registerDisplayGenerator(TypeChartCategory.ID, TypeChartDisplayGenerator())
+        if (config.showNatures) {
+            val natureDisplays = RecipeBuilder.buildNatureRecipes().map { NatureDisplay(it) }
+            natureDisplays.forEach { registry.add(it) }
+        }
 
         DebugLog.info("Registered dynamic display generators")
     }
@@ -328,6 +343,61 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
 
             val all = RecipeBuilder.buildAllPokedexInfoRecipes().map { PokedexInfoDisplay(it) }
+            cachedDisplays = all
+            cachedVersion = version
+            return if (all.isEmpty()) Optional.empty() else Optional.of(all)
+        }
+    }
+
+    private inner class FossilDisplayGenerator : DynamicDisplayGenerator<FossilDisplay> {
+
+        @Volatile private var cachedVersion = -1L
+        @Volatile private var cachedDisplays: List<FossilDisplay>? = null
+
+        override fun getRecipeFor(entry: EntryStack<*>): Optional<List<FossilDisplay>> {
+            val value = entry.value ?: return Optional.empty()
+            if (value !is PokemonEntry) return Optional.empty()
+            val recipes = RecipeBuilder.buildFossilsFor(value.species)
+            if (recipes.isEmpty()) return Optional.empty()
+            return Optional.of(recipes.map { FossilDisplay(it) })
+        }
+
+        override fun getUsageFor(entry: EntryStack<*>): Optional<List<FossilDisplay>> = Optional.empty()
+
+        override fun generate(builder: ViewSearchBuilder): Optional<List<FossilDisplay>> {
+            if (builder.recipesFor.isNotEmpty() || builder.usagesFor.isNotEmpty()) return Optional.empty()
+            if (!SpawnDataIndex.hasData()) return Optional.empty()
+            val version = SpawnDataIndex.dataVersion
+            cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
+
+            val all = RecipeBuilder.buildAllFossilRecipes().map { FossilDisplay(it) }
+            cachedDisplays = all
+            cachedVersion = version
+            return if (all.isEmpty()) Optional.empty() else Optional.of(all)
+        }
+    }
+
+    private inner class TypeChartDisplayGenerator : DynamicDisplayGenerator<TypeChartDisplay> {
+
+        @Volatile private var cachedVersion = -1L
+        @Volatile private var cachedDisplays: List<TypeChartDisplay>? = null
+
+        override fun getRecipeFor(entry: EntryStack<*>): Optional<List<TypeChartDisplay>> {
+            val value = entry.value ?: return Optional.empty()
+            if (value !is PokemonEntry) return Optional.empty()
+            val recipe = RecipeBuilder.buildTypeChartFor(value.species) ?: return Optional.empty()
+            return Optional.of(listOf(TypeChartDisplay(recipe)))
+        }
+
+        override fun getUsageFor(entry: EntryStack<*>): Optional<List<TypeChartDisplay>> = Optional.empty()
+
+        override fun generate(builder: ViewSearchBuilder): Optional<List<TypeChartDisplay>> {
+            if (builder.recipesFor.isNotEmpty() || builder.usagesFor.isNotEmpty()) return Optional.empty()
+            if (!SpawnDataIndex.hasData()) return Optional.empty()
+            val version = SpawnDataIndex.dataVersion
+            cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
+
+            val all = RecipeBuilder.buildAllTypeChartRecipes().map { TypeChartDisplay(it) }
             cachedDisplays = all
             cachedVersion = version
             return if (all.isEmpty()) Optional.empty() else Optional.of(all)

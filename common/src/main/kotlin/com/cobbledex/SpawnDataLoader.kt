@@ -559,7 +559,7 @@ object SpawnDataLoader {
 
     fun getModRootPaths(): List<Path> = findAllModRootPaths()
 
-    private fun findAllModRootPaths(): List<Path> {
+    internal fun findAllModRootPaths(): List<Path> {
         cachedModRoots?.let { return it }
         val paths = mutableListOf<Path>()
 
@@ -609,7 +609,7 @@ object SpawnDataLoader {
         return result
     }
 
-    private fun getClientDatapacksDir(): Path? {
+    internal fun getClientDatapacksDir(): Path? {
         return try {
             com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
         } catch (e: Exception) {

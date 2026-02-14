@@ -50,6 +50,10 @@ object SpawnDataIndex {
         private set
 
     @Volatile
+    var fossilsBySpecies: Map<String, List<FossilCombo>> = emptyMap()
+        private set
+
+    @Volatile
     var allSpeciesNames: List<String> = emptyList()
         private set
 
@@ -165,6 +169,13 @@ object SpawnDataIndex {
             obtainmentBySpecies = emptyMap()
         }
 
+        try {
+            fossilsBySpecies = normalizeMapKeys(FossilDataLoader.loadFromAllSources())
+        } catch (e: Exception) {
+            DebugLog.warn("Fossil data load failed: ${e.message}")
+            fossilsBySpecies = emptyMap()
+        }
+
         rebuildDerivedData()
 
         loadState = if (runtimeCount > 0) LoadState.FULLY_LOADED else LoadState.PARTIAL
@@ -241,6 +252,7 @@ object SpawnDataIndex {
         }
         allNames.addAll(speciesInfo.keys)
         allNames.addAll(obtainmentBySpecies.keys)
+        allNames.addAll(fossilsBySpecies.keys)
 
         val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
         if (runtimeCount > 0) {
@@ -286,4 +298,6 @@ object SpawnDataIndex {
     fun getSpeciesInfo(species: String): EvolutionDataLoader.SpeciesBasicInfo? = speciesInfo[SpeciesNameNormalizer.normalize(species)]
 
     fun getObtainmentFor(species: String): List<ObtainmentInfo> = obtainmentBySpecies[SpeciesNameNormalizer.normalize(species)] ?: emptyList()
+
+    fun getFossilsFor(species: String): List<FossilCombo> = fossilsBySpecies[SpeciesNameNormalizer.normalize(species)] ?: emptyList()
 }

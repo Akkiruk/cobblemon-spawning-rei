@@ -13,5 +13,6 @@ data class PokedexInfoRecipeData(
     val baseExperienceYield: Int?,
     val height: Float,
     val weight: Float,
-    val description: String?
+    val description: String?,
+    val shoulderMountable: Boolean = false
 )

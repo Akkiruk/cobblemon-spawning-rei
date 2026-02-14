@@ -280,5 +280,15 @@
   "cobbledex-rei-emi-jei.bundled.lugia_shadow": "Use Shadow Soul Stone on Lugia",
   "cobbledex-rei-emi-jei.bundled.note.regi_nearby": "Requires Regirock, Regice, Registeel nearby",
   "cobbledex-rei-emi-jei.bundled.note.calyrex_nearby": "Requires Calyrex nearby",
-  "cobbledex-rei-emi-jei.bundled.note.shadow_transform": "Transforms Lugia into Shadow Lugia"
+  "cobbledex-rei-emi-jei.bundled.note.shadow_transform": "Transforms Lugia into Shadow Lugia",
+
+  "category.cobbledex-rei-emi-jei.fossils": "Fossil Resurrection",
+  "category.cobbledex-rei-emi-jei.type_chart": "Type Chart",
+  "category.cobbledex-rei-emi-jei.natures": "Natures",
+
+  "cobbledex-rei-emi-jei.fossils.required": "Required Fossils:",
+  "cobbledex-rei-emi-jei.typechart.weak": "\u2b07 Weaknesses",
+  "cobbledex-rei-emi-jei.typechart.resist": "\u2b06 Resistances",
+  "cobbledex-rei-emi-jei.typechart.immune": "\u26d4 Immunities",
+  "cobbledex-rei-emi-jei.info.shoulder": "\u2605 Shoulder-mountable"
 }

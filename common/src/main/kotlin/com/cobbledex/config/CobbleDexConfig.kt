@@ -13,6 +13,9 @@ data class CobbleDexConfig(
     val showStats: Boolean = true,
     val showMoves: Boolean = true,
     val showPokedexInfo: Boolean = true,
+    val showFossils: Boolean = true,
+    val showTypeChart: Boolean = true,
+    val showNatures: Boolean = true,
     val localDatapackScan: Boolean = true,
     val debugMode: Boolean = false
 ) {

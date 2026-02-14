@@ -109,7 +109,8 @@ object RecipeBuilder {
             baseExperienceYield = info.baseExperienceYield,
             height = info.height,
             weight = info.weight,
-            description = info.description
+            description = info.description,
+            shoulderMountable = info.shoulderMountable
         )
     }
 
@@ -177,5 +178,52 @@ object RecipeBuilder {
         }
 
         return pages
+    }
+
+    // --- Fossil recipes ---
+
+    fun buildAllFossilRecipes(): List<FossilRecipeData> {
+        val recipes = mutableListOf<FossilRecipeData>()
+        for ((species, combos) in SpawnDataIndex.fossilsBySpecies) {
+            for (combo in combos) {
+                recipes.add(FossilRecipeData(species, combo.fossilItems, combo.extraTags))
+            }
+        }
+        return recipes
+    }
+
+    fun buildFossilsFor(speciesName: String): List<FossilRecipeData> {
+        val combos = SpawnDataIndex.getFossilsFor(speciesName)
+        if (combos.isEmpty()) return emptyList()
+        return combos.map { FossilRecipeData(speciesName, it.fossilItems, it.extraTags) }
+    }
+
+    // --- Type chart recipes ---
+
+    fun buildAllTypeChartRecipes(): List<TypeChartRecipeData> {
+        val recipes = mutableListOf<TypeChartRecipeData>()
+        for ((species, info) in SpawnDataIndex.speciesInfo) {
+            val matchups = TypeChart.getMatchups(info.primaryType, info.secondaryType)
+            recipes.add(TypeChartRecipeData(
+                species, info.primaryType, info.secondaryType,
+                matchups.weaknesses, matchups.resistances, matchups.immunities
+            ))
+        }
+        return recipes
+    }
+
+    fun buildTypeChartFor(speciesName: String): TypeChartRecipeData? {
+        val info = SpawnDataIndex.getSpeciesInfo(speciesName) ?: return null
+        val matchups = TypeChart.getMatchups(info.primaryType, info.secondaryType)
+        return TypeChartRecipeData(
+            speciesName, info.primaryType, info.secondaryType,
+            matchups.weaknesses, matchups.resistances, matchups.immunities
+        )
+    }
+
+    // --- Nature table recipes ---
+
+    fun buildNatureRecipes(): List<NatureRecipeData> {
+        return listOf(NatureRecipeData(NatureData.NATURES))
     }
 }

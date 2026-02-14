@@ -930,6 +930,12 @@ object SpawnDisplayHelper {
             graphics.drawString(font, genderText, indentX, y, 0xBBBBBB, false)
             y += lineHeight
         }
+
+        // Shoulder-mountable
+        if (data.shoulderMountable) {
+            graphics.drawString(font, tr("cobbledex-rei-emi-jei.info.shoulder"), indentX, y, 0xFF88DDAA.toInt(), false)
+            y += lineHeight
+        }
         y += 3
 
         // Breeding
@@ -1057,5 +1063,179 @@ object SpawnDisplayHelper {
         }
         val h = (lines * lineHeight + 30).coerceIn(100, 300)
         return DisplayLayout.PanelSize(200, h)
+    }
+
+    // --- Fossil detail rendering ---
+
+    fun drawFossilDetails(
+        graphics: GuiGraphics,
+        data: FossilRecipeData,
+        width: Int = 200,
+        height: Int = 140,
+        padding: Int = 6,
+        lineHeight: Int = 11
+    ) {
+        val font = Minecraft.getInstance().font
+        val right = width - padding
+
+        graphics.drawString(font, formatSpeciesName(data.speciesName), padding + 22, 6, 0xFFFFFF, false)
+
+        val headerText = tr("category.cobbledex-rei-emi-jei.fossils")
+        val headerWidth = font.width(headerText)
+        graphics.drawString(font, headerText, right - headerWidth, 6, 0xDDCC99, false)
+
+        graphics.fill(padding, 20, right, 21, 0x50FFFFFF)
+        var y = 26
+
+        graphics.drawString(font, tr("cobbledex-rei-emi-jei.fossils.required"), padding, y, 0xEEEEEE, false)
+        y += lineHeight + 2
+
+        for (itemId in data.fossilItems) {
+            val itemName = resolveItemName(itemId)
+            val nameX = padding + 22
+            val clippedName = clipToWidth(font, itemName, right - nameX)
+            graphics.drawString(font, "\u2022", padding + 4, y + 4, 0xFF88CCFF.toInt(), false)
+            graphics.drawString(font, clippedName, nameX, y + 4, 0xFFFFFF, false)
+            y += 20
+        }
+
+        data.extraTags?.let { tags ->
+            y += 4
+            graphics.fill(padding, y, right, y + 1, 0x20FFFFFF)
+            y += 4
+            val tagParts = tags.split(" ")
+            for (part in tagParts) {
+                val tagText = part.replace("_", " ")
+                graphics.drawString(font, tagText, padding + 4, y, 0xFF999999.toInt(), false)
+                y += lineHeight
+            }
+        }
+    }
+
+    // --- Type chart detail rendering ---
+
+    fun drawTypeChartDetails(
+        graphics: GuiGraphics,
+        data: TypeChartRecipeData,
+        width: Int = 200,
+        height: Int = 200,
+        padding: Int = 6,
+        lineHeight: Int = 11
+    ) {
+        val font = Minecraft.getInstance().font
+        val right = width - padding
+
+        graphics.drawString(font, formatSpeciesName(data.speciesName), padding + 22, 6, 0xFFFFFF, false)
+
+        val headerText = tr("category.cobbledex-rei-emi-jei.type_chart")
+        val headerWidth = font.width(headerText)
+        graphics.drawString(font, headerText, right - headerWidth, 6, 0xDDCC99, false)
+
+        graphics.fill(padding, 20, right, 21, 0x50FFFFFF)
+
+        val typeStr = buildString {
+            append(formatTypeName(data.primaryType))
+            data.secondaryType?.let { append(" / ${formatTypeName(it)}") }
+        }
+        graphics.drawString(font, typeStr, padding, 25, typeColor(data.primaryType), false)
+
+        var y = 40
+
+        // Weaknesses
+        if (data.weaknesses.isNotEmpty()) {
+            graphics.drawString(font, tr("cobbledex-rei-emi-jei.typechart.weak"), padding, y, 0xFFFF6666.toInt(), false)
+            y += lineHeight
+            for ((type, mult) in data.weaknesses) {
+                val multText = if (mult == 4f) "\u00D74" else "\u00D72"
+                val color = if (mult == 4f) 0xFFFF4444.toInt() else 0xFFFF8866.toInt()
+                val typeName = formatTypeName(type)
+                val typeColor = typeColor(type)
+                graphics.drawString(font, "\u2022 $typeName", padding + 4, y, typeColor, false)
+                val mw = font.width(multText)
+                graphics.drawString(font, multText, right - mw, y, color, false)
+                y += lineHeight
+            }
+            y += 3
+        }
+
+        // Resistances
+        if (data.resistances.isNotEmpty()) {
+            graphics.drawString(font, tr("cobbledex-rei-emi-jei.typechart.resist"), padding, y, 0xFF66CC66.toInt(), false)
+            y += lineHeight
+            for ((type, mult) in data.resistances) {
+                val multText = if (mult == 0.25f) "\u00D7\u00BC" else "\u00D7\u00BD"
+                val color = if (mult == 0.25f) 0xFF44AA44.toInt() else 0xFF88CC88.toInt()
+                val typeName = formatTypeName(type)
+                val typeColor = typeColor(type)
+                graphics.drawString(font, "\u2022 $typeName", padding + 4, y, typeColor, false)
+                val mw = font.width(multText)
+                graphics.drawString(font, multText, right - mw, y, color, false)
+                y += lineHeight
+            }
+            y += 3
+        }
+
+        // Immunities
+        if (data.immunities.isNotEmpty()) {
+            graphics.drawString(font, tr("cobbledex-rei-emi-jei.typechart.immune"), padding, y, 0xFF9999FF.toInt(), false)
+            y += lineHeight
+            for (type in data.immunities) {
+                val typeName = formatTypeName(type)
+                val typeColor = typeColor(type)
+                graphics.drawString(font, "\u2022 $typeName", padding + 4, y, typeColor, false)
+                val mw = font.width("\u00D70")
+                graphics.drawString(font, "\u00D70", right - mw, y, 0xFF9999FF.toInt(), false)
+                y += lineHeight
+            }
+        }
+    }
+
+    // --- Nature table rendering ---
+
+    fun drawNatureDetails(
+        graphics: GuiGraphics,
+        data: NatureRecipeData,
+        width: Int = 200,
+        height: Int = 260,
+        padding: Int = 6,
+        lineHeight: Int = 10
+    ) {
+        val font = Minecraft.getInstance().font
+        val right = width - padding
+
+        val headerText = tr("category.cobbledex-rei-emi-jei.natures")
+        val headerWidth = font.width(headerText)
+        graphics.drawString(font, headerText, (width - headerWidth) / 2, 6, 0xDDCC99, false)
+
+        graphics.fill(padding, 18, right, 19, 0x50FFFFFF)
+
+        var y = 23
+
+        // Column headers
+        val nameCol = padding + 2
+        val upCol = padding + 60
+        val downCol = padding + 112
+        graphics.drawString(font, "Nature", nameCol, y, 0xEEEEEE, false)
+        graphics.drawString(font, "+Stat", upCol, y, 0xFF88FF88.toInt(), false)
+        graphics.drawString(font, "-Stat", downCol, y, 0xFFFF8888.toInt(), false)
+        y += lineHeight + 2
+
+        graphics.fill(padding, y - 1, right, y, 0x30FFFFFF)
+
+        for (nature in data.natures) {
+            val nameColor = if (nature.isNeutral) 0xFFAAAAAA.toInt() else 0xFFFFFFFF.toInt()
+            graphics.drawString(font, nature.name, nameCol, y, nameColor, false)
+
+            if (nature.isNeutral) {
+                graphics.drawString(font, "\u2014", upCol, y, 0xFF777777.toInt(), false)
+                graphics.drawString(font, "\u2014", downCol, y, 0xFF777777.toInt(), false)
+            } else {
+                val upName = NatureData.STAT_NAMES[nature.increasedStat] ?: nature.increasedStat ?: ""
+                val downName = NatureData.STAT_NAMES[nature.decreasedStat] ?: nature.decreasedStat ?: ""
+                graphics.drawString(font, upName, upCol, y, 0xFF88FF88.toInt(), false)
+                graphics.drawString(font, downName, downCol, y, 0xFFFF8888.toInt(), false)
+            }
+            y += lineHeight
+        }
     }
 }

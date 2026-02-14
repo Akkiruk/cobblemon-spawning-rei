@@ -26,6 +26,9 @@ object DisplayLayout {
     @Volatile private var cachedStatsMax: PanelSize? = null
     @Volatile private var cachedPokedexInfoMax: PanelSize? = null
     @Volatile private var cachedMovesMax: PanelSize? = null
+    @Volatile private var cachedFossilMax: PanelSize? = null
+    @Volatile private var cachedTypeChartMax: PanelSize? = null
+    @Volatile private var cachedNatureMax: PanelSize? = null
     @Volatile private var cachedDataVersion: Long = -1L
 
     fun invalidateCache() {
@@ -36,6 +39,9 @@ object DisplayLayout {
         cachedStatsMax = null
         cachedPokedexInfoMax = null
         cachedMovesMax = null
+        cachedFossilMax = null
+        cachedTypeChartMax = null
+        cachedNatureMax = null
         cachedDataVersion = -1L
     }
 
@@ -81,6 +87,24 @@ object DisplayLayout {
         return PanelSize(200, 220).also { cachedMovesMax = it }
     }
 
+    fun getMaxFossilSize(): PanelSize {
+        checkCacheValidity()
+        cachedFossilMax?.let { return it }
+        return computeMaxFossilSize().also { cachedFossilMax = it }
+    }
+
+    fun getMaxTypeChartSize(): PanelSize {
+        checkCacheValidity()
+        cachedTypeChartMax?.let { return it }
+        return PanelSize(200, 200).also { cachedTypeChartMax = it }
+    }
+
+    fun getMaxNatureSize(): PanelSize {
+        checkCacheValidity()
+        cachedNatureMax?.let { return it }
+        return PanelSize(200, 290).also { cachedNatureMax = it }
+    }
+
     private fun checkCacheValidity() {
         val ver = SpawnDataIndex.dataVersion
         if (ver != cachedDataVersion) {
@@ -90,6 +114,10 @@ object DisplayLayout {
             cachedDropMax = null
             cachedStatsMax = null
             cachedPokedexInfoMax = null
+            cachedMovesMax = null
+            cachedFossilMax = null
+            cachedTypeChartMax = null
+            cachedNatureMax = null
             cachedDataVersion = ver
         }
     }
@@ -406,5 +434,24 @@ object DisplayLayout {
             if (y > maxH) maxH = y
         }
         return PanelSize(200, maxH.coerceAtMost(350))
+    }
+
+    private fun computeMaxFossilSize(): PanelSize {
+        if (SpawnDataIndex.fossilsBySpecies.isEmpty()) return PanelSize(200, 100)
+        var maxH = 80
+        for ((_, combos) in SpawnDataIndex.fossilsBySpecies) {
+            for (combo in combos) {
+                // header (22) + sep (1) + label (13) + items + optional tags
+                var y = 22 + 1 + LINE_HEIGHT + 2
+                y += combo.fossilItems.size * ITEM_ROW_HEIGHT
+                if (combo.extraTags != null) {
+                    y += 4 + 1 + 4
+                    y += combo.extraTags.split(" ").size * LINE_HEIGHT
+                }
+                y += PADDING
+                if (y > maxH) maxH = y
+            }
+        }
+        return PanelSize(200, maxH.coerceAtMost(250))
     }
 }
