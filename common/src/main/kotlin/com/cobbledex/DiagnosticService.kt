@@ -35,7 +35,6 @@ object DiagnosticService {
         sender.send(tr("cobbledex-rei-emi-jei.cmd.with_spawns", withSpawns.size, allSpecies.size - withSpawns.size))
         sender.send(tr("cobbledex-rei-emi-jei.cmd.with_evolutions", withEvolutions.size))
         sender.send(tr("cobbledex-rei-emi-jei.cmd.with_obtainment", withObtainment.size))
-        sender.send(tr("cobbledex-rei-emi-jei.cmd.data_source", index.dataSource.name))
         sender.send(tr("cobbledex-rei-emi-jei.cmd.load_state", index.loadState.name))
         sender.send(tr("cobbledex-rei-emi-jei.cmd.dump_hint"))
         
@@ -129,7 +128,6 @@ object DiagnosticService {
         sb.appendLine("Species with evolution data: ${withEvolutions.size}")
         sb.appendLine("Species with obtainment data: ${withObtainment.size}")
         sb.appendLine("Species with National Dex #: ${speciesInfo.count { it.value.nationalDexNumber > 0 }}")
-        sb.appendLine("Data source: ${index.dataSource.name}")
         sb.appendLine("Load state: ${index.loadState.name}")
         sb.appendLine()
         

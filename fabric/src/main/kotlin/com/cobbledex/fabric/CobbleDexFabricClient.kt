@@ -12,6 +12,7 @@ import net.minecraft.network.chat.Component
 
 class CobbleDexFabricClient : ClientModInitializer {
     override fun onInitializeClient() {
+        CobbleDexMod.init()
         CobbleDexMod.LOGGER.info("[CobbleDex] Fabric client initialized")
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->

@@ -9,9 +9,8 @@ import net.neoforged.fml.loading.FMLEnvironment
 @Mod(CobbleDexMod.NEOFORGE_MOD_ID)
 class CobbleDexNeoForge(modBus: IEventBus) {
     init {
-        CobbleDexMod.init()
-
         if (FMLEnvironment.dist == Dist.CLIENT) {
+            CobbleDexMod.init()
             CobbleDexNeoForgeClient.register()
         }
     }

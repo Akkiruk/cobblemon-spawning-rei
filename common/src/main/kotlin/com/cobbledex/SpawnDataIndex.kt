@@ -11,14 +11,9 @@ import kotlin.concurrent.withLock
 object SpawnDataIndex {
 
     enum class LoadState { NOT_LOADED, PARTIAL, FULLY_LOADED }
-    enum class DataSource { NONE, LOCAL }
 
     @Volatile
     var loadState = LoadState.NOT_LOADED
-        private set
-
-    @Volatile
-    var dataSource = DataSource.NONE
         private set
 
     private val dataLock = ReentrantLock()
@@ -194,11 +189,10 @@ object SpawnDataIndex {
                 LoadState.FULLY_LOADED
             }
         }
-        dataSource = DataSource.LOCAL
         dataVersion++
 
         DebugLog.info(
-            "Load complete (${loadState.name}, ${dataSource.name}): ${allSpeciesNames.size} species " +
+            "Load complete (${loadState.name}): ${allSpeciesNames.size} species " +
             "(${speciesInfo.count { it.value.nationalDexNumber > 0 }} with dex, " +
             "${spawnsBySpecies.size} with spawns, ${evolutionsBySpecies.size} with evolutions, " +
             "${obtainmentBySpecies.size} with obtainment)"
@@ -212,7 +206,6 @@ object SpawnDataIndex {
         emptyEvoRetries = 0
         dataLock.withLock {
             loadState = LoadState.NOT_LOADED
-            dataSource = DataSource.NONE
         }
         DebugLog.info("Marked data stale on disconnect (${allSpeciesNames.size} species cached)")
     }

@@ -2,6 +2,20 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.24.8] - 2026-02-14
+
+### Changed
+- Mod is now explicitly client-only in both Fabric and NeoForge metadata
+- Fabric environment set to "client" (was "*"), preventing server-side loading
+- NeoForge dependencies set to side="CLIENT" (was "BOTH")
+- NeoForge init() now only runs on client dist
+- Translations use I18n directly instead of server-safe reflection wrapper
+
+### Removed
+- Fabric server entrypoint (CobbleDexFabric.kt) — init moved to client entrypoint
+- ServerSafeI18n translation wrapper with server fallback (dead code for client-only mod)
+- DataSource enum (vestigial from removed server sync, only had NONE/LOCAL)
+
 ## [1.24.7] - 2026-02-14
 
 ### Removed
