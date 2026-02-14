@@ -11,6 +11,35 @@ object ObtainmentDataLoader {
 
     private const val DATA_PATH = "special_obtainment"
 
+    private val modLoadedCache = mutableMapOf<String, Boolean>()
+
+    private fun isModLoaded(modId: String): Boolean {
+        modLoadedCache[modId]?.let { return it }
+        val loaded = checkModPresence(modId)
+        modLoadedCache[modId] = loaded
+        return loaded
+    }
+
+    private fun checkModPresence(modId: String): Boolean {
+        try {
+            val fabricLoader = Class.forName("net.fabricmc.loader.api.FabricLoader")
+            val instance = fabricLoader.getMethod("getInstance").invoke(null)
+            val result = instance.javaClass.getMethod("isModLoaded", String::class.java).invoke(instance, modId)
+            return result as Boolean
+        } catch (_: ClassNotFoundException) {}
+        catch (_: Exception) {}
+
+        try {
+            val modList = Class.forName("net.neoforged.fml.ModList")
+            val list = modList.getMethod("get").invoke(null)
+            val result = list.javaClass.getMethod("isLoaded", String::class.java).invoke(list, modId)
+            return result as Boolean
+        } catch (_: ClassNotFoundException) {}
+        catch (_: Exception) {}
+
+        return false
+    }
+
     fun loadFromAllSources(modRoots: List<Path>, extraDatapacksDir: Path? = null): Map<String, List<ObtainmentInfo>> {
         val result = mutableMapOf<String, MutableList<ObtainmentInfo>>()
         var totalEntries = 0
@@ -51,12 +80,14 @@ object ObtainmentDataLoader {
             }
         }
 
-        // Merge bundled defaults for species that have NO obtainment data from any source
-        val bundled = loadBundledDefaults()
-        for ((species, infos) in bundled) {
-            if (!result.containsKey(species)) {
-                result[species] = infos.toMutableList()
-                totalEntries += infos.size
+        // Merge bundled defaults only if LumyMon is actually installed
+        if (isModLoaded("lumymon")) {
+            val bundled = loadBundledDefaults()
+            for ((species, infos) in bundled) {
+                if (!result.containsKey(species)) {
+                    result[species] = infos.toMutableList()
+                    totalEntries += infos.size
+                }
             }
         }
 

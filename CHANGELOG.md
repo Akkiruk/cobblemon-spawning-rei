@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.24.1] - 2026-02-14
+
+### Fixed
+- Text now renders with drop shadows for readability on light/vanilla UI backgrounds
+- Bundled LumyMon altar/summoning data no longer appears when LumyMon is not installed
+
 ## [1.24.0] - 2026-02-16
 
 ### Added
