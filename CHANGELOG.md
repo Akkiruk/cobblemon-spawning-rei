@@ -2,6 +2,12 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.18.3] - 2026-02-13
+
+### Fixed
+- Dedicated server crash: `NoClassDefFoundError: I18n` — translation helper now falls back to bundled en_us.json on servers where client classes aren't available
+- Server-side spawn data loading and sync now works correctly for multiplayer
+
 ## [1.18.2] - 2026-02-12
 
 ### Added
