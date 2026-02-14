@@ -802,7 +802,9 @@ object SpawnDisplayHelper {
         graphics.drawString(font, bstText, right - bstWidth, 25, bstColor, false)
 
         var y = 40
-        val barMaxWidth = right - padding - 40 - 30
+        val barX = padding + 26
+        val valueSpace = 22
+        val barMaxWidth = right - barX - valueSpace
         val maxStat = 255
 
         for (statId in STAT_NAMES) {
@@ -812,14 +814,13 @@ object SpawnDisplayHelper {
 
             graphics.drawString(font, label, padding, y + 1, 0xBBBBBB, false)
 
-            val valStr = value.toString()
-            val valWidth = font.width(valStr)
-            graphics.drawString(font, valStr, padding + 28 - valWidth, y + 1, 0xFFFFFF, false)
-
-            val barX = padding + 34
             val barWidth = ((value.toFloat() / maxStat) * barMaxWidth).toInt().coerceAtLeast(1)
             graphics.fill(barX, y + 1, barX + barMaxWidth, y + 9, 0x30FFFFFF)
             graphics.fill(barX, y + 1, barX + barWidth, y + 9, color)
+
+            val valStr = value.toString()
+            val valWidth = font.width(valStr)
+            graphics.drawString(font, valStr, right - valWidth, y + 1, 0xFFFFFF, false)
 
             y += lineHeight
         }

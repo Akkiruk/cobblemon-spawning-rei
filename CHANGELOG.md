@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.22.1] - 2026-02-14
+
+### Fixed
+- Base Stats: moved numeric stat values to the right side of the bar to prevent overlap with stat name labels
+
 ## [1.22.0] - 2026-02-13
 
 ### Changed
