@@ -9,7 +9,7 @@ pluginManagement {
     }
 }
 
-rootProject.name = "cobblemon-spawning-rei"
+rootProject.name = "cobbledex-rei-emi-jei"
 
 include("common")
 include("fabric")

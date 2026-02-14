@@ -10,7 +10,7 @@ plugins {
 }
 
 base {
-    archivesName.set("cobblemon-spawning-rei-neoforge")
+    archivesName.set("cobbledex-rei-emi-jei-neoforge")
 }
 
 repositories {

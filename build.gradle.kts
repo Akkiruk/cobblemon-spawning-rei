@@ -6,7 +6,7 @@ plugins {
 }
 
 val minecraftVersion = findProperty("minecraft_version")?.toString() ?: "1.21.1"
-val mavenGroup = findProperty("maven_group")?.toString() ?: "com.cobblemonrei"
+val mavenGroup = findProperty("maven_group")?.toString() ?: "com.cobbledex"
 val modVersion = findProperty("mod_version")?.toString() ?: "1.0.0"
 
 architectury {

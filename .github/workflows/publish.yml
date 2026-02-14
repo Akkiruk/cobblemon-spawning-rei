@@ -63,8 +63,8 @@ jobs:
           name: "v${{ steps.get_version.outputs.VERSION }}"
           body_path: current_changelog.txt
           files: |
-            fabric/build/libs/cobblemon-spawning-rei-fabric-${{ steps.get_version.outputs.VERSION }}.jar
-            neoforge/build/libs/cobblemon-spawning-rei-neoforge-${{ steps.get_version.outputs.VERSION }}.jar
+            fabric/build/libs/cobbledex-rei-emi-jei-fabric-${{ steps.get_version.outputs.VERSION }}.jar
+            neoforge/build/libs/cobbledex-rei-emi-jei-neoforge-${{ steps.get_version.outputs.VERSION }}.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
@@ -233,17 +233,17 @@ jobs:
       - name: Upload Fabric artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: cobblemon-spawning-rei-fabric-${{ steps.get_version.outputs.VERSION }}
+          name: cobbledex-rei-emi-jei-fabric-${{ steps.get_version.outputs.VERSION }}
           path: |
-            fabric/build/libs/cobblemon-spawning-rei-fabric-*.jar
+            fabric/build/libs/cobbledex-rei-emi-jei-fabric-*.jar
             !fabric/build/libs/*-dev*.jar
             !fabric/build/libs/*-sources.jar
           
       - name: Upload NeoForge artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: cobblemon-spawning-rei-neoforge-${{ steps.get_version.outputs.VERSION }}
+          name: cobbledex-rei-emi-jei-neoforge-${{ steps.get_version.outputs.VERSION }}
           path: |
-            neoforge/build/libs/cobblemon-spawning-rei-neoforge-*.jar
+            neoforge/build/libs/cobbledex-rei-emi-jei-neoforge-*.jar
             !neoforge/build/libs/*-dev*.jar
             !neoforge/build/libs/*-sources.jar

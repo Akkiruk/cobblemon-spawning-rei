@@ -37,5 +37,15 @@ temp_icons/
 *~
 local.properties
 
+# Audits and analysis docs (generated, not for version control)
+audits/
+AUDIT_SUMMARY.md
+MANUAL_TASKS.md
+PLATFORM_DESCRIPTION.md
+*.ps1
+
+# Pokemon sprite caches (use Cobblemon's sprites directly, don't bundle our own)
+**/textures/pokemon/*.png
+
 # GitHub Copilot (AI development hints - not for public)
 .github/copilot-instructions.md

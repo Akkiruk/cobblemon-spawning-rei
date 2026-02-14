@@ -1,8 +1,8 @@
-  # Cobblemon Spawning for REI/JEI/EMI
+  # CobbleDex REI/EMI/JEI
 
 [![GitHub Release](https://img.shields.io/github/v/release/Akkiruk/cobblemon-spawning-rei?logo=github)](https://github.com/Akkiruk/cobblemon-spawning-rei/releases/latest)
-[![CurseForge Downloads](https://img.shields.io/curseforge/dt/cobblemon-spawning-rei?logo=curseforge&color=F16436)](https://www.curseforge.com/minecraft/mc-mods/cobblemon-spawn-evolution-info-rei-integration)
-[![Modrinth Downloads](https://img.shields.io/modrinth/dt/cobblemon-spawning-rei?logo=modrinth&color=00AF5C)](https://modrinth.com/mod/cobblemon-spawn-evolution-info-(rei-integration))
+[![CurseForge Downloads](https://img.shields.io/curseforge/dt/cobbledex-rei-emi-jei?logo=curseforge&color=F16436)](https://www.curseforge.com/minecraft/mc-mods/cobbledex-rei-emi-jei)
+[![Modrinth Downloads](https://img.shields.io/modrinth/dt/cobbledex-rei-emi-jei?logo=modrinth&color=00AF5C)](https://modrinth.com/mod/cobbledex-rei-emi-jei)
 
 [![Minecraft Version](https://img.shields.io/badge/Minecraft-1.21.1-green.svg)](https://www.minecraft.net/)
 [![Fabric API](https://img.shields.io/badge/Fabric%20API-0.116%2B-orange.svg)](https://fabricmc.net/)
@@ -10,7 +10,7 @@
 [![Cobblemon](https://img.shields.io/badge/Cobblemon-1.7.1%2B-blue.svg)](https://cobblemon.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A **client-side** (mostly) Architectury mod that integrates Cobblemon spawn data and evolution chains into **REI**, **JEI**, and **EMI**. Works with any of the three recipe viewers — search any Pokémon to see where it spawns, how it evolves, and what conditions are needed.
+Your complete **Cobblemon Pokédex** inside **REI**, **JEI**, or **EMI**. Browse spawn locations, evolution chains, base stats, item drops, Pokédex info, and special obtainment methods for every Pokémon — all from your recipe viewer.
 
 > **✨ Multi-Viewer Support:** This mod works with [REI (Roughly Enough Items)](https://github.com/shedaniel/RoughlyEnoughItems), [JEI (Just Enough Items)](https://github.com/mezz/JustEnoughItems), AND [EMI (Enough Mod Items)](https://github.com/emilyploszaj/emi)! Install any one of them and the mod will automatically integrate.
 
@@ -29,11 +29,21 @@ A **client-side** (mostly) Architectury mod that integrates Cobblemon spawn data
 - Form-specific evolutions (regional variants, gender-based, etc.)
 - Branching evolutions shown with branch indicators
 
+### Base Stats & Pokédex Info
+- Type matchups, abilities, egg groups, gender ratios
+- Height, weight, catch rate, EV yields
+- Breeding info and training data
+
+### Item Drops & Special Obtainment
+- View what items each Pokémon drops
+- Legendary/mythical obtainment via altars, shrines, and special methods
+- LumyMon summoning altar and resurrection machine support
+
 ### Universal Recipe Viewer Integration
 - **Works with REI, JEI, or EMI** — no need to choose, install your favorite!
 - Pokémon rendered as 3D models using Cobblemon's `PokemonItem`
 - Searchable by species name in your recipe viewer's search bar
-- Click any Pokémon to view its spawn or evolution displays
+- Click any Pokémon to view any of its data displays
 - Native plugin for each viewer (not using compatibility layers)
 
 ## Compatibility
@@ -64,9 +74,9 @@ A **client-side** (mostly) Architectury mod that integrates Cobblemon spawn data
 
 ### Client Installation
 
-1. Download the appropriate version from [Modrinth](https://modrinth.com/mod/cobblemon-spawning-rei) or [CurseForge](https://www.curseforge.com/minecraft/mc-mods/cobblemon-spawning-rei)
-   - `cobblemon-spawning-rei-fabric-X.Y.Z.jar` for Fabric
-   - `cobblemon-spawning-rei-neoforge-X.Y.Z.jar` for NeoForge
+1. Download the appropriate version from [Modrinth](https://modrinth.com/mod/cobbledex-rei-emi-jei) or [CurseForge](https://www.curseforge.com/minecraft/mc-mods/cobbledex-rei-emi-jei)
+   - `cobbledex-rei-emi-jei-fabric-X.Y.Z.jar` for Fabric
+   - `cobbledex-rei-emi-jei-neoforge-X.Y.Z.jar` for NeoForge
 2. Place in your `mods/` folder
 3. Launch Minecraft
 
@@ -83,8 +93,8 @@ cd cobblemon-spawning-rei
 ```
 
 Output jars:
-- `fabric/build/libs/cobblemon-spawning-rei-fabric-X.Y.Z.jar`
-- `neoforge/build/libs/cobblemon-spawning-rei-neoforge-X.Y.Z.jar`
+- `fabric/build/libs/cobbledex-rei-emi-jei-fabric-X.Y.Z.jar`
+- `neoforge/build/libs/cobbledex-rei-emi-jei-neoforge-X.Y.Z.jar`
 
 ## License
 
@@ -92,8 +102,8 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 ## Links
 
-- [Modrinth](https://modrinth.com/mod/cobblemon-spawning-rei)
-- [CurseForge](https://www.curseforge.com/minecraft/mc-mods/cobblemon-spawning-rei)
+- [Modrinth](https://modrinth.com/mod/cobbledex-rei-emi-jei)
+- [CurseForge](https://www.curseforge.com/minecraft/mc-mods/cobbledex-rei-emi-jei)
 - [GitHub Issues](https://github.com/Akkiruk/cobblemon-spawning-rei/issues)
 
 ## Acknowledgments

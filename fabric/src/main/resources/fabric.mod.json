@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "cobblemon-spawning-rei",
+  "id": "cobbledex-rei-emi-jei",
   "version": "${version}",
-  "name": "Cobblemon Spawning for REI/JEI/EMI",
-  "description": "Adds Cobblemon spawn locations, evolution chains, and species info to REI, JEI, and EMI. Works with any of the three recipe viewers — search any Pokémon to see where it spawns, how it evolves, and what conditions are needed.",
+  "name": "CobbleDex REI/EMI/JEI",
+  "description": "Your complete Cobblemon Pokédex in REI, JEI, or EMI. Browse spawn locations, evolution chains, base stats, item drops, Pokédex info, and special obtainment methods for every Pokémon — all from your recipe viewer.",
   "authors": ["Akkiruk"],
   "contact": {
     "homepage": "https://github.com/Akkiruk/cobblemon-spawning-rei",
@@ -11,37 +11,37 @@
     "issues": "https://github.com/Akkiruk/cobblemon-spawning-rei/issues"
   },
   "license": "MIT",
-  "icon": "assets/cobblemon-spawning-rei/icon.png",
+  "icon": "assets/cobbledex-rei-emi-jei/icon.png",
   "environment": "*",
   "entrypoints": {
     "main": [
       {
         "adapter": "kotlin",
-        "value": "com.cobblemonrei.fabric.CobblemonSpawningFabric"
+        "value": "com.cobbledex.fabric.CobbleDexFabric"
       }
     ],
     "client": [
       {
         "adapter": "kotlin",
-        "value": "com.cobblemonrei.fabric.CobblemonSpawningFabricClient"
+        "value": "com.cobbledex.fabric.CobbleDexFabricClient"
       }
     ],
     "rei_client": [
       {
         "adapter": "kotlin",
-        "value": "com.cobblemonrei.rei.CobblemonREIClientPlugin"
+        "value": "com.cobbledex.rei.CobbleDexREIPlugin"
       }
     ],
     "jei_mod_plugin": [
       {
         "adapter": "kotlin",
-        "value": "com.cobblemonrei.jei.CobblemonJEIPlugin"
+        "value": "com.cobbledex.jei.CobbleDexJEIPlugin"
       }
     ],
     "emi": [
       {
         "adapter": "kotlin",
-        "value": "com.cobblemonrei.emi.CobblemonEMIPlugin"
+        "value": "com.cobbledex.emi.CobbleDexEMIPlugin"
       }
     ]
   },

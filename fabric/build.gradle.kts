@@ -11,7 +11,7 @@ plugins {
 }
 
 base {
-    archivesName.set("cobblemon-spawning-rei-fabric")
+    archivesName.set("cobbledex-rei-emi-jei-fabric")
 }
 
 architectury {

@@ -1,0 +1,14 @@
+package com.cobbledex
+
+import net.minecraft.resources.ResourceLocation
+
+interface PokemonRef {
+    val species: String
+    val formAspects: Set<String>
+
+    val identifier: ResourceLocation
+        get() = ResourceLocation.fromNamespaceAndPath("cobblemon", sanitizePath(species))
+
+    val displayName: String
+        get() = formatSpeciesName(species)
+}
