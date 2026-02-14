@@ -40,7 +40,7 @@ object ObtainmentDataLoader {
         return false
     }
 
-    fun loadFromAllSources(modRoots: List<Path>, extraDatapacksDir: Path? = null): Map<String, List<ObtainmentInfo>> {
+    fun loadFromAllSources(modRoots: List<Path>): Map<String, List<ObtainmentInfo>> {
         val result = mutableMapOf<String, MutableList<ObtainmentInfo>>()
         var totalEntries = 0
 
@@ -66,18 +66,12 @@ object ObtainmentDataLoader {
             }
         }
 
-        if (extraDatapacksDir != null && Files.exists(extraDatapacksDir) && Files.isDirectory(extraDatapacksDir)) {
-            totalEntries += scanDatapacksDir(extraDatapacksDir, result)
-        }
+        val datapacksDir = try {
+            com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
+        } catch (_: Exception) { null }
 
-        if (com.cobbledex.config.CobbleDexConfig.get().localDatapackScan) {
-            val datapacksDir = try {
-                com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
-            } catch (_: Exception) { null }
-
-            if (datapacksDir != null && Files.exists(datapacksDir) && Files.isDirectory(datapacksDir)) {
-                totalEntries += scanDatapacksDir(datapacksDir, result)
-            }
+        if (datapacksDir != null && Files.exists(datapacksDir) && Files.isDirectory(datapacksDir)) {
+            totalEntries += scanDatapacksDir(datapacksDir, result)
         }
 
         // Merge bundled defaults only if LumyMon is actually installed

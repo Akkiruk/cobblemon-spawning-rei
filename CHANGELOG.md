@@ -2,6 +2,20 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.24.7] - 2026-02-14
+
+### Removed
+- Dead `getClientDatapacksDir()` function (never called after runtime API switch)
+- Dead `localDatapackScan` config field (always true, conditional never triggered)
+- Dead `CONFIG_VERSION` constant (defined but never checked)
+- Dead `SpeciesNameNormalizer.matches()` function (zero call sites)
+- Dead `extraDatapacksDir` parameter from ObtainmentDataLoader (always null)
+- Old config filename migration code (all users migrated long ago)
+- Stale `bin/` directories containing old server sync compiled artifacts
+
+### Fixed
+- Misleading "server sync" text in retry log message
+
 ## [1.24.6] - 2026-02-14
 
 ### Changed

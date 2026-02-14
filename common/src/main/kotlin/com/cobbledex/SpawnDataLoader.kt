@@ -364,13 +364,4 @@ object SpawnDataLoader {
         return result
     }
 
-    internal fun getClientDatapacksDir(): Path? {
-        return try {
-            com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
-        } catch (e: Exception) {
-            DebugLog.once("datapacks-dir") { "Failed to resolve datapacks dir: ${e.message}" }
-            null
-        }
-    }
-
 }

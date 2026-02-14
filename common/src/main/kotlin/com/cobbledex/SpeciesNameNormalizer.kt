@@ -81,11 +81,4 @@ object SpeciesNameNormalizer {
         val normalized = normalize(canonicalName)
         return CANONICAL_TO_DISPLAY[normalized] ?: canonicalName
     }
-    
-    /**
-     * Check if two species names refer to the same species.
-     */
-    fun matches(name1: String, name2: String): Boolean {
-        return normalize(name1) == normalize(name2)
-    }
 }

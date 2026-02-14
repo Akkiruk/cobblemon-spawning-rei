@@ -182,7 +182,7 @@ object SpawnDataIndex {
             runtimeCount == 0 -> LoadState.PARTIAL
             !hasEvolutions && emptyEvoRetries < MAX_EMPTY_EVO_RETRIES -> {
                 emptyEvoRetries++
-                DebugLog.info("Species loaded ($runtimeCount) but no evolutions found (attempt $emptyEvoRetries/$MAX_EMPTY_EVO_RETRIES) — staying PARTIAL for server sync or retry")
+                DebugLog.info("Species loaded ($runtimeCount) but no evolutions found (attempt $emptyEvoRetries/$MAX_EMPTY_EVO_RETRIES) — staying PARTIAL for retry")
                 LoadState.PARTIAL
             }
             !hasEvolutions -> {
