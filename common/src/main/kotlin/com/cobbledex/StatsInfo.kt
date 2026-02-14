@@ -5,5 +5,6 @@ data class StatsRecipeData(
     val baseStats: Map<String, Int>,
     val baseStatTotal: Int,
     val primaryType: String,
-    val secondaryType: String?
+    val secondaryType: String?,
+    val evYield: Map<String, Int>? = null
 )

@@ -326,6 +326,7 @@ object EvolutionDataLoader {
         val height: Float,
         val baseStats: Map<String, Int>? = null,
         val baseStatTotal: Int? = null,
+        val evYield: Map<String, Int>? = null,
         val abilities: List<String>? = null,
         val hiddenAbility: String? = null,
         val eggGroups: List<String>? = null,
@@ -337,7 +338,10 @@ object EvolutionDataLoader {
         val eggCycles: Int? = null,
         val experienceGroup: String? = null,
         val baseExperienceYield: Int? = null,
-        val baseFriendship: Int? = null
+        val baseFriendship: Int? = null,
+        val levelUpMoves: List<LevelUpMove>? = null,
+        val eggMoves: List<String>? = null,
+        val tutorMoves: List<String>? = null
     )
 
     fun loadSpeciesBasicInfoFromRuntime(): Map<String, SpeciesBasicInfo> {
@@ -420,6 +424,36 @@ object EvolutionDataLoader {
                 val baseExpYield = try { species.baseExperienceYield } catch (_: Exception) { null }
                 val friendship = try { species.baseFriendship } catch (_: Exception) { null }
 
+                val evYield = try {
+                    val yieldMap = mutableMapOf<String, Int>()
+                    for (stat in Stats.PERMANENT) {
+                        val value = form.evYield[stat] ?: 0
+                        if (value > 0) yieldMap[stat.showdownId] = value
+                    }
+                    yieldMap.ifEmpty { null }
+                } catch (_: Exception) { null }
+
+                val levelUpMoves = try {
+                    val moves = form.moves.levelUpMoves
+                    val grouped = mutableMapOf<Int, MutableList<String>>()
+                    for ((level, moveList) in moves) {
+                        for (move in moveList) {
+                            grouped.getOrPut(level) { mutableListOf() }.add(titleCase(move.name))
+                        }
+                    }
+                    grouped.entries.sortedBy { it.key }
+                        .map { LevelUpMove(it.key, it.value) }
+                        .ifEmpty { null }
+                } catch (_: Exception) { null }
+
+                val eggMoves = try {
+                    form.moves.eggMoves.map { titleCase(it.name) }.ifEmpty { null }
+                } catch (_: Exception) { null }
+
+                val tutorMoves = try {
+                    form.moves.tutorMoves.map { titleCase(it.name) }.ifEmpty { null }
+                } catch (_: Exception) { null }
+
                 result[name] = SpeciesBasicInfo(
                     name = name,
                     nationalDexNumber = species.nationalPokedexNumber,
@@ -430,6 +464,7 @@ object EvolutionDataLoader {
                     height = species.height,
                     baseStats = stats,
                     baseStatTotal = bst,
+                    evYield = evYield,
                     abilities = abilityNames.first,
                     hiddenAbility = abilityNames.second,
                     eggGroups = eggGroups,
@@ -441,14 +476,71 @@ object EvolutionDataLoader {
                     eggCycles = eggCycles,
                     experienceGroup = expGroup,
                     baseExperienceYield = baseExpYield,
-                    baseFriendship = friendship
+                    baseFriendship = friendship,
+                    levelUpMoves = levelUpMoves,
+                    eggMoves = eggMoves,
+                    tutorMoves = tutorMoves
                 )
             } catch (e: Exception) {
                 DebugLog.once("species-info-${species.name}") { "Failed to load species info for ${species.name}: ${e.message}" }
             }
         }
 
-        DebugLog.info("Loaded ${result.size} species from runtime API ($dropSpeciesCount with drops)")
+        // Load mega forms as separate entries
+        var megaCount = 0
+        for (species in implemented) {
+            for (megaForm in species.forms) {
+                if (!megaForm.labels.contains("mega")) continue
+                try {
+                    val megaKey = "${species.name.lowercase()}-${megaForm.name.lowercase()}"
+
+                    val megaStats = try {
+                        val statMap = mutableMapOf<String, Int>()
+                        for (stat in Stats.PERMANENT) {
+                            val value = megaForm.baseStats[stat] ?: species.baseStats[stat] ?: 0
+                            statMap[stat.showdownId] = value
+                        }
+                        statMap.ifEmpty { null }
+                    } catch (_: Exception) { null }
+
+                    val megaBst = megaStats?.values?.sum()
+
+                    val megaAbilities = try {
+                        val common = mutableListOf<String>()
+                        var hidden: String? = null
+                        for (ability in megaForm.abilities) {
+                            val abilityName = titleCase(ability.template.name)
+                            if (ability is HiddenAbility) hidden = abilityName
+                            else common.add(abilityName)
+                        }
+                        Pair(common.ifEmpty { null }, hidden)
+                    } catch (_: Exception) { Pair(null, null) }
+
+                    val megaPrimary = try { megaForm.primaryType?.name?.lowercase() ?: species.primaryType.name.lowercase() } catch (_: Exception) { species.primaryType.name.lowercase() }
+                    val megaSecondary = try { megaForm.secondaryType?.name?.lowercase() ?: species.secondaryType?.name?.lowercase() } catch (_: Exception) { null }
+
+                    result[megaKey] = SpeciesBasicInfo(
+                        name = megaKey,
+                        nationalDexNumber = species.nationalPokedexNumber,
+                        primaryType = megaPrimary,
+                        secondaryType = megaSecondary,
+                        catchRate = species.catchRate,
+                        weight = species.weight,
+                        height = species.height,
+                        baseStats = megaStats,
+                        baseStatTotal = megaBst,
+                        abilities = megaAbilities.first,
+                        hiddenAbility = megaAbilities.second,
+                        labels = megaForm.labels.ifEmpty { null }
+                    )
+                    megaCount++
+                } catch (e: Exception) {
+                    DebugLog.once("mega-${species.name}-${megaForm.name}") { "Failed to load mega form: ${e.message}" }
+                }
+            }
+        }
+
+        DebugLog.info("Loaded ${result.size} species from runtime API ($dropSpeciesCount with drops, $megaCount mega forms)")
         return result
     }
 }

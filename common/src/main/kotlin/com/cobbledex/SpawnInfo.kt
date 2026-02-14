@@ -65,12 +65,22 @@ data class SpawnAntiCondition(
     val neededBaseBlocks: List<String> = emptyList(),
     val neededNearbyBlocks: List<String> = emptyList(),
     val minY: Int? = null,
-    val maxY: Int? = null
+    val maxY: Int? = null,
+    val timeRange: String? = null,
+    val dimensions: List<String> = emptyList(),
+    val isRaining: Boolean? = null,
+    val isThundering: Boolean? = null,
+    val minLight: Int? = null,
+    val maxLight: Int? = null,
+    val moonPhase: String? = null
 ) {
     val isEmpty: Boolean
         get() = biomes.isEmpty() && structures.isEmpty() &&
             neededBaseBlocks.isEmpty() && neededNearbyBlocks.isEmpty() &&
-            minY == null && maxY == null
+            minY == null && maxY == null &&
+            timeRange == null && dimensions.isEmpty() &&
+            isRaining == null && isThundering == null &&
+            minLight == null && maxLight == null && moonPhase == null
 }
 
 data class WeightMultiplier(

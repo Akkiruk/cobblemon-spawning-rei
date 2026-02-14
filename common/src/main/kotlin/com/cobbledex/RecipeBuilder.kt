@@ -69,7 +69,7 @@ object RecipeBuilder {
             val stats = info.baseStats ?: continue
             val bst = info.baseStatTotal ?: continue
             if (stats.isEmpty()) continue
-            recipes.add(StatsRecipeData(species, stats, bst, info.primaryType, info.secondaryType))
+            recipes.add(StatsRecipeData(species, stats, bst, info.primaryType, info.secondaryType, info.evYield))
         }
         return recipes
     }
@@ -79,7 +79,7 @@ object RecipeBuilder {
         val stats = info.baseStats ?: return null
         val bst = info.baseStatTotal ?: return null
         if (stats.isEmpty()) return null
-        return StatsRecipeData(speciesName, stats, bst, info.primaryType, info.secondaryType)
+        return StatsRecipeData(speciesName, stats, bst, info.primaryType, info.secondaryType, info.evYield)
     }
 
     fun buildAllPokedexInfoRecipes(): List<PokedexInfoRecipeData> {
@@ -111,5 +111,71 @@ object RecipeBuilder {
             weight = info.weight,
             description = info.description
         )
+    }
+
+    private const val MOVES_PER_PAGE = 14
+
+    fun buildAllMovesRecipes(): List<MovesRecipeData> {
+        val recipes = mutableListOf<MovesRecipeData>()
+        for ((species, info) in SpawnDataIndex.speciesInfo) {
+            recipes.addAll(buildMovesPages(species, info))
+        }
+        return recipes
+    }
+
+    fun buildMovesFor(speciesName: String): List<MovesRecipeData> {
+        val info = SpawnDataIndex.getSpeciesInfo(speciesName) ?: return emptyList()
+        return buildMovesPages(speciesName, info)
+    }
+
+    private fun buildMovesPages(species: String, info: EvolutionDataLoader.SpeciesBasicInfo): List<MovesRecipeData> {
+        val levelUp = info.levelUpMoves ?: emptyList()
+        val egg = info.eggMoves ?: emptyList()
+        val tutor = info.tutorMoves ?: emptyList()
+        if (levelUp.isEmpty() && egg.isEmpty() && tutor.isEmpty()) return emptyList()
+
+        // Flatten level-up moves into individual lines for pagination
+        val totalLevelUpLines = levelUp.sumOf { it.moves.size }
+        val eggLines = if (egg.isNotEmpty()) 1 + ((egg.size + 2) / 3) else 0 // header + rows of 3
+        val tutorLines = if (tutor.isNotEmpty()) 1 + ((tutor.size + 2) / 3) else 0
+        val totalLines = totalLevelUpLines + eggLines + tutorLines
+
+        if (totalLines <= MOVES_PER_PAGE) {
+            return listOf(MovesRecipeData(species, levelUp, egg, tutor, 1, 1))
+        }
+
+        // Paginate level-up moves
+        val pages = mutableListOf<MovesRecipeData>()
+        var remaining = levelUp.toMutableList()
+        var pageNum = 1
+        val pageCount = ((totalLevelUpLines + MOVES_PER_PAGE - 1) / MOVES_PER_PAGE).coerceAtLeast(1) +
+            (if (eggLines + tutorLines > 0) 1 else 0)
+
+        while (remaining.isNotEmpty()) {
+            val pageMoves = mutableListOf<LevelUpMove>()
+            var linesUsed = 0
+            while (remaining.isNotEmpty() && linesUsed < MOVES_PER_PAGE) {
+                val entry = remaining.first()
+                if (linesUsed + entry.moves.size <= MOVES_PER_PAGE) {
+                    pageMoves.add(entry)
+                    linesUsed += entry.moves.size
+                    remaining.removeAt(0)
+                } else {
+                    val canFit = MOVES_PER_PAGE - linesUsed
+                    pageMoves.add(LevelUpMove(entry.level, entry.moves.take(canFit)))
+                    remaining[0] = LevelUpMove(entry.level, entry.moves.drop(canFit))
+                    linesUsed = MOVES_PER_PAGE
+                }
+            }
+            pages.add(MovesRecipeData(species, pageMoves, emptyList(), emptyList(), pageNum, pageCount))
+            pageNum++
+        }
+
+        // Last page with egg/tutor moves
+        if (egg.isNotEmpty() || tutor.isNotEmpty()) {
+            pages.add(MovesRecipeData(species, emptyList(), egg, tutor, pageNum, pageCount))
+        }
+
+        return pages
     }
 }

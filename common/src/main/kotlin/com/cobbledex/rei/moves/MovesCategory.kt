@@ -1,4 +1,4 @@
-package com.cobbledex.rei.stats
+package com.cobbledex.rei.moves
 
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DisplayLayout
@@ -16,30 +16,30 @@ import me.shedaniel.rei.api.common.util.EntryStacks
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.Items
 
-class StatsCategory : DisplayCategory<StatsDisplay> {
+class MovesCategory : DisplayCategory<MovesDisplay> {
 
     companion object {
-        val ID: CategoryIdentifier<StatsDisplay> = CategoryIdentifier.of(
-            CobbleDexMod.MOD_ID, "stats"
+        val ID: CategoryIdentifier<MovesDisplay> = CategoryIdentifier.of(
+            CobbleDexMod.MOD_ID, "moves"
         )
     }
 
-    override fun getCategoryIdentifier(): CategoryIdentifier<out StatsDisplay> = ID
+    override fun getCategoryIdentifier(): CategoryIdentifier<out MovesDisplay> = ID
 
-    override fun getTitle(): Component = Component.translatable("category.cobbledex-rei-emi-jei.stats")
+    override fun getTitle(): Component = Component.translatable("category.cobbledex-rei-emi-jei.moves")
 
-    override fun getIcon(): Renderer = EntryStacks.of(Items.BOOK)
+    override fun getIcon(): Renderer = EntryStacks.of(Items.PAPER)
 
-    override fun getDisplayHeight(): Int = DisplayLayout.getMaxStatsSize().height
+    override fun getDisplayHeight(): Int = DisplayLayout.getMaxMovesSize().height
 
     override fun getFixedDisplaysPerPage(): Int = 1
 
-    override fun getDisplayWidth(display: StatsDisplay): Int =
-        DisplayLayout.getMaxStatsSize().width
+    override fun getDisplayWidth(display: MovesDisplay): Int =
+        DisplayLayout.getMaxMovesSize().width
 
-    override fun setupDisplay(display: StatsDisplay, bounds: Rectangle): List<Widget> {
+    override fun setupDisplay(display: MovesDisplay, bounds: Rectangle): List<Widget> {
         val widgets = mutableListOf<Widget>()
-        val size = DisplayLayout.getMaxStatsSize()
+        val size = DisplayLayout.getMaxMovesSize()
 
         val yOffset = (bounds.height - size.height).coerceAtLeast(0) / 2
         val panelX = bounds.x
@@ -61,10 +61,8 @@ class StatsCategory : DisplayCategory<StatsDisplay> {
         widgets.add(Widgets.createDrawableWidget { gfx, _, _, _ ->
             gfx.pose().pushPose()
             gfx.pose().translate(panelX.toFloat(), panelY.toFloat(), 0f)
-            SpawnDisplayHelper.drawStatsDetails(
-                gfx, display.speciesName, display.data.baseStats,
-                display.data.baseStatTotal, display.data.primaryType, display.data.secondaryType,
-                evYield = display.data.evYield, width = w, height = h
+            SpawnDisplayHelper.drawMovesDetails(
+                gfx, display.data, width = w, height = h
             )
             gfx.pose().popPose()
         })

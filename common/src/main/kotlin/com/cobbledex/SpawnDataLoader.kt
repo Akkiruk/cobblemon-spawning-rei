@@ -165,7 +165,17 @@ object SpawnDataLoader {
 
             for (spawnElement in spawns) {
                 val spawn = spawnElement.asJsonObject
-                val pokemonField = spawn.get("pokemon")?.asString ?: continue
+                val pokemonElement = spawn.get("pokemon") ?: continue
+                val pokemonField: String = when {
+                    pokemonElement.isJsonPrimitive -> pokemonElement.asString
+                    pokemonElement.isJsonObject -> {
+                        val obj = pokemonElement.asJsonObject
+                        val name = obj.get("pokemon")?.asString ?: continue
+                        val aspects = obj.getAsJsonArray("aspects")?.joinToString(" ") { it.asString } ?: ""
+                        if (aspects.isNotBlank()) "$name $aspects" else name
+                    }
+                    else -> continue
+                }
                 val species = pokemonField.split(" ").first().lowercase()
                 result.getOrPut(species) { mutableListOf() }.add(parseSpawnEntry(spawn, species, pokemonField))
                 entryCount++
@@ -391,7 +401,14 @@ object SpawnDataLoader {
             neededBaseBlocks = obj.getAsJsonArray("neededBaseBlocks")?.map { it.asString } ?: emptyList(),
             neededNearbyBlocks = obj.getAsJsonArray("neededNearbyBlocks")?.map { it.asString } ?: emptyList(),
             minY = obj.get("minY")?.asInt,
-            maxY = obj.get("maxY")?.asInt
+            maxY = obj.get("maxY")?.asInt,
+            timeRange = obj.get("timeRange")?.asString,
+            dimensions = obj.getAsJsonArray("dimensions")?.map { it.asString } ?: emptyList(),
+            isRaining = if (obj.has("isRaining")) obj.get("isRaining")?.asBoolean else null,
+            isThundering = if (obj.has("isThundering")) obj.get("isThundering")?.asBoolean else null,
+            minLight = obj.get("minLight")?.asInt,
+            maxLight = obj.get("maxLight")?.asInt,
+            moonPhase = obj.get("moonPhase")?.asString
         )
         return if (anti.isEmpty) null else anti
     }
@@ -406,7 +423,14 @@ object SpawnDataLoader {
             neededBaseBlocks = nonNull.flatMap { it.neededBaseBlocks }.distinct(),
             neededNearbyBlocks = nonNull.flatMap { it.neededNearbyBlocks }.distinct(),
             minY = nonNull.mapNotNull { it.minY }.minOrNull(),
-            maxY = nonNull.mapNotNull { it.maxY }.maxOrNull()
+            maxY = nonNull.mapNotNull { it.maxY }.maxOrNull(),
+            timeRange = nonNull.mapNotNull { it.timeRange }.firstOrNull(),
+            dimensions = nonNull.flatMap { it.dimensions }.distinct(),
+            isRaining = nonNull.mapNotNull { it.isRaining }.firstOrNull(),
+            isThundering = nonNull.mapNotNull { it.isThundering }.firstOrNull(),
+            minLight = nonNull.mapNotNull { it.minLight }.minOrNull(),
+            maxLight = nonNull.mapNotNull { it.maxLight }.maxOrNull(),
+            moonPhase = nonNull.mapNotNull { it.moonPhase }.firstOrNull()
         ).takeIf { !it.isEmpty }
     }
 

@@ -206,6 +206,26 @@ object SpawnDisplayHelper {
             val r = listOfNotNull(anti.minY?.let { "Y \u2265 $it" }, anti.maxY?.let { "Y \u2264 $it" })
             lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.height", r.joinToString(", ")))
         }
+        if (anti.timeRange != null) {
+            lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.time", titleCase(anti.timeRange)))
+        }
+        if (anti.dimensions.isNotEmpty()) {
+            lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.dimensions", anti.dimensions.map { formatDimension(it) }.joinToString(", ")))
+        }
+        if (anti.isThundering == true) {
+            lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.weather", tr("cobbledex-rei-emi-jei.weather.thunder")))
+        } else if (anti.isRaining == true) {
+            lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.weather", tr("cobbledex-rei-emi-jei.weather.rain")))
+        } else if (anti.isRaining == false) {
+            lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.weather", tr("cobbledex-rei-emi-jei.weather.clear")))
+        }
+        if (anti.minLight != null || anti.maxLight != null) {
+            val r = listOfNotNull(anti.minLight?.let { "\u2265 $it" }, anti.maxLight?.let { "\u2264 $it" })
+            lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.light", r.joinToString(", ")))
+        }
+        if (anti.moonPhase != null) {
+            lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.moon", titleCase(anti.moonPhase)))
+        }
         return lines
     }
 
@@ -768,8 +788,7 @@ object SpawnDisplayHelper {
         baseStats: Map<String, Int>,
         bst: Int,
         primaryType: String,
-        secondaryType: String?,
-        width: Int = 200,
+        secondaryType: String?,        evYield: Map<String, Int>? = null,        width: Int = 200,
         height: Int = 160,
         padding: Int = 6,
         lineHeight: Int = 13
@@ -823,6 +842,14 @@ object SpawnDisplayHelper {
             graphics.drawString(font, valStr, right - valWidth, y + 1, 0xFFFFFF, false)
 
             y += lineHeight
+        }
+
+        // EV Yields
+        if (evYield != null && evYield.isNotEmpty()) {
+            y += 2
+            val evParts = evYield.entries.map { "${it.value} ${STAT_LABELS[it.key] ?: it.key.uppercase()}" }
+            val evText = "EV: ${evParts.joinToString(", ")}"
+            graphics.drawString(font, evText, padding, y, 0xFF88CCFF.toInt(), false)
         }
     }
 
@@ -942,5 +969,93 @@ object SpawnDisplayHelper {
                 y += lineHeight
             }
         }
+    }
+
+    // --- Moves detail rendering (shared between REI/JEI/EMI) ---
+
+    fun drawMovesDetails(
+        graphics: GuiGraphics,
+        data: MovesRecipeData,
+        width: Int = 200,
+        height: Int = 200,
+        padding: Int = 6,
+        lineHeight: Int = 11
+    ) {
+        val font = Minecraft.getInstance().font
+        val right = width - padding
+
+        graphics.drawString(font, formatSpeciesName(data.speciesName), padding + 22, 6, 0xFFFFFF, false)
+
+        val headerText = if (data.pageTotal > 1)
+            tr("category.cobbledex-rei-emi-jei.moves") + " (${data.pageIndex}/${data.pageTotal})"
+        else
+            tr("category.cobbledex-rei-emi-jei.moves")
+        val headerWidth = font.width(headerText)
+        graphics.drawString(font, headerText, right - headerWidth, 6, 0xDDCC99, false)
+
+        graphics.fill(padding, 20, right, 21, 0x50FFFFFF)
+
+        var y = 26
+
+        // Level-up moves
+        if (data.levelUpMoves.isNotEmpty()) {
+            graphics.drawString(font, tr("cobbledex-rei-emi-jei.moves.levelup"), padding, y, 0xEEEEEE, false)
+            y += lineHeight
+
+            for (entry in data.levelUpMoves) {
+                val lvPrefix = "Lv.${entry.level}"
+                for (moveName in entry.moves) {
+                    if (y + lineHeight > height - 4) return
+                    val lvWidth = font.width(lvPrefix)
+                    graphics.drawString(font, lvPrefix, padding + 4, y, 0xFF88CCFF.toInt(), false)
+                    graphics.drawString(font, moveName, padding + 4 + lvWidth + 4, y, 0xBBBBBB, false)
+                    y += lineHeight
+                }
+            }
+            y += 3
+        }
+
+        // Egg moves
+        if (data.eggMoves.isNotEmpty()) {
+            if (y + lineHeight > height - 4) return
+            graphics.drawString(font, tr("cobbledex-rei-emi-jei.moves.egg"), padding, y, 0xEEEEEE, false)
+            y += lineHeight
+            val moveText = data.eggMoves.joinToString(", ")
+            for (line in wrapText(font, moveText, right - padding - 4)) {
+                if (y + lineHeight > height - 4) return
+                graphics.drawString(font, line, padding + 4, y, 0xFFDDDD88.toInt(), false)
+                y += lineHeight
+            }
+            y += 3
+        }
+
+        // Tutor moves
+        if (data.tutorMoves.isNotEmpty()) {
+            if (y + lineHeight > height - 4) return
+            graphics.drawString(font, tr("cobbledex-rei-emi-jei.moves.tutor"), padding, y, 0xEEEEEE, false)
+            y += lineHeight
+            val moveText = data.tutorMoves.joinToString(", ")
+            for (line in wrapText(font, moveText, right - padding - 4)) {
+                if (y + lineHeight > height - 4) return
+                graphics.drawString(font, line, padding + 4, y, 0xFFAABBCC.toInt(), false)
+                y += lineHeight
+            }
+        }
+    }
+
+    fun measureMovesPanel(data: MovesRecipeData): DisplayLayout.PanelSize {
+        val lineHeight = 11
+        var lines = 3 // header + separator
+        if (data.levelUpMoves.isNotEmpty()) {
+            lines += 1 + data.levelUpMoves.sumOf { it.moves.size }
+        }
+        if (data.eggMoves.isNotEmpty()) {
+            lines += 1 + ((data.eggMoves.size + 2) / 3).coerceAtLeast(1)
+        }
+        if (data.tutorMoves.isNotEmpty()) {
+            lines += 1 + ((data.tutorMoves.size + 2) / 3).coerceAtLeast(1)
+        }
+        val h = (lines * lineHeight + 30).coerceIn(100, 300)
+        return DisplayLayout.PanelSize(200, h)
     }
 }

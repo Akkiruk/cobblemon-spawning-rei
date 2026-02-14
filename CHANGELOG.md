@@ -2,6 +2,21 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.23.0] - 2026-02-15
+
+### Added
+- **Moves category**: New REI/JEI/EMI tab showing level-up, egg, and tutor moves with pagination
+- **EV Yields**: Stats panel now shows EV yield line (e.g., "EV: 1 Atk, 2 SpA")
+- **Mega form entries**: Mega evolutions appear as separate entries with their own stats, types, and abilities
+- Anti-condition rendering: time, dimension, weather, light level, and moon phase exclusions now displayed
+- `showMoves` config toggle
+
+### Fixed
+- ItemStack cache mutation: cached stacks now return defensive copies
+- Spawn JSON: `pokemon` field now handles both string and JSON object format (aspects support)
+- Fakemon namespace: species with custom namespaces (e.g., `alatia:rockdrake`) now resolve correctly
+- Anti-condition parser: 7 missing fields now extracted and merged (timeRange, dimensions, isRaining, isThundering, minLight, maxLight, moonPhase)
+
 ## [1.22.1] - 2026-02-14
 
 ### Fixed

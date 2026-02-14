@@ -20,6 +20,8 @@ import com.cobbledex.rei.pokedex.PokedexInfoCategory
 import com.cobbledex.rei.pokedex.PokedexInfoDisplay
 import com.cobbledex.rei.spawn.SpawnCategory
 import com.cobbledex.rei.spawn.SpawnDisplay
+import com.cobbledex.rei.moves.MovesCategory
+import com.cobbledex.rei.moves.MovesDisplay
 import com.cobbledex.rei.stats.StatsCategory
 import com.cobbledex.rei.stats.StatsDisplay
 import me.shedaniel.rei.api.client.plugins.REIClientPlugin
@@ -75,8 +77,9 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         if (config.showObtainment) registry.add(ObtainmentCategory())
         if (config.showDrops) registry.add(DropCategory())
         if (config.showStats) registry.add(StatsCategory())
+        if (config.showMoves) registry.add(MovesCategory())
         if (config.showPokedexInfo) registry.add(PokedexInfoCategory())
-        DebugLog.info("REI categories registered (spawns${if (config.showEvolutions) " + evolution" else ""}${if (config.showObtainment) " + obtainment" else ""}${if (config.showDrops) " + drops" else ""}${if (config.showStats) " + stats" else ""}${if (config.showPokedexInfo) " + pokedex" else ""})")
+        DebugLog.info("REI categories registered (spawns${if (config.showEvolutions) " + evolution" else ""}${if (config.showObtainment) " + obtainment" else ""}${if (config.showDrops) " + drops" else ""}${if (config.showStats) " + stats" else ""}${if (config.showMoves) " + moves" else ""}${if (config.showPokedexInfo) " + pokedex" else ""})")
     }
 
     override fun registerDisplays(registry: DisplayRegistry) {
@@ -90,6 +93,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         if (config.showObtainment) registry.registerDisplayGenerator(ObtainmentCategory.ID, ObtainmentDisplayGenerator())
         if (config.showDrops) registry.registerDisplayGenerator(DropCategory.ID, DropDisplayGenerator())
         if (config.showStats) registry.registerDisplayGenerator(StatsCategory.ID, StatsDisplayGenerator())
+        if (config.showMoves) registry.registerDisplayGenerator(MovesCategory.ID, MovesDisplayGenerator())
         if (config.showPokedexInfo) registry.registerDisplayGenerator(PokedexInfoCategory.ID, PokedexInfoDisplayGenerator())
 
         DebugLog.info("Registered dynamic display generators")
@@ -269,6 +273,34 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
 
             val all = RecipeBuilder.buildAllStatsRecipes().map { StatsDisplay(it) }
+            cachedDisplays = all
+            cachedVersion = version
+            return if (all.isEmpty()) Optional.empty() else Optional.of(all)
+        }
+    }
+
+    private inner class MovesDisplayGenerator : DynamicDisplayGenerator<MovesDisplay> {
+
+        @Volatile private var cachedVersion = -1L
+        @Volatile private var cachedDisplays: List<MovesDisplay>? = null
+
+        override fun getRecipeFor(entry: EntryStack<*>): Optional<List<MovesDisplay>> {
+            val value = entry.value ?: return Optional.empty()
+            if (value !is PokemonEntry) return Optional.empty()
+            val recipes = RecipeBuilder.buildMovesFor(value.species)
+            if (recipes.isEmpty()) return Optional.empty()
+            return Optional.of(recipes.map { MovesDisplay(it) })
+        }
+
+        override fun getUsageFor(entry: EntryStack<*>): Optional<List<MovesDisplay>> = Optional.empty()
+
+        override fun generate(builder: ViewSearchBuilder): Optional<List<MovesDisplay>> {
+            if (builder.recipesFor.isNotEmpty() || builder.usagesFor.isNotEmpty()) return Optional.empty()
+            if (!SpawnDataIndex.hasData()) return Optional.empty()
+            val version = SpawnDataIndex.dataVersion
+            cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
+
+            val all = RecipeBuilder.buildAllMovesRecipes().map { MovesDisplay(it) }
             cachedDisplays = all
             cachedVersion = version
             return if (all.isEmpty()) Optional.empty() else Optional.of(all)

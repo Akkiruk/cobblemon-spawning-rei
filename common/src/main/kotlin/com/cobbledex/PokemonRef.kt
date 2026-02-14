@@ -7,8 +7,13 @@ interface PokemonRef {
     val formAspects: Set<String>
 
     val identifier: ResourceLocation
-        get() = ResourceLocation.fromNamespaceAndPath("cobblemon", sanitizePath(species))
+        get() {
+            val parts = species.split(":", limit = 2)
+            val namespace = if (parts.size > 1) parts[0] else "cobblemon"
+            val path = if (parts.size > 1) parts[1] else species
+            return ResourceLocation.fromNamespaceAndPath(namespace, sanitizePath(path))
+        }
 
     val displayName: String
-        get() = formatSpeciesName(species)
+        get() = formatSpeciesName(if (species.contains(":")) species.substringAfter(":") else species)
 }

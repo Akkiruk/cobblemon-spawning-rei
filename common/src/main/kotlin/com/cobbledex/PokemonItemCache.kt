@@ -42,11 +42,11 @@ object PokemonItemCache {
 
     fun getItem(name: String): ItemStack? {
         val normalized = SpeciesNameNormalizer.normalize(name)
-        itemCache[normalized]?.let { return it }
+        itemCache[normalized]?.let { return it.copy() }
         val species = resolveSpecies(name) ?: return null
         val item = try { PokemonItem.from(species) } catch (_: Exception) { null }
         if (item != null && !item.isEmpty) itemCache[normalized] = item
-        return item
+        return item?.copy()
     }
 
     fun canRender(name: String): Boolean {

@@ -52,7 +52,7 @@ class JeiStatsCategory(guiHelper: IGuiHelper) : IRecipeCategory<JeiStatsRecipe> 
         SpawnDisplayHelper.drawStatsDetails(
             graphics, recipe.speciesName, recipe.data.baseStats,
             recipe.data.baseStatTotal, recipe.data.primaryType, recipe.data.secondaryType,
-            width = size.width, height = size.height
+            evYield = recipe.data.evYield, width = size.width, height = size.height
         )
     }
 }

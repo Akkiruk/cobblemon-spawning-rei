@@ -25,6 +25,7 @@ object DisplayLayout {
     @Volatile private var cachedDropMax: PanelSize? = null
     @Volatile private var cachedStatsMax: PanelSize? = null
     @Volatile private var cachedPokedexInfoMax: PanelSize? = null
+    @Volatile private var cachedMovesMax: PanelSize? = null
     @Volatile private var cachedDataVersion: Long = -1L
 
     fun invalidateCache() {
@@ -34,6 +35,7 @@ object DisplayLayout {
         cachedDropMax = null
         cachedStatsMax = null
         cachedPokedexInfoMax = null
+        cachedMovesMax = null
         cachedDataVersion = -1L
     }
 
@@ -64,13 +66,19 @@ object DisplayLayout {
     fun getMaxStatsSize(): PanelSize {
         checkCacheValidity()
         cachedStatsMax?.let { return it }
-        return PanelSize(200, 130).also { cachedStatsMax = it }
+        return PanelSize(200, 145).also { cachedStatsMax = it }
     }
 
     fun getMaxPokedexInfoSize(): PanelSize {
         checkCacheValidity()
         cachedPokedexInfoMax?.let { return it }
         return computeMaxPokedexInfoSize().also { cachedPokedexInfoMax = it }
+    }
+
+    fun getMaxMovesSize(): PanelSize {
+        checkCacheValidity()
+        cachedMovesMax?.let { return it }
+        return PanelSize(200, 220).also { cachedMovesMax = it }
     }
 
     private fun checkCacheValidity() {

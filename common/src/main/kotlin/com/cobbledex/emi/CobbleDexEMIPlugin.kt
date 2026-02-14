@@ -41,6 +41,10 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "emi_pokedex_info"),
             EmiStack.of(Items.WRITABLE_BOOK)
         )
+        val MOVES_CATEGORY = EmiRecipeCategory(
+            ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "emi_moves"),
+            EmiStack.of(Items.PAPER)
+        )
     }
 
     override fun register(registry: EmiRegistry) {
@@ -73,6 +77,11 @@ open class CobbleDexEMIPlugin : EmiPlugin {
         if (config.showPokedexInfo) {
             registry.addCategory(POKEDEX_INFO_CATEGORY)
             registry.addWorkstation(POKEDEX_INFO_CATEGORY, EmiStack.of(Items.WRITABLE_BOOK))
+        }
+
+        if (config.showMoves) {
+            registry.addCategory(MOVES_CATEGORY)
+            registry.addWorkstation(MOVES_CATEGORY, EmiStack.of(Items.PAPER))
         }
 
         var comparisonSet = false
@@ -127,6 +136,12 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             val pokedexRecipes = RecipeBuilder.buildAllPokedexInfoRecipes().map { EmiPokedexInfoRecipe(it) }
             for (recipe in pokedexRecipes) registry.addRecipe(recipe)
             DebugLog.info("EMI: Registered ${pokedexRecipes.size} pokédex info recipes")
+        }
+
+        if (config.showMoves) {
+            val movesRecipes = RecipeBuilder.buildAllMovesRecipes().map { EmiMovesRecipe(it) }
+            for (recipe in movesRecipes) registry.addRecipe(recipe)
+            DebugLog.info("EMI: Registered ${movesRecipes.size} moves recipes")
         }
     }
 
