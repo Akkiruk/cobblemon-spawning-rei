@@ -13,9 +13,9 @@ import com.cobblemon.mod.common.pokemon.abilities.HiddenAbility
 import com.cobblemon.mod.common.pokemon.evolution.variants.BlockClickEvolution
 import com.cobblemon.mod.common.pokemon.evolution.variants.ItemInteractionEvolution
 import com.cobblemon.mod.common.pokemon.evolution.variants.TradeEvolution
+import com.cobblemon.mod.common.pokemon.requirements.*
 import net.minecraft.advancements.critereon.ItemPredicate
 import net.minecraft.core.Holder
-import net.minecraft.core.HolderSet
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.Item
@@ -38,7 +38,6 @@ object EvolutionDataLoader {
         for (species in implemented) {
             val baseName = species.name.lowercase()
 
-            // Base species evolutions
             for (evo in species.evolutions) {
                 try {
                     val info = parseEvolution(baseName, null, evo)
@@ -51,7 +50,6 @@ object EvolutionDataLoader {
                 }
             }
 
-            // Form-specific evolutions — store under both composite key and base name
             for (form in species.forms) {
                 if (form.evolutions.isEmpty()) continue
                 val formAspects = form.aspects.toSet()
@@ -86,7 +84,7 @@ object EvolutionDataLoader {
     private fun parseEvolution(fromSpecies: String, fromAspects: Set<String>?, evo: Evolution): EvolutionInfo? {
         val id = evo.id
         val resultSpecies = evo.result.species?.lowercase() ?: return null
-        val resultAspects = parseResultAspects(evo.result.aspects)
+        val resultAspects = evo.result.aspects.map { it.lowercase() }.toSet()
 
         val variant = evo.javaClass.simpleName
             .replace("Evolution", "")
@@ -100,8 +98,7 @@ object EvolutionDataLoader {
         val requirements = mutableListOf<EvolutionRequirement>()
         for (req in evo.requirements) {
             try {
-                val parsed = parseRequirement(req)
-                requirements.add(parsed)
+                requirements.add(parseRequirement(req))
             } catch (e: Exception) {
                 val reqVariant = req.javaClass.simpleName.replace("Requirement", "").lowercase()
                 requirements.add(EvolutionRequirement(reqVariant, emptyMap()))
@@ -123,191 +120,163 @@ object EvolutionDataLoader {
 
     private fun extractRequiredContext(evo: Evolution): String? {
         return when (evo) {
-            is TradeEvolution -> {
-                val props = evo.requiredContext
-                val str = props.asString(" ")
-                str.ifBlank { null }
-            }
-            is ItemInteractionEvolution -> {
-                extractItemIdFromAny(evo.requiredContext)
-            }
-            is BlockClickEvolution -> {
-                formatRegistryCondition(evo.requiredContext)
-            }
+            is TradeEvolution -> evo.requiredContext.asString(" ").ifBlank { null }
+            is ItemInteractionEvolution -> extractItemIdFromPredicate(evo.requiredContext)
+            is BlockClickEvolution -> formatRegistryCondition(evo.requiredContext)
             is ContextEvolution<*, *> -> {
-                try {
-                    val field = findField(evo.javaClass, "requiredContext")
-                    field?.isAccessible = true
-                    val value = field?.get(evo) ?: return null
-                    when {
-                        value is ResourceLocation -> value.toString()
-                        value is PokemonProperties -> value.asString(" ").ifBlank { null }
-                        value is RegistryLikeCondition<*> -> formatRegistryCondition(value)
-                        else -> extractItemIdFromAny(value)
-                            ?: value.toString().takeIf { !it.contains("@") && it.length < 60 }
-                    }
-                } catch (_: Exception) { null }
+                val context = evo.requiredContext ?: return null
+                when (context) {
+                    is ResourceLocation -> context.toString()
+                    is PokemonProperties -> context.asString(" ").ifBlank { null }
+                    is RegistryLikeCondition<*> -> formatRegistryCondition(context)
+                    is ItemPredicate -> extractItemIdFromPredicate(context)
+                    else -> context.toString().takeIf { !it.contains("@") && it.length < 60 }
+                }
             }
             else -> null
         }
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun extractItemIdFromAny(obj: Any?): String? {
+    private fun extractItemIdFromPredicate(obj: Any?): String? {
         if (obj == null) return null
-        // Typed access to vanilla ItemPredicate (Loom-remapped, no reflection strings)
-        if (obj is ItemPredicate) {
-            val holderSet = obj.items().orElse(null) ?: return null
-            val first = holderSet.stream().findFirst().orElse(null) ?: return null
-            if (first is Holder<*>) {
-                val key = first.unwrapKey().orElse(null)
-                if (key != null) return key.location().toString()
-                val value = first.value()
-                if (value is Item) return BuiltInRegistries.ITEM.getKey(value).toString()
-            }
-            return null
-        }
-        // RegistryLikeCondition wrapper (Cobblemon class, not obfuscated)
         if (obj is RegistryLikeCondition<*>) return formatRegistryCondition(obj)
-        // Nested 'item' field (legacy Cobblemon fields, not obfuscated)
-        val item = extractField(obj, "item") ?: extractField(obj, "items")
-        if (item is RegistryLikeCondition<*>) return formatRegistryCondition(item)
-        if (item != null) {
-            val nested = extractItemIdFromAny(item)
-            if (nested != null) return nested
+        if (obj !is ItemPredicate) return null
+        val holderSet = obj.items().orElse(null) ?: return null
+        val first = holderSet.stream().findFirst().orElse(null) ?: return null
+        if (first is Holder<*>) {
+            val key = first.unwrapKey().orElse(null)
+            if (key != null) return key.location().toString()
+            val value = first.value()
+            if (value is Item) return BuiltInRegistries.ITEM.getKey(value).toString()
         }
         return null
     }
 
-    private fun parseResultAspects(aspects: Set<String>): Set<String> {
-        return aspects.map { it.lowercase() }.toSet()
-    }
-
     private fun parseRequirement(req: Any): EvolutionRequirement {
-        val className = req.javaClass.simpleName
-        val variant = className.replace("Requirement", "")
-            .replace(Regex("([A-Z])"), "_$1")
-            .lowercase()
-            .trimStart('_')
-
         val data = mutableMapOf<String, Any>()
 
-        when {
-            className == "LevelRequirement" -> {
-                extractField(req, "minLevel")?.let { data["minLevel"] = it }
+        val variant: String = when (req) {
+            is LevelRequirement -> {
+                data["minLevel"] = req.minLevel
+                "level"
             }
-            className == "FriendshipRequirement" -> {
-                extractField(req, "amount")?.let { data["amount"] = it }
+            is FriendshipRequirement -> {
+                data["amount"] = req.amount
+                "friendship"
             }
-            className == "TimeRangeRequirement" -> {
-                val range = extractField(req, "range")
-                resolveTimeRange(range)?.let { data["range"] = it }
+            is TimeRangeRequirement -> {
+                resolveTimeRange(req.range)?.let { data["range"] = it }
+                "time_range"
             }
-            className.contains("HeldItem") || className.contains("OwnerHoldsItem") -> {
-                val id = extractItemFromRequirement(req)
-                if (id != null) data["itemCondition"] = id
+            is HeldItemRequirement -> {
+                extractItemIdFromPredicate(req.itemCondition)?.let { data["itemCondition"] = it }
+                "held_item"
             }
-            className == "MoveTypeRequirement" -> {
-                extractField(req, "type")?.let { data["type"] = extractReadableValue(it) ?: "unknown" }
+            is OwnerHoldsItemRequirement -> {
+                extractItemIdFromPredicate(req.itemCondition)?.let { data["itemCondition"] = it }
+                "owner_holds_item"
             }
-            className == "MoveSetRequirement" -> {
-                extractField(req, "move")?.let { data["move"] = extractReadableValue(it) ?: "unknown" }
+            is MoveTypeRequirement -> {
+                data["type"] = req.type.name
+                "move_type"
             }
-            className.contains("Biome") -> {
-                val cond = extractField(req, "biomeCondition")
-                if (cond is RegistryLikeCondition<*>) data["biomeCondition"] = formatRegistryCondition(cond) ?: cond.toString()
-                else if (cond != null) data["biomeCondition"] = cond.toString()
-                val anti = extractField(req, "biomeAnticondition")
-                if (anti is RegistryLikeCondition<*>) data["biomeAnticondition"] = formatRegistryCondition(anti) ?: anti.toString()
-                else if (anti != null) data["biomeAnticondition"] = anti.toString()
+            is MoveSetRequirement -> {
+                data["move"] = req.move.name
+                "has_move"
             }
-            className.contains("Structure") -> {
-                val cond = extractField(req, "structureCondition")
-                if (cond is RegistryLikeCondition<*>) data["structureCondition"] = formatRegistryCondition(cond) ?: cond.toString()
-                else if (cond != null) data["structureCondition"] = cond.toString()
-                val anti = extractField(req, "structureAnticondition")
-                if (anti is RegistryLikeCondition<*>) data["structureAnticondition"] = formatRegistryCondition(anti) ?: anti.toString()
-                else if (anti != null) data["structureAnticondition"] = anti.toString()
+            is BiomeRequirement -> {
+                formatRegistryCondition(req.biomeCondition)?.let { data["biomeCondition"] = it }
+                formatRegistryCondition(req.biomeAnticondition)?.let { data["biomeAnticondition"] = it }
+                "biome"
             }
-            className.contains("StatCompare") -> {
-                extractField(req, "highStat")?.let { data["highStat"] = extractReadableValue(it) ?: "stat" }
-                extractField(req, "lowStat")?.let { data["lowStat"] = extractReadableValue(it) ?: "stat" }
+            is StructureRequirement -> {
+                formatRegistryCondition(req.structureCondition)?.let { data["structureCondition"] = it }
+                formatRegistryCondition(req.structureAnticondition)?.let { data["structureAnticondition"] = it }
+                "structure"
             }
-            className.contains("StatEqual") -> {
-                extractField(req, "statOne")?.let { data["statOne"] = extractReadableValue(it) ?: "stat" }
-                extractField(req, "statTwo")?.let { data["statTwo"] = extractReadableValue(it) ?: "stat" }
+            is StatCompareRequirement -> {
+                data["highStat"] = req.highStat
+                data["lowStat"] = req.lowStat
+                "stat_compare"
             }
-            className.contains("PokemonProperties") -> {
-                val target = extractField(req, "target")
-                if (target is PokemonProperties) {
-                    val str = target.asString(" ")
-                    if (str.isNotBlank()) data["target"] = str
-                }
+            is StatEqualRequirement -> {
+                data["statOne"] = req.statOne
+                data["statTwo"] = req.statTwo
+                "stat_equal"
             }
-            className.contains("PropertyRange") -> {
-                extractField(req, "range")?.let { data["range"] = it.toString() }
-                extractField(req, "feature")?.let { data["feature"] = it.toString() }
+            is PokemonPropertiesRequirement -> {
+                req.target.asString(" ").takeIf { it.isNotBlank() }?.let { data["target"] = it }
+                "pokemon_properties"
             }
-            className.contains("BlocksTraveled") -> {
-                extractField(req, "amount")?.let { data["amount"] = it }
+            is PropertyRangeRequirement -> {
+                data["range"] = req.range.toString()
+                data["feature"] = req.feature
+                "property_range"
             }
-            className.contains("UseMove") -> {
-                extractField(req, "move")?.let { data["move"] = it.toString() }
-                extractField(req, "amount")?.let { data["amount"] = it }
+            is BlocksTraveledRequirement -> {
+                data["amount"] = req.amount
+                "blocks_traveled"
             }
-            className.contains("Defeat") -> {
-                val target = extractField(req, "target")
-                if (target is PokemonProperties) {
-                    val str = target.asString(" ")
-                    if (str.isNotBlank()) data["target"] = str
-                }
-                extractField(req, "amount")?.let { data["amount"] = it }
+            is UseMoveRequirement -> {
+                data["move"] = req.move.name
+                data["amount"] = req.amount
+                "use_move"
             }
-            className.contains("Recoil") || className.contains("DamageTaken") ||
-                className.contains("BattleCriticalHits") || className.contains("WalkingSteps") ||
-                className.contains("DamageDealt") -> {
-                extractField(req, "amount")?.let { data["amount"] = it }
+            is DefeatRequirement -> {
+                req.target.asString(" ").takeIf { it.isNotBlank() }?.let { data["target"] = it }
+                data["amount"] = req.amount
+                "defeat"
             }
-            className.contains("PartyMember") -> {
-                val target = extractField(req, "target")
-                if (target is PokemonProperties) {
-                    val str = target.asString(" ")
-                    if (str.isNotBlank()) data["target"] = str
-                }
-                extractField(req, "contains")?.let { data["contains"] = it }
+            is RecoilRequirement -> {
+                data["amount"] = req.amount
+                "recoil"
             }
-            className.contains("MoonPhase") -> {
-                extractField(req, "moonPhase")?.let { data["moonPhase"] = extractReadableValue(it) ?: "moon" }
+            is DamageTakenRequirement -> {
+                data["amount"] = req.amount
+                "damage_taken"
             }
-            className.contains("Weather") -> {
-                extractField(req, "isRaining")?.let { data["isRaining"] = it }
+            is BattleCriticalHitsRequirement -> {
+                data["amount"] = req.amount
+                "battle_critical_hits"
             }
-            className.contains("PlayerHasAdvancement") -> {
-                extractField(req, "requiredAdvancement")?.let { data["requiredAdvancement"] = it.toString() }
+            is PartyMemberRequirement -> {
+                req.target.asString(" ").takeIf { it.isNotBlank() }?.let { data["target"] = it }
+                data["contains"] = req.contains
+                "party_member"
             }
-            className.contains("World") -> {
-                extractField(req, "identifier")?.let { data["identifier"] = it.toString() }
+            is MoonPhaseRequirement -> {
+                data["moonPhase"] = req.moonPhase.name.lowercase()
+                "moon_phase"
             }
-            className.contains("AttackDefenceRatio") -> {
-                extractField(req, "ratio")?.let { data["ratio"] = extractReadableValue(it) ?: "equal" }
+            is WeatherRequirement -> {
+                req.isRaining?.let { data["isRaining"] = it }
+                "weather"
             }
-            className.contains("Gender") -> {
-                extractField(req, "gender")?.let { data["gender"] = extractReadableValue(it) ?: "unknown" }
+            is AdvancementRequirement -> {
+                data["requiredAdvancement"] = req.requiredAdvancement.toString()
+                "advancement"
             }
-            className.contains("Nature") -> {
-                extractField(req, "nature")?.let { data["nature"] = extractReadableValue(it) ?: "unknown" }
+            is WorldRequirement -> {
+                data["identifier"] = req.identifier.toString()
+                "world"
             }
-            className.contains("MaxPokemonLevel") -> {
-                extractField(req, "maxLevel")?.let { data["maxLevel"] = it }
+            is AttackDefenceRatioRequirement -> {
+                data["ratio"] = req.ratio.name.lowercase()
+                "attack_defence_ratio"
+            }
+            is AnyRequirement -> {
+                val first = req.possibilities.firstOrNull()
+                if (first != null) return parseRequirement(first)
+                "any"
             }
             else -> {
-                extractField(req, "amount")?.let { data["amount"] = it }
-            }
-        }
-
-        if (data.isEmpty()) {
-            DebugLog.warnOnce("empty-req-$variant-$className") {
-                "No data extracted for $variant requirement ($className) — Cobblemon API may have changed"
+                req.javaClass.simpleName
+                    .replace("Requirement", "")
+                    .replace(Regex("([A-Z])"), "_$1")
+                    .lowercase()
+                    .trimStart('_')
+                    .ifEmpty { "unknown" }
             }
         }
 
@@ -319,27 +288,13 @@ object EvolutionDataLoader {
         return when (condition) {
             is RegistryLikeIdentifierCondition<*> -> condition.identifier.toString()
             is RegistryLikeTagCondition<*> -> "#${condition.tag.location()}"
-            else -> {
-                val id = extractField(condition, "identifier")
-                if (id is ResourceLocation) id.toString() else null
-            }
+            else -> null
         }
-    }
-
-    private fun findField(clazz: Class<*>, fieldName: String): java.lang.reflect.Field? {
-        var c: Class<*>? = clazz
-        while (c != null && c != Any::class.java) {
-            try {
-                return c.getDeclaredField(fieldName)
-            } catch (_: NoSuchFieldException) {
-                c = c.superclass
-            }
-        }
-        return null
     }
 
     private fun resolveTimeRange(range: Any?): String? {
         if (range == null) return null
+        if (range.javaClass.isEnum) return (range as Enum<*>).name.lowercase()
         if (range is IntRange) {
             return when {
                 range.isEmpty() -> null
@@ -357,81 +312,6 @@ object EvolutionDataLoader {
             str.contains("@") -> null
             else -> range.toString().lowercase()
         }
-    }
-
-    private fun extractField(obj: Any, fieldName: String): Any? {
-        var clazz: Class<*>? = obj.javaClass
-        while (clazz != null && clazz != Any::class.java) {
-            try {
-                val field = clazz.getDeclaredField(fieldName)
-                field.isAccessible = true
-                return field.get(obj)
-            } catch (_: NoSuchFieldException) {
-                clazz = clazz.superclass
-            } catch (e: Exception) {
-                DebugLog.once("extract-${obj.javaClass.simpleName}-$fieldName") { "Field access failed on ${clazz?.simpleName}: ${e.message}" }
-                return null
-            }
-        }
-        // Fallback: try Kotlin-style getter method
-        return try {
-            val getter = obj.javaClass.getMethod("get${fieldName.replaceFirstChar { it.uppercase() }}")
-            getter.invoke(obj)
-        } catch (_: Exception) {
-            try {
-                obj.javaClass.getMethod(fieldName).invoke(obj)
-            } catch (_: Exception) { null }
-        }
-    }
-
-    private fun extractItemFromRequirement(req: Any): String? {
-        // Try 'itemCondition' field first (may be ItemPredicate or wrapper)
-        val itemCondition = extractField(req, "itemCondition")
-        if (itemCondition != null) {
-            val fromCondition = extractItemIdFromAny(itemCondition)
-            if (fromCondition != null) return fromCondition
-        }
-        // Try direct 'item' field
-        val itemField = extractField(req, "item")
-        if (itemField != null) {
-            val fromItem = extractItemIdFromAny(itemField)
-            if (fromItem != null) return fromItem
-        }
-        // Scan all fields for anything that looks like an ItemPredicate or RegistryLikeCondition
-        for (field in req.javaClass.declaredFields) {
-            try {
-                field.isAccessible = true
-                val value = field.get(req) ?: continue
-                if (value is RegistryLikeCondition<*>) {
-                    val id = formatRegistryCondition(value)
-                    if (id != null) return id
-                }
-                val predResult = extractItemIdFromAny(value)
-                if (predResult != null) return predResult
-            } catch (_: Exception) {}
-        }
-        return null
-    }
-
-    private fun extractReadableValue(obj: Any?): String? {
-        if (obj == null) return null
-        if (obj is String) return obj.takeIf { !it.contains("@") }
-        if (obj is Number) return obj.toString()
-        if (obj is Boolean) return obj.toString()
-        if (obj.javaClass.isEnum) return (obj as Enum<*>).name.lowercase()
-        if (obj is ResourceLocation) return obj.toString()
-        if (obj is PokemonProperties) return obj.asString(" ").ifBlank { null }
-        if (obj is RegistryLikeCondition<*>) return formatRegistryCondition(obj)
-
-        val name = extractField(obj, "name")
-        if (name is String && !name.contains("@")) return name
-        val path = extractField(obj, "path")
-        if (path is String && !path.contains("@")) return path
-
-        val str = obj.toString()
-        return if (str.contains("@") || str.length > 50) {
-            obj.javaClass.simpleName.lowercase().replace("_", " ")
-        } else str
     }
 
 

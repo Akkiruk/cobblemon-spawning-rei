@@ -2,6 +2,17 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.20.0] - 2026-02-14
+
+### Changed
+- Replaced all reflection-based evolution requirement parsing with typed API access
+- Evolution data now uses Cobblemon's public getters instead of private field access
+- Fixes 3 previously broken requirement types: TimeRange, Biome, Advancement
+
+### Removed
+- All `java.lang.reflect` usage from evolution data loading
+- `extractField()`, `findField()`, `extractReadableValue()`, `extractItemFromRequirement()` reflection helpers
+
 ## [1.19.0] - 2026-02-14
 
 ### Added
