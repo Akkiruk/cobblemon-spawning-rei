@@ -2,6 +2,18 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.24.6] - 2026-02-14
+
+### Changed
+- Spawn data now reads directly from Cobblemon's runtime spawn pool instead of scanning mod JAR filesystems
+- Fossil data now reads from Cobblemon's runtime Fossils registry instead of parsing JSON files
+- Both loaders automatically include all datapacks and server modifications without manual scanning
+
+### Removed
+- JSON file scanning for spawn data (preset loading, ZIP datapack scanning, filesystem traversal)
+- JSON file scanning for fossil data
+- Leftover server/network source files from v1.24.5
+
 ## [1.24.5] - 2026-02-14
 
 ### Removed

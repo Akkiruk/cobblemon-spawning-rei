@@ -1,21 +1,25 @@
 package com.cobbledex
 
-import com.google.gson.JsonArray
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
-import java.io.InputStreamReader
+import com.cobblemon.mod.common.api.conditional.RegistryLikeCondition
+import com.cobblemon.mod.common.api.conditional.RegistryLikeIdentifierCondition
+import com.cobblemon.mod.common.api.conditional.RegistryLikeTagCondition
+import com.cobblemon.mod.common.api.spawning.CobblemonSpawnPools
+import com.cobblemon.mod.common.api.spawning.condition.AreaTypeSpawningCondition
+import com.cobblemon.mod.common.api.spawning.condition.FishingSpawningCondition
+import com.cobblemon.mod.common.api.spawning.condition.GroundedTypeSpawningCondition
+import com.cobblemon.mod.common.api.spawning.condition.SpawningCondition
+import com.cobblemon.mod.common.api.spawning.condition.SubmergedTypeSpawningCondition
+import com.cobblemon.mod.common.api.spawning.detail.PokemonSpawnDetail
+import com.cobblemon.mod.common.api.spawning.detail.SpawnDetail
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.zip.ZipFile
 
+/**
+ * Reads spawn data directly from Cobblemon's runtime spawn pool.
+ * All preset resolution, datapack merging, and condition compilation
+ * is handled by Cobblemon before we read it.
+ */
 object SpawnDataLoader {
-
-    private data class PresetData(
-        val condition: JsonObject?,
-        val anticondition: JsonObject?
-    )
-
-    private var presetCache: Map<String, PresetData> = emptyMap()
 
     @Volatile
     private var cachedModRoots: List<Path>? = null
@@ -24,242 +28,92 @@ object SpawnDataLoader {
         cachedModRoots = null
     }
 
-    fun loadFromAllSources(extraDatapacksDir: Path? = null): Map<String, List<SpawnInfo>> {
-        val roots = findAllModRootPaths()
-        DebugLog.debug("Scanning ${roots.size} mod roots for spawn data")
+    fun loadFromRuntime(): Map<String, List<SpawnInfo>> {
+        val details = try {
+            CobblemonSpawnPools.WORLD_SPAWN_POOL.details.toList()
+        } catch (e: Exception) {
+            DebugLog.warnOnce("spawn-pool-access") { "Failed to read spawn pool: ${e.message}" }
+            return emptyMap()
+        }
 
-        presetCache = loadAllPresets(roots)
-        DebugLog.debug("Loaded ${presetCache.size} spawn presets: ${presetCache.keys.sorted().joinToString(", ")}")
+        if (details.isEmpty()) return emptyMap()
 
         val result = mutableMapOf<String, MutableList<SpawnInfo>>()
-        var totalFiles = 0
-        var totalEntries = 0
+        var count = 0
 
-        for (root in roots) {
+        for (detail in details) {
+            if (detail !is PokemonSpawnDetail) continue
             try {
-                val dataDir = root.resolve("data")
-                if (!Files.exists(dataDir) || !Files.isDirectory(dataDir)) continue
-
-                Files.list(dataDir).use { namespaces ->
-                    namespaces.filter { Files.isDirectory(it) }.forEach { namespace ->
-                        val spawnDir = namespace.resolve("spawn_pool_world")
-                        if (Files.exists(spawnDir) && Files.isDirectory(spawnDir)) {
-                            Files.walk(spawnDir, 10).use { files ->
-                                files.filter { it.toString().endsWith(".json") }.forEach { file ->
-                                    val (added, count) = parseSpawnFile(file, result)
-                                    if (added) totalFiles++
-                                    totalEntries += count
-                                }
-                            }
-                        }
-                    }
-                }
+                val species = detail.pokemon.species?.lowercase() ?: continue
+                val info = extractSpawnInfo(detail, species)
+                result.getOrPut(species) { mutableListOf() }.add(info)
+                count++
             } catch (e: Exception) {
-                DebugLog.once("scan-root-${root}") { "Error scanning mod root: ${e.message}" }
+                DebugLog.once("spawn-detail-${detail.id}") { "Failed to read spawn detail: ${e.message}" }
             }
         }
 
-        // Scan explicitly provided datapacks directory (server world datapacks)
-        if (extraDatapacksDir != null && Files.exists(extraDatapacksDir) && Files.isDirectory(extraDatapacksDir)) {
-            scanDatapacksDir(extraDatapacksDir, result) { added, count ->
-                totalFiles += if (added) 1 else 0
-                totalEntries += count
-            }
-        }
-
-        // Scan client-side datapacks folder if config allows
-        val scanDatapacks = com.cobbledex.config.CobbleDexConfig.get().localDatapackScan
-        DebugLog.info("Local datapack scan enabled: $scanDatapacks")
-        if (scanDatapacks) {
-            val datapacksDir = getClientDatapacksDir()
-            DebugLog.info("Datapacks directory: $datapacksDir (exists: ${datapacksDir?.let { Files.exists(it) }})")
-            if (datapacksDir != null && Files.exists(datapacksDir) && Files.isDirectory(datapacksDir)) {
-                val preCount = result.size
-                scanDatapacksDir(datapacksDir, result) { added, count ->
-                    totalFiles += if (added) 1 else 0
-                    totalEntries += count
-                }
-                DebugLog.info("Datapack scan added ${result.size - preCount} new species, ${totalEntries} total entries")
-            }
-        }
-
-        DebugLog.info("Parsed $totalEntries spawn entries from $totalFiles files (${presetCache.size} presets)")
+        DebugLog.info("Loaded $count spawn entries for ${result.size} species from Cobblemon runtime")
         return result
     }
 
-    // --- Preset Loading ---
+    // --- SpawnInfo extraction ---
 
-    private fun loadAllPresets(roots: List<Path>): Map<String, PresetData> {
-        val result = mutableMapOf<String, PresetData>()
-        for (root in roots) {
-            try {
-                val dataDir = root.resolve("data")
-                if (!Files.exists(dataDir) || !Files.isDirectory(dataDir)) continue
-                Files.list(dataDir).use { namespaces ->
-                    namespaces.filter { Files.isDirectory(it) }.forEach { namespace ->
-                        val presetDir = namespace.resolve("spawn_detail_presets")
-                        if (Files.exists(presetDir) && Files.isDirectory(presetDir)) {
-                            Files.list(presetDir).use { files ->
-                                files.filter { it.toString().endsWith(".json") }.forEach { file ->
-                                    parsePresetFile(file)?.let { (name, data) -> result[name] = data }
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                DebugLog.once("preset-root-${root}") { "Preset scan failed for root: ${e.message}" }
-            }
+    private fun extractSpawnInfo(detail: PokemonSpawnDetail, species: String): SpawnInfo {
+        val pokemon = detail.pokemon
+        val form = pokemon.form
+        val aspects = pokemon.aspects?.joinToString(" ") ?: ""
+        val formAspects = when {
+            form != null && form.isNotBlank() && !form.equals("Normal", ignoreCase = true) -> form
+            aspects.isNotBlank() -> aspects
+            else -> ""
         }
-        return result
-    }
 
-    private fun parsePresetFile(file: Path): Pair<String, PresetData>? {
-        return try {
-            val name = file.fileName.toString().removeSuffix(".json")
-            val json = Files.newInputStream(file).use { stream ->
-                InputStreamReader(stream).use { reader ->
-                    JsonParser.parseReader(reader).asJsonObject
-                }
-            }
-            name to PresetData(
-                condition = json.getAsJsonObject("condition"),
-                anticondition = json.getAsJsonObject("anticondition")
-            )
-        } catch (e: Exception) {
-            DebugLog.once("preset-parse-${file.fileName}") { "Failed to parse preset: ${e.message}" }
-            null
-        }
-    }
+        val bucket = detail.bucket?.name ?: "common"
+        val levelRange = detail.levelRange?.let { "${it.first}-${it.last}" } ?: "1-100"
+        val context = detail.spawnablePositionType?.name ?: "grounded"
 
-    // --- Spawn File Parsing ---
+        val conditions = detail.conditions ?: emptyList()
+        val anticonditions = detail.anticonditions ?: emptyList()
 
-    private fun parseSpawnFile(file: Path, result: MutableMap<String, MutableList<SpawnInfo>>): Pair<Boolean, Int> {
-        var entryCount = 0
-        try {
-            val json = Files.newInputStream(file).use { stream ->
-                InputStreamReader(stream).use { reader ->
-                    JsonParser.parseReader(reader).asJsonObject
-                }
-            }
-            return parseSpawnJson(json, file.fileName.toString(), result)
-        } catch (e: Exception) {
-            DebugLog.trackFailedSpawn(file.fileName.toString(), e.message ?: "unknown")
-            return false to 0
-        }
-    }
-
-    private fun parseSpawnJson(json: JsonObject, sourceName: String, result: MutableMap<String, MutableList<SpawnInfo>>): Pair<Boolean, Int> {
-        var entryCount = 0
-        try {
-            val enabledField = json.get("enabled")
-            val enabled = when {
-                enabledField == null -> true
-                enabledField.isJsonPrimitive && enabledField.asJsonPrimitive.isBoolean -> enabledField.asBoolean
-                enabledField.isJsonPrimitive && enabledField.asJsonPrimitive.isString -> enabledField.asString.equals("true", ignoreCase = true)
-                else -> true
-            }
-            if (!enabled) return false to 0
-            
-            val spawns = json.getAsJsonArray("spawns") ?: return false to 0
-
-            for (spawnElement in spawns) {
-                val spawn = spawnElement.asJsonObject
-                val pokemonElement = spawn.get("pokemon") ?: continue
-                val pokemonField: String = when {
-                    pokemonElement.isJsonPrimitive -> pokemonElement.asString
-                    pokemonElement.isJsonObject -> {
-                        val obj = pokemonElement.asJsonObject
-                        val name = obj.get("pokemon")?.asString ?: continue
-                        val aspects = obj.getAsJsonArray("aspects")?.joinToString(" ") { it.asString } ?: ""
-                        if (aspects.isNotBlank()) "$name $aspects" else name
-                    }
-                    else -> continue
-                }
-                val species = pokemonField.split(" ").first().lowercase()
-                result.getOrPut(species) { mutableListOf() }.add(parseSpawnEntry(spawn, species, pokemonField))
-                entryCount++
-            }
-        } catch (e: Exception) {
-            DebugLog.trackFailedSpawn(sourceName, e.message ?: "unknown")
-            return false to 0
-        }
-        return (entryCount > 0) to entryCount
-    }
-
-    private fun parseSpawnEntry(spawn: JsonObject, species: String, pokemonField: String): SpawnInfo {
-        val id = spawn.get("id")?.asString ?: species
-        val bucket = spawn.get("bucket")?.asString ?: "common"
-        val weight = spawn.get("weight")?.asFloat ?: 1.0f
-        val level = spawn.get("level")?.asString ?: spawn.get("levelRange")?.asString ?: "1-100"
-        val context = spawn.get("spawnablePositionType")?.asString
-            ?: spawn.get("context")?.asString
-            ?: "grounded"
-        val presetNames = spawn.getAsJsonArray("presets")?.map { it.asString } ?: emptyList()
-
-        // Form aspects: "pikachu region_bias=alola" → "region_bias=alola"
-        val parts = pokemonField.split(" ")
-        val formAspects = if (parts.size > 1) parts.drop(1).joinToString(" ") else ""
-
-        // Parse entry's own condition
-        val condition = spawn.getAsJsonObject("condition")
-        val cond = parseConditionFields(condition)
-
-        // Parse compositeCondition as fallback
-        val composite = spawn.getAsJsonObject("compositeCondition")
-        val compCond = parseCompositeCondition(composite)
-
-        // Merge entry condition + composite fallback
-        val merged = mergeConditionData(cond, compCond)
-
-        // Resolve and merge preset conditions
-        val presetMerged = resolvePresets(presetNames, merged)
-
-        // Parse entry's own anticondition
-        val entryAnti = parseAntiConditionBlock(spawn.getAsJsonObject("anticondition"))
-
-        // Merge preset anticonditions
-        val presetAntis = presetNames.mapNotNull { presetCache[it]?.anticondition }.map { parseAntiConditionBlock(it) }
-        val combinedAnti = mergeAntiConditions(listOfNotNull(entryAnti) + presetAntis)
-
-        // Parse weight multipliers
-        val weightMults = parseWeightMultipliers(spawn)
-
-        // Min lure level
-        val minLureLevel = condition?.get("minLureLevel")?.asInt
+        val merged = mergeConditions(conditions, detail.compositeCondition)
+        val anti = buildAntiCondition(anticonditions, detail.compositeCondition)
+        val weightMults = extractWeightMultipliers(detail)
+        val minLureLevel = conditions.filterIsInstance<FishingSpawningCondition>().firstOrNull()?.minLureLevel
+        val fluid = conditions.filterIsInstance<SubmergedTypeSpawningCondition<*>>().firstOrNull()?.fluid?.let { extractRegistryId(it) }
 
         return SpawnInfo(
-            id = id,
+            id = detail.id ?: species,
             pokemon = species,
             formAspects = formAspects,
             bucket = bucket,
-            weight = weight,
-            levelRange = level,
+            weight = detail.weight,
+            levelRange = levelRange,
             context = context,
-            biomes = presetMerged.biomes,
-            timeRange = presetMerged.timeRange,
-            weather = SpawnWeather(presetMerged.isRaining, presetMerged.isThundering),
-            dimensions = presetMerged.dimensions,
-            structures = presetMerged.structures,
-            canSeeSky = presetMerged.canSeeSky,
-            minLight = presetMerged.minLight,
-            maxLight = presetMerged.maxLight,
-            minSkyLight = presetMerged.minSkyLight,
-            maxSkyLight = presetMerged.maxSkyLight,
-            minY = presetMerged.minY,
-            maxY = presetMerged.maxY,
-            neededNearbyBlocks = presetMerged.neededNearbyBlocks,
-            neededBaseBlocks = presetMerged.neededBaseBlocks,
-            moonPhase = presetMerged.moonPhase,
-            presets = presetNames,
-            fluid = presetMerged.fluid,
-            anticondition = combinedAnti,
+            biomes = merged.biomes,
+            timeRange = merged.timeRange,
+            weather = SpawnWeather(merged.isRaining, merged.isThundering),
+            dimensions = merged.dimensions,
+            structures = merged.structures,
+            canSeeSky = merged.canSeeSky,
+            minLight = merged.minLight,
+            maxLight = merged.maxLight,
+            minSkyLight = merged.minSkyLight,
+            maxSkyLight = merged.maxSkyLight,
+            minY = merged.minY,
+            maxY = merged.maxY,
+            neededNearbyBlocks = merged.neededNearbyBlocks,
+            neededBaseBlocks = merged.neededBaseBlocks,
+            moonPhase = merged.moonPhase,
+            presets = emptyList(),
+            fluid = fluid,
+            anticondition = anti,
             weightMultipliers = weightMults,
             minLureLevel = minLureLevel
         )
     }
 
-    // --- Condition Parsing ---
+    // --- Condition extraction ---
 
     private data class ConditionData(
         val biomes: List<String> = emptyList(),
@@ -277,92 +131,180 @@ object SpawnDataLoader {
         val maxY: Int? = null,
         val neededNearbyBlocks: List<String> = emptyList(),
         val neededBaseBlocks: List<String> = emptyList(),
-        val moonPhase: String? = null,
-        val fluid: String? = null
+        val moonPhase: String? = null
     )
 
-    private fun parseConditionFields(obj: JsonObject?): ConditionData {
-        if (obj == null) return ConditionData()
-        return ConditionData(
-            biomes = obj.getAsJsonArray("biomes")?.map { it.asString } ?: emptyList(),
-            timeRange = obj.get("timeRange")?.asString,
-            isRaining = obj.get("isRaining")?.asBoolean,
-            isThundering = obj.get("isThundering")?.asBoolean,
-            dimensions = obj.getAsJsonArray("dimensions")?.map { it.asString } ?: emptyList(),
-            structures = obj.getAsJsonArray("structures")?.map { it.asString } ?: emptyList(),
-            canSeeSky = obj.get("canSeeSky")?.asBoolean,
-            minLight = obj.get("minLight")?.asInt,
-            maxLight = obj.get("maxLight")?.asInt,
-            minSkyLight = obj.get("minSkyLight")?.asInt,
-            maxSkyLight = obj.get("maxSkyLight")?.asInt,
-            minY = obj.get("minY")?.asInt,
-            maxY = obj.get("maxY")?.asInt,
-            neededNearbyBlocks = obj.getAsJsonArray("neededNearbyBlocks")?.map { it.asString } ?: emptyList(),
-            neededBaseBlocks = obj.getAsJsonArray("neededBaseBlocks")?.map { it.asString } ?: emptyList(),
-            moonPhase = obj.get("moonPhase")?.let {
-                if (it.isJsonPrimitive && it.asJsonPrimitive.isNumber) it.asInt.toString()
-                else it.asString
-            },
-            fluid = obj.get("fluid")?.asString
-        )
-    }
-
-    private fun parseCompositeCondition(composite: JsonObject?): ConditionData {
-        if (composite == null) return ConditionData()
-        val conditions = composite.getAsJsonArray("conditions") ?: return ConditionData()
-
-        // Composite sub-conditions use AND semantics — biomes/dimensions must intersect
-        var merged = ConditionData()
-        for (element in conditions) {
-            val sub = parseConditionFields(element.asJsonObject)
-            merged = mergeConditionDataAnd(merged, sub)
+    private fun mergeConditions(
+        conditions: List<SpawningCondition<*>>,
+        composite: com.cobblemon.mod.common.api.spawning.condition.CompositeSpawningCondition?
+    ): ConditionData {
+        var result = ConditionData()
+        for (cond in conditions) {
+            result = combineConditionData(result, readCondition(cond))
         }
-        return merged
+        if (composite != null) {
+            try {
+                for (sub in composite.conditions ?: emptyList()) {
+                    result = combineConditionData(result, readCondition(sub))
+                }
+            } catch (_: Exception) {}
+        }
+        return result
     }
 
-    /** AND-merge for composite conditions. Biomes/dimensions intersect; scalars use primary-wins. */
-    private fun mergeConditionDataAnd(primary: ConditionData, secondary: ConditionData): ConditionData {
+    private fun readCondition(cond: SpawningCondition<*>): ConditionData {
+        val biomes = cond.biomes?.mapNotNull { extractRegistryId(it) } ?: emptyList()
+        val dimensions = cond.dimensions?.map { it.toString() } ?: emptyList()
+        val structures = cond.structures?.mapNotNull { either ->
+            try { either.map({ it.toString() }, { "#${it.location}" }) } catch (_: Exception) { null }
+        } ?: emptyList()
+
+        val timeRange = cond.timeRange?.ranges?.takeIf { it.isNotEmpty() }
+            ?.joinToString(",") { "${it.first}-${it.last}" }
+        val moonPhase = cond.moonPhase?.ranges?.takeIf { it.isNotEmpty() }
+            ?.joinToString(",") { "${it.first}-${it.last}" }
+
+        var nearbyBlocks = emptyList<String>()
+        var baseBlocks = emptyList<String>()
+        if (cond is AreaTypeSpawningCondition<*>) {
+            nearbyBlocks = cond.neededNearbyBlocks?.mapNotNull { extractRegistryId(it) } ?: emptyList()
+        }
+        if (cond is GroundedTypeSpawningCondition<*>) {
+            baseBlocks = cond.neededBaseBlocks?.mapNotNull { extractRegistryId(it) } ?: emptyList()
+        }
+
         return ConditionData(
-            biomes = intersectLists(primary.biomes, secondary.biomes),
-            timeRange = primary.timeRange ?: secondary.timeRange,
-            isRaining = primary.isRaining ?: secondary.isRaining,
-            isThundering = primary.isThundering ?: secondary.isThundering,
-            dimensions = intersectLists(primary.dimensions, secondary.dimensions),
-            structures = intersectLists(primary.structures, secondary.structures),
-            canSeeSky = primary.canSeeSky ?: secondary.canSeeSky,
-            minLight = primary.minLight ?: secondary.minLight,
-            maxLight = primary.maxLight ?: secondary.maxLight,
-            minSkyLight = primary.minSkyLight ?: secondary.minSkyLight,
-            maxSkyLight = primary.maxSkyLight ?: secondary.maxSkyLight,
-            minY = primary.minY ?: secondary.minY,
-            maxY = primary.maxY ?: secondary.maxY,
-            neededNearbyBlocks = combineLists(primary.neededNearbyBlocks, secondary.neededNearbyBlocks),
-            neededBaseBlocks = combineLists(primary.neededBaseBlocks, secondary.neededBaseBlocks),
-            moonPhase = primary.moonPhase ?: secondary.moonPhase,
-            fluid = primary.fluid ?: secondary.fluid
+            biomes = biomes,
+            timeRange = timeRange,
+            isRaining = cond.isRaining,
+            isThundering = cond.isThundering,
+            dimensions = dimensions,
+            structures = structures,
+            canSeeSky = cond.canSeeSky,
+            minLight = cond.minLight,
+            maxLight = cond.maxLight,
+            minSkyLight = cond.minSkyLight,
+            maxSkyLight = cond.maxSkyLight,
+            minY = cond.minY?.toInt(),
+            maxY = cond.maxY?.toInt(),
+            neededNearbyBlocks = nearbyBlocks,
+            neededBaseBlocks = baseBlocks,
+            moonPhase = moonPhase
         )
     }
 
-    /** OR-merge for presets. Lists are unioned; primary scalars win. */
-    private fun mergeConditionData(primary: ConditionData, secondary: ConditionData): ConditionData {
+    // --- Anti-conditions ---
+
+    private fun buildAntiCondition(
+        anticonditions: List<SpawningCondition<*>>,
+        composite: com.cobblemon.mod.common.api.spawning.condition.CompositeSpawningCondition?
+    ): SpawnAntiCondition? {
+        val allAnti = anticonditions.toMutableList()
+        try { composite?.anticonditions?.let { allAnti.addAll(it) } } catch (_: Exception) {}
+        if (allAnti.isEmpty()) return null
+
+        val allBiomes = mutableListOf<String>()
+        val allStructures = mutableListOf<String>()
+        val allBaseBlocks = mutableListOf<String>()
+        val allNearbyBlocks = mutableListOf<String>()
+        val allDimensions = mutableListOf<String>()
+        var minY: Int? = null; var maxY: Int? = null
+        var timeRange: String? = null
+        var isRaining: Boolean? = null; var isThundering: Boolean? = null
+        var minLight: Int? = null; var maxLight: Int? = null
+        var moonPhase: String? = null
+
+        for (cond in allAnti) {
+            val data = readCondition(cond)
+            allBiomes.addAll(data.biomes)
+            allStructures.addAll(data.structures)
+            allDimensions.addAll(data.dimensions)
+            allNearbyBlocks.addAll(data.neededNearbyBlocks)
+            allBaseBlocks.addAll(data.neededBaseBlocks)
+            if (data.minY != null) minY = minY?.let { minOf(it, data.minY) } ?: data.minY
+            if (data.maxY != null) maxY = maxY?.let { maxOf(it, data.maxY) } ?: data.maxY
+            timeRange = timeRange ?: data.timeRange
+            isRaining = isRaining ?: data.isRaining
+            isThundering = isThundering ?: data.isThundering
+            minLight = minLight ?: data.minLight
+            maxLight = maxLight ?: data.maxLight
+            moonPhase = moonPhase ?: data.moonPhase
+        }
+
+        val anti = SpawnAntiCondition(
+            biomes = allBiomes.distinct(), structures = allStructures.distinct(),
+            neededBaseBlocks = allBaseBlocks.distinct(), neededNearbyBlocks = allNearbyBlocks.distinct(),
+            minY = minY, maxY = maxY, timeRange = timeRange, dimensions = allDimensions.distinct(),
+            isRaining = isRaining, isThundering = isThundering,
+            minLight = minLight, maxLight = maxLight, moonPhase = moonPhase
+        )
+        return if (anti.isEmpty) null else anti
+    }
+
+    // --- Weight multipliers ---
+
+    private fun extractWeightMultipliers(detail: SpawnDetail): List<WeightMultiplier> {
+        val mults = detail.weightMultipliers ?: return emptyList()
+        return mults.mapNotNull { wm ->
+            try {
+                WeightMultiplier(wm.multiplier, summarizeWeightConditions(wm.conditions ?: emptyList()))
+            } catch (_: Exception) { null }
+        }
+    }
+
+    private fun summarizeWeightConditions(conditions: List<SpawningCondition<*>>): String {
+        if (conditions.isEmpty()) return tr("cobbledex-rei-emi-jei.weight.always")
+        val parts = mutableListOf<String>()
+        for (cond in conditions) {
+            cond.isThundering?.let { if (it) parts.add(tr("cobbledex-rei-emi-jei.weight.thunderstorm")) }
+            cond.isRaining?.let { if (it) parts.add(tr("cobbledex-rei-emi-jei.weight.rain")) }
+            cond.timeRange?.let { tr ->
+                val str = tr.ranges.joinToString(",") { "${it.first}-${it.last}" }
+                if (str.isNotBlank()) parts.add(str)
+            }
+            val biomes = cond.biomes?.mapNotNull { extractRegistryId(it) } ?: emptyList()
+            if (biomes.isNotEmpty()) {
+                val names = biomes.map { formatId(it) }
+                if (names.size <= 3) parts.add(names.joinToString(", "))
+                else parts.add("${names.take(2).joinToString(", ")} " + tr("cobbledex-rei-emi-jei.weight.and_more", names.size - 2))
+            }
+            if (cond is FishingSpawningCondition) {
+                cond.minLureLevel?.let { parts.add(tr("cobbledex-rei-emi-jei.weight.lure", it)) }
+            }
+        }
+        return if (parts.isEmpty()) tr("cobbledex-rei-emi-jei.weight.conditional") else parts.joinToString(", ")
+    }
+
+    // --- Registry ID helpers ---
+
+    private fun <T> extractRegistryId(condition: RegistryLikeCondition<T>): String? {
+        return when (condition) {
+            is RegistryLikeIdentifierCondition<*> -> condition.identifier.toString()
+            is RegistryLikeTagCondition<*> -> "#${condition.tag.location}"
+            else -> null
+        }
+    }
+
+    // --- Condition merge helpers ---
+
+    private fun combineConditionData(a: ConditionData, b: ConditionData): ConditionData {
         return ConditionData(
-            biomes = combineLists(primary.biomes, secondary.biomes),
-            timeRange = primary.timeRange ?: secondary.timeRange,
-            isRaining = primary.isRaining ?: secondary.isRaining,
-            isThundering = primary.isThundering ?: secondary.isThundering,
-            dimensions = combineLists(primary.dimensions, secondary.dimensions),
-            structures = combineLists(primary.structures, secondary.structures),
-            canSeeSky = primary.canSeeSky ?: secondary.canSeeSky,
-            minLight = primary.minLight ?: secondary.minLight,
-            maxLight = primary.maxLight ?: secondary.maxLight,
-            minSkyLight = primary.minSkyLight ?: secondary.minSkyLight,
-            maxSkyLight = primary.maxSkyLight ?: secondary.maxSkyLight,
-            minY = primary.minY ?: secondary.minY,
-            maxY = primary.maxY ?: secondary.maxY,
-            neededNearbyBlocks = combineLists(primary.neededNearbyBlocks, secondary.neededNearbyBlocks),
-            neededBaseBlocks = combineLists(primary.neededBaseBlocks, secondary.neededBaseBlocks),
-            moonPhase = primary.moonPhase ?: secondary.moonPhase,
-            fluid = primary.fluid ?: secondary.fluid
+            biomes = combineLists(a.biomes, b.biomes),
+            timeRange = a.timeRange ?: b.timeRange,
+            isRaining = a.isRaining ?: b.isRaining,
+            isThundering = a.isThundering ?: b.isThundering,
+            dimensions = combineLists(a.dimensions, b.dimensions),
+            structures = combineLists(a.structures, b.structures),
+            canSeeSky = a.canSeeSky ?: b.canSeeSky,
+            minLight = a.minLight ?: b.minLight,
+            maxLight = a.maxLight ?: b.maxLight,
+            minSkyLight = a.minSkyLight ?: b.minSkyLight,
+            maxSkyLight = a.maxSkyLight ?: b.maxSkyLight,
+            minY = a.minY ?: b.minY,
+            maxY = a.maxY ?: b.maxY,
+            neededNearbyBlocks = combineLists(a.neededNearbyBlocks, b.neededNearbyBlocks),
+            neededBaseBlocks = combineLists(a.neededBaseBlocks, b.neededBaseBlocks),
+            moonPhase = a.moonPhase ?: b.moonPhase
         )
     }
 
@@ -372,190 +314,7 @@ object SpawnDataLoader {
         return (a + b).distinct()
     }
 
-    /** Intersection treating empty as wildcard (unconstrained). */
-    private fun intersectLists(a: List<String>, b: List<String>): List<String> {
-        if (a.isEmpty()) return b
-        if (b.isEmpty()) return a
-        val bSet = b.toHashSet()
-        return a.filter { it in bSet }
-    }
-
-    /** Resolves presets and merges their conditions into the base entry data. */
-    private fun resolvePresets(presetNames: List<String>, baseCond: ConditionData): ConditionData {
-        var result = baseCond
-        for (name in presetNames) {
-            val preset = presetCache[name] ?: continue
-            val presetCond = parseConditionFields(preset.condition)
-            result = mergeConditionData(result, presetCond)
-        }
-        return result
-    }
-
-    // --- Anti-Condition Parsing ---
-
-    private fun parseAntiConditionBlock(obj: JsonObject?): SpawnAntiCondition? {
-        if (obj == null) return null
-        val anti = SpawnAntiCondition(
-            biomes = obj.getAsJsonArray("biomes")?.map { it.asString } ?: emptyList(),
-            structures = obj.getAsJsonArray("structures")?.map { it.asString } ?: emptyList(),
-            neededBaseBlocks = obj.getAsJsonArray("neededBaseBlocks")?.map { it.asString } ?: emptyList(),
-            neededNearbyBlocks = obj.getAsJsonArray("neededNearbyBlocks")?.map { it.asString } ?: emptyList(),
-            minY = obj.get("minY")?.asInt,
-            maxY = obj.get("maxY")?.asInt,
-            timeRange = obj.get("timeRange")?.asString,
-            dimensions = obj.getAsJsonArray("dimensions")?.map { it.asString } ?: emptyList(),
-            isRaining = if (obj.has("isRaining")) obj.get("isRaining")?.asBoolean else null,
-            isThundering = if (obj.has("isThundering")) obj.get("isThundering")?.asBoolean else null,
-            minLight = obj.get("minLight")?.asInt,
-            maxLight = obj.get("maxLight")?.asInt,
-            moonPhase = obj.get("moonPhase")?.asString
-        )
-        return if (anti.isEmpty) null else anti
-    }
-
-    private fun mergeAntiConditions(antis: List<SpawnAntiCondition?>): SpawnAntiCondition? {
-        val nonNull = antis.filterNotNull()
-        if (nonNull.isEmpty()) return null
-        if (nonNull.size == 1) return nonNull.first()
-        return SpawnAntiCondition(
-            biomes = nonNull.flatMap { it.biomes }.distinct(),
-            structures = nonNull.flatMap { it.structures }.distinct(),
-            neededBaseBlocks = nonNull.flatMap { it.neededBaseBlocks }.distinct(),
-            neededNearbyBlocks = nonNull.flatMap { it.neededNearbyBlocks }.distinct(),
-            minY = nonNull.mapNotNull { it.minY }.minOrNull(),
-            maxY = nonNull.mapNotNull { it.maxY }.maxOrNull(),
-            timeRange = nonNull.mapNotNull { it.timeRange }.firstOrNull(),
-            dimensions = nonNull.flatMap { it.dimensions }.distinct(),
-            isRaining = nonNull.mapNotNull { it.isRaining }.firstOrNull(),
-            isThundering = nonNull.mapNotNull { it.isThundering }.firstOrNull(),
-            minLight = nonNull.mapNotNull { it.minLight }.minOrNull(),
-            maxLight = nonNull.mapNotNull { it.maxLight }.maxOrNull(),
-            moonPhase = nonNull.mapNotNull { it.moonPhase }.firstOrNull()
-        ).takeIf { !it.isEmpty }
-    }
-
-    // --- Weight Multipliers ---
-
-    private fun parseWeightMultipliers(spawn: JsonObject): List<WeightMultiplier> {
-        val result = mutableListOf<WeightMultiplier>()
-
-        // Single: "weightMultiplier": { "multiplier": 5.0, "condition": {...} }
-        spawn.getAsJsonObject("weightMultiplier")?.let { wm ->
-            val mult = wm.get("multiplier")?.asFloat ?: return@let
-            val cond = wm.getAsJsonObject("condition")
-            result.add(WeightMultiplier(mult, summarizeCondition(cond)))
-        }
-
-        // Array: "weightMultipliers": [...]
-        spawn.getAsJsonArray("weightMultipliers")?.forEach { element ->
-            val wm = element.asJsonObject
-            val mult = wm.get("multiplier")?.asFloat ?: return@forEach
-            val cond = wm.getAsJsonObject("condition")
-            result.add(WeightMultiplier(mult, summarizeCondition(cond)))
-        }
-
-        return result
-    }
-
-    private fun summarizeCondition(cond: JsonObject?): String {
-        if (cond == null) return tr("cobbledex-rei-emi-jei.weight.always")
-        val parts = mutableListOf<String>()
-        cond.get("isThundering")?.asBoolean?.let { if (it) parts.add(tr("cobbledex-rei-emi-jei.weight.thunderstorm")) }
-        cond.get("isRaining")?.asBoolean?.let { if (it) parts.add(tr("cobbledex-rei-emi-jei.weight.rain")) }
-        cond.get("timeRange")?.asString?.let { parts.add(it) }
-        cond.getAsJsonArray("biomes")?.let { arr ->
-            val names = arr.map { formatId(it.asString) }
-            if (names.size <= 3) parts.add(names.joinToString(", "))
-            else parts.add("${names.take(2).joinToString(", ")} " + tr("cobbledex-rei-emi-jei.weight.and_more", names.size - 2))
-        }
-        cond.get("minLureLevel")?.asInt?.let { parts.add(tr("cobbledex-rei-emi-jei.weight.lure", it)) }
-        return if (parts.isEmpty()) tr("cobbledex-rei-emi-jei.weight.conditional") else parts.joinToString(", ")
-    }
-
-    // --- Datapacks Scanning ---
-
-    private fun scanDatapacksDir(
-        datapacksDir: Path,
-        result: MutableMap<String, MutableList<SpawnInfo>>,
-        counter: (Boolean, Int) -> Unit
-    ) {
-        DebugLog.info("Scanning datapacks in: $datapacksDir")
-        Files.list(datapacksDir).use { packs ->
-            packs.forEach { pack ->
-                when {
-                    Files.isDirectory(pack) -> {
-                        DebugLog.info("  Scanning directory datapack: ${pack.fileName}")
-                        scanDatapackDir(pack, result, counter)
-                    }
-                    pack.toString().endsWith(".zip") -> {
-                        DebugLog.info("  Scanning ZIP datapack: ${pack.fileName}")
-                        scanDatapackZip(pack, result, counter)
-                    }
-                }
-            }
-        }
-    }
-
-    private fun scanDatapackDir(
-        pack: Path,
-        result: MutableMap<String, MutableList<SpawnInfo>>,
-        counter: (Boolean, Int) -> Unit
-    ) {
-        val dataDir = pack.resolve("data")
-        if (Files.exists(dataDir)) {
-            Files.list(dataDir).use { namespaces ->
-                namespaces.filter { Files.isDirectory(it) }.forEach { namespace ->
-                    val spawnDir = namespace.resolve("spawn_pool_world")
-                    if (Files.exists(spawnDir)) {
-                        Files.walk(spawnDir, 10).use { files ->
-                            files.filter { it.toString().endsWith(".json") }.forEach { file ->
-                                val (added, count) = parseSpawnFile(file, result)
-                                counter(added, count)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private fun scanDatapackZip(
-        zipPath: Path,
-        result: MutableMap<String, MutableList<SpawnInfo>>,
-        counter: (Boolean, Int) -> Unit
-    ) {
-        try {
-            ZipFile(zipPath.toFile()).use { zip ->
-                val spawnEntries = zip.entries().asSequence()
-                    .filter { !it.isDirectory }
-                    .filter { it.name.contains("spawn_pool_world") && it.name.endsWith(".json") }
-                    .toList()
-                
-                DebugLog.info("    Found ${spawnEntries.size} spawn files in ${zipPath.fileName}")
-
-                var zipCount = 0
-                for (entry in spawnEntries) {
-                    try {
-                        zip.getInputStream(entry).use { stream ->
-                            val json = JsonParser.parseReader(InputStreamReader(stream, Charsets.UTF_8))
-                            if (json.isJsonObject) {
-                                val (added, count) = parseSpawnJson(json.asJsonObject, entry.name, result)
-                                counter(added, count)
-                                zipCount += count
-                            }
-                        }
-                    } catch (e: Exception) {
-                        DebugLog.once("zip-entry-${entry.name}") { "Failed to parse ${entry.name}: ${e.message}" }
-                    }
-                }
-                DebugLog.info("    Parsed $zipCount spawn entries from ${zipPath.fileName}")
-            }
-        } catch (e: Exception) {
-            DebugLog.warn("Failed to read ZIP ${zipPath.fileName}: ${e.message}")
-        }
-    }
-
-    // --- Utility ---
+    // --- Mod root paths (kept for ObtainmentDataLoader) ---
 
     fun getModRootPaths(): List<Path> = findAllModRootPaths()
 
@@ -563,7 +322,6 @@ object SpawnDataLoader {
         cachedModRoots?.let { return it }
         val paths = mutableListOf<Path>()
 
-        // Fabric
         try {
             val fabricLoader = Class.forName("net.fabricmc.loader.api.FabricLoader")
             val instance = fabricLoader.getMethod("getInstance").invoke(null)
@@ -575,12 +333,10 @@ object SpawnDataLoader {
                 paths.addAll(rootPaths)
             }
         } catch (_: ClassNotFoundException) {
-            // Expected on NeoForge
         } catch (e: Exception) {
             DebugLog.once("fabric-mod-paths") { "Fabric mod path discovery failed: ${e.message}" }
         }
 
-        // NeoForge
         try {
             val modList = Class.forName("net.neoforged.fml.ModList")
             val list = modList.getMethod("get").invoke(null)
@@ -599,7 +355,6 @@ object SpawnDataLoader {
                 }
             }
         } catch (_: ClassNotFoundException) {
-            // Expected on Fabric
         } catch (e: Exception) {
             DebugLog.once("neoforge-mod-paths") { "NeoForge mod path discovery failed: ${e.message}" }
         }

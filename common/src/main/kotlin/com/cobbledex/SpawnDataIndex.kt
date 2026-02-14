@@ -1,7 +1,6 @@
 package com.cobbledex
 
 import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
-import java.nio.file.Path
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
@@ -97,14 +96,14 @@ object SpawnDataIndex {
         }
     }
 
-    fun loadAll(extraDatapacksDir: Path? = null) {
+    fun loadAll() {
         if (!dataLock.tryLock(10, java.util.concurrent.TimeUnit.SECONDS)) {
             DebugLog.warn("Data load skipped: lock held by another thread for >10s")
             return
         }
         try {
             cancelPendingLoad()
-            doLoad(extraDatapacksDir)
+            doLoad()
         } catch (e: Exception) {
             DebugLog.warn("Data load failed: ${e.message}")
         } finally {
@@ -112,13 +111,13 @@ object SpawnDataIndex {
         }
     }
 
-    private fun loadAllAsync(extraDatapacksDir: Path? = null) {
+    private fun loadAllAsync() {
         val prev = loadFuture
         if (prev != null && !prev.isDone) return
         loadFuture = executor.submit {
             dataLock.lock()
             try {
-                doLoad(extraDatapacksDir)
+                doLoad()
             } catch (e: Exception) {
                 DebugLog.warn("Async data load failed: ${e.message}")
             } finally {
@@ -132,11 +131,11 @@ object SpawnDataIndex {
         loadFuture = null
     }
 
-    private fun doLoad(extraDatapacksDir: Path? = null) {
+    private fun doLoad() {
         DebugLog.reset()
         PokemonItemCache.reset()
         SpawnDataLoader.invalidateCache()
-        spawnsBySpecies = normalizeMapKeys(SpawnDataLoader.loadFromAllSources(extraDatapacksDir))
+        spawnsBySpecies = normalizeMapKeys(SpawnDataLoader.loadFromRuntime())
 
         val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
 
@@ -162,7 +161,7 @@ object SpawnDataIndex {
 
         try {
             obtainmentBySpecies = normalizeMapKeys(ObtainmentDataLoader.loadFromAllSources(
-                SpawnDataLoader.getModRootPaths(), extraDatapacksDir
+                SpawnDataLoader.getModRootPaths()
             ))
         } catch (e: Exception) {
             DebugLog.warn("Obtainment data load failed: ${e.message}")
@@ -170,7 +169,7 @@ object SpawnDataIndex {
         }
 
         try {
-            fossilsBySpecies = normalizeMapKeys(FossilDataLoader.loadFromAllSources())
+            fossilsBySpecies = normalizeMapKeys(FossilDataLoader.loadFromRuntime())
         } catch (e: Exception) {
             DebugLog.warn("Fossil data load failed: ${e.message}")
             fossilsBySpecies = emptyMap()

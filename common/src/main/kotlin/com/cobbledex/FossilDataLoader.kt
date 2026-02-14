@@ -1,110 +1,75 @@
 package com.cobbledex
 
-import com.google.gson.JsonParser
-import java.io.InputStreamReader
-import java.nio.file.Files
-import java.nio.file.Path
+import com.cobblemon.mod.common.api.fossil.Fossils
+import net.minecraft.advancements.critereon.ItemPredicate
+import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.world.item.ItemStack
 
+/**
+ * Reads fossil data directly from Cobblemon's runtime Fossils registry.
+ * Presets, datapacks, and any server modifications are already resolved.
+ */
 object FossilDataLoader {
 
-    fun loadFromAllSources(): Map<String, List<FossilCombo>> {
-        val roots = SpawnDataLoader.findAllModRootPaths()
-        DebugLog.debug("Scanning ${roots.size} mod roots for fossil data")
+    fun loadFromRuntime(): Map<String, List<FossilCombo>> {
+        val fossils = try {
+            Fossils.all()
+        } catch (e: Exception) {
+            DebugLog.warnOnce("fossils-access") { "Failed to read Fossils registry: ${e.message}" }
+            return emptyMap()
+        }
+
+        if (fossils.isEmpty()) return emptyMap()
 
         val result = mutableMapOf<String, MutableList<FossilCombo>>()
-        var totalFiles = 0
 
-        for (root in roots) {
+        for (fossil in fossils) {
             try {
-                val dataDir = root.resolve("data")
-                if (!Files.exists(dataDir) || !Files.isDirectory(dataDir)) continue
+                val props = fossil.result ?: continue
+                val rawSpecies = props.species ?: continue
+                val speciesName = rawSpecies.lowercase()
 
-                Files.list(dataDir).use { namespaces ->
-                    namespaces.filter { Files.isDirectory(it) }.forEach { namespace ->
-                        val fossilDir = namespace.resolve("fossils")
-                        if (Files.exists(fossilDir) && Files.isDirectory(fossilDir)) {
-                            Files.walk(fossilDir, 5).use { files ->
-                                files.filter { it.toString().endsWith(".json") }.forEach { file ->
-                                    if (parseFossilFile(file, result)) totalFiles++
-                                }
-                            }
-                        }
-                    }
+                val items = fossil.fossils.flatMap { predicate ->
+                    extractItemIds(predicate)
                 }
+                if (items.isEmpty()) continue
+
+                val extraParts = mutableListOf<String>()
+                props.form?.takeIf { it.isNotBlank() }?.let { extraParts.add("form=$it") }
+                props.aspects?.takeIf { it.isNotEmpty() }?.let { extraParts.addAll(it) }
+                val extraTags = extraParts.joinToString(" ").takeIf { it.isNotBlank() }
+
+                result.getOrPut(speciesName) { mutableListOf() }.add(FossilCombo(speciesName, items, extraTags))
             } catch (e: Exception) {
-                DebugLog.once("fossil-root-${root}") { "Error scanning fossil root: ${e.message}" }
+                DebugLog.once("fossil-${fossil.identifier}") { "Failed to read fossil: ${e.message}" }
             }
         }
 
-        // Scan local datapacks if enabled
-        val scanDatapacks = com.cobbledex.config.CobbleDexConfig.get().localDatapackScan
-        if (scanDatapacks) {
-            val datapacksDir = SpawnDataLoader.getClientDatapacksDir()
-            if (datapacksDir != null && Files.exists(datapacksDir) && Files.isDirectory(datapacksDir)) {
-                scanDatapacksFossils(datapacksDir, result) { if (it) totalFiles++ }
-            }
-        }
-
-        DebugLog.info("Loaded $totalFiles fossil files for ${result.size} species")
+        DebugLog.info("Loaded ${result.values.sumOf { it.size }} fossil combos for ${result.size} species from Cobblemon runtime")
         return result
     }
 
-    private fun parseFossilFile(file: Path, result: MutableMap<String, MutableList<FossilCombo>>): Boolean {
+    private fun extractItemIds(predicate: ItemPredicate): List<String> {
         return try {
-            val json = Files.newInputStream(file).use { stream ->
-                InputStreamReader(stream).use { reader -> JsonParser.parseReader(reader).asJsonObject }
+            val holderSet = predicate.items().orElse(null) ?: return emptyList()
+            val ids = mutableListOf<String>()
+            holderSet.forEach { holder ->
+                val key = holder.unwrapKey().orElse(null)
+                if (key != null) ids.add(key.location().toString())
             }
-
-            val rawResult = json.get("result")?.asString ?: return false
-            val fossilArray = json.getAsJsonArray("fossils") ?: return false
-
-            // Parse species name and extra tags from result string
-            // Format: "species_name min_perfect_ivs=2 aspect=legendary"
-            val parts = rawResult.split(" ")
-            val speciesName = parts[0].lowercase()
-            val extraTags = if (parts.size > 1) parts.drop(1).joinToString(" ") else null
-
-            val items = fossilArray.map { it.asString }
-            if (items.isEmpty()) return false
-
-            val combo = FossilCombo(speciesName, items, extraTags)
-            result.getOrPut(speciesName) { mutableListOf() }.add(combo)
-            true
+            ids
         } catch (e: Exception) {
-            DebugLog.once("fossil-parse-${file.fileName}") { "Failed to parse fossil file: ${e.message}" }
-            false
-        }
-    }
-
-    private fun scanDatapacksFossils(
-        dir: Path,
-        result: MutableMap<String, MutableList<FossilCombo>>,
-        counter: (Boolean) -> Unit
-    ) {
-        try {
-            Files.list(dir).use { entries ->
-                entries.forEach { entry ->
-                    if (Files.isDirectory(entry)) {
-                        val dataDir = entry.resolve("data")
-                        if (Files.exists(dataDir)) {
-                            Files.list(dataDir).use { namespaces ->
-                                namespaces.filter { Files.isDirectory(it) }.forEach { namespace ->
-                                    val fossilDir = namespace.resolve("fossils")
-                                    if (Files.exists(fossilDir) && Files.isDirectory(fossilDir)) {
-                                        Files.walk(fossilDir, 5).use { files ->
-                                            files.filter { it.toString().endsWith(".json") }.forEach { file ->
-                                                counter(parseFossilFile(file, result))
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+            // Fallback: test against registry
+            try {
+                val ids = mutableListOf<String>()
+                for (item in BuiltInRegistries.ITEM) {
+                    if (predicate.test(ItemStack(item))) {
+                        ids.add(BuiltInRegistries.ITEM.getKey(item).toString())
+                        break
                     }
                 }
-            }
-        } catch (e: Exception) {
-            DebugLog.once("fossil-datapacks") { "Error scanning datapacks for fossils: ${e.message}" }
+                ids
+            } catch (_: Exception) { emptyList() }
         }
     }
 }
