@@ -2,6 +2,16 @@
 
 All notable changes to Cobblemon Spawning REI will be documented in this file.
 
+## [1.21.0] - 2026-02-13
+
+### Added
+- Base Stats category — view HP, Attack, Defense, Sp.Atk, Sp.Def, Speed as colored stat bars with BST (REI/JEI/EMI)
+- Pokédex Info category — abilities (with HA marked), egg groups, gender ratio, breeding, training details, Pokédex description (REI/JEI/EMI)
+- `showStats` and `showPokedexInfo` config options to toggle the new categories
+
+### Changed
+- Trimmed tooltip: removed BST, abilities, egg groups (now in dedicated categories). Tooltip shows type, label badges, and compact category counts on one line
+
 ## [1.20.0] - 2026-02-14
 
 ### Changed

@@ -12,8 +12,12 @@ import com.cobblemonrei.jei.evolution.JeiEvolutionCategory
 import com.cobblemonrei.jei.evolution.JeiEvolutionRecipe
 import com.cobblemonrei.jei.obtainment.JeiObtainmentCategory
 import com.cobblemonrei.jei.obtainment.JeiObtainmentRecipe
+import com.cobblemonrei.jei.pokedex.JeiPokedexInfoCategory
+import com.cobblemonrei.jei.pokedex.JeiPokedexInfoRecipe
 import com.cobblemonrei.jei.spawn.JeiSpawnCategory
 import com.cobblemonrei.jei.spawn.JeiSpawnRecipe
+import com.cobblemonrei.jei.stats.JeiStatsCategory
+import com.cobblemonrei.jei.stats.JeiStatsRecipe
 import mezz.jei.api.IModPlugin
 import mezz.jei.api.registration.*
 import net.minecraft.resources.ResourceLocation
@@ -44,6 +48,8 @@ open class CobblemonJEIPlugin : IModPlugin {
         if (config.showEvolutions) registration.addRecipeCategories(JeiEvolutionCategory(guiHelper))
         if (config.showObtainment) registration.addRecipeCategories(JeiObtainmentCategory(guiHelper))
         if (config.showDrops) registration.addRecipeCategories(JeiDropCategory(guiHelper))
+        if (config.showStats) registration.addRecipeCategories(JeiStatsCategory(guiHelper))
+        if (config.showPokedexInfo) registration.addRecipeCategories(JeiPokedexInfoCategory(guiHelper))
         DebugLog.info("JEI: Categories registered")
     }
 
@@ -76,6 +82,18 @@ open class CobblemonJEIPlugin : IModPlugin {
             registration.addRecipes(JeiDropCategory.RECIPE_TYPE, dropRecipes)
             DebugLog.info("JEI: Registered ${dropRecipes.size} drop recipes")
         }
+
+        if (config.showStats) {
+            val statsRecipes = RecipeBuilder.buildAllStatsRecipes().map { JeiStatsRecipe(it) }
+            registration.addRecipes(JeiStatsCategory.RECIPE_TYPE, statsRecipes)
+            DebugLog.info("JEI: Registered ${statsRecipes.size} stats recipes")
+        }
+
+        if (config.showPokedexInfo) {
+            val pokedexRecipes = RecipeBuilder.buildAllPokedexInfoRecipes().map { JeiPokedexInfoRecipe(it) }
+            registration.addRecipes(JeiPokedexInfoCategory.RECIPE_TYPE, pokedexRecipes)
+            DebugLog.info("JEI: Registered ${pokedexRecipes.size} pokédex info recipes")
+        }
     }
 
     override fun registerRecipeCatalysts(registration: IRecipeCatalystRegistration) {
@@ -84,6 +102,8 @@ open class CobblemonJEIPlugin : IModPlugin {
         if (config.showEvolutions) registration.addRecipeCatalyst(ItemStack(Items.EXPERIENCE_BOTTLE), JeiEvolutionCategory.RECIPE_TYPE)
         if (config.showObtainment) registration.addRecipeCatalyst(ItemStack(Items.NETHER_STAR), JeiObtainmentCategory.RECIPE_TYPE)
         if (config.showDrops) registration.addRecipeCatalyst(ItemStack(Items.DIAMOND), JeiDropCategory.RECIPE_TYPE)
+        if (config.showStats) registration.addRecipeCatalyst(ItemStack(Items.BOOK), JeiStatsCategory.RECIPE_TYPE)
+        if (config.showPokedexInfo) registration.addRecipeCatalyst(ItemStack(Items.WRITABLE_BOOK), JeiPokedexInfoCategory.RECIPE_TYPE)
     }
 }
 

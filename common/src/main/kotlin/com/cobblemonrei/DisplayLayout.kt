@@ -23,6 +23,8 @@ object DisplayLayout {
     @Volatile private var cachedEvolutionMax: PanelSize? = null
     @Volatile private var cachedObtainmentMax: PanelSize? = null
     @Volatile private var cachedDropMax: PanelSize? = null
+    @Volatile private var cachedStatsMax: PanelSize? = null
+    @Volatile private var cachedPokedexInfoMax: PanelSize? = null
     @Volatile private var cachedDataVersion: Long = -1L
 
     fun invalidateCache() {
@@ -30,6 +32,8 @@ object DisplayLayout {
         cachedEvolutionMax = null
         cachedObtainmentMax = null
         cachedDropMax = null
+        cachedStatsMax = null
+        cachedPokedexInfoMax = null
         cachedDataVersion = -1L
     }
 
@@ -57,6 +61,18 @@ object DisplayLayout {
         return computeMaxDropSize().also { cachedDropMax = it }
     }
 
+    fun getMaxStatsSize(): PanelSize {
+        checkCacheValidity()
+        cachedStatsMax?.let { return it }
+        return PanelSize(200, 130).also { cachedStatsMax = it }
+    }
+
+    fun getMaxPokedexInfoSize(): PanelSize {
+        checkCacheValidity()
+        cachedPokedexInfoMax?.let { return it }
+        return computeMaxPokedexInfoSize().also { cachedPokedexInfoMax = it }
+    }
+
     private fun checkCacheValidity() {
         val ver = SpawnDataIndex.dataVersion
         if (ver != cachedDataVersion) {
@@ -64,6 +80,8 @@ object DisplayLayout {
             cachedEvolutionMax = null
             cachedObtainmentMax = null
             cachedDropMax = null
+            cachedStatsMax = null
+            cachedPokedexInfoMax = null
             cachedDataVersion = ver
         }
     }
@@ -344,5 +362,41 @@ object DisplayLayout {
         y += 2 + 1 + 4 + font.lineHeight + PADDING
 
         return PanelSize(width, y)
+    }
+
+    private fun computeMaxPokedexInfoSize(): PanelSize {
+        if (!SpawnDataIndex.hasData()) return PanelSize(200, 200)
+        val font = Minecraft.getInstance().font
+        var maxH = 120
+        for ((_, info) in SpawnDataIndex.speciesInfo) {
+            var y = 26
+            val lh = LINE_HEIGHT
+            if ((info.abilities != null && info.abilities.isNotEmpty()) || info.hiddenAbility != null) {
+                y += lh + (info.abilities?.size ?: 0) * lh
+                if (info.hiddenAbility != null) y += lh
+                y += 3
+            }
+            if (info.eggGroups != null && info.eggGroups.isNotEmpty()) {
+                y += lh + lh + 3
+            }
+            y += lh + lh + lh // physical, catch rate, height/weight
+            if (info.maleRatio != null) y += lh
+            y += 3
+            if (info.eggCycles != null) y += lh + lh
+            val hasTraining = info.experienceGroup != null || info.baseExperienceYield != null || info.baseFriendship != null
+            if (hasTraining) {
+                y += 1 + lh
+                if (info.experienceGroup != null) y += lh
+                if (info.baseExperienceYield != null) y += lh
+                if (info.baseFriendship != null) y += lh
+            }
+            info.description?.let { desc ->
+                y += 3 + 1 + 4
+                y += SpawnDisplayHelper.wrapText(font, desc, 200 - PADDING * 2 - 4).size * lh
+            }
+            y += PADDING
+            if (y > maxH) maxH = y
+        }
+        return PanelSize(200, maxH.coerceAtMost(350))
     }
 }

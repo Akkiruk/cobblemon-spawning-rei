@@ -341,7 +341,6 @@ object SpawnDisplayHelper {
             }
             lines.add(Component.literal(typeStr))
 
-            // Labels (Legendary, Mythical, etc.)
             val labelBadges = info.labels?.filter {
                 it in setOf("legendary", "mythical", "ultra_beast", "paradox")
             }
@@ -349,55 +348,21 @@ object SpawnDisplayHelper {
                 val badge = labelBadges.joinToString(", ") { "§d${titleCase(it.replace("_", " "))}" }
                 lines.add(Component.literal(badge))
             }
-
-            lines.add(Component.literal("§7" + tr("cobblemon-spawning-rei.tooltip.catch_rate", info.catchRate)))
-
-            // BST
-            info.baseStatTotal?.let { bst ->
-                lines.add(Component.literal("§7" + tr("cobblemon-spawning-rei.tooltip.bst", bst)))
-            }
-
-            // Abilities
-            val abilityText = buildString {
-                info.abilities?.let { abs ->
-                    append("§b")
-                    append(abs.joinToString(", "))
-                }
-                info.hiddenAbility?.let { ha ->
-                    if (isNotEmpty()) append(" §7| ")
-                    append("§3$ha §7(HA)")
-                }
-            }
-            if (abilityText.isNotEmpty()) {
-                lines.add(Component.literal(abilityText))
-            }
-
-            // Egg Groups
-            info.eggGroups?.let { groups ->
-                if (groups.isNotEmpty()) {
-                    lines.add(Component.literal("§7" + tr("cobblemon-spawning-rei.tooltip.egg_groups", groups.joinToString(", "))))
-                }
-            }
         }
+
+        val counts = mutableListOf<String>()
         val spawns = SpawnDataIndex.getSpawnsFor(speciesName)
-        if (spawns.isNotEmpty()) {
-            val displayCount = buildSortedSpawns(spawns).size
-            lines.add(Component.literal("§a" + tr("cobblemon-spawning-rei.tooltip.spawn_count", displayCount)))
-        }
+        if (spawns.isNotEmpty()) counts.add("§a${buildSortedSpawns(spawns).size} spawns")
         val evosFrom = SpawnDataIndex.getEvolutionsFrom(speciesName)
         val evosTo = SpawnDataIndex.getEvolutionsTo(speciesName)
         val evoCount = evosFrom.size + evosTo.size
-        if (evoCount > 0) {
-            lines.add(Component.literal("§6" + tr("cobblemon-spawning-rei.tooltip.evolution_count", evoCount)))
-        }
-        // Drop count
+        if (evoCount > 0) counts.add("§6${evoCount} evos")
         val dropCount = info?.drops?.size ?: 0
-        if (dropCount > 0) {
-            lines.add(Component.literal("§b" + tr("cobblemon-spawning-rei.tooltip.drop_count", dropCount)))
-        }
+        if (dropCount > 0) counts.add("§b${dropCount} drops")
         val obtainments = SpawnDataIndex.getObtainmentFor(speciesName)
-        if (obtainments.isNotEmpty()) {
-            lines.add(Component.literal("§d" + tr("cobblemon-spawning-rei.tooltip.obtainment_count", obtainments.size)))
+        if (obtainments.isNotEmpty()) counts.add("§d${obtainments.size} obtainment")
+        if (counts.isNotEmpty()) {
+            lines.add(Component.literal(counts.joinToString(" §7| ")))
         }
         return lines
     }
@@ -766,6 +731,215 @@ object SpawnDisplayHelper {
             val branchText = evoBranchText(branchIndex, branchTotal)
             val bw = font.width(branchText)
             graphics.drawString(font, branchText, right - bw, contentY, 0x666666, false)
+        }
+    }
+
+    // --- Stats detail rendering (shared between REI/JEI/EMI) ---
+
+    private val STAT_NAMES = listOf("hp", "atk", "def", "spa", "spd", "spe")
+    private val STAT_LABELS = mapOf(
+        "hp" to "HP", "atk" to "Atk", "def" to "Def",
+        "spa" to "SpA", "spd" to "SpD", "spe" to "Spe"
+    )
+    private val STAT_COLORS = mapOf(
+        "hp" to 0xFFFF5555.toInt(),
+        "atk" to 0xFFFF8844.toInt(),
+        "def" to 0xFFFFCC33.toInt(),
+        "spa" to 0xFF6699FF.toInt(),
+        "spd" to 0xFF77CC55.toInt(),
+        "spe" to 0xFFFF66AA.toInt()
+    )
+
+    private val TYPE_COLORS = mapOf(
+        "normal" to 0xFFA8A878.toInt(), "fire" to 0xFFF08030.toInt(),
+        "water" to 0xFF6890F0.toInt(), "electric" to 0xFFF8D030.toInt(),
+        "grass" to 0xFF78C850.toInt(), "ice" to 0xFF98D8D8.toInt(),
+        "fighting" to 0xFFC03028.toInt(), "poison" to 0xFFA040A0.toInt(),
+        "ground" to 0xFFE0C068.toInt(), "flying" to 0xFFA890F0.toInt(),
+        "psychic" to 0xFFF85888.toInt(), "bug" to 0xFFA8B820.toInt(),
+        "rock" to 0xFFB8A038.toInt(), "ghost" to 0xFF705898.toInt(),
+        "dragon" to 0xFF7038F8.toInt(), "dark" to 0xFF705848.toInt(),
+        "steel" to 0xFFB8B8D0.toInt(), "fairy" to 0xFFEE99AC.toInt()
+    )
+
+    fun drawStatsDetails(
+        graphics: GuiGraphics,
+        speciesName: String,
+        baseStats: Map<String, Int>,
+        bst: Int,
+        primaryType: String,
+        secondaryType: String?,
+        width: Int = 200,
+        height: Int = 160,
+        padding: Int = 6,
+        lineHeight: Int = 13
+    ) {
+        val font = Minecraft.getInstance().font
+        val right = width - padding
+
+        graphics.drawString(font, formatSpeciesName(speciesName), padding + 22, 6, 0xFFFFFF, false)
+
+        val headerText = tr("category.cobblemon-spawning-rei.stats")
+        val headerWidth = font.width(headerText)
+        graphics.drawString(font, headerText, right - headerWidth, 6, 0xDDCC99, false)
+
+        graphics.fill(padding, 20, right, 21, 0x50FFFFFF)
+
+        val typeStr = buildString {
+            append(formatTypeName(primaryType))
+            secondaryType?.let { append(" / ${formatTypeName(it)}") }
+        }
+        graphics.drawString(font, typeStr, padding, 25, typeColor(primaryType), false)
+
+        val bstText = "BST: $bst"
+        val bstWidth = font.width(bstText)
+        val bstColor = when {
+            bst >= 600 -> 0xFFFF5555.toInt()
+            bst >= 500 -> 0xFFFFCC33.toInt()
+            bst >= 400 -> 0xFF77CC55.toInt()
+            else -> 0xFFBBBBBB.toInt()
+        }
+        graphics.drawString(font, bstText, right - bstWidth, 25, bstColor, false)
+
+        var y = 40
+        val barMaxWidth = right - padding - 40 - 30
+        val maxStat = 255
+
+        for (statId in STAT_NAMES) {
+            val value = baseStats[statId] ?: 0
+            val label = STAT_LABELS[statId] ?: statId.uppercase()
+            val color = STAT_COLORS[statId] ?: 0xFFAAAAAA.toInt()
+
+            graphics.drawString(font, label, padding, y + 1, 0xBBBBBB, false)
+
+            val valStr = value.toString()
+            val valWidth = font.width(valStr)
+            graphics.drawString(font, valStr, padding + 28 - valWidth, y + 1, 0xFFFFFF, false)
+
+            val barX = padding + 34
+            val barWidth = ((value.toFloat() / maxStat) * barMaxWidth).toInt().coerceAtLeast(1)
+            graphics.fill(barX, y + 1, barX + barMaxWidth, y + 9, 0x30FFFFFF)
+            graphics.fill(barX, y + 1, barX + barWidth, y + 9, color)
+
+            y += lineHeight
+        }
+    }
+
+    private fun typeColor(type: String): Int = TYPE_COLORS[type.lowercase()] ?: 0xFFBBBBBB.toInt()
+
+    // --- Pokédex Info detail rendering (shared between REI/JEI/EMI) ---
+
+    fun drawPokedexInfoDetails(
+        graphics: GuiGraphics,
+        data: PokedexInfoRecipeData,
+        width: Int = 200,
+        height: Int = 200,
+        padding: Int = 6,
+        lineHeight: Int = 11
+    ) {
+        val font = Minecraft.getInstance().font
+        val right = width - padding
+        val indentX = padding + 4
+        val indentWidth = right - indentX
+
+        graphics.drawString(font, formatSpeciesName(data.speciesName), padding + 22, 6, 0xFFFFFF, false)
+
+        val headerText = tr("category.cobblemon-spawning-rei.pokedex_info")
+        val headerWidth = font.width(headerText)
+        graphics.drawString(font, headerText, right - headerWidth, 6, 0xDDCC99, false)
+
+        graphics.fill(padding, 20, right, 21, 0x50FFFFFF)
+        var y = 26
+
+        // Abilities
+        if (data.abilities.isNotEmpty() || data.hiddenAbility != null) {
+            graphics.drawString(font, tr("cobblemon-spawning-rei.info.abilities"), padding, y, 0xEEEEEE, false)
+            y += lineHeight
+            for (ability in data.abilities) {
+                graphics.drawString(font, "\u2022 $ability", indentX, y, 0xFF88CCFF.toInt(), false)
+                y += lineHeight
+            }
+            data.hiddenAbility?.let { ha ->
+                val haText = "\u2022 $ha (HA)"
+                graphics.drawString(font, haText, indentX, y, 0xFF66AADD.toInt(), false)
+                y += lineHeight
+            }
+            y += 3
+        }
+
+        // Egg Groups
+        if (data.eggGroups.isNotEmpty()) {
+            graphics.drawString(font, tr("cobblemon-spawning-rei.info.egg_groups"), padding, y, 0xEEEEEE, false)
+            y += lineHeight
+            val groupText = data.eggGroups.joinToString(", ") { titleCase(it.replace("-", " ")) }
+            for (line in wrapText(font, groupText, indentWidth)) {
+                graphics.drawString(font, line, indentX, y, 0xFFDDDD88.toInt(), false)
+                y += lineHeight
+            }
+            y += 3
+        }
+
+        // Physical
+        graphics.drawString(font, tr("cobblemon-spawning-rei.info.physical"), padding, y, 0xEEEEEE, false)
+        y += lineHeight
+        val heightText = "%.1fm".format(data.height / 10f)
+        val weightText = "%.1fkg".format(data.weight / 10f)
+        graphics.drawString(font, tr("cobblemon-spawning-rei.info.height_weight", heightText, weightText), indentX, y, 0xBBBBBB, false)
+        y += lineHeight
+
+        // Catch Rate
+        graphics.drawString(font, tr("cobblemon-spawning-rei.info.catch_rate", data.catchRate), indentX, y, 0xBBBBBB, false)
+        y += lineHeight
+
+        // Gender ratio
+        data.maleRatio?.let { ratio ->
+            val genderText = when {
+                ratio < 0 -> tr("cobblemon-spawning-rei.info.genderless")
+                ratio == 1f -> tr("cobblemon-spawning-rei.info.male_only")
+                ratio == 0f -> tr("cobblemon-spawning-rei.info.female_only")
+                else -> tr("cobblemon-spawning-rei.info.gender_ratio", "%.0f".format(ratio * 100), "%.0f".format((1 - ratio) * 100))
+            }
+            graphics.drawString(font, genderText, indentX, y, 0xBBBBBB, false)
+            y += lineHeight
+        }
+        y += 3
+
+        // Breeding
+        data.eggCycles?.let { cycles ->
+            graphics.drawString(font, tr("cobblemon-spawning-rei.info.breeding"), padding, y, 0xEEEEEE, false)
+            y += lineHeight
+            graphics.drawString(font, tr("cobblemon-spawning-rei.info.egg_cycles", cycles, cycles * 257), indentX, y, 0xBBBBBB, false)
+            y += lineHeight
+        }
+
+        // Training
+        if (data.experienceGroup != null || data.baseExperienceYield != null || data.baseFriendship != null) {
+            y += 1
+            graphics.drawString(font, tr("cobblemon-spawning-rei.info.training"), padding, y, 0xEEEEEE, false)
+            y += lineHeight
+            data.experienceGroup?.let { group ->
+                graphics.drawString(font, tr("cobblemon-spawning-rei.info.exp_group", titleCase(group.replace("_", " "))), indentX, y, 0xBBBBBB, false)
+                y += lineHeight
+            }
+            data.baseExperienceYield?.let { exp ->
+                graphics.drawString(font, tr("cobblemon-spawning-rei.info.base_exp", exp), indentX, y, 0xBBBBBB, false)
+                y += lineHeight
+            }
+            data.baseFriendship?.let { friendship ->
+                graphics.drawString(font, tr("cobblemon-spawning-rei.info.base_friendship", friendship), indentX, y, 0xBBBBBB, false)
+                y += lineHeight
+            }
+        }
+
+        // Description
+        data.description?.let { desc ->
+            y += 3
+            graphics.fill(padding, y, right, y + 1, 0x20FFFFFF)
+            y += 4
+            for (line in wrapText(font, desc, indentWidth)) {
+                graphics.drawString(font, line, indentX, y, 0xFF999999.toInt(), false)
+                y += lineHeight
+            }
         }
     }
 }

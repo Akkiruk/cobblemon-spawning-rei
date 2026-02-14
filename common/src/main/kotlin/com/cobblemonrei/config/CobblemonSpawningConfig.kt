@@ -10,6 +10,8 @@ data class CobblemonSpawningConfig(
     val showEvolutions: Boolean = true,
     val showObtainment: Boolean = true,
     val showDrops: Boolean = true,
+    val showStats: Boolean = true,
+    val showPokedexInfo: Boolean = true,
     val localDatapackScan: Boolean = true,
     val debugMode: Boolean = false
 ) {

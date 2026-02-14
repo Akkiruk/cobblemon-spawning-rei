@@ -16,8 +16,12 @@ import com.cobblemonrei.rei.evolution.EvolutionCategory
 import com.cobblemonrei.rei.evolution.EvolutionDisplay
 import com.cobblemonrei.rei.obtainment.ObtainmentCategory
 import com.cobblemonrei.rei.obtainment.ObtainmentDisplay
+import com.cobblemonrei.rei.pokedex.PokedexInfoCategory
+import com.cobblemonrei.rei.pokedex.PokedexInfoDisplay
 import com.cobblemonrei.rei.spawn.SpawnCategory
 import com.cobblemonrei.rei.spawn.SpawnDisplay
+import com.cobblemonrei.rei.stats.StatsCategory
+import com.cobblemonrei.rei.stats.StatsDisplay
 import me.shedaniel.rei.api.client.plugins.REIClientPlugin
 import me.shedaniel.rei.api.client.registry.category.CategoryRegistry
 import me.shedaniel.rei.api.client.registry.display.DisplayRegistry
@@ -70,7 +74,9 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
         if (config.showEvolutions) registry.add(EvolutionCategory())
         if (config.showObtainment) registry.add(ObtainmentCategory())
         if (config.showDrops) registry.add(DropCategory())
-        DebugLog.info("REI categories registered (spawns${if (config.showEvolutions) " + evolution" else ""}${if (config.showObtainment) " + obtainment" else ""}${if (config.showDrops) " + drops" else ""})")
+        if (config.showStats) registry.add(StatsCategory())
+        if (config.showPokedexInfo) registry.add(PokedexInfoCategory())
+        DebugLog.info("REI categories registered (spawns${if (config.showEvolutions) " + evolution" else ""}${if (config.showObtainment) " + obtainment" else ""}${if (config.showDrops) " + drops" else ""}${if (config.showStats) " + stats" else ""}${if (config.showPokedexInfo) " + pokedex" else ""})")
     }
 
     override fun registerDisplays(registry: DisplayRegistry) {
@@ -83,6 +89,8 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
         if (config.showEvolutions) registry.registerDisplayGenerator(EvolutionCategory.ID, EvolutionDisplayGenerator())
         if (config.showObtainment) registry.registerDisplayGenerator(ObtainmentCategory.ID, ObtainmentDisplayGenerator())
         if (config.showDrops) registry.registerDisplayGenerator(DropCategory.ID, DropDisplayGenerator())
+        if (config.showStats) registry.registerDisplayGenerator(StatsCategory.ID, StatsDisplayGenerator())
+        if (config.showPokedexInfo) registry.registerDisplayGenerator(PokedexInfoCategory.ID, PokedexInfoDisplayGenerator())
 
         DebugLog.info("Registered dynamic display generators")
     }
@@ -234,6 +242,60 @@ open class CobblemonREIClientPlugin : REIClientPlugin {
             cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
 
             val all = RecipeBuilder.buildAllDropRecipes().map { DropDisplay(it) }
+            cachedDisplays = all
+            cachedVersion = version
+            return if (all.isEmpty()) Optional.empty() else Optional.of(all)
+        }
+    }
+
+    private inner class StatsDisplayGenerator : DynamicDisplayGenerator<StatsDisplay> {
+
+        @Volatile private var cachedVersion = -1L
+        @Volatile private var cachedDisplays: List<StatsDisplay>? = null
+
+        override fun getRecipeFor(entry: EntryStack<*>): Optional<List<StatsDisplay>> {
+            val value = entry.value ?: return Optional.empty()
+            if (value !is PokemonEntry) return Optional.empty()
+            val recipe = RecipeBuilder.buildStatsFor(value.species) ?: return Optional.empty()
+            return Optional.of(listOf(StatsDisplay(recipe)))
+        }
+
+        override fun getUsageFor(entry: EntryStack<*>): Optional<List<StatsDisplay>> = Optional.empty()
+
+        override fun generate(builder: ViewSearchBuilder): Optional<List<StatsDisplay>> {
+            if (builder.recipesFor.isNotEmpty() || builder.usagesFor.isNotEmpty()) return Optional.empty()
+            if (!SpawnDataIndex.hasData()) return Optional.empty()
+            val version = SpawnDataIndex.dataVersion
+            cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
+
+            val all = RecipeBuilder.buildAllStatsRecipes().map { StatsDisplay(it) }
+            cachedDisplays = all
+            cachedVersion = version
+            return if (all.isEmpty()) Optional.empty() else Optional.of(all)
+        }
+    }
+
+    private inner class PokedexInfoDisplayGenerator : DynamicDisplayGenerator<PokedexInfoDisplay> {
+
+        @Volatile private var cachedVersion = -1L
+        @Volatile private var cachedDisplays: List<PokedexInfoDisplay>? = null
+
+        override fun getRecipeFor(entry: EntryStack<*>): Optional<List<PokedexInfoDisplay>> {
+            val value = entry.value ?: return Optional.empty()
+            if (value !is PokemonEntry) return Optional.empty()
+            val recipe = RecipeBuilder.buildPokedexInfoFor(value.species) ?: return Optional.empty()
+            return Optional.of(listOf(PokedexInfoDisplay(recipe)))
+        }
+
+        override fun getUsageFor(entry: EntryStack<*>): Optional<List<PokedexInfoDisplay>> = Optional.empty()
+
+        override fun generate(builder: ViewSearchBuilder): Optional<List<PokedexInfoDisplay>> {
+            if (builder.recipesFor.isNotEmpty() || builder.usagesFor.isNotEmpty()) return Optional.empty()
+            if (!SpawnDataIndex.hasData()) return Optional.empty()
+            val version = SpawnDataIndex.dataVersion
+            cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
+
+            val all = RecipeBuilder.buildAllPokedexInfoRecipes().map { PokedexInfoDisplay(it) }
             cachedDisplays = all
             cachedVersion = version
             return if (all.isEmpty()) Optional.empty() else Optional.of(all)

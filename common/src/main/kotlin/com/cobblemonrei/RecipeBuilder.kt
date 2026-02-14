@@ -62,4 +62,54 @@ object RecipeBuilder {
         if (drops.isEmpty()) return emptyList()
         return listOf(DropRecipeData(speciesName, drops))
     }
+
+    fun buildAllStatsRecipes(): List<StatsRecipeData> {
+        val recipes = mutableListOf<StatsRecipeData>()
+        for ((species, info) in SpawnDataIndex.speciesInfo) {
+            val stats = info.baseStats ?: continue
+            val bst = info.baseStatTotal ?: continue
+            if (stats.isEmpty()) continue
+            recipes.add(StatsRecipeData(species, stats, bst, info.primaryType, info.secondaryType))
+        }
+        return recipes
+    }
+
+    fun buildStatsFor(speciesName: String): StatsRecipeData? {
+        val info = SpawnDataIndex.getSpeciesInfo(speciesName) ?: return null
+        val stats = info.baseStats ?: return null
+        val bst = info.baseStatTotal ?: return null
+        if (stats.isEmpty()) return null
+        return StatsRecipeData(speciesName, stats, bst, info.primaryType, info.secondaryType)
+    }
+
+    fun buildAllPokedexInfoRecipes(): List<PokedexInfoRecipeData> {
+        val recipes = mutableListOf<PokedexInfoRecipeData>()
+        for ((species, info) in SpawnDataIndex.speciesInfo) {
+            recipes.add(buildPokedexInfoFrom(species, info))
+        }
+        return recipes
+    }
+
+    fun buildPokedexInfoFor(speciesName: String): PokedexInfoRecipeData? {
+        val info = SpawnDataIndex.getSpeciesInfo(speciesName) ?: return null
+        return buildPokedexInfoFrom(speciesName, info)
+    }
+
+    private fun buildPokedexInfoFrom(species: String, info: EvolutionDataLoader.SpeciesBasicInfo): PokedexInfoRecipeData {
+        return PokedexInfoRecipeData(
+            speciesName = species,
+            abilities = info.abilities ?: emptyList(),
+            hiddenAbility = info.hiddenAbility,
+            eggGroups = info.eggGroups ?: emptyList(),
+            maleRatio = info.maleRatio,
+            eggCycles = info.eggCycles,
+            catchRate = info.catchRate,
+            baseFriendship = info.baseFriendship,
+            experienceGroup = info.experienceGroup,
+            baseExperienceYield = info.baseExperienceYield,
+            height = info.height,
+            weight = info.weight,
+            description = info.description
+        )
+    }
 }

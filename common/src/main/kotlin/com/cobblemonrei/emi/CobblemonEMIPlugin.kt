@@ -33,6 +33,14 @@ open class CobblemonEMIPlugin : EmiPlugin {
             ResourceLocation.fromNamespaceAndPath(CobblemonSpawningMod.MOD_ID, "emi_drops"),
             EmiStack.of(Items.DIAMOND)
         )
+        val STATS_CATEGORY = EmiRecipeCategory(
+            ResourceLocation.fromNamespaceAndPath(CobblemonSpawningMod.MOD_ID, "emi_stats"),
+            EmiStack.of(Items.BOOK)
+        )
+        val POKEDEX_INFO_CATEGORY = EmiRecipeCategory(
+            ResourceLocation.fromNamespaceAndPath(CobblemonSpawningMod.MOD_ID, "emi_pokedex_info"),
+            EmiStack.of(Items.WRITABLE_BOOK)
+        )
     }
 
     override fun register(registry: EmiRegistry) {
@@ -55,6 +63,16 @@ open class CobblemonEMIPlugin : EmiPlugin {
         if (config.showDrops) {
             registry.addCategory(DROP_CATEGORY)
             registry.addWorkstation(DROP_CATEGORY, EmiStack.of(Items.DIAMOND))
+        }
+
+        if (config.showStats) {
+            registry.addCategory(STATS_CATEGORY)
+            registry.addWorkstation(STATS_CATEGORY, EmiStack.of(Items.BOOK))
+        }
+
+        if (config.showPokedexInfo) {
+            registry.addCategory(POKEDEX_INFO_CATEGORY)
+            registry.addWorkstation(POKEDEX_INFO_CATEGORY, EmiStack.of(Items.WRITABLE_BOOK))
         }
 
         var comparisonSet = false
@@ -97,6 +115,18 @@ open class CobblemonEMIPlugin : EmiPlugin {
             val dropRecipes = RecipeBuilder.buildAllDropRecipes().map { EmiDropRecipe(it) }
             for (recipe in dropRecipes) registry.addRecipe(recipe)
             DebugLog.info("EMI: Registered ${dropRecipes.size} drop recipes")
+        }
+
+        if (config.showStats) {
+            val statsRecipes = RecipeBuilder.buildAllStatsRecipes().map { EmiStatsRecipe(it) }
+            for (recipe in statsRecipes) registry.addRecipe(recipe)
+            DebugLog.info("EMI: Registered ${statsRecipes.size} stats recipes")
+        }
+
+        if (config.showPokedexInfo) {
+            val pokedexRecipes = RecipeBuilder.buildAllPokedexInfoRecipes().map { EmiPokedexInfoRecipe(it) }
+            for (recipe in pokedexRecipes) registry.addRecipe(recipe)
+            DebugLog.info("EMI: Registered ${pokedexRecipes.size} pokédex info recipes")
         }
     }
 
