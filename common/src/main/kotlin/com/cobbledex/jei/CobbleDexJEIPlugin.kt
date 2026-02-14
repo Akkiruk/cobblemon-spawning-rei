@@ -2,148 +2,153 @@ package com.cobbledex.jei
 
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
+import com.cobbledex.DexCategory
 import com.cobbledex.PokemonItemCache
-import com.cobbledex.RecipeBuilder
+import com.cobbledex.RecipeHandle
+import com.cobbledex.SlotRole
 import com.cobbledex.SpawnDataIndex
+import com.cobbledex.SpawnDisplayHelper
 import com.cobbledex.config.CobbleDexConfig
-import com.cobbledex.jei.drops.JeiDropCategory
-import com.cobbledex.jei.drops.JeiDropRecipe
-import com.cobbledex.jei.evolution.JeiEvolutionCategory
-import com.cobbledex.jei.evolution.JeiEvolutionRecipe
-import com.cobbledex.jei.moves.JeiMovesCategory
-import com.cobbledex.jei.moves.JeiMovesRecipe
-import com.cobbledex.jei.obtainment.JeiObtainmentCategory
-import com.cobbledex.jei.obtainment.JeiObtainmentRecipe
-import com.cobbledex.jei.pokedex.JeiPokedexInfoCategory
-import com.cobbledex.jei.pokedex.JeiPokedexInfoRecipe
-import com.cobbledex.jei.spawn.JeiSpawnCategory
-import com.cobbledex.jei.spawn.JeiSpawnRecipe
-import com.cobbledex.jei.stats.JeiStatsCategory
-import com.cobbledex.jei.stats.JeiStatsRecipe
-import com.cobbledex.jei.fossil.JeiFossilCategory
-import com.cobbledex.jei.fossil.JeiFossilRecipe
-import com.cobbledex.jei.typechart.JeiTypeChartCategory
-import com.cobbledex.jei.typechart.JeiTypeChartRecipe
-import com.cobbledex.jei.nature.JeiNatureCategory
-import com.cobbledex.jei.nature.JeiNatureRecipe
 import mezz.jei.api.IModPlugin
-import mezz.jei.api.registration.*
+import mezz.jei.api.gui.builder.IRecipeLayoutBuilder
+import mezz.jei.api.gui.drawable.IDrawable
+import mezz.jei.api.gui.ingredient.IRecipeSlotsView
+import mezz.jei.api.helpers.IGuiHelper
+import mezz.jei.api.recipe.IFocusGroup
+import mezz.jei.api.recipe.RecipeIngredientRole
+import mezz.jei.api.recipe.RecipeType
+import mezz.jei.api.recipe.category.IRecipeCategory
+import mezz.jei.api.registration.IModIngredientRegistration
+import mezz.jei.api.registration.IRecipeCatalystRegistration
+import mezz.jei.api.registration.IRecipeCategoryRegistration
+import mezz.jei.api.registration.IRecipeRegistration
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.ItemStack
-import net.minecraft.world.item.Items
 
+@Suppress("DEPRECATION")
 open class CobbleDexJEIPlugin : IModPlugin {
+
+    companion object {
+        private val recipeTypes = mutableMapOf<String, RecipeType<GenericRecipe>>()
+
+        fun recipeType(def: DexCategory): RecipeType<GenericRecipe> =
+            recipeTypes.getOrPut(def.id) {
+                RecipeType(
+                    ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, def.id),
+                    GenericRecipe::class.java
+                )
+            }
+    }
 
     override fun getPluginUid(): ResourceLocation =
         ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "jei_plugin")
 
-    @Suppress("DEPRECATION")
     override fun registerIngredients(registration: IModIngredientRegistration) {
         SpawnDataIndex.ensureLoaded()
-
-        val allIngredients = SpawnDataIndex.allSpeciesNames
+        val allPokemon = SpawnDataIndex.allSpeciesNames
             .filter { PokemonItemCache.canRender(it) }
             .map { PokemonIngredient(it) }
 
-        registration.register(PokemonIngredientType, allIngredients, PokemonIngredientHelper(), PokemonIngredientRenderer())
-        DebugLog.info("JEI: Registered ${allIngredients.size} Pokémon ingredients")
+        registration.register(
+            PokemonIngredientType,
+            allPokemon,
+            PokemonIngredientHelper(),
+            PokemonIngredientRenderer()
+        )
+        DebugLog.info("JEI: Registered ${allPokemon.size} Pokémon ingredients")
     }
 
     override fun registerCategories(registration: IRecipeCategoryRegistration) {
         val guiHelper = registration.jeiHelpers.guiHelper
         val config = CobbleDexConfig.get()
-        registration.addRecipeCategories(JeiSpawnCategory(guiHelper))
-        if (config.showEvolutions) registration.addRecipeCategories(JeiEvolutionCategory(guiHelper))
-        if (config.showObtainment) registration.addRecipeCategories(JeiObtainmentCategory(guiHelper))
-        if (config.showDrops) registration.addRecipeCategories(JeiDropCategory(guiHelper))
-        if (config.showStats) registration.addRecipeCategories(JeiStatsCategory(guiHelper))
-        if (config.showMoves) registration.addRecipeCategories(JeiMovesCategory(guiHelper))
-        if (config.showPokedexInfo) registration.addRecipeCategories(JeiPokedexInfoCategory(guiHelper))
-        if (config.showFossils) registration.addRecipeCategories(JeiFossilCategory(guiHelper))
-        if (config.showTypeChart) registration.addRecipeCategories(JeiTypeChartCategory(guiHelper))
-        if (config.showNatures) registration.addRecipeCategories(JeiNatureCategory(guiHelper))
-        DebugLog.info("JEI: Categories registered")
+        val registered = mutableListOf<String>()
+
+        for (def in DexCategory.ALL) {
+            if (!def.isEnabled(config)) continue
+            registration.addRecipeCategories(GenericCategory(def, guiHelper))
+            registered.add(def.id)
+        }
+        DebugLog.info("JEI categories registered (${registered.joinToString(" + ")})")
     }
 
     override fun registerRecipes(registration: IRecipeRegistration) {
         SpawnDataIndex.ensureLoaded()
         val config = CobbleDexConfig.get()
 
-        val spawnRecipes = mutableListOf<JeiSpawnRecipe>()
-        for ((species, spawns) in SpawnDataIndex.spawnsBySpecies) {
-            if (spawns.isEmpty()) continue
-            spawnRecipes.addAll(RecipeBuilder.buildSpawnRecipes(species, spawns).map { JeiSpawnRecipe(it) })
+        for (def in DexCategory.ALL) {
+            if (!def.isEnabled(config)) continue
+            val recipes = def.buildAllRecipes().map { GenericRecipe(it) }
+            if (recipes.isNotEmpty()) {
+                registration.addRecipes(recipeType(def), recipes)
+            }
         }
-        registration.addRecipes(JeiSpawnCategory.RECIPE_TYPE, spawnRecipes)
-        DebugLog.info("JEI: Registered ${spawnRecipes.size} spawn recipes")
-
-        if (config.showEvolutions) {
-            val evoRecipes = RecipeBuilder.buildAllEvolutionRecipes().map { JeiEvolutionRecipe(it) }
-            registration.addRecipes(JeiEvolutionCategory.RECIPE_TYPE, evoRecipes)
-            DebugLog.info("JEI: Registered ${evoRecipes.size} evolution recipes")
-        }
-
-        if (config.showObtainment) {
-            val obtainRecipes = RecipeBuilder.buildAllObtainmentRecipes().map { JeiObtainmentRecipe(it) }
-            registration.addRecipes(JeiObtainmentCategory.RECIPE_TYPE, obtainRecipes)
-            DebugLog.info("JEI: Registered ${obtainRecipes.size} obtainment recipes")
-        }
-
-        if (config.showDrops) {
-            val dropRecipes = RecipeBuilder.buildAllDropRecipes().map { JeiDropRecipe(it) }
-            registration.addRecipes(JeiDropCategory.RECIPE_TYPE, dropRecipes)
-            DebugLog.info("JEI: Registered ${dropRecipes.size} drop recipes")
-        }
-
-        if (config.showStats) {
-            val statsRecipes = RecipeBuilder.buildAllStatsRecipes().map { JeiStatsRecipe(it) }
-            registration.addRecipes(JeiStatsCategory.RECIPE_TYPE, statsRecipes)
-            DebugLog.info("JEI: Registered ${statsRecipes.size} stats recipes")
-        }
-
-        if (config.showMoves) {
-            val movesRecipes = RecipeBuilder.buildAllMovesRecipes().map { JeiMovesRecipe(it) }
-            registration.addRecipes(JeiMovesCategory.RECIPE_TYPE, movesRecipes)
-            DebugLog.info("JEI: Registered ${movesRecipes.size} moves recipes")
-        }
-
-        if (config.showPokedexInfo) {
-            val pokedexRecipes = RecipeBuilder.buildAllPokedexInfoRecipes().map { JeiPokedexInfoRecipe(it) }
-            registration.addRecipes(JeiPokedexInfoCategory.RECIPE_TYPE, pokedexRecipes)
-            DebugLog.info("JEI: Registered ${pokedexRecipes.size} pokédex info recipes")
-        }
-
-        if (config.showFossils) {
-            val fossilRecipes = RecipeBuilder.buildAllFossilRecipes().map { JeiFossilRecipe(it) }
-            registration.addRecipes(JeiFossilCategory.RECIPE_TYPE, fossilRecipes)
-            DebugLog.info("JEI: Registered ${fossilRecipes.size} fossil recipes")
-        }
-
-        if (config.showTypeChart) {
-            val typeChartRecipes = RecipeBuilder.buildAllTypeChartRecipes().map { JeiTypeChartRecipe(it) }
-            registration.addRecipes(JeiTypeChartCategory.RECIPE_TYPE, typeChartRecipes)
-            DebugLog.info("JEI: Registered ${typeChartRecipes.size} type chart recipes")
-        }
-
-        if (config.showNatures) {
-            val natureRecipes = RecipeBuilder.buildNatureRecipes().map { JeiNatureRecipe(it) }
-            registration.addRecipes(JeiNatureCategory.RECIPE_TYPE, natureRecipes)
-            DebugLog.info("JEI: Registered ${natureRecipes.size} nature recipes")
-        }
+        DebugLog.info("JEI: All recipes registered")
     }
 
     override fun registerRecipeCatalysts(registration: IRecipeCatalystRegistration) {
         val config = CobbleDexConfig.get()
-        registration.addRecipeCatalyst(ItemStack(Items.GRASS_BLOCK), JeiSpawnCategory.RECIPE_TYPE)
-        if (config.showEvolutions) registration.addRecipeCatalyst(ItemStack(Items.EXPERIENCE_BOTTLE), JeiEvolutionCategory.RECIPE_TYPE)
-        if (config.showObtainment) registration.addRecipeCatalyst(ItemStack(Items.NETHER_STAR), JeiObtainmentCategory.RECIPE_TYPE)
-        if (config.showDrops) registration.addRecipeCatalyst(ItemStack(Items.DIAMOND), JeiDropCategory.RECIPE_TYPE)
-        if (config.showStats) registration.addRecipeCatalyst(ItemStack(Items.BOOK), JeiStatsCategory.RECIPE_TYPE)
-        if (config.showMoves) registration.addRecipeCatalyst(ItemStack(Items.PAPER), JeiMovesCategory.RECIPE_TYPE)
-        if (config.showPokedexInfo) registration.addRecipeCatalyst(ItemStack(Items.WRITABLE_BOOK), JeiPokedexInfoCategory.RECIPE_TYPE)
-        if (config.showFossils) registration.addRecipeCatalyst(ItemStack(Items.BONE), JeiFossilCategory.RECIPE_TYPE)
-        if (config.showTypeChart) registration.addRecipeCatalyst(ItemStack(Items.SHIELD), JeiTypeChartCategory.RECIPE_TYPE)
-        if (config.showNatures) registration.addRecipeCatalyst(ItemStack(Items.WRITABLE_BOOK), JeiNatureCategory.RECIPE_TYPE)
+        for (def in DexCategory.ALL) {
+            if (!def.isEnabled(config)) continue
+            registration.addRecipeCatalyst(ItemStack(def.icon), recipeType(def))
+        }
+    }
+
+    // ----- Generic Recipe wrapping RecipeHandle -----
+
+    data class GenericRecipe(val handle: RecipeHandle)
+
+    // ----- Generic Category wrapping DexCategory -----
+
+    @Suppress("DEPRECATION")
+    class GenericCategory(
+        private val def: DexCategory,
+        guiHelper: IGuiHelper,
+    ) : IRecipeCategory<GenericRecipe> {
+
+        private val recipeArrow: IDrawable = guiHelper.getRecipeArrow()
+        private val background: IDrawable = guiHelper.createBlankDrawable(
+            def.maxSize().width,
+            def.maxSize().height
+        )
+        private val iconDrawable: IDrawable = guiHelper.createDrawableItemStack(ItemStack(def.icon))
+
+        override fun getRecipeType(): RecipeType<GenericRecipe> = recipeType(def)
+        override fun getTitle(): Component = Component.translatable(def.titleKey)
+        override fun getBackground(): IDrawable = background
+        override fun getIcon(): IDrawable = iconDrawable
+
+        override fun setRecipe(builder: IRecipeLayoutBuilder, recipe: GenericRecipe, focuses: IFocusGroup) {
+            val handle = recipe.handle
+            val slots = handle.slots
+
+            for (slot in slots.pokemon) {
+                val role = if (slot.role == SlotRole.INPUT) RecipeIngredientRole.INPUT else RecipeIngredientRole.OUTPUT
+                builder.addSlot(role, slot.x, slot.y)
+                    .setSlotName(slot.species)
+                    .addIngredient(PokemonIngredientType, PokemonIngredient(slot.species, slot.aspects))
+            }
+
+            for (slot in slots.items) {
+                val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
+                if (!stack.isEmpty) {
+                    val role = if (slot.role == SlotRole.INPUT) RecipeIngredientRole.INPUT else RecipeIngredientRole.OUTPUT
+                    builder.addSlot(role, slot.x, slot.y)
+                        .addItemStack(stack)
+                }
+            }
+        }
+
+        override fun draw(recipe: GenericRecipe, recipeSlotsView: IRecipeSlotsView, guiGraphics: GuiGraphics, mouseX: Double, mouseY: Double) {
+            val handle = recipe.handle
+            val slots = handle.slots
+
+            if (slots.hasArrow) {
+                recipeArrow.draw(guiGraphics, slots.arrowX, slots.arrowY)
+            }
+
+            handle.layout.render(guiGraphics)
+        }
     }
 }
-

@@ -387,119 +387,107 @@ object SpawnDisplayHelper {
         return lines
     }
 
-    // --- Spawn detail rendering (shared between JEI/EMI) ---
+    // --- Spawn layout builder (single source of truth for measure + render) ---
 
-    fun drawSpawnDetails(
-        graphics: GuiGraphics,
+    fun buildSpawnLayout(
         speciesName: String,
         spawn: SpawnInfo,
         mergedFormVariants: List<String>,
         bucketIndex: Int,
-        bucketTotal: Int,
-        width: Int = 180,
-        height: Int = 200,
-        padding: Int = 6,
-        lineHeight: Int = 11
-    ) {
+        bucketTotal: Int
+    ): PanelLayout {
         val font = Minecraft.getInstance().font
-        val color = bucketColor(spawn.bucket)
-        val right = width - padding
-        val indentX = padding + 6
-        val indentWidth = right - indentX
-
-        graphics.drawString(font, formatSpeciesName(speciesName), padding + 22, 6, 0xFFFFFF, true)
+        val padding = PanelLayout.PADDING
+        val lineHeight = PanelLayout.LINE_HEIGHT
+        val showWeights = CobbleDexConfig.get().showSpawnWeights && spawn.weight > 0f
 
         val lvText = levelText(spawn.levelRange)
         val bucketText = bucketLabel(spawn.bucket)
-        val bucketWidth = font.width(bucketText)
-        graphics.drawString(font, lvText, padding, 22, 0x0099FF, true)
-        graphics.drawString(font, bucketText, right - bucketWidth, 22, color, true)
-
-        graphics.fill(padding, 36, right, 37, 0x50FFFFFF)
-        var y = 42
-
         val ctxParts = buildContextParts(spawn, mergedFormVariants)
-        val showWeights = CobbleDexConfig.get().showSpawnWeights && spawn.weight > 0f
+        val ctxText = ctxParts.joinToString(" \u00B7 ")
+        val wtText = if (showWeights) weightText(spawn.weight) else ""
+        val footerText = "$bucketText $bucketIndex/$bucketTotal"
+
+        val nameWidth = PanelLayout.TEXT_START_X + font.width(formatSpeciesName(speciesName)) + padding
+        val lvBucketWidth = padding + font.width(lvText) + 6 + font.width(bucketText) + padding
+        val ctxRowWidth = if (ctxText.isNotEmpty() || wtText.isNotEmpty()) {
+            padding + 4 + font.width(ctxText) + (if (wtText.isNotEmpty()) 6 + font.width(wtText) else 0) + padding
+        } else 0
+        val footerWidth = padding + font.width(footerText) + padding
+        val width = maxOf(nameWidth, lvBucketWidth, ctxRowWidth, footerWidth, PanelLayout.MIN_WIDTH).coerceAtMost(PanelLayout.MAX_WIDTH)
+
+        val layout = PanelLayout(width)
+        val right = layout.right
+        val indentX = PanelLayout.INDENT_X
+        val indentWidth = right - indentX
+        val color = bucketColor(spawn.bucket)
+
+        layout.textAt(padding + 22, 6, formatSpeciesName(speciesName), 0xFFFFFF)
+        layout.textAt(padding, 22, lvText, 0x0099FF)
+        layout.textRightAt(22, bucketText, color)
+        layout.fill(padding, 36, right, 37, 0x50FFFFFF)
+        layout.skipTo(42)
+
         if (showWeights) {
-            val wtText = weightText(spawn.weight)
-            val wtWidth = font.width(wtText)
-            graphics.drawString(font, wtText, right - wtWidth, y, 0xBBBBBB, true)
+            layout.textRight(wtText, 0xBBBBBB)
             if (ctxParts.isNotEmpty()) {
-                val ctxMax = right - wtWidth - (padding + 4) - 6
-                for (line in wrapText(font, ctxParts.joinToString(" \u00B7 "), ctxMax)) {
-                    graphics.drawString(font, line, padding + 4, y, 0xDDDDDD, true)
-                    y += lineHeight
-                }
+                val ctxMax = right - font.width(wtText) - (padding + 4) - 6
+                layout.wrapped(padding + 4, ctxText, ctxMax, 0xDDDDDD)
             } else {
-                y += lineHeight
+                layout.line()
             }
         } else if (ctxParts.isNotEmpty()) {
-            for (line in wrapText(font, ctxParts.joinToString(" \u00B7 "), right - padding - 4)) {
-                graphics.drawString(font, line, padding + 4, y, 0xDDDDDD, true)
-                y += lineHeight
-            }
+            layout.wrapped(padding + 4, ctxText, right - padding - 4, 0xDDDDDD)
         } else {
-            y += lineHeight
+            layout.line()
         }
-        y += 4
+        layout.gap(4)
 
         val biomeNames = spawn.biomes.map { formatBiomeName(it) }
         if (biomeNames.isNotEmpty()) {
             val header = if (biomeNames.size > 1) tr("cobbledex-rei-emi-jei.spawn.section.biomes") else tr("cobbledex-rei-emi-jei.spawn.section.biome")
-            graphics.drawString(font, header, padding, y, 0xEEEEEE, true)
-            y += lineHeight
-            for (line in wrapToWidth(font, biomeNames.joinToString(", "), indentWidth)) {
-                graphics.drawString(font, line, indentX, y, 0xDDDDDD, true)
-                y += lineHeight
-            }
-            y += 3
+            layout.text(padding, header, 0xEEEEEE)
+            layout.line()
+            layout.wrappedCommas(indentX, biomeNames.joinToString(", "), indentWidth, 0xDDDDDD)
+            layout.gap(PanelLayout.SECTION_GAP)
         }
 
         val conditions = buildConditions(spawn)
         if (conditions.isNotEmpty()) {
-            graphics.drawString(font, tr("cobbledex-rei-emi-jei.spawn.section.conditions"), padding, y, 0xEEEEEE, true)
-            y += lineHeight
+            layout.text(padding, tr("cobbledex-rei-emi-jei.spawn.section.conditions"), 0xEEEEEE)
+            layout.line()
             for (cond in conditions) {
-                for (line in wrapText(font, cond, indentWidth)) {
-                    graphics.drawString(font, line, indentX, y, 0xDDDDDD, true)
-                    y += lineHeight
-                }
+                layout.wrapped(indentX, cond, indentWidth, 0xDDDDDD)
             }
-            y += 3
+            layout.gap(PanelLayout.SECTION_GAP)
         }
 
         val specials = buildSpecials(spawn)
         if (specials.isNotEmpty()) {
-            graphics.drawString(font, tr("cobbledex-rei-emi-jei.spawn.section.location"), padding, y, 0xEEEEEE, true)
-            y += lineHeight
+            layout.text(padding, tr("cobbledex-rei-emi-jei.spawn.section.location"), 0xEEEEEE)
+            layout.line()
             for (s in specials) {
-                for (line in wrapText(font, s, indentWidth)) {
-                    graphics.drawString(font, line, indentX, y, 0xFFCC66, true)
-                    y += lineHeight
-                }
+                layout.wrapped(indentX, s, indentWidth, 0xFFCC66)
             }
-            y += 3
+            layout.gap(PanelLayout.SECTION_GAP)
         }
 
         val anti = spawn.anticondition
         if (anti != null && !anti.isEmpty) {
             val exLines = buildExclusionLines(anti)
             if (exLines.isNotEmpty()) {
-                graphics.drawString(font, tr("cobbledex-rei-emi-jei.spawn.section.excluded"), padding, y, 0xFF7777, true)
-                y += lineHeight
+                layout.text(padding, tr("cobbledex-rei-emi-jei.spawn.section.excluded"), 0xFF7777)
+                layout.line()
                 for (line in exLines) {
-                    for (wrapped in wrapText(font, line, indentWidth)) {
-                        graphics.drawString(font, wrapped, indentX, y, 0xEE8888, true)
-                        y += lineHeight
-                    }
+                    layout.wrapped(indentX, line, indentWidth, 0xEE8888)
                 }
-                y += 3
+                layout.gap(PanelLayout.SECTION_GAP)
             }
         }
 
         if (CobbleDexConfig.get().showSpawnWeights && spawn.weightMultipliers.isNotEmpty()) {
-            graphics.drawString(font, tr("cobbledex-rei-emi-jei.spawn.section.weight_mods"), padding, y, 0xEEEEEE, true)
-            y += lineHeight
+            layout.text(padding, tr("cobbledex-rei-emi-jei.spawn.section.weight_mods"), 0xEEEEEE)
+            layout.line()
             for (wm in spawn.weightMultipliers) {
                 val arrow: String
                 val c: Int
@@ -509,107 +497,83 @@ object SpawnDisplayHelper {
                     else -> { arrow = "\u25CF"; c = 0xBBBBBB }
                 }
                 val wmText = "$arrow ${formatWeight(wm.multiplier)}x ${wm.conditionSummary}"
-                for (line in wrapText(font, wmText, indentWidth)) {
-                    graphics.drawString(font, line, indentX, y, c, true)
-                    y += lineHeight
-                }
+                layout.wrapped(indentX, wmText, indentWidth, c)
             }
         }
 
-        y += 1
-        graphics.fill(padding, y, right, y + 1, 0x20FFFFFF)
-        y += 4
-        val footerLeft = "${bucketLabel(spawn.bucket)} $bucketIndex/$bucketTotal"
-        graphics.drawString(font, footerLeft, padding, y, color, true)
+        layout.gap(1)
+        layout.separator(0x20FFFFFF)
+        layout.gap(4)
+        layout.text(padding, footerText, color)
+        layout.gap(font.lineHeight + padding)
+
+        return layout
     }
 
-    // --- Obtainment detail rendering (shared between JEI/EMI) ---
+    // --- Obtainment layout builder ---
 
-    fun drawObtainmentDetails(
-        graphics: GuiGraphics,
+    fun buildObtainmentLayout(
         speciesName: String,
         obtainment: ObtainmentInfo,
         entryIndex: Int,
-        entryTotal: Int,
-        width: Int = 180,
-        height: Int = 150,
-        padding: Int = 6,
-        lineHeight: Int = 11
-    ) {
+        entryTotal: Int
+    ): PanelLayout {
         val font = Minecraft.getInstance().font
-        val right = width - padding
+        val padding = PanelLayout.PADDING
+        val lineHeight = PanelLayout.LINE_HEIGHT
+
+        val methodText = obtainment.displayMethodName
+        val headerWidth = PanelLayout.TEXT_START_X + font.width(formatSpeciesName(speciesName)) + 6 + font.width(methodText) + padding
+        val width = maxOf(headerWidth, PanelLayout.MIN_WIDTH).coerceAtMost(PanelLayout.MAX_WIDTH)
+
+        val layout = PanelLayout(width)
+        val right = layout.right
         val indentX = padding + 4
         val indentWidth = right - indentX
 
-        val methodText = obtainment.displayMethodName
-        val methodWidth = font.width(methodText)
-        graphics.drawString(font, formatSpeciesName(speciesName), padding + 22, 6, 0xFFFFFF, true)
-        graphics.drawString(font, methodText, right - methodWidth, 6, 0xDDCC99, true)
+        layout.textAt(padding + 22, 6, formatSpeciesName(speciesName), 0xFFFFFF)
+        layout.textRightAt(6, methodText, 0xDDCC99)
+        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        layout.skipTo(26)
 
-        graphics.fill(padding, 20, right, 21, 0x50FFFFFF)
-        var y = 26
-
-        for (line in wrapText(font, obtainment.displayDescription, indentWidth)) {
-            graphics.drawString(font, line, indentX, y, 0xEEEEEE, true)
-            y += lineHeight
-        }
-        y += 4
+        layout.wrapped(indentX, obtainment.displayDescription, indentWidth, 0xEEEEEE)
+        layout.gap(4)
 
         if (obtainment.items.isNotEmpty()) {
-            graphics.drawString(font, tr("cobbledex-rei-emi-jei.obtainment.required_items"), padding, y, 0xEEEEEE, true)
-            y += lineHeight
+            layout.text(padding, tr("cobbledex-rei-emi-jei.obtainment.required_items"), 0xEEEEEE)
+            layout.line()
             for (item in obtainment.displayItems) {
-                for (line in wrapText(font, "\u2022 $item", indentWidth)) {
-                    graphics.drawString(font, line, padding + 6, y, 0xFFCC66, true)
-                    y += lineHeight
-                }
+                layout.wrapped(padding + 6, "\u2022 $item", indentWidth, 0xFFCC66)
             }
-            y += 4
+            layout.gap(4)
         }
 
         if (obtainment.displayBlock != null || obtainment.displayStructure != null || obtainment.displayDimension != null) {
-            graphics.drawString(font, tr("cobbledex-rei-emi-jei.spawn.section.location"), padding, y, 0xEEEEEE, true)
-            y += lineHeight
-            obtainment.displayBlock?.let {
-                for (line in wrapText(font, obtainmentUseText(it), indentWidth)) {
-                    graphics.drawString(font, line, padding + 6, y, 0xDDDDDD, true)
-                    y += lineHeight
-                }
-            }
-            obtainment.displayStructure?.let {
-                for (line in wrapText(font, obtainmentStructureText(it), indentWidth)) {
-                    graphics.drawString(font, line, padding + 6, y, 0xDDDDDD, true)
-                    y += lineHeight
-                }
-            }
-            obtainment.displayDimension?.let {
-                for (line in wrapText(font, obtainmentDimensionText(it), indentWidth)) {
-                    graphics.drawString(font, line, padding + 6, y, 0xDDDDDD, true)
-                    y += lineHeight
-                }
-            }
-            y += 4
+            layout.text(padding, tr("cobbledex-rei-emi-jei.spawn.section.location"), 0xEEEEEE)
+            layout.line()
+            obtainment.displayBlock?.let { layout.wrapped(padding + 6, obtainmentUseText(it), indentWidth, 0xDDDDDD) }
+            obtainment.displayStructure?.let { layout.wrapped(padding + 6, obtainmentStructureText(it), indentWidth, 0xDDDDDD) }
+            obtainment.displayDimension?.let { layout.wrapped(padding + 6, obtainmentDimensionText(it), indentWidth, 0xDDDDDD) }
+            layout.gap(4)
         }
 
         for (note in obtainment.notes) {
-            for (line in wrapText(font, "\u2139 $note", indentWidth)) {
-                graphics.drawString(font, line, indentX, y, 0xBBBBBB, true)
-                y += lineHeight
-            }
+            layout.wrapped(indentX, "\u2139 $note", indentWidth, 0xBBBBBB)
         }
 
-        y += 1
-        graphics.fill(padding, y, right, y + 1, 0x20FFFFFF)
-        y += 4
+        layout.gap(1)
+        layout.separator(0x20FFFFFF)
+        layout.gap(4)
         if (entryTotal > 1) {
-            graphics.drawString(font, "$entryIndex/$entryTotal", padding, y, 0xFFAA00, true)
+            layout.text(padding, "$entryIndex/$entryTotal", 0xFFAA00)
         }
-
         val srcLabel = sourceLabel(obtainment.source)
         if (srcLabel.isNotEmpty()) {
-            val sw = font.width(srcLabel)
-            graphics.drawString(font, srcLabel, right - sw, y, 0xBBBBBB, true)
+            layout.textRight(srcLabel, 0xBBBBBB)
         }
+        layout.gap(font.lineHeight + padding)
+
+        return layout
     }
 
     // --- Item resolution ---
@@ -632,92 +596,108 @@ object SpawnDisplayHelper {
             .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
     }
 
-    // --- Drop detail rendering (shared between REI/JEI/EMI) ---
+    // --- Drop layout builder ---
 
-    fun drawDropDetails(
-        graphics: GuiGraphics,
+    fun buildDropLayout(
         speciesName: String,
-        drops: List<DropEntryInfo>,
-        width: Int = 180,
-        height: Int = 150,
-        padding: Int = 6,
-        lineHeight: Int = 11
-    ) {
+        drops: List<DropEntryInfo>
+    ): PanelLayout {
         val font = Minecraft.getInstance().font
-        val right = width - padding
+        val padding = PanelLayout.PADDING
 
-        graphics.drawString(font, formatSpeciesName(speciesName), padding + 22, 6, 0xFFFFFF, true)
+        val nameWidth = PanelLayout.TEXT_START_X + font.width(formatSpeciesName(speciesName)) + padding
+        val headerTag = tr("category.cobbledex-rei-emi-jei.drops")
+        val headerWidth = nameWidth + 6 + font.width(headerTag) + padding
 
-        val headerText = tr("category.cobbledex-rei-emi-jei.drops")
-        val headerWidth = font.width(headerText)
-        graphics.drawString(font, headerText, right - headerWidth, 6, 0xDDCC99, true)
+        var maxItemRowWidth = 0
+        for (drop in drops) {
+            val itemName = resolveItemName(drop.itemId)
+            val rightText = "${drop.displayPercentage} \u00D7${drop.displayQuantity}"
+            val rowWidth = padding + 22 + font.width(itemName) + 8 + font.width(rightText) + padding
+            if (rowWidth > maxItemRowWidth) maxItemRowWidth = rowWidth
+        }
 
-        graphics.fill(padding, 20, right, 21, 0x50FFFFFF)
+        val width = maxOf(headerWidth, maxItemRowWidth, PanelLayout.MIN_WIDTH).coerceAtMost(PanelLayout.MAX_WIDTH)
+        val layout = PanelLayout(width)
+        val right = layout.right
+
+        layout.textAt(padding + 22, 6, formatSpeciesName(speciesName), 0xFFFFFF)
+        layout.textRightAt(6, headerTag, 0xDDCC99)
+        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
 
         val labelHeader = tr("cobbledex-rei-emi-jei.drops.header")
-        graphics.drawString(font, labelHeader, padding, 26, 0xEEEEEE, true)
-
-        var y = 38
+        layout.textAt(padding, 26, labelHeader, 0xEEEEEE)
+        layout.skipTo(38)
 
         for (drop in drops) {
             val itemName = resolveItemName(drop.itemId)
             val qtyText = "\u00D7${drop.displayQuantity}"
             val pctText = drop.displayPercentage
-
             val nameX = padding + 22
             val rightInfo = "$pctText $qtyText"
             val rightInfoWidth = font.width(rightInfo)
             val nameMaxWidth = right - nameX - rightInfoWidth - 4
 
-            val clippedName = clipToWidth(font, itemName, nameMaxWidth)
-            graphics.drawString(font, clippedName, nameX, y + 4, 0xFFFFFF, true)
-            graphics.drawString(font, rightInfo, right - rightInfoWidth, y + 4, 0xBBBBBB, true)
-
-            y += 20
+            layout.clipped(nameX, itemName, nameMaxWidth, 0xFFFFFF)
+            layout.textRightAt(layout.y, rightInfo, 0xBBBBBB)
+            layout.gap(20)
         }
 
-        y += 2
-        graphics.fill(padding, y, right, y + 1, 0x20FFFFFF)
-        y += 4
+        layout.gap(2)
+        layout.separator(0x20FFFFFF)
+        layout.gap(4)
         val countText = tr("cobbledex-rei-emi-jei.drops.count", drops.size)
-        graphics.drawString(font, countText, padding, y, 0x888888, true)
+        layout.text(padding, countText, 0x888888)
+        layout.gap(font.lineHeight + padding)
+
+        return layout
     }
 
-    // --- Evolution text rendering (shared between REI/JEI/EMI) ---
+    // --- Evolution layout builder ---
 
-    fun drawEvolutionText(
-        graphics: GuiGraphics,
+    fun buildEvolutionLayout(
         evolution: EvolutionInfo,
         branchIndex: Int,
         branchTotal: Int,
-        width: Int = 180,
-        height: Int = 120,
-        slotSize: Int = 18,
-        hasItemSlots: Boolean = false
-    ) {
+        hasItemSlots: Boolean = evolution.itemRequirements.isNotEmpty()
+    ): PanelLayout {
         val font = Minecraft.getInstance().font
+        val padding = PanelLayout.PADDING
+        val slotSize = PanelLayout.SLOT_SIZE
+
+        val fromW = font.width(evolution.displayFromName)
+        val toW = font.width(evolution.displayToName)
+        val neededForNames = maxOf(fromW, toW) * 2 + font.width("\u2192") + 8 + 40 + slotSize + padding * 2
+
+        val items = evolution.itemRequirements
+        var maxItemLabelWidth = 0
+        for (item in items) {
+            val stack = resolveItemStack(item.itemId)
+            val name = if (!stack.isEmpty) stack.hoverName.string else titleCase(item.itemId.substringAfter(":"))
+            maxItemLabelWidth = maxOf(maxItemLabelWidth, 30 + font.width("${item.label} $name") + padding)
+        }
+
+        val reqText = if (hasItemSlots) evolution.textOnlyRequirements else evolution.displayRequirements
+        val reqWidth = if (reqText.isNotBlank()) padding + font.width(reqText) + padding else 0
+
+        val width = maxOf(neededForNames, maxItemLabelWidth, reqWidth, PanelLayout.MIN_WIDTH).coerceAtMost(PanelLayout.MAX_WIDTH)
+        val layout = PanelLayout(width)
+        val right = layout.right
         val centerX = width / 2
-        val padding = 6
-        val right = width - padding
 
         val fromCenterX = 20 + slotSize / 2
-        val fromName = evolution.displayFromName
-        val fromWidth = font.width(fromName)
-        graphics.drawString(font, fromName, fromCenterX - fromWidth / 2, 30, 0xFFFFFF, true)
+        val toCenterX = width - 20 - slotSize / 2
+
+        layout.textAt(fromCenterX - fromW / 2, 30, evolution.displayFromName, 0xFFFFFF)
 
         val dirText = "\u2192"
         val dirW = font.width(dirText)
-        graphics.drawString(font, dirText, centerX - dirW / 2, 30, 0x888888, true)
+        layout.textAt(centerX - dirW / 2, 30, dirText, 0x888888)
 
-        val toCenterX = width - 20 - slotSize / 2
-        val toName = evolution.displayToName
-        val toWidth = font.width(toName)
-        graphics.drawString(font, toName, toCenterX - toWidth / 2, 30, 0xFFFFFF, true)
+        layout.textAt(toCenterX - toW / 2, 30, evolution.displayToName, 0xFFFFFF)
 
-        graphics.fill(padding, 42, right, 43, 0x40FFFFFF)
-
-        val items = evolution.itemRequirements
-        var contentY = 48
+        layout.fill(padding, 42, right, 43, 0x40FFFFFF)
+        layout.skipTo(48)
 
         if (hasItemSlots && items.isNotEmpty()) {
             val labelX = 30
@@ -727,31 +707,33 @@ object SpawnDisplayHelper {
                 val name = if (!stack.isEmpty) stack.hoverName.string else formatItemIdFallback(item.itemId)
                 val labelText = "${item.label} "
                 val labelWidth = font.width(labelText)
-                graphics.drawString(font, labelText, labelX, contentY + 4, 0xBBBBBB, true)
+                layout.textAt(labelX, layout.y + 4, labelText, 0xBBBBBB)
                 val nameLines = wrapText(font, name, labelMaxW - labelWidth)
                 for ((lineIdx, line) in nameLines.withIndex()) {
-                    graphics.drawString(font, line, labelX + if (lineIdx == 0) labelWidth else 0, contentY + 4 + lineIdx * 12, 0xFFFFFF, true)
+                    layout.textAt(labelX + if (lineIdx == 0) labelWidth else 0, layout.y + 4 + lineIdx * 12, line, 0xFFFFFF)
                 }
-                contentY += 20
+                layout.gap(PanelLayout.ITEM_ROW_HEIGHT)
             }
         }
 
-        val reqText = if (hasItemSlots) evolution.textOnlyRequirements else evolution.displayRequirements
         if (reqText.isNotBlank()) {
-            val reqWidth = right - padding
-            for (line in wrapToWidth(font, reqText, reqWidth)) {
+            val reqWidth2 = right - padding
+            for (line in wrapToWidth(font, reqText, reqWidth2)) {
                 val lw = font.width(line)
-                graphics.drawString(font, line, centerX - lw / 2, contentY, 0xFFDD88, true)
-                contentY += 12
+                layout.textAt(centerX - lw / 2, layout.y, line, 0xFFDD88)
+                layout.gap(12)
             }
         }
 
         if (branchTotal > 1) {
-            contentY += 2
+            layout.gap(2)
             val branchText = evoBranchText(branchIndex, branchTotal)
-            val bw = font.width(branchText)
-            graphics.drawString(font, branchText, right - bw, contentY, 0x666666, true)
+            layout.textRight(branchText, 0x666666)
         }
+
+        layout.gap(padding)
+
+        return layout
     }
 
     // --- Stats detail rendering (shared between REI/JEI/EMI) ---
@@ -782,45 +764,43 @@ object SpawnDisplayHelper {
         "steel" to 0xFFB8B8D0.toInt(), "fairy" to 0xFFEE99AC.toInt()
     )
 
-    fun drawStatsDetails(
-        graphics: GuiGraphics,
+    // --- Stats layout builder ---
+
+    fun buildStatsLayout(
         speciesName: String,
         baseStats: Map<String, Int>,
         bst: Int,
         primaryType: String,
-        secondaryType: String?,        evYield: Map<String, Int>? = null,        width: Int = 200,
-        height: Int = 160,
-        padding: Int = 6,
-        lineHeight: Int = 13
-    ) {
-        val font = Minecraft.getInstance().font
-        val right = width - padding
+        secondaryType: String?,
+        evYield: Map<String, Int>? = null
+    ): PanelLayout {
+        val layout = PanelLayout(200)
+        val font = layout.font
+        val padding = PanelLayout.PADDING
+        val right = layout.right
+        val lineHeight = 13
 
-        graphics.drawString(font, formatSpeciesName(speciesName), padding + 22, 6, 0xFFFFFF, true)
-
+        layout.textAt(padding + 22, 6, formatSpeciesName(speciesName), 0xFFFFFF)
         val headerText = tr("category.cobbledex-rei-emi-jei.stats")
-        val headerWidth = font.width(headerText)
-        graphics.drawString(font, headerText, right - headerWidth, 6, 0xDDCC99, true)
-
-        graphics.fill(padding, 20, right, 21, 0x50FFFFFF)
+        layout.textRightAt(6, headerText, 0xDDCC99)
+        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
 
         val typeStr = buildString {
             append(formatTypeName(primaryType))
             secondaryType?.let { append(" / ${formatTypeName(it)}") }
         }
-        graphics.drawString(font, typeStr, padding, 25, typeColor(primaryType), true)
+        layout.textAt(padding, 25, typeStr, typeColor(primaryType))
 
         val bstText = "BST: $bst"
-        val bstWidth = font.width(bstText)
         val bstColor = when {
             bst >= 600 -> 0xFFFF5555.toInt()
             bst >= 500 -> 0xFFFFCC33.toInt()
             bst >= 400 -> 0xFF77CC55.toInt()
             else -> 0xFFBBBBBB.toInt()
         }
-        graphics.drawString(font, bstText, right - bstWidth, 25, bstColor, true)
+        layout.textRightAt(25, bstText, bstColor)
 
-        var y = 40
+        layout.skipTo(40)
         val barX = padding + 26
         val valueSpace = 22
         val barMaxWidth = right - barX - valueSpace
@@ -831,95 +811,78 @@ object SpawnDisplayHelper {
             val label = STAT_LABELS[statId] ?: statId.uppercase()
             val color = STAT_COLORS[statId] ?: 0xFFAAAAAA.toInt()
 
-            graphics.drawString(font, label, padding, y + 1, 0xBBBBBB, true)
+            layout.text(padding, label, 0xBBBBBB)
 
             val barWidth = ((value.toFloat() / maxStat) * barMaxWidth).toInt().coerceAtLeast(1)
-            graphics.fill(barX, y + 1, barX + barMaxWidth, y + 9, 0x30FFFFFF)
-            graphics.fill(barX, y + 1, barX + barWidth, y + 9, color)
+            layout.fill(barX, layout.y + 1, barX + barMaxWidth, layout.y + 9, 0x30FFFFFF)
+            layout.fill(barX, layout.y + 1, barX + barWidth, layout.y + 9, color)
 
-            val valStr = value.toString()
-            val valWidth = font.width(valStr)
-            graphics.drawString(font, valStr, right - valWidth, y + 1, 0xFFFFFF, true)
-
-            y += lineHeight
+            layout.textRight(value.toString(), 0xFFFFFF)
+            layout.gap(lineHeight)
         }
 
-        // EV Yields
         if (evYield != null && evYield.isNotEmpty()) {
-            y += 2
+            layout.gap(2)
             val evParts = evYield.entries.map { "${it.value} ${STAT_LABELS[it.key] ?: it.key.uppercase()}" }
             val evText = "EV: ${evParts.joinToString(", ")}"
-            graphics.drawString(font, evText, padding, y, 0xFF88CCFF.toInt(), true)
+            layout.text(padding, evText, 0xFF88CCFF.toInt())
+            layout.gap(font.lineHeight)
         }
+
+        return layout
     }
 
     private fun typeColor(type: String): Int = TYPE_COLORS[type.lowercase()] ?: 0xFFBBBBBB.toInt()
 
-    // --- Pokédex Info detail rendering (shared between REI/JEI/EMI) ---
+    // --- Pokédex Info layout builder ---
 
-    fun drawPokedexInfoDetails(
-        graphics: GuiGraphics,
-        data: PokedexInfoRecipeData,
-        width: Int = 200,
-        height: Int = 200,
-        padding: Int = 6,
-        lineHeight: Int = 11
-    ) {
-        val font = Minecraft.getInstance().font
-        val right = width - padding
+    fun buildPokedexInfoLayout(data: PokedexInfoRecipeData): PanelLayout {
+        val layout = PanelLayout(200)
+        val font = layout.font
+        val padding = PanelLayout.PADDING
+        val right = layout.right
+        val lineHeight = PanelLayout.LINE_HEIGHT
         val indentX = padding + 4
         val indentWidth = right - indentX
 
-        graphics.drawString(font, formatSpeciesName(data.speciesName), padding + 22, 6, 0xFFFFFF, true)
-
+        layout.textAt(padding + 22, 6, formatSpeciesName(data.speciesName), 0xFFFFFF)
         val headerText = tr("category.cobbledex-rei-emi-jei.pokedex_info")
-        val headerWidth = font.width(headerText)
-        graphics.drawString(font, headerText, right - headerWidth, 6, 0xDDCC99, true)
+        layout.textRightAt(6, headerText, 0xDDCC99)
+        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        layout.skipTo(26)
 
-        graphics.fill(padding, 20, right, 21, 0x50FFFFFF)
-        var y = 26
-
-        // Abilities
         if (data.abilities.isNotEmpty() || data.hiddenAbility != null) {
-            graphics.drawString(font, tr("cobbledex-rei-emi-jei.info.abilities"), padding, y, 0xEEEEEE, true)
-            y += lineHeight
+            layout.text(padding, tr("cobbledex-rei-emi-jei.info.abilities"), 0xEEEEEE)
+            layout.line()
             for (ability in data.abilities) {
-                graphics.drawString(font, "\u2022 $ability", indentX, y, 0xFF88CCFF.toInt(), true)
-                y += lineHeight
+                layout.text(indentX, "\u2022 $ability", 0xFF88CCFF.toInt())
+                layout.line()
             }
             data.hiddenAbility?.let { ha ->
-                val haText = "\u2022 $ha (HA)"
-                graphics.drawString(font, haText, indentX, y, 0xFF66AADD.toInt(), true)
-                y += lineHeight
+                layout.text(indentX, "\u2022 $ha (HA)", 0xFF66AADD.toInt())
+                layout.line()
             }
-            y += 3
+            layout.gap(3)
         }
 
-        // Egg Groups
         if (data.eggGroups.isNotEmpty()) {
-            graphics.drawString(font, tr("cobbledex-rei-emi-jei.info.egg_groups"), padding, y, 0xEEEEEE, true)
-            y += lineHeight
+            layout.text(padding, tr("cobbledex-rei-emi-jei.info.egg_groups"), 0xEEEEEE)
+            layout.line()
             val groupText = data.eggGroups.joinToString(", ") { titleCase(it.replace("-", " ")) }
-            for (line in wrapText(font, groupText, indentWidth)) {
-                graphics.drawString(font, line, indentX, y, 0xFFDDDD88.toInt(), true)
-                y += lineHeight
-            }
-            y += 3
+            layout.wrapped(indentX, groupText, indentWidth, 0xFFDDDD88.toInt())
+            layout.gap(3)
         }
 
-        // Physical
-        graphics.drawString(font, tr("cobbledex-rei-emi-jei.info.physical"), padding, y, 0xEEEEEE, true)
-        y += lineHeight
+        layout.text(padding, tr("cobbledex-rei-emi-jei.info.physical"), 0xEEEEEE)
+        layout.line()
         val heightText = "%.1fm".format(data.height / 10f)
         val weightText = "%.1fkg".format(data.weight / 10f)
-        graphics.drawString(font, tr("cobbledex-rei-emi-jei.info.height_weight", heightText, weightText), indentX, y, 0xBBBBBB, true)
-        y += lineHeight
+        layout.text(indentX, tr("cobbledex-rei-emi-jei.info.height_weight", heightText, weightText), 0xBBBBBB)
+        layout.line()
 
-        // Catch Rate
-        graphics.drawString(font, tr("cobbledex-rei-emi-jei.info.catch_rate", data.catchRate), indentX, y, 0xBBBBBB, true)
-        y += lineHeight
+        layout.text(indentX, tr("cobbledex-rei-emi-jei.info.catch_rate", data.catchRate), 0xBBBBBB)
+        layout.line()
 
-        // Gender ratio
         data.maleRatio?.let { ratio ->
             val genderText = when {
                 ratio < 0 -> tr("cobbledex-rei-emi-jei.info.genderless")
@@ -927,315 +890,249 @@ object SpawnDisplayHelper {
                 ratio == 0f -> tr("cobbledex-rei-emi-jei.info.female_only")
                 else -> tr("cobbledex-rei-emi-jei.info.gender_ratio", "%.0f".format(ratio * 100), "%.0f".format((1 - ratio) * 100))
             }
-            graphics.drawString(font, genderText, indentX, y, 0xBBBBBB, true)
-            y += lineHeight
+            layout.text(indentX, genderText, 0xBBBBBB)
+            layout.line()
         }
 
-        // Shoulder-mountable
         if (data.shoulderMountable) {
-            graphics.drawString(font, tr("cobbledex-rei-emi-jei.info.shoulder"), indentX, y, 0xFF88DDAA.toInt(), true)
-            y += lineHeight
+            layout.text(indentX, tr("cobbledex-rei-emi-jei.info.shoulder"), 0xFF88DDAA.toInt())
+            layout.line()
         }
-        y += 3
+        layout.gap(3)
 
-        // Breeding
         data.eggCycles?.let { cycles ->
-            graphics.drawString(font, tr("cobbledex-rei-emi-jei.info.breeding"), padding, y, 0xEEEEEE, true)
-            y += lineHeight
-            graphics.drawString(font, tr("cobbledex-rei-emi-jei.info.egg_cycles", cycles, cycles * 257), indentX, y, 0xBBBBBB, true)
-            y += lineHeight
+            layout.text(padding, tr("cobbledex-rei-emi-jei.info.breeding"), 0xEEEEEE)
+            layout.line()
+            layout.text(indentX, tr("cobbledex-rei-emi-jei.info.egg_cycles", cycles, cycles * 257), 0xBBBBBB)
+            layout.line()
         }
 
-        // Training
         if (data.experienceGroup != null || data.baseExperienceYield != null || data.baseFriendship != null) {
-            y += 1
-            graphics.drawString(font, tr("cobbledex-rei-emi-jei.info.training"), padding, y, 0xEEEEEE, true)
-            y += lineHeight
+            layout.gap(1)
+            layout.text(padding, tr("cobbledex-rei-emi-jei.info.training"), 0xEEEEEE)
+            layout.line()
             data.experienceGroup?.let { group ->
-                graphics.drawString(font, tr("cobbledex-rei-emi-jei.info.exp_group", titleCase(group.replace("_", " "))), indentX, y, 0xBBBBBB, true)
-                y += lineHeight
+                layout.text(indentX, tr("cobbledex-rei-emi-jei.info.exp_group", titleCase(group.replace("_", " "))), 0xBBBBBB)
+                layout.line()
             }
             data.baseExperienceYield?.let { exp ->
-                graphics.drawString(font, tr("cobbledex-rei-emi-jei.info.base_exp", exp), indentX, y, 0xBBBBBB, true)
-                y += lineHeight
+                layout.text(indentX, tr("cobbledex-rei-emi-jei.info.base_exp", exp), 0xBBBBBB)
+                layout.line()
             }
             data.baseFriendship?.let { friendship ->
-                graphics.drawString(font, tr("cobbledex-rei-emi-jei.info.base_friendship", friendship), indentX, y, 0xBBBBBB, true)
-                y += lineHeight
+                layout.text(indentX, tr("cobbledex-rei-emi-jei.info.base_friendship", friendship), 0xBBBBBB)
+                layout.line()
             }
         }
 
-        // Description
         data.description?.let { desc ->
-            y += 3
-            graphics.fill(padding, y, right, y + 1, 0x20FFFFFF)
-            y += 4
-            for (line in wrapText(font, desc, indentWidth)) {
-                graphics.drawString(font, line, indentX, y, 0xFF999999.toInt(), true)
-                y += lineHeight
-            }
+            layout.gap(3)
+            layout.separator(0x20FFFFFF)
+            layout.gap(4)
+            layout.wrapped(indentX, desc, indentWidth, 0xFF999999.toInt())
         }
+
+        layout.gap(padding)
+        return layout
     }
 
-    // --- Moves detail rendering (shared between REI/JEI/EMI) ---
+    // --- Moves layout builder ---
 
-    fun drawMovesDetails(
-        graphics: GuiGraphics,
-        data: MovesRecipeData,
-        width: Int = 200,
-        height: Int = 200,
-        padding: Int = 6,
-        lineHeight: Int = 11
-    ) {
-        val font = Minecraft.getInstance().font
-        val right = width - padding
+    fun buildMovesLayout(data: MovesRecipeData): PanelLayout {
+        val layout = PanelLayout(200)
+        val font = layout.font
+        val padding = PanelLayout.PADDING
+        val right = layout.right
+        val lineHeight = PanelLayout.LINE_HEIGHT
 
-        graphics.drawString(font, formatSpeciesName(data.speciesName), padding + 22, 6, 0xFFFFFF, true)
-
+        layout.textAt(padding + 22, 6, formatSpeciesName(data.speciesName), 0xFFFFFF)
         val headerText = if (data.pageTotal > 1)
             tr("category.cobbledex-rei-emi-jei.moves") + " (${data.pageIndex}/${data.pageTotal})"
         else
             tr("category.cobbledex-rei-emi-jei.moves")
-        val headerWidth = font.width(headerText)
-        graphics.drawString(font, headerText, right - headerWidth, 6, 0xDDCC99, true)
+        layout.textRightAt(6, headerText, 0xDDCC99)
+        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        layout.skipTo(26)
 
-        graphics.fill(padding, 20, right, 21, 0x50FFFFFF)
-
-        var y = 26
-
-        // Level-up moves
         if (data.levelUpMoves.isNotEmpty()) {
-            graphics.drawString(font, tr("cobbledex-rei-emi-jei.moves.levelup"), padding, y, 0xEEEEEE, true)
-            y += lineHeight
-
+            layout.text(padding, tr("cobbledex-rei-emi-jei.moves.levelup"), 0xEEEEEE)
+            layout.line()
             for (entry in data.levelUpMoves) {
                 val lvPrefix = "Lv.${entry.level}"
+                val lvWidth = font.width(lvPrefix)
                 for (moveName in entry.moves) {
-                    if (y + lineHeight > height - 4) return
-                    val lvWidth = font.width(lvPrefix)
-                    graphics.drawString(font, lvPrefix, padding + 4, y, 0xFF88CCFF.toInt(), true)
-                    graphics.drawString(font, moveName, padding + 4 + lvWidth + 4, y, 0xBBBBBB, true)
-                    y += lineHeight
+                    layout.text(padding + 4, lvPrefix, 0xFF88CCFF.toInt())
+                    layout.textAt(padding + 4 + lvWidth + 4, layout.y, moveName, 0xBBBBBB)
+                    layout.line()
                 }
             }
-            y += 3
+            layout.gap(3)
         }
 
-        // Egg moves
         if (data.eggMoves.isNotEmpty()) {
-            if (y + lineHeight > height - 4) return
-            graphics.drawString(font, tr("cobbledex-rei-emi-jei.moves.egg"), padding, y, 0xEEEEEE, true)
-            y += lineHeight
+            layout.text(padding, tr("cobbledex-rei-emi-jei.moves.egg"), 0xEEEEEE)
+            layout.line()
             val moveText = data.eggMoves.joinToString(", ")
-            for (line in wrapText(font, moveText, right - padding - 4)) {
-                if (y + lineHeight > height - 4) return
-                graphics.drawString(font, line, padding + 4, y, 0xFFDDDD88.toInt(), true)
-                y += lineHeight
-            }
-            y += 3
+            layout.wrapped(padding + 4, moveText, right - padding - 4, 0xFFDDDD88.toInt())
+            layout.gap(3)
         }
 
-        // Tutor moves
         if (data.tutorMoves.isNotEmpty()) {
-            if (y + lineHeight > height - 4) return
-            graphics.drawString(font, tr("cobbledex-rei-emi-jei.moves.tutor"), padding, y, 0xEEEEEE, true)
-            y += lineHeight
+            layout.text(padding, tr("cobbledex-rei-emi-jei.moves.tutor"), 0xEEEEEE)
+            layout.line()
             val moveText = data.tutorMoves.joinToString(", ")
-            for (line in wrapText(font, moveText, right - padding - 4)) {
-                if (y + lineHeight > height - 4) return
-                graphics.drawString(font, line, padding + 4, y, 0xFFAABBCC.toInt(), true)
-                y += lineHeight
-            }
+            layout.wrapped(padding + 4, moveText, right - padding - 4, 0xFFAABBCC.toInt())
         }
+
+        layout.gap(padding)
+        return layout
     }
 
-    fun measureMovesPanel(data: MovesRecipeData): DisplayLayout.PanelSize {
-        val lineHeight = 11
-        var lines = 3 // header + separator
-        if (data.levelUpMoves.isNotEmpty()) {
-            lines += 1 + data.levelUpMoves.sumOf { it.moves.size }
-        }
-        if (data.eggMoves.isNotEmpty()) {
-            lines += 1 + ((data.eggMoves.size + 2) / 3).coerceAtLeast(1)
-        }
-        if (data.tutorMoves.isNotEmpty()) {
-            lines += 1 + ((data.tutorMoves.size + 2) / 3).coerceAtLeast(1)
-        }
-        val h = (lines * lineHeight + 30).coerceIn(100, 300)
-        return DisplayLayout.PanelSize(200, h)
-    }
+    // --- Fossil layout builder ---
 
-    // --- Fossil detail rendering ---
+    fun buildFossilLayout(data: FossilRecipeData): PanelLayout {
+        val layout = PanelLayout(200)
+        val font = layout.font
+        val padding = PanelLayout.PADDING
+        val right = layout.right
+        val lineHeight = PanelLayout.LINE_HEIGHT
 
-    fun drawFossilDetails(
-        graphics: GuiGraphics,
-        data: FossilRecipeData,
-        width: Int = 200,
-        height: Int = 140,
-        padding: Int = 6,
-        lineHeight: Int = 11
-    ) {
-        val font = Minecraft.getInstance().font
-        val right = width - padding
-
-        graphics.drawString(font, formatSpeciesName(data.speciesName), padding + 22, 6, 0xFFFFFF, true)
-
+        layout.textAt(padding + 22, 6, formatSpeciesName(data.speciesName), 0xFFFFFF)
         val headerText = tr("category.cobbledex-rei-emi-jei.fossils")
-        val headerWidth = font.width(headerText)
-        graphics.drawString(font, headerText, right - headerWidth, 6, 0xDDCC99, true)
+        layout.textRightAt(6, headerText, 0xDDCC99)
+        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        layout.skipTo(26)
 
-        graphics.fill(padding, 20, right, 21, 0x50FFFFFF)
-        var y = 26
-
-        graphics.drawString(font, tr("cobbledex-rei-emi-jei.fossils.required"), padding, y, 0xEEEEEE, true)
-        y += lineHeight + 2
+        layout.text(padding, tr("cobbledex-rei-emi-jei.fossils.required"), 0xEEEEEE)
+        layout.gap(lineHeight + 2)
 
         for (itemId in data.fossilItems) {
             val itemName = resolveItemName(itemId)
             val nameX = padding + 22
-            val clippedName = clipToWidth(font, itemName, right - nameX)
-            graphics.drawString(font, "\u2022", padding + 4, y + 4, 0xFF88CCFF.toInt(), true)
-            graphics.drawString(font, clippedName, nameX, y + 4, 0xFFFFFF, true)
-            y += 20
+            layout.textAt(padding + 4, layout.y + 4, "\u2022", 0xFF88CCFF.toInt())
+            layout.clipped(nameX, itemName, right - nameX, 0xFFFFFF)
+            layout.gap(20)
         }
 
         data.extraTags?.let { tags ->
-            y += 4
-            graphics.fill(padding, y, right, y + 1, 0x20FFFFFF)
-            y += 4
+            layout.gap(4)
+            layout.separator(0x20FFFFFF)
+            layout.gap(4)
             val tagParts = tags.split(" ")
             for (part in tagParts) {
                 val tagText = part.replace("_", " ")
-                graphics.drawString(font, tagText, padding + 4, y, 0xFF999999.toInt(), true)
-                y += lineHeight
+                layout.text(padding + 4, tagText, 0xFF999999.toInt())
+                layout.gap(lineHeight)
             }
         }
+
+        layout.gap(padding)
+        return layout
     }
 
-    // --- Type chart detail rendering ---
+    // --- Type chart layout builder ---
 
-    fun drawTypeChartDetails(
-        graphics: GuiGraphics,
-        data: TypeChartRecipeData,
-        width: Int = 200,
-        height: Int = 200,
-        padding: Int = 6,
-        lineHeight: Int = 11
-    ) {
-        val font = Minecraft.getInstance().font
-        val right = width - padding
+    fun buildTypeChartLayout(data: TypeChartRecipeData): PanelLayout {
+        val layout = PanelLayout(200)
+        val padding = PanelLayout.PADDING
+        val right = layout.right
+        val lineHeight = PanelLayout.LINE_HEIGHT
 
-        graphics.drawString(font, formatSpeciesName(data.speciesName), padding + 22, 6, 0xFFFFFF, true)
-
+        layout.textAt(padding + 22, 6, formatSpeciesName(data.speciesName), 0xFFFFFF)
         val headerText = tr("category.cobbledex-rei-emi-jei.type_chart")
-        val headerWidth = font.width(headerText)
-        graphics.drawString(font, headerText, right - headerWidth, 6, 0xDDCC99, true)
-
-        graphics.fill(padding, 20, right, 21, 0x50FFFFFF)
+        layout.textRightAt(6, headerText, 0xDDCC99)
+        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
 
         val typeStr = buildString {
             append(formatTypeName(data.primaryType))
             data.secondaryType?.let { append(" / ${formatTypeName(it)}") }
         }
-        graphics.drawString(font, typeStr, padding, 25, typeColor(data.primaryType), true)
+        layout.textAt(padding, 25, typeStr, typeColor(data.primaryType))
+        layout.skipTo(40)
 
-        var y = 40
-
-        // Weaknesses
         if (data.weaknesses.isNotEmpty()) {
-            graphics.drawString(font, tr("cobbledex-rei-emi-jei.typechart.weak"), padding, y, 0xFFFF6666.toInt(), true)
-            y += lineHeight
+            layout.text(padding, tr("cobbledex-rei-emi-jei.typechart.weak"), 0xFFFF6666.toInt())
+            layout.line()
             for ((type, mult) in data.weaknesses) {
                 val multText = if (mult == 4f) "\u00D74" else "\u00D72"
                 val color = if (mult == 4f) 0xFFFF4444.toInt() else 0xFFFF8866.toInt()
-                val typeName = formatTypeName(type)
-                val typeColor = typeColor(type)
-                graphics.drawString(font, "\u2022 $typeName", padding + 4, y, typeColor, true)
-                val mw = font.width(multText)
-                graphics.drawString(font, multText, right - mw, y, color, true)
-                y += lineHeight
+                layout.text(padding + 4, "\u2022 ${formatTypeName(type)}", typeColor(type))
+                layout.textRight(multText, color)
+                layout.line()
             }
-            y += 3
+            layout.gap(PanelLayout.SECTION_GAP)
         }
 
-        // Resistances
         if (data.resistances.isNotEmpty()) {
-            graphics.drawString(font, tr("cobbledex-rei-emi-jei.typechart.resist"), padding, y, 0xFF66CC66.toInt(), true)
-            y += lineHeight
+            layout.text(padding, tr("cobbledex-rei-emi-jei.typechart.resist"), 0xFF66CC66.toInt())
+            layout.line()
             for ((type, mult) in data.resistances) {
                 val multText = if (mult == 0.25f) "\u00D7\u00BC" else "\u00D7\u00BD"
                 val color = if (mult == 0.25f) 0xFF44AA44.toInt() else 0xFF88CC88.toInt()
-                val typeName = formatTypeName(type)
-                val typeColor = typeColor(type)
-                graphics.drawString(font, "\u2022 $typeName", padding + 4, y, typeColor, true)
-                val mw = font.width(multText)
-                graphics.drawString(font, multText, right - mw, y, color, true)
-                y += lineHeight
+                layout.text(padding + 4, "\u2022 ${formatTypeName(type)}", typeColor(type))
+                layout.textRight(multText, color)
+                layout.line()
             }
-            y += 3
+            layout.gap(PanelLayout.SECTION_GAP)
         }
 
-        // Immunities
         if (data.immunities.isNotEmpty()) {
-            graphics.drawString(font, tr("cobbledex-rei-emi-jei.typechart.immune"), padding, y, 0xFF9999FF.toInt(), true)
-            y += lineHeight
+            layout.text(padding, tr("cobbledex-rei-emi-jei.typechart.immune"), 0xFF9999FF.toInt())
+            layout.line()
             for (type in data.immunities) {
-                val typeName = formatTypeName(type)
-                val typeColor = typeColor(type)
-                graphics.drawString(font, "\u2022 $typeName", padding + 4, y, typeColor, true)
-                val mw = font.width("\u00D70")
-                graphics.drawString(font, "\u00D70", right - mw, y, 0xFF9999FF.toInt(), true)
-                y += lineHeight
+                layout.text(padding + 4, "\u2022 ${formatTypeName(type)}", typeColor(type))
+                layout.textRight("\u00D70", 0xFF9999FF.toInt())
+                layout.line()
             }
         }
+
+        layout.gap(padding)
+        return layout
     }
 
-    // --- Nature table rendering ---
+    // --- Nature layout builder ---
 
-    fun drawNatureDetails(
-        graphics: GuiGraphics,
-        data: NatureRecipeData,
-        width: Int = 200,
-        height: Int = 260,
-        padding: Int = 6,
-        lineHeight: Int = 10
-    ) {
-        val font = Minecraft.getInstance().font
-        val right = width - padding
+    fun buildNatureLayout(data: NatureRecipeData): PanelLayout {
+        val layout = PanelLayout(200)
+        val font = layout.font
+        val padding = PanelLayout.PADDING
+        val right = layout.right
+        val lineHeight = 10
 
         val headerText = tr("category.cobbledex-rei-emi-jei.natures")
-        val headerWidth = font.width(headerText)
-        graphics.drawString(font, headerText, (width - headerWidth) / 2, 6, 0xDDCC99, true)
+        layout.textCentered(headerText, 0xDDCC99)
+        layout.skipTo(18)
+        layout.separator()
+        layout.skipTo(23)
 
-        graphics.fill(padding, 18, right, 19, 0x50FFFFFF)
-
-        var y = 23
-
-        // Column headers
         val nameCol = padding + 2
         val upCol = padding + 60
         val downCol = padding + 112
-        graphics.drawString(font, "Nature", nameCol, y, 0xEEEEEE, true)
-        graphics.drawString(font, "+Stat", upCol, y, 0xFF88FF88.toInt(), true)
-        graphics.drawString(font, "-Stat", downCol, y, 0xFFFF8888.toInt(), true)
-        y += lineHeight + 2
+        layout.textAt(nameCol, layout.y, "Nature", 0xEEEEEE)
+        layout.textAt(upCol, layout.y, "+Stat", 0xFF88FF88.toInt())
+        layout.textAt(downCol, layout.y, "-Stat", 0xFFFF8888.toInt())
+        layout.gap(lineHeight + 2)
 
-        graphics.fill(padding, y - 1, right, y, 0x30FFFFFF)
+        layout.fill(padding, layout.y - 1, right, layout.y, 0x30FFFFFF)
 
         for (nature in data.natures) {
             val nameColor = if (nature.isNeutral) 0xFFAAAAAA.toInt() else 0xFFFFFFFF.toInt()
-            graphics.drawString(font, nature.name, nameCol, y, nameColor, true)
+            layout.text(nameCol, nature.name, nameColor)
 
             if (nature.isNeutral) {
-                graphics.drawString(font, "\u2014", upCol, y, 0xFF777777.toInt(), true)
-                graphics.drawString(font, "\u2014", downCol, y, 0xFF777777.toInt(), true)
+                layout.textAt(upCol, layout.y, "\u2014", 0xFF777777.toInt())
+                layout.textAt(downCol, layout.y, "\u2014", 0xFF777777.toInt())
             } else {
                 val upName = NatureData.STAT_NAMES[nature.increasedStat] ?: nature.increasedStat ?: ""
                 val downName = NatureData.STAT_NAMES[nature.decreasedStat] ?: nature.decreasedStat ?: ""
-                graphics.drawString(font, upName, upCol, y, 0xFF88FF88.toInt(), true)
-                graphics.drawString(font, downName, downCol, y, 0xFFFF8888.toInt(), true)
+                layout.textAt(upCol, layout.y, upName, 0xFF88FF88.toInt())
+                layout.textAt(downCol, layout.y, downName, 0xFFFF8888.toInt())
             }
-            y += lineHeight
+            layout.gap(lineHeight)
         }
+
+        layout.gap(padding)
+        return layout
     }
+
 }

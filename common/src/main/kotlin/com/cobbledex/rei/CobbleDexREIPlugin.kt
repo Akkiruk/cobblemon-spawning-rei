@@ -2,54 +2,53 @@ package com.cobbledex.rei
 
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
+import com.cobbledex.DexCategory
 import com.cobbledex.PokemonItemCache
-import com.cobbledex.RecipeBuilder
+import com.cobbledex.RecipeHandle
+import com.cobbledex.SlotRole
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpawnDisplayHelper
 import com.cobbledex.config.CobbleDexConfig
-import com.cobbledex.rei.drops.DropCategory
-import com.cobbledex.rei.drops.DropDisplay
 import com.cobbledex.rei.entry.PokemonEntry
 import com.cobbledex.rei.entry.PokemonEntryDefinition
 import com.cobbledex.rei.entry.PokemonEntryType
-import com.cobbledex.rei.evolution.EvolutionCategory
-import com.cobbledex.rei.evolution.EvolutionDisplay
-import com.cobbledex.rei.obtainment.ObtainmentCategory
-import com.cobbledex.rei.obtainment.ObtainmentDisplay
-import com.cobbledex.rei.pokedex.PokedexInfoCategory
-import com.cobbledex.rei.pokedex.PokedexInfoDisplay
-import com.cobbledex.rei.spawn.SpawnCategory
-import com.cobbledex.rei.spawn.SpawnDisplay
-import com.cobbledex.rei.moves.MovesCategory
-import com.cobbledex.rei.moves.MovesDisplay
-import com.cobbledex.rei.stats.StatsCategory
-import com.cobbledex.rei.stats.StatsDisplay
-import com.cobbledex.rei.fossil.FossilCategory
-import com.cobbledex.rei.fossil.FossilDisplay
-import com.cobbledex.rei.typechart.TypeChartCategory
-import com.cobbledex.rei.typechart.TypeChartDisplay
-import com.cobbledex.rei.nature.NatureCategory
-import com.cobbledex.rei.nature.NatureDisplay
+import me.shedaniel.math.Point
+import me.shedaniel.math.Rectangle
 import me.shedaniel.rei.api.client.plugins.REIClientPlugin
+import me.shedaniel.rei.api.client.gui.Renderer
+import me.shedaniel.rei.api.client.gui.widgets.Widget
+import me.shedaniel.rei.api.client.gui.widgets.Widgets
 import me.shedaniel.rei.api.client.registry.category.CategoryRegistry
 import me.shedaniel.rei.api.client.registry.display.DisplayRegistry
 import me.shedaniel.rei.api.client.registry.display.DynamicDisplayGenerator
 import me.shedaniel.rei.api.client.registry.entry.EntryRegistry
+import me.shedaniel.rei.api.client.view.ViewSearchBuilder
+import me.shedaniel.rei.api.common.category.CategoryIdentifier
+import me.shedaniel.rei.api.common.display.Display
+import me.shedaniel.rei.api.common.entry.EntryIngredient
 import me.shedaniel.rei.api.common.entry.EntryStack
 import me.shedaniel.rei.api.common.entry.type.EntryTypeRegistry
-import me.shedaniel.rei.api.client.view.ViewSearchBuilder
+import me.shedaniel.rei.api.common.util.EntryStacks
+import me.shedaniel.rei.api.client.registry.display.DisplayCategory
+import net.minecraft.network.chat.Component
+import net.minecraft.resources.ResourceLocation
 import java.util.Optional
 
 open class CobbleDexREIPlugin : REIClientPlugin {
+
+    companion object {
+        private val categoryIds = mutableMapOf<String, CategoryIdentifier<GenericDisplay>>()
+
+        fun categoryId(def: DexCategory): CategoryIdentifier<GenericDisplay> =
+            categoryIds.getOrPut(def.id) { CategoryIdentifier.of(CobbleDexMod.MOD_ID, def.id) }
+    }
 
     private val emiActive: Boolean by lazy {
         try {
             Class.forName("dev.emi.emi.api.EmiPlugin")
             DebugLog.info("EMI detected — skipping REI plugin (native EMI plugin handles registration)")
             true
-        } catch (_: ClassNotFoundException) {
-            false
-        }
+        } catch (_: ClassNotFoundException) { false }
     }
 
     override fun registerEntryTypes(registry: EntryTypeRegistry) {
@@ -78,17 +77,13 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         if (emiActive) return
         ensureEntryTypeAvailable()
         val config = CobbleDexConfig.get()
-        registry.add(SpawnCategory())
-        if (config.showEvolutions) registry.add(EvolutionCategory())
-        if (config.showObtainment) registry.add(ObtainmentCategory())
-        if (config.showDrops) registry.add(DropCategory())
-        if (config.showStats) registry.add(StatsCategory())
-        if (config.showMoves) registry.add(MovesCategory())
-        if (config.showPokedexInfo) registry.add(PokedexInfoCategory())
-        if (config.showFossils) registry.add(FossilCategory())
-        if (config.showTypeChart) registry.add(TypeChartCategory())
-        if (config.showNatures) registry.add(NatureCategory())
-        DebugLog.info("REI categories registered (spawns${if (config.showEvolutions) " + evolution" else ""}${if (config.showObtainment) " + obtainment" else ""}${if (config.showDrops) " + drops" else ""}${if (config.showStats) " + stats" else ""}${if (config.showMoves) " + moves" else ""}${if (config.showPokedexInfo) " + pokedex" else ""})")
+        val registered = mutableListOf<String>()
+        for (def in DexCategory.ALL) {
+            if (!def.isEnabled(config)) continue
+            registry.add(GenericCategory(def))
+            registered.add(def.id)
+        }
+        DebugLog.info("REI categories registered (${registered.joinToString(" + ")})")
     }
 
     override fun registerDisplays(registry: DisplayRegistry) {
@@ -97,20 +92,14 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         SpawnDataIndex.ensureLoaded()
         val config = CobbleDexConfig.get()
 
-        registry.registerDisplayGenerator(SpawnCategory.ID, SpawnDisplayGenerator())
-        if (config.showEvolutions) registry.registerDisplayGenerator(EvolutionCategory.ID, EvolutionDisplayGenerator())
-        if (config.showObtainment) registry.registerDisplayGenerator(ObtainmentCategory.ID, ObtainmentDisplayGenerator())
-        if (config.showDrops) registry.registerDisplayGenerator(DropCategory.ID, DropDisplayGenerator())
-        if (config.showStats) registry.registerDisplayGenerator(StatsCategory.ID, StatsDisplayGenerator())
-        if (config.showMoves) registry.registerDisplayGenerator(MovesCategory.ID, MovesDisplayGenerator())
-        if (config.showPokedexInfo) registry.registerDisplayGenerator(PokedexInfoCategory.ID, PokedexInfoDisplayGenerator())
-        if (config.showFossils) registry.registerDisplayGenerator(FossilCategory.ID, FossilDisplayGenerator())
-        if (config.showTypeChart) registry.registerDisplayGenerator(TypeChartCategory.ID, TypeChartDisplayGenerator())
-        if (config.showNatures) {
-            val natureDisplays = RecipeBuilder.buildNatureRecipes().map { NatureDisplay(it) }
-            natureDisplays.forEach { registry.add(it) }
+        for (def in DexCategory.ALL) {
+            if (!def.isEnabled(config)) continue
+            if (def is com.cobbledex.NatureDex) {
+                def.buildAllRecipes().map { GenericDisplay(it, def) }.forEach { registry.add(it) }
+            } else {
+                registry.registerDisplayGenerator(categoryId(def), GenericDisplayGenerator(def))
+            }
         }
-
         DebugLog.info("Registered dynamic display generators")
     }
 
@@ -121,7 +110,6 @@ open class CobbleDexREIPlugin : REIClientPlugin {
 
         var registered = 0
         var hidden = 0
-
         for (species in SpawnDataIndex.allSpeciesNames) {
             if (!PokemonItemCache.canRender(species)) {
                 DebugLog.trackMissingModel(species)
@@ -129,8 +117,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
                 continue
             }
             try {
-                val entry = PokemonEntry(species)
-                val stack = EntryStack.of(PokemonEntryType.POKEMON, entry)
+                val stack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(species))
                 registry.addEntry(stack)
                 registered++
             } catch (e: Exception) {
@@ -138,266 +125,132 @@ open class CobbleDexREIPlugin : REIClientPlugin {
                 hidden++
             }
         }
-
         DebugLog.info("Registered $registered Pokémon entries ($hidden hidden — no model)")
         DebugLog.printSummary()
     }
 
-    // --- Dynamic Display Generators ---
+    // ----- Generic Display wrapping RecipeHandle -----
 
-    private inner class SpawnDisplayGenerator : DynamicDisplayGenerator<SpawnDisplay> {
+    class GenericDisplay(val handle: RecipeHandle, val def: DexCategory) : Display {
 
-        @Volatile private var cachedVersion = -1L
-        @Volatile private var cachedDisplays: List<SpawnDisplay>? = null
-
-        override fun getRecipeFor(entry: EntryStack<*>): Optional<List<SpawnDisplay>> {
-            val value = entry.value ?: return Optional.empty()
-            if (value !is PokemonEntry) return Optional.empty()
-            val spawns = SpawnDataIndex.getSpawnsFor(value.species)
-            if (spawns.isEmpty()) return Optional.empty()
-            return Optional.of(RecipeBuilder.buildSpawnRecipes(value.species, spawns).map { SpawnDisplay(it) })
-        }
-
-        override fun getUsageFor(entry: EntryStack<*>): Optional<List<SpawnDisplay>> = Optional.empty()
-
-        override fun generate(builder: ViewSearchBuilder): Optional<List<SpawnDisplay>> {
-            if (builder.recipesFor.isNotEmpty() || builder.usagesFor.isNotEmpty()) return Optional.empty()
-            if (!SpawnDataIndex.hasData()) return Optional.empty()
-            val version = SpawnDataIndex.dataVersion
-            cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
-
-            val all = mutableListOf<SpawnDisplay>()
-            for ((species, spawns) in SpawnDataIndex.spawnsBySpecies) {
-                if (spawns.isEmpty()) continue
-                all.addAll(RecipeBuilder.buildSpawnRecipes(species, spawns).map { SpawnDisplay(it) })
+        private val cachedInputEntries: List<EntryIngredient> by lazy {
+            handle.inputSpecies.map {
+                EntryIngredient.of(EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(it)))
             }
-            cachedDisplays = all
-            cachedVersion = version
-            return if (all.isEmpty()) Optional.empty() else Optional.of(all)
+        }
+
+        private val cachedOutputEntries: List<EntryIngredient> by lazy {
+            val pokemonEntries = handle.outputSpecies.map {
+                EntryIngredient.of(EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(it)))
+            }
+            val itemEntries = handle.slots.items
+                .filter { it.role == SlotRole.OUTPUT }
+                .mapNotNull { slot ->
+                    val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
+                    if (!stack.isEmpty) EntryIngredient.of(EntryStacks.of(stack)) else null
+                }
+            pokemonEntries + itemEntries
+        }
+
+        override fun getInputEntries(): List<EntryIngredient> = cachedInputEntries
+        override fun getOutputEntries(): List<EntryIngredient> = cachedOutputEntries
+        override fun getCategoryIdentifier(): CategoryIdentifier<*> = categoryId(def)
+
+        override fun getDisplayLocation(): Optional<ResourceLocation> = Optional.of(
+            ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, handle.recipeIdPath)
+        )
+    }
+
+    // ----- Generic Category wrapping DexCategory -----
+
+    class GenericCategory(private val def: DexCategory) : DisplayCategory<GenericDisplay> {
+
+        override fun getCategoryIdentifier(): CategoryIdentifier<out GenericDisplay> = categoryId(def)
+        override fun getTitle(): Component = Component.translatable(def.titleKey)
+        override fun getIcon(): Renderer = EntryStacks.of(def.icon)
+        override fun getDisplayHeight(): Int = def.maxSize().height
+        override fun getFixedDisplaysPerPage(): Int = 1
+        override fun getDisplayWidth(display: GenericDisplay): Int = display.handle.width
+
+        override fun setupDisplay(display: GenericDisplay, bounds: Rectangle): List<Widget> {
+            val widgets = mutableListOf<Widget>()
+            val handle = display.handle
+            val slots = handle.slots
+            val w = handle.width
+            val h = handle.height
+
+            val yOff = (bounds.height - h).coerceAtLeast(0) / 2
+            val px = bounds.x
+            val py = bounds.y + yOff
+
+            widgets.add(Widgets.createRecipeBase(Rectangle(px, py, w, h)))
+
+            for (slot in slots.pokemon) {
+                val entry = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(slot.species, slot.aspects))
+                val s = Widgets.createSlot(Rectangle(px + slot.x, py + slot.y, 20, 20))
+                    .entries(listOf(entry))
+                if (slot.role == SlotRole.INPUT) s.markInput() else s.markOutput()
+                if (slot.disableBackground) s.disableBackground()
+                if (slot.disableHighlight) s.disableHighlight()
+                widgets.add(s)
+            }
+
+            if (slots.hasArrow) {
+                widgets.add(Widgets.createArrow(Point(px + slots.arrowX, py + slots.arrowY)))
+            }
+
+            for (slot in slots.items) {
+                val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
+                if (!stack.isEmpty) {
+                    val s = Widgets.createSlot(Rectangle(px + slot.x, py + slot.y, 18, 18))
+                        .entries(listOf(EntryStacks.of(stack)))
+                    if (slot.role == SlotRole.INPUT) s.markInput() else s.markOutput()
+                    s.disableBackground()
+                    widgets.add(s)
+                }
+            }
+
+            widgets.add(Widgets.createDrawableWidget { gfx, _, _, _ ->
+                gfx.pose().pushPose()
+                gfx.pose().translate(px.toFloat(), py.toFloat(), 0f)
+                handle.layout.render(gfx)
+                gfx.pose().popPose()
+            })
+
+            return widgets
         }
     }
 
-    private inner class EvolutionDisplayGenerator : DynamicDisplayGenerator<EvolutionDisplay> {
+    // ----- Generic DynamicDisplayGenerator -----
+
+    private inner class GenericDisplayGenerator(private val def: DexCategory) : DynamicDisplayGenerator<GenericDisplay> {
 
         @Volatile private var cachedVersion = -1L
-        @Volatile private var cachedDisplays: List<EvolutionDisplay>? = null
+        @Volatile private var cachedDisplays: List<GenericDisplay>? = null
 
-        override fun getRecipeFor(entry: EntryStack<*>): Optional<List<EvolutionDisplay>> {
+        override fun getRecipeFor(entry: EntryStack<*>): Optional<List<GenericDisplay>> {
             val value = entry.value ?: return Optional.empty()
             if (value !is PokemonEntry) return Optional.empty()
-            val evos = SpawnDataIndex.getEvolutionsTo(value.species)
-            if (evos.isEmpty()) return Optional.empty()
-            return Optional.of(RecipeBuilder.buildEvolutionsFor(evos).map { EvolutionDisplay(it) })
+            val handles = def.buildRecipesFor(value.species)
+            if (handles.isEmpty()) return Optional.empty()
+            return Optional.of(handles.map { GenericDisplay(it, def) })
         }
 
-        override fun getUsageFor(entry: EntryStack<*>): Optional<List<EvolutionDisplay>> {
+        override fun getUsageFor(entry: EntryStack<*>): Optional<List<GenericDisplay>> {
             val value = entry.value ?: return Optional.empty()
             if (value !is PokemonEntry) return Optional.empty()
-            val evos = SpawnDataIndex.getEvolutionsFrom(value.species)
-            if (evos.isEmpty()) return Optional.empty()
-            return Optional.of(RecipeBuilder.buildEvolutionsFor(evos).map { EvolutionDisplay(it) })
+            val handles = def.buildUsagesFor(value.species)
+            if (handles.isEmpty()) return Optional.empty()
+            return Optional.of(handles.map { GenericDisplay(it, def) })
         }
 
-        override fun generate(builder: ViewSearchBuilder): Optional<List<EvolutionDisplay>> {
+        override fun generate(builder: ViewSearchBuilder): Optional<List<GenericDisplay>> {
             if (builder.recipesFor.isNotEmpty() || builder.usagesFor.isNotEmpty()) return Optional.empty()
             if (!SpawnDataIndex.hasData()) return Optional.empty()
             val version = SpawnDataIndex.dataVersion
             cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
 
-            val displays = RecipeBuilder.buildAllEvolutionRecipes().map { EvolutionDisplay(it) }
-            cachedDisplays = displays
-            cachedVersion = version
-            return if (displays.isEmpty()) Optional.empty() else Optional.of(displays)
-        }
-    }
-
-    private inner class ObtainmentDisplayGenerator : DynamicDisplayGenerator<ObtainmentDisplay> {
-
-        @Volatile private var cachedVersion = -1L
-        @Volatile private var cachedDisplays: List<ObtainmentDisplay>? = null
-
-        override fun getRecipeFor(entry: EntryStack<*>): Optional<List<ObtainmentDisplay>> {
-            val value = entry.value ?: return Optional.empty()
-            if (value !is PokemonEntry) return Optional.empty()
-            val obtainments = SpawnDataIndex.getObtainmentFor(value.species)
-            if (obtainments.isEmpty()) return Optional.empty()
-            return Optional.of(RecipeBuilder.buildObtainmentsFor(value.species, obtainments).map { ObtainmentDisplay(it) })
-        }
-
-        override fun getUsageFor(entry: EntryStack<*>): Optional<List<ObtainmentDisplay>> = Optional.empty()
-
-        override fun generate(builder: ViewSearchBuilder): Optional<List<ObtainmentDisplay>> {
-            if (builder.recipesFor.isNotEmpty() || builder.usagesFor.isNotEmpty()) return Optional.empty()
-            if (!SpawnDataIndex.hasData()) return Optional.empty()
-            val version = SpawnDataIndex.dataVersion
-            cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
-
-            val all = RecipeBuilder.buildAllObtainmentRecipes().map { ObtainmentDisplay(it) }
-            cachedDisplays = all
-            cachedVersion = version
-            return if (all.isEmpty()) Optional.empty() else Optional.of(all)
-        }
-    }
-
-    private inner class DropDisplayGenerator : DynamicDisplayGenerator<DropDisplay> {
-
-        @Volatile private var cachedVersion = -1L
-        @Volatile private var cachedDisplays: List<DropDisplay>? = null
-
-        override fun getRecipeFor(entry: EntryStack<*>): Optional<List<DropDisplay>> {
-            val value = entry.value ?: return Optional.empty()
-            if (value !is PokemonEntry) return Optional.empty()
-            val recipes = RecipeBuilder.buildDropsFor(value.species)
-            if (recipes.isEmpty()) return Optional.empty()
-            return Optional.of(recipes.map { DropDisplay(it) })
-        }
-
-        override fun getUsageFor(entry: EntryStack<*>): Optional<List<DropDisplay>> = Optional.empty()
-
-        override fun generate(builder: ViewSearchBuilder): Optional<List<DropDisplay>> {
-            if (builder.recipesFor.isNotEmpty() || builder.usagesFor.isNotEmpty()) return Optional.empty()
-            if (!SpawnDataIndex.hasData()) return Optional.empty()
-            val version = SpawnDataIndex.dataVersion
-            cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
-
-            val all = RecipeBuilder.buildAllDropRecipes().map { DropDisplay(it) }
-            cachedDisplays = all
-            cachedVersion = version
-            return if (all.isEmpty()) Optional.empty() else Optional.of(all)
-        }
-    }
-
-    private inner class StatsDisplayGenerator : DynamicDisplayGenerator<StatsDisplay> {
-
-        @Volatile private var cachedVersion = -1L
-        @Volatile private var cachedDisplays: List<StatsDisplay>? = null
-
-        override fun getRecipeFor(entry: EntryStack<*>): Optional<List<StatsDisplay>> {
-            val value = entry.value ?: return Optional.empty()
-            if (value !is PokemonEntry) return Optional.empty()
-            val recipe = RecipeBuilder.buildStatsFor(value.species) ?: return Optional.empty()
-            return Optional.of(listOf(StatsDisplay(recipe)))
-        }
-
-        override fun getUsageFor(entry: EntryStack<*>): Optional<List<StatsDisplay>> = Optional.empty()
-
-        override fun generate(builder: ViewSearchBuilder): Optional<List<StatsDisplay>> {
-            if (builder.recipesFor.isNotEmpty() || builder.usagesFor.isNotEmpty()) return Optional.empty()
-            if (!SpawnDataIndex.hasData()) return Optional.empty()
-            val version = SpawnDataIndex.dataVersion
-            cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
-
-            val all = RecipeBuilder.buildAllStatsRecipes().map { StatsDisplay(it) }
-            cachedDisplays = all
-            cachedVersion = version
-            return if (all.isEmpty()) Optional.empty() else Optional.of(all)
-        }
-    }
-
-    private inner class MovesDisplayGenerator : DynamicDisplayGenerator<MovesDisplay> {
-
-        @Volatile private var cachedVersion = -1L
-        @Volatile private var cachedDisplays: List<MovesDisplay>? = null
-
-        override fun getRecipeFor(entry: EntryStack<*>): Optional<List<MovesDisplay>> {
-            val value = entry.value ?: return Optional.empty()
-            if (value !is PokemonEntry) return Optional.empty()
-            val recipes = RecipeBuilder.buildMovesFor(value.species)
-            if (recipes.isEmpty()) return Optional.empty()
-            return Optional.of(recipes.map { MovesDisplay(it) })
-        }
-
-        override fun getUsageFor(entry: EntryStack<*>): Optional<List<MovesDisplay>> = Optional.empty()
-
-        override fun generate(builder: ViewSearchBuilder): Optional<List<MovesDisplay>> {
-            if (builder.recipesFor.isNotEmpty() || builder.usagesFor.isNotEmpty()) return Optional.empty()
-            if (!SpawnDataIndex.hasData()) return Optional.empty()
-            val version = SpawnDataIndex.dataVersion
-            cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
-
-            val all = RecipeBuilder.buildAllMovesRecipes().map { MovesDisplay(it) }
-            cachedDisplays = all
-            cachedVersion = version
-            return if (all.isEmpty()) Optional.empty() else Optional.of(all)
-        }
-    }
-
-    private inner class PokedexInfoDisplayGenerator : DynamicDisplayGenerator<PokedexInfoDisplay> {
-
-        @Volatile private var cachedVersion = -1L
-        @Volatile private var cachedDisplays: List<PokedexInfoDisplay>? = null
-
-        override fun getRecipeFor(entry: EntryStack<*>): Optional<List<PokedexInfoDisplay>> {
-            val value = entry.value ?: return Optional.empty()
-            if (value !is PokemonEntry) return Optional.empty()
-            val recipe = RecipeBuilder.buildPokedexInfoFor(value.species) ?: return Optional.empty()
-            return Optional.of(listOf(PokedexInfoDisplay(recipe)))
-        }
-
-        override fun getUsageFor(entry: EntryStack<*>): Optional<List<PokedexInfoDisplay>> = Optional.empty()
-
-        override fun generate(builder: ViewSearchBuilder): Optional<List<PokedexInfoDisplay>> {
-            if (builder.recipesFor.isNotEmpty() || builder.usagesFor.isNotEmpty()) return Optional.empty()
-            if (!SpawnDataIndex.hasData()) return Optional.empty()
-            val version = SpawnDataIndex.dataVersion
-            cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
-
-            val all = RecipeBuilder.buildAllPokedexInfoRecipes().map { PokedexInfoDisplay(it) }
-            cachedDisplays = all
-            cachedVersion = version
-            return if (all.isEmpty()) Optional.empty() else Optional.of(all)
-        }
-    }
-
-    private inner class FossilDisplayGenerator : DynamicDisplayGenerator<FossilDisplay> {
-
-        @Volatile private var cachedVersion = -1L
-        @Volatile private var cachedDisplays: List<FossilDisplay>? = null
-
-        override fun getRecipeFor(entry: EntryStack<*>): Optional<List<FossilDisplay>> {
-            val value = entry.value ?: return Optional.empty()
-            if (value !is PokemonEntry) return Optional.empty()
-            val recipes = RecipeBuilder.buildFossilsFor(value.species)
-            if (recipes.isEmpty()) return Optional.empty()
-            return Optional.of(recipes.map { FossilDisplay(it) })
-        }
-
-        override fun getUsageFor(entry: EntryStack<*>): Optional<List<FossilDisplay>> = Optional.empty()
-
-        override fun generate(builder: ViewSearchBuilder): Optional<List<FossilDisplay>> {
-            if (builder.recipesFor.isNotEmpty() || builder.usagesFor.isNotEmpty()) return Optional.empty()
-            if (!SpawnDataIndex.hasData()) return Optional.empty()
-            val version = SpawnDataIndex.dataVersion
-            cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
-
-            val all = RecipeBuilder.buildAllFossilRecipes().map { FossilDisplay(it) }
-            cachedDisplays = all
-            cachedVersion = version
-            return if (all.isEmpty()) Optional.empty() else Optional.of(all)
-        }
-    }
-
-    private inner class TypeChartDisplayGenerator : DynamicDisplayGenerator<TypeChartDisplay> {
-
-        @Volatile private var cachedVersion = -1L
-        @Volatile private var cachedDisplays: List<TypeChartDisplay>? = null
-
-        override fun getRecipeFor(entry: EntryStack<*>): Optional<List<TypeChartDisplay>> {
-            val value = entry.value ?: return Optional.empty()
-            if (value !is PokemonEntry) return Optional.empty()
-            val recipe = RecipeBuilder.buildTypeChartFor(value.species) ?: return Optional.empty()
-            return Optional.of(listOf(TypeChartDisplay(recipe)))
-        }
-
-        override fun getUsageFor(entry: EntryStack<*>): Optional<List<TypeChartDisplay>> = Optional.empty()
-
-        override fun generate(builder: ViewSearchBuilder): Optional<List<TypeChartDisplay>> {
-            if (builder.recipesFor.isNotEmpty() || builder.usagesFor.isNotEmpty()) return Optional.empty()
-            if (!SpawnDataIndex.hasData()) return Optional.empty()
-            val version = SpawnDataIndex.dataVersion
-            cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
-
-            val all = RecipeBuilder.buildAllTypeChartRecipes().map { TypeChartDisplay(it) }
+            val all = def.buildAllRecipes().map { GenericDisplay(it, def) }
             cachedDisplays = all
             cachedVersion = version
             return if (all.isEmpty()) Optional.empty() else Optional.of(all)

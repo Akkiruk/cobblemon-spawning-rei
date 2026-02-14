@@ -2,6 +2,18 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.25.0] - 2026-02-14
+
+### Changed
+- Unified recipe viewer integration: all 10 categories now share a single DexCategory abstraction
+- REI plugin reduced from 21 files to 1 generic adapter
+- JEI plugin reduced from 21 files to 1 generic adapter
+- EMI plugin reduced from 11 files to 1 generic adapter
+- Total viewer code reduced from 61 files (~2,700 lines) to 3 files (~450 lines)
+
+### Removed
+- 50+ per-category duplicate files across REI/JEI/EMI (replaced by DexCategory.kt)
+
 ## [1.24.9] - 2026-02-14
 
 ### Fixed
