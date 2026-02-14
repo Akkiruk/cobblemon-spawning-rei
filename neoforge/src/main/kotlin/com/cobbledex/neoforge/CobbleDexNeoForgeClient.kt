@@ -3,7 +3,6 @@ package com.cobbledex.neoforge
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DiagnosticService
 import com.cobbledex.SpawnDataIndex
-import com.cobbledex.network.ClientDataReceiver
 import net.minecraft.client.Minecraft
 import net.minecraft.commands.Commands
 import net.minecraft.network.chat.Component
@@ -23,13 +22,11 @@ object CobbleDexNeoForgeClient {
     private fun onClientTick(event: ClientTickEvent.Post) {
         if (Minecraft.getInstance().player != null) {
             CobbleDexMod.tickReloadCheck()
-            ClientDataReceiver.tick()
         }
     }
 
     private fun onDisconnect(event: ClientPlayerNetworkEvent.LoggingOut) {
         SpawnDataIndex.onDisconnect()
-        ClientDataReceiver.reset()
         CobbleDexMod.resetReloadTimer()
     }
 

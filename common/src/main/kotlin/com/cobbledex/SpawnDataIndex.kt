@@ -1,7 +1,6 @@
 package com.cobbledex
 
 import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
-import com.cobbledex.network.DataSerializer
 import java.nio.file.Path
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -13,7 +12,7 @@ import kotlin.concurrent.withLock
 object SpawnDataIndex {
 
     enum class LoadState { NOT_LOADED, PARTIAL, FULLY_LOADED }
-    enum class DataSource { NONE, LOCAL, SERVER }
+    enum class DataSource { NONE, LOCAL }
 
     @Volatile
     var loadState = LoadState.NOT_LOADED
@@ -69,10 +68,6 @@ object SpawnDataIndex {
     fun isFullyLoaded(): Boolean = loadState == LoadState.FULLY_LOADED
 
     fun hasData(): Boolean = allSpeciesNames.isNotEmpty()
-
-    fun computeFingerprint(): String {
-        return DataSerializer.computeFingerprint(spawnsBySpecies, evolutionsBySpecies, speciesInfo)
-    }
 
     fun ensureLoaded() {
         when (loadState) {
@@ -211,43 +206,11 @@ object SpawnDataIndex {
         )
     }
 
-    /**
-     * Replace all data with server-provided data.
-     * Called from ClientDataReceiver when the full payload arrives.
-     * Acquires dataLock to prevent races with an in-progress local load.
-     */
-    fun applyServerData(
-        spawns: Map<String, List<SpawnInfo>>,
-        evolutions: Map<String, List<EvolutionInfo>>,
-        species: Map<String, EvolutionDataLoader.SpeciesBasicInfo>
-    ) {
-        cancelPendingLoad()
-        dataLock.withLock {
-            spawnsBySpecies = normalizeMapKeys(spawns)
-            evolutionsBySpecies = normalizeMapKeys(evolutions)
-            speciesInfo = normalizeMapKeys(species)
-            // Obtainment stays locally loaded — no server sync needed for bundled/datapack entries
-            if (obtainmentBySpecies.isEmpty()) {
-                try {
-                    obtainmentBySpecies = normalizeMapKeys(ObtainmentDataLoader.loadFromAllSources(SpawnDataLoader.getModRootPaths()))
-                } catch (_: Exception) {}
-            }
-            rebuildDerivedData()
-            loadState = LoadState.FULLY_LOADED
-            dataSource = DataSource.SERVER
-            dataVersion++
-
-            DebugLog.info(
-                "Server data applied: ${allSpeciesNames.size} species " +
-                "(${spawns.size} with spawns, ${evolutions.size} with evolutions)"
-            )
-        }
-    }
-
     /** Mark data stale on disconnect, keep as warm cache for instant availability on reconnect */
     fun onDisconnect() {
         cancelPendingLoad()
         PokemonItemCache.reset()
+        emptyEvoRetries = 0
         dataLock.withLock {
             loadState = LoadState.NOT_LOADED
             dataSource = DataSource.NONE

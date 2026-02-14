@@ -2,6 +2,17 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.24.5] - 2026-02-14
+
+### Removed
+- Server-to-client data sync system (all spawn, evolution, and species data now loads locally)
+- Server-side networking (ServerDataManager, payload classes, packet handlers)
+- DataSource.SERVER state and fingerprint comparison logic
+
+### Changed
+- Mod is now fully client-side — no server component runs at all
+- Evolution and spawn data sourced from Cobblemon's client-synced registry and local mod JARs/datapacks
+
 ## [1.24.4] - 2026-02-14
 
 ### Fixed

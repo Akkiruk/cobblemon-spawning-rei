@@ -2,10 +2,7 @@
 
 package com.cobbledex.platform.fabric
 
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.fabricmc.loader.api.FabricLoader
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload
-import net.minecraft.server.level.ServerPlayer
 import java.nio.file.Path
 
 object PlatformHelperImpl {
@@ -15,15 +12,4 @@ object PlatformHelperImpl {
 
     @JvmStatic
     fun getGameDir(): Path = FabricLoader.getInstance().gameDir
-
-    @JvmStatic
-    fun sendPayloadToPlayer(player: ServerPlayer, payload: CustomPacketPayload) {
-        if (ServerPlayNetworking.canSend(player, payload.type().id())) {
-            ServerPlayNetworking.send(player, payload)
-        } else {
-            com.cobbledex.DebugLog.once("cantsend-${player.uuid}-${payload.type().id()}") {
-                "Cannot send ${payload.type().id()} to ${player.name.string} (client may not have mod installed)"
-            }
-        }
-    }
 }

@@ -1,8 +1,6 @@
 package com.cobbledex.platform
 
 import dev.architectury.injectables.annotations.ExpectPlatform
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload
-import net.minecraft.server.level.ServerPlayer
 import java.nio.file.Path
 
 object PlatformHelper {
@@ -16,12 +14,6 @@ object PlatformHelper {
     @JvmStatic
     @ExpectPlatform
     fun getGameDir(): Path {
-        throw AssertionError("Expected platform implementation")
-    }
-
-    @JvmStatic
-    @ExpectPlatform
-    fun sendPayloadToPlayer(player: ServerPlayer, payload: CustomPacketPayload) {
         throw AssertionError("Expected platform implementation")
     }
 }
