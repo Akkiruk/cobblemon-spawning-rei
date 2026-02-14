@@ -83,7 +83,7 @@ object DisplayLayout {
     fun getMaxMovesSize(): PanelSize {
         checkCacheValidity()
         cachedMovesMax?.let { return it }
-        return PanelSize(200, 220).also { cachedMovesMax = it }
+        return PanelSize(200, 240).also { cachedMovesMax = it }
     }
 
     fun getMaxFossilSize(): PanelSize {

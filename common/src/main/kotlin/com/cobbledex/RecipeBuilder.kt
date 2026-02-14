@@ -143,8 +143,8 @@ object RecipeBuilder {
 
         // Flatten level-up moves into individual lines for pagination
         val totalLevelUpLines = levelUp.sumOf { it.moves.size }
-        val eggLines = if (egg.isNotEmpty()) 1 + ((egg.size + 2) / 3) else 0 // header + rows of 3
-        val tutorLines = if (tutor.isNotEmpty()) 1 + ((tutor.size + 2) / 3) else 0
+        val eggLines = if (egg.isNotEmpty()) 1 + egg.size else 0
+        val tutorLines = if (tutor.isNotEmpty()) 1 + tutor.size else 0
         val totalLines = totalLevelUpLines + eggLines + tutorLines
 
         if (totalLines <= MOVES_PER_PAGE) {

@@ -938,12 +938,49 @@ object SpawnDisplayHelper {
 
     // --- Moves layout builder ---
 
-    fun buildMovesLayout(data: MovesRecipeData): PanelLayout {
-        val layout = PanelLayout(200)
-        val font = layout.font
+    private val CATEGORY_ICONS = mapOf(
+        "physical" to Pair("\u2694", 0xFFCC6644.toInt()),
+        "special" to Pair("\u25C6", 0xFF6699FF.toInt()),
+        "status" to Pair("\u2726", 0xFFAAAADD.toInt())
+    )
+
+    private fun formatMoveSuffix(move: MoveDetail): String {
+        val pow = if (move.power > 0) "${move.power}" else "\u2014"
+        val acc = if (move.accuracy > 0) "${move.accuracy}" else "\u2014"
+        val icon = CATEGORY_ICONS[move.category]?.first ?: "\u2022"
+        return "$icon $pow/$acc"
+    }
+
+    private fun moveRow(layout: PanelLayout, move: MoveDetail, prefix: String? = null) {
         val padding = PanelLayout.PADDING
         val right = layout.right
-        val lineHeight = PanelLayout.LINE_HEIGHT
+        val font = layout.font
+
+        var x = padding + 4
+        if (prefix != null) {
+            layout.text(x, prefix, 0xFF88CCFF.toInt())
+            x += font.width(prefix) + 4
+        }
+
+        val dot = "\u25CF "
+        val dotColor = typeColor(move.type)
+        layout.text(x, dot, dotColor)
+        x += font.width(dot)
+
+        val suffix = formatMoveSuffix(move)
+        val suffixColor = CATEGORY_ICONS[move.category]?.second ?: 0xFFBBBBBB.toInt()
+        val suffixWidth = font.width(suffix)
+
+        val nameMaxWidth = right - x - suffixWidth - 4
+        layout.clipped(x, move.name, nameMaxWidth, 0xBBBBBB)
+        layout.textRight(suffix, suffixColor)
+        layout.line()
+    }
+
+    fun buildMovesLayout(data: MovesRecipeData): PanelLayout {
+        val layout = PanelLayout(200)
+        val padding = PanelLayout.PADDING
+        val right = layout.right
 
         layout.textAt(padding + 22, 6, formatSpeciesName(data.speciesName), 0xFFFFFF)
         val headerText = if (data.pageTotal > 1)
@@ -959,11 +996,8 @@ object SpawnDisplayHelper {
             layout.line()
             for (entry in data.levelUpMoves) {
                 val lvPrefix = "Lv.${entry.level}"
-                val lvWidth = font.width(lvPrefix)
-                for (moveName in entry.moves) {
-                    layout.text(padding + 4, lvPrefix, 0xFF88CCFF.toInt())
-                    layout.textAt(padding + 4 + lvWidth + 4, layout.y, moveName, 0xBBBBBB)
-                    layout.line()
+                for (move in entry.moves) {
+                    moveRow(layout, move, lvPrefix)
                 }
             }
             layout.gap(3)
@@ -972,16 +1006,18 @@ object SpawnDisplayHelper {
         if (data.eggMoves.isNotEmpty()) {
             layout.text(padding, tr("cobbledex-rei-emi-jei.moves.egg"), 0xEEEEEE)
             layout.line()
-            val moveText = data.eggMoves.joinToString(", ")
-            layout.wrapped(padding + 4, moveText, right - padding - 4, 0xFFDDDD88.toInt())
+            for (move in data.eggMoves) {
+                moveRow(layout, move)
+            }
             layout.gap(3)
         }
 
         if (data.tutorMoves.isNotEmpty()) {
             layout.text(padding, tr("cobbledex-rei-emi-jei.moves.tutor"), 0xEEEEEE)
             layout.line()
-            val moveText = data.tutorMoves.joinToString(", ")
-            layout.wrapped(padding + 4, moveText, right - padding - 4, 0xFFAABBCC.toInt())
+            for (move in data.tutorMoves) {
+                moveRow(layout, move)
+            }
         }
 
         layout.gap(padding)

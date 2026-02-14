@@ -2,6 +2,13 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.26.0] - 2026-02-15
+
+### Changed
+- Moves section reworked: each move now shows type-colored indicator, damage category icon (⚔/◆/✦), power, and accuracy
+- Egg and tutor moves display as individual rows with full metadata instead of comma-separated text
+- Moves panel height increased from 220px to 240px to accommodate richer layout
+
 ## [1.25.1] - 2026-02-14
 
 ### Added

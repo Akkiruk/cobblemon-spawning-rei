@@ -4,6 +4,8 @@ import com.cobblemon.mod.common.api.conditional.RegistryLikeCondition
 import com.cobblemon.mod.common.api.conditional.RegistryLikeIdentifierCondition
 import com.cobblemon.mod.common.api.conditional.RegistryLikeTagCondition
 import com.cobblemon.mod.common.api.drop.ItemDropEntry
+import com.cobblemon.mod.common.api.moves.MoveTemplate
+import com.cobblemon.mod.common.api.moves.Moves
 import com.cobblemon.mod.common.api.pokemon.PokemonProperties
 import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
 import com.cobblemon.mod.common.api.pokemon.evolution.ContextEvolution
@@ -335,6 +337,17 @@ object EvolutionDataLoader {
 
 
 
+    private fun toMoveDetail(template: MoveTemplate): MoveDetail {
+        return MoveDetail(
+            name = titleCase(template.name),
+            type = template.elementalType.name.lowercase(),
+            category = template.damageCategory.name,
+            power = template.power.toInt(),
+            accuracy = template.accuracy.toInt(),
+            pp = template.pp
+        )
+    }
+
     data class SpeciesBasicInfo(
         val name: String,
         val nationalDexNumber: Int,
@@ -359,8 +372,8 @@ object EvolutionDataLoader {
         val baseExperienceYield: Int? = null,
         val baseFriendship: Int? = null,
         val levelUpMoves: List<LevelUpMove>? = null,
-        val eggMoves: List<String>? = null,
-        val tutorMoves: List<String>? = null,
+        val eggMoves: List<MoveDetail>? = null,
+        val tutorMoves: List<MoveDetail>? = null,
         val shoulderMountable: Boolean = false
     )
 
@@ -455,10 +468,10 @@ object EvolutionDataLoader {
 
                 val levelUpMoves = try {
                     val moves = form.moves.levelUpMoves
-                    val grouped = mutableMapOf<Int, MutableList<String>>()
+                    val grouped = mutableMapOf<Int, MutableList<MoveDetail>>()
                     for ((level, moveList) in moves) {
                         for (move in moveList) {
-                            grouped.getOrPut(level) { mutableListOf() }.add(titleCase(move.name))
+                            grouped.getOrPut(level) { mutableListOf() }.add(toMoveDetail(move))
                         }
                     }
                     grouped.entries.sortedBy { it.key }
@@ -467,11 +480,11 @@ object EvolutionDataLoader {
                 } catch (_: Exception) { null }
 
                 val eggMoves = try {
-                    form.moves.eggMoves.map { titleCase(it.name) }.ifEmpty { null }
+                    form.moves.eggMoves.map { toMoveDetail(it) }.ifEmpty { null }
                 } catch (_: Exception) { null }
 
                 val tutorMoves = try {
-                    form.moves.tutorMoves.map { titleCase(it.name) }.ifEmpty { null }
+                    form.moves.tutorMoves.map { toMoveDetail(it) }.ifEmpty { null }
                 } catch (_: Exception) { null }
 
                 val shoulderMount = try { species.shoulderMountable } catch (_: Exception) { false }
