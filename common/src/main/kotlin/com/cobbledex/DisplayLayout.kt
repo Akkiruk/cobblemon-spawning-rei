@@ -24,6 +24,7 @@ object DisplayLayout {
     @Volatile private var cachedDropMax: PanelSize? = null
     @Volatile private var cachedStatsMax: PanelSize? = null
     @Volatile private var cachedPokedexInfoMax: PanelSize? = null
+    @Volatile private var cachedPokemonDescriptionMax: PanelSize? = null
     @Volatile private var cachedMovesMax: PanelSize? = null
     @Volatile private var cachedFossilMax: PanelSize? = null
     @Volatile private var cachedTypeChartMax: PanelSize? = null
@@ -37,6 +38,7 @@ object DisplayLayout {
         cachedDropMax = null
         cachedStatsMax = null
         cachedPokedexInfoMax = null
+        cachedPokemonDescriptionMax = null
         cachedMovesMax = null
         cachedFossilMax = null
         cachedTypeChartMax = null
@@ -80,6 +82,12 @@ object DisplayLayout {
         return computeMaxPokedexInfoSize().also { cachedPokedexInfoMax = it }
     }
 
+    fun getMaxPokemonDescriptionSize(): PanelSize {
+        checkCacheValidity()
+        cachedPokemonDescriptionMax?.let { return it }
+        return computeMaxPokemonDescriptionSize().also { cachedPokemonDescriptionMax = it }
+    }
+
     fun getMaxMovesSize(): PanelSize {
         checkCacheValidity()
         cachedMovesMax?.let { return it }
@@ -113,6 +121,7 @@ object DisplayLayout {
             cachedDropMax = null
             cachedStatsMax = null
             cachedPokedexInfoMax = null
+            cachedPokemonDescriptionMax = null
             cachedMovesMax = null
             cachedFossilMax = null
             cachedTypeChartMax = null
@@ -213,6 +222,21 @@ object DisplayLayout {
             if (y > maxH) maxH = y
         }
         return PanelSize(200, maxH.coerceAtMost(350))
+    }
+
+    private fun computeMaxPokemonDescriptionSize(): PanelSize {
+        if (!SpawnDataIndex.hasData()) return PanelSize(200, 120)
+        val font = Minecraft.getInstance().font
+        var maxH = 80
+        for ((_, info) in SpawnDataIndex.speciesInfo) {
+            val description = info.description ?: continue
+            if (description.isBlank()) continue
+            var y = 26
+            y += SpawnDisplayHelper.wrapText(font, description, 200 - PADDING * 2 - 4).size * LINE_HEIGHT
+            y += PADDING + 4
+            if (y > maxH) maxH = y
+        }
+        return PanelSize(200, maxH.coerceAtMost(300))
     }
 
     private fun computeMaxFossilSize(): PanelSize {

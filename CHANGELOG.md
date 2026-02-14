@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.26.1] - 2026-02-14
+
+### Added
+- TM moves now shown in the Moves section with full type/category/power/accuracy details
+
 ## [1.26.0] - 2026-02-15
 
 ### Changed

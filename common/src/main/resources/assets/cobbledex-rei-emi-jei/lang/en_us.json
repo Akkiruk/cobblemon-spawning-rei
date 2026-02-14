@@ -6,6 +6,7 @@
   "category.cobbledex-rei-emi-jei.stats": "Base Stats",
   "category.cobbledex-rei-emi-jei.moves": "Moves",
   "category.cobbledex-rei-emi-jei.pokedex_info": "Pok\u00e9dex Info",
+  "category.cobbledex-rei-emi-jei.pokemon_description": "Pok\u00e9dex Entry",
 
   "cobbledex-rei-emi-jei.info.abilities": "\u2605 Abilities",
   "cobbledex-rei-emi-jei.info.egg_groups": "\u2606 Egg Groups",
@@ -26,6 +27,7 @@
   "cobbledex-rei-emi-jei.moves.levelup": "\u2694 Level-up Moves",
   "cobbledex-rei-emi-jei.moves.egg": "\u25C7 Egg Moves",
   "cobbledex-rei-emi-jei.moves.tutor": "\u2605 Tutor Moves",
+  "cobbledex-rei-emi-jei.moves.tm": "\u25A0 TM Moves",
   "cobbledex-rei-emi-jei.moves.page": "Page %1$d / %2$d",
 
   "cobbledex-rei-emi-jei.context.land": "Land",

@@ -1018,6 +1018,15 @@ object SpawnDisplayHelper {
             for (move in data.tutorMoves) {
                 moveRow(layout, move)
             }
+            layout.gap(3)
+        }
+
+        if (data.tmMoves.isNotEmpty()) {
+            layout.text(padding, tr("cobbledex-rei-emi-jei.moves.tm"), 0xEEEEEE)
+            layout.line()
+            for (move in data.tmMoves) {
+                moveRow(layout, move)
+            }
         }
 
         layout.gap(padding)
@@ -1168,6 +1177,25 @@ object SpawnDisplayHelper {
         }
 
         layout.gap(padding)
+        return layout
+    }
+
+    // --- Pokemon description layout builder ---
+
+    fun buildPokemonDescriptionLayout(data: PokemonDescriptionRecipeData): PanelLayout {
+        val layout = PanelLayout(200)
+        val padding = PanelLayout.PADDING
+        val right = layout.right
+
+        layout.textAt(padding + 22, 6, formatSpeciesName(data.speciesName), 0xFFFFFF)
+        val headerText = tr("category.cobbledex-rei-emi-jei.pokemon_description")
+        layout.textRightAt(6, headerText, 0xDDCC99)
+        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        layout.skipTo(26)
+
+        layout.wrapped(padding + 4, data.description, right - padding - 4, 0xFFDDDDDD.toInt())
+        
+        layout.gap(padding + 4)
         return layout
     }
 

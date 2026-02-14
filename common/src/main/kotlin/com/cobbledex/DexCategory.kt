@@ -62,7 +62,7 @@ interface DexCategory {
     companion object {
         val ALL: List<DexCategory> = listOf(
             SpawnDex, EvolutionDex, ObtainmentDex, DropDex,
-            StatsDex, MovesDex, PokedexInfoDex, FossilDex,
+            StatsDex, MovesDex, PokedexInfoDex, PokemonDescriptionDex, FossilDex,
             TypeChartDex, NatureDex
         )
     }
@@ -307,6 +307,38 @@ object PokedexInfoDex : DexCategory {
             inputSpecies = listOf(d.speciesName),
             outputSpecies = emptyList(),
             layoutFactory = { SpawnDisplayHelper.buildPokedexInfoLayout(d) },
+            _width = { size.width },
+            _height = { size.height },
+            _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
+        )
+    }
+}
+
+// ----- Pokemon Description -----
+
+object PokemonDescriptionDex : DexCategory {
+    override val id = "pokemon_description"
+    override val titleKey = "category.cobbledex-rei-emi-jei.pokemon_description"
+    override val icon: Item = Items.BOOK
+    override val maxSize = DisplayLayout::getMaxPokemonDescriptionSize
+    override val supportsRecipeTree = true
+    override fun isEnabled(config: CobbleDexConfig) = config.showPokemonDescription
+
+    override fun buildAllRecipes() =
+        RecipeBuilder.buildAllDescriptionRecipes().map(::toHandle)
+
+    override fun buildRecipesFor(species: String): List<RecipeHandle> {
+        val r = RecipeBuilder.buildDescriptionFor(species) ?: return emptyList()
+        return listOf(toHandle(r))
+    }
+
+    private fun toHandle(d: PokemonDescriptionRecipeData): RecipeHandle {
+        val size = maxSize()
+        return RecipeHandle(
+            recipeIdPath = "pokemon_description/${sanitizePath(d.speciesName)}",
+            inputSpecies = listOf(d.speciesName),
+            outputSpecies = emptyList(),
+            layoutFactory = { SpawnDisplayHelper.buildPokemonDescriptionLayout(d) },
             _width = { size.width },
             _height = { size.height },
             _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },

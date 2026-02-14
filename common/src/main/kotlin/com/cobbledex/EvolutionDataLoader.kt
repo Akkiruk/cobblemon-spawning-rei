@@ -374,6 +374,7 @@ object EvolutionDataLoader {
         val levelUpMoves: List<LevelUpMove>? = null,
         val eggMoves: List<MoveDetail>? = null,
         val tutorMoves: List<MoveDetail>? = null,
+        val tmMoves: List<MoveDetail>? = null,
         val shoulderMountable: Boolean = false
     )
 
@@ -487,6 +488,10 @@ object EvolutionDataLoader {
                     form.moves.tutorMoves.map { toMoveDetail(it) }.ifEmpty { null }
                 } catch (_: Exception) { null }
 
+                val tmMoves = try {
+                    form.moves.tmMoves.map { toMoveDetail(it) }.ifEmpty { null }
+                } catch (_: Exception) { null }
+
                 val shoulderMount = try { species.shoulderMountable } catch (_: Exception) { false }
 
                 result[name] = SpeciesBasicInfo(
@@ -515,6 +520,7 @@ object EvolutionDataLoader {
                     levelUpMoves = levelUpMoves,
                     eggMoves = eggMoves,
                     tutorMoves = tutorMoves,
+                    tmMoves = tmMoves,
                     shoulderMountable = shoulderMount
                 )
             } catch (e: Exception) {

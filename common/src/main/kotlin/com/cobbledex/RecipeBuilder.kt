@@ -139,16 +139,18 @@ object RecipeBuilder {
         val levelUp = info.levelUpMoves ?: emptyList()
         val egg = info.eggMoves ?: emptyList()
         val tutor = info.tutorMoves ?: emptyList()
-        if (levelUp.isEmpty() && egg.isEmpty() && tutor.isEmpty()) return emptyList()
+        val tm = info.tmMoves ?: emptyList()
+        if (levelUp.isEmpty() && egg.isEmpty() && tutor.isEmpty() && tm.isEmpty()) return emptyList()
 
         // Flatten level-up moves into individual lines for pagination
         val totalLevelUpLines = levelUp.sumOf { it.moves.size }
         val eggLines = if (egg.isNotEmpty()) 1 + egg.size else 0
         val tutorLines = if (tutor.isNotEmpty()) 1 + tutor.size else 0
-        val totalLines = totalLevelUpLines + eggLines + tutorLines
+        val tmLines = if (tm.isNotEmpty()) 1 + tm.size else 0
+        val totalLines = totalLevelUpLines + eggLines + tutorLines + tmLines
 
         if (totalLines <= MOVES_PER_PAGE) {
-            return listOf(MovesRecipeData(species, levelUp, egg, tutor, 1, 1))
+            return listOf(MovesRecipeData(species, levelUp, egg, tutor, tm, 1, 1))
         }
 
         // Paginate level-up moves
@@ -156,7 +158,7 @@ object RecipeBuilder {
         var remaining = levelUp.toMutableList()
         var pageNum = 1
         val pageCount = ((totalLevelUpLines + MOVES_PER_PAGE - 1) / MOVES_PER_PAGE).coerceAtLeast(1) +
-            (if (eggLines + tutorLines > 0) 1 else 0)
+            (if (eggLines + tutorLines + tmLines > 0) 1 else 0)
 
         while (remaining.isNotEmpty()) {
             val pageMoves = mutableListOf<LevelUpMove>()
@@ -174,13 +176,13 @@ object RecipeBuilder {
                     linesUsed = MOVES_PER_PAGE
                 }
             }
-            pages.add(MovesRecipeData(species, pageMoves, emptyList(), emptyList(), pageNum, pageCount))
+            pages.add(MovesRecipeData(species, pageMoves, emptyList(), emptyList(), emptyList(), pageNum, pageCount))
             pageNum++
         }
 
-        // Last page with egg/tutor moves
-        if (egg.isNotEmpty() || tutor.isNotEmpty()) {
-            pages.add(MovesRecipeData(species, emptyList(), egg, tutor, pageNum, pageCount))
+        // Last page with egg/tutor/tm moves
+        if (egg.isNotEmpty() || tutor.isNotEmpty() || tm.isNotEmpty()) {
+            pages.add(MovesRecipeData(species, emptyList(), egg, tutor, tm, pageNum, pageCount))
         }
 
         return pages
@@ -231,5 +233,24 @@ object RecipeBuilder {
 
     fun buildNatureRecipes(): List<NatureRecipeData> {
         return listOf(NatureRecipeData(NatureData.NATURES))
+    }
+
+    // --- Pokemon description recipes ---
+
+    fun buildAllDescriptionRecipes(): List<PokemonDescriptionRecipeData> {
+        val recipes = mutableListOf<PokemonDescriptionRecipeData>()
+        for ((species, info) in SpawnDataIndex.speciesInfo) {
+            val description = info.description ?: continue
+            if (description.isBlank()) continue
+            recipes.add(PokemonDescriptionRecipeData(species, description))
+        }
+        return recipes
+    }
+
+    fun buildDescriptionFor(speciesName: String): PokemonDescriptionRecipeData? {
+        val info = SpawnDataIndex.getSpeciesInfo(speciesName) ?: return null
+        val description = info.description ?: return null
+        if (description.isBlank()) return null
+        return PokemonDescriptionRecipeData(speciesName, description)
     }
 }

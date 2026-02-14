@@ -19,6 +19,7 @@ data class MovesRecipeData(
     val levelUpMoves: List<LevelUpMove>,
     val eggMoves: List<MoveDetail>,
     val tutorMoves: List<MoveDetail>,
+    val tmMoves: List<MoveDetail>,
     val pageIndex: Int,
     val pageTotal: Int
 )
