@@ -98,9 +98,6 @@ jobs:
             fabric-api | requires | *
             fabric-language-kotlin | requires | *
             cobblemon | requires | *
-            roughly-enough-items | optional | *
-            jei | optional | *
-            emi | optional | *
           
           java: 21
           
@@ -133,9 +130,6 @@ jobs:
           dependencies: |
             kotlin-for-forge | requires | *
             cobblemon | requires | *
-            roughly-enough-items | optional | *
-            jei | optional | *
-            emi | optional | *
           
           java: 21
 

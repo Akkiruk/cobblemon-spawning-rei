@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.24.2] - 2026-02-14
+
+### Fixed
+- REI, JEI, and EMI are no longer listed as dependencies on CurseForge/Modrinth (prevents launchers from force-installing them)
+
 ## [1.24.1] - 2026-02-14
 
 ### Fixed
