@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.24.3] - 2026-02-14
+
+### Fixed
+- Type chart panel now dynamically sizes to fit all weaknesses, resistances, and immunities (dual-type Pokémon with many matchups were getting clipped)
+
 ## [1.24.2] - 2026-02-14
 
 ### Fixed

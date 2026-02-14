@@ -96,7 +96,7 @@ object DisplayLayout {
     fun getMaxTypeChartSize(): PanelSize {
         checkCacheValidity()
         cachedTypeChartMax?.let { return it }
-        return PanelSize(200, 200).also { cachedTypeChartMax = it }
+        return computeMaxTypeChartSize().also { cachedTypeChartMax = it }
     }
 
     fun getMaxNatureSize(): PanelSize {
@@ -453,5 +453,23 @@ object DisplayLayout {
             }
         }
         return PanelSize(200, maxH.coerceAtMost(250))
+    }
+
+    private fun computeMaxTypeChartSize(): PanelSize {
+        if (!SpawnDataIndex.hasData()) return PanelSize(200, 200)
+        var maxH = 80
+        for ((_, info) in SpawnDataIndex.speciesInfo) {
+            val matchups = TypeChart.getMatchups(info.primaryType, info.secondaryType)
+            var h = 40
+            if (matchups.weaknesses.isNotEmpty())
+                h += LINE_HEIGHT + matchups.weaknesses.size * LINE_HEIGHT + SECTION_GAP
+            if (matchups.resistances.isNotEmpty())
+                h += LINE_HEIGHT + matchups.resistances.size * LINE_HEIGHT + SECTION_GAP
+            if (matchups.immunities.isNotEmpty())
+                h += LINE_HEIGHT + matchups.immunities.size * LINE_HEIGHT
+            h += PADDING
+            if (h > maxH) maxH = h
+        }
+        return PanelSize(200, maxH)
     }
 }
