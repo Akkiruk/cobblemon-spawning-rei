@@ -63,6 +63,12 @@ object RecipeBuilder {
         return listOf(DropRecipeData(speciesName, drops))
     }
 
+    fun buildDropRecipesForItem(itemId: String): List<DropRecipeData> {
+        val species = SpawnDataIndex.getSpeciesDroppingItem(itemId)
+        if (species.isEmpty()) return emptyList()
+        return species.mapNotNull { buildDropsFor(it).firstOrNull() }
+    }
+
     fun buildAllStatsRecipes(): List<StatsRecipeData> {
         val recipes = mutableListOf<StatsRecipeData>()
         for ((species, info) in SpawnDataIndex.speciesInfo) {

@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.25.1] - 2026-02-14
+
+### Added
+- Item → Pokémon reverse lookup for drops: clicking an item in REI now shows which Pokémon drop it
+
 ## [1.25.0] - 2026-02-14
 
 ### Changed

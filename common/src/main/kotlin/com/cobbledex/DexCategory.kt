@@ -57,6 +57,7 @@ interface DexCategory {
     fun buildAllRecipes(): List<RecipeHandle>
     fun buildRecipesFor(species: String): List<RecipeHandle>
     fun buildUsagesFor(species: String): List<RecipeHandle> = emptyList()
+    fun buildRecipesForItem(itemId: String): List<RecipeHandle> = emptyList()
 
     companion object {
         val ALL: List<DexCategory> = listOf(
@@ -199,6 +200,9 @@ object DropDex : DexCategory {
 
     override fun buildRecipesFor(species: String) =
         RecipeBuilder.buildDropsFor(species).map(::toHandle)
+
+    override fun buildRecipesForItem(itemId: String) =
+        RecipeBuilder.buildDropRecipesForItem(itemId).map(::toHandle)
 
     private fun toHandle(d: DropRecipeData) = RecipeHandle(
         recipeIdPath = "drops/${sanitizePath(d.speciesName)}",

@@ -230,10 +230,18 @@ open class CobbleDexREIPlugin : REIClientPlugin {
 
         override fun getRecipeFor(entry: EntryStack<*>): Optional<List<GenericDisplay>> {
             val value = entry.value ?: return Optional.empty()
-            if (value !is PokemonEntry) return Optional.empty()
-            val handles = def.buildRecipesFor(value.species)
-            if (handles.isEmpty()) return Optional.empty()
-            return Optional.of(handles.map { GenericDisplay(it, def) })
+            if (value is PokemonEntry) {
+                val handles = def.buildRecipesFor(value.species)
+                if (handles.isEmpty()) return Optional.empty()
+                return Optional.of(handles.map { GenericDisplay(it, def) })
+            }
+            if (value is net.minecraft.world.item.ItemStack) {
+                val itemId = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(value.item).toString()
+                val handles = def.buildRecipesForItem(itemId)
+                if (handles.isEmpty()) return Optional.empty()
+                return Optional.of(handles.map { GenericDisplay(it, def) })
+            }
+            return Optional.empty()
         }
 
         override fun getUsageFor(entry: EntryStack<*>): Optional<List<GenericDisplay>> {

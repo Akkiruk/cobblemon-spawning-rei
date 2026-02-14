@@ -47,6 +47,10 @@ object SpawnDataIndex {
         private set
 
     @Volatile
+    var dropsByItem: Map<String, List<String>> = emptyMap()
+        private set
+
+    @Volatile
     var allSpeciesNames: List<String> = emptyList()
         private set
 
@@ -241,6 +245,15 @@ object SpawnDataIndex {
             }
         }
 
+        val dropIndex = mutableMapOf<String, MutableList<String>>()
+        for ((species, info) in speciesInfo) {
+            val drops = info.drops ?: continue
+            for (drop in drops) {
+                dropIndex.getOrPut(drop.itemId) { mutableListOf() }.add(species)
+            }
+        }
+        dropsByItem = dropIndex
+
         allSpeciesNames = allNames.sortedWith(
             compareBy<String> {
                 val dex = speciesInfo[it]?.nationalDexNumber ?: 0
@@ -276,4 +289,6 @@ object SpawnDataIndex {
     fun getObtainmentFor(species: String): List<ObtainmentInfo> = obtainmentBySpecies[SpeciesNameNormalizer.normalize(species)] ?: emptyList()
 
     fun getFossilsFor(species: String): List<FossilCombo> = fossilsBySpecies[SpeciesNameNormalizer.normalize(species)] ?: emptyList()
+
+    fun getSpeciesDroppingItem(itemId: String): List<String> = dropsByItem[itemId] ?: emptyList()
 }
