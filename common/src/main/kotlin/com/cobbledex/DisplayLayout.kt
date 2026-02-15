@@ -214,10 +214,6 @@ object DisplayLayout {
                 if (info.baseExperienceYield != null) y += lh
                 if (info.baseFriendship != null) y += lh
             }
-            info.description?.let { desc ->
-                y += 3 + 1 + 4
-                y += SpawnDisplayHelper.wrapText(font, desc, 200 - PADDING * 2 - 4).size * lh
-            }
             y += PADDING
             if (y > maxH) maxH = y
         }

@@ -2,6 +2,20 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.26.2] - 2026-02-14
+
+### Fixed
+- All remaining hardcoded English strings now use translation keys (stats, natures, tooltips, label badges, moves prefix, hidden ability tag)
+- Nature table columns now auto-size to fit translated text instead of using fixed pixel positions
+- Stat bar labels dynamically measure translated text width so bars don't overlap labels in verbose languages
+- Tooltip summary counts ("spawns", "evos", "drops", "obtainment") now translatable
+- BST/EV yield text now translatable
+- Moves page indicator uses existing translation key instead of hardcoded format
+- Label badges (Legendary, Mythical, Ultra Beast, Paradox) now translatable
+
+### Added
+- 63 new translation keys: stat abbreviations, stat full names, 25 nature names, nature table headers, tooltip counts, BST/EV, hidden ability tag, moves level prefix, label badges
+
 ## [1.26.1] - 2026-02-14
 
 ### Added

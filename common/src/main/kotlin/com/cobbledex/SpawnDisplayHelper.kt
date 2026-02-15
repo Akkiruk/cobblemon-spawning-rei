@@ -365,22 +365,24 @@ object SpawnDisplayHelper {
                 it in setOf("legendary", "mythical", "ultra_beast", "paradox")
             }
             if (!labelBadges.isNullOrEmpty()) {
-                val badge = labelBadges.joinToString(", ") { "§d${titleCase(it.replace("_", " "))}" }
+                val badge = labelBadges.joinToString(", ") {
+                    "§d" + tr("cobbledex-rei-emi-jei.label.${it}")
+                }
                 lines.add(Component.literal(badge))
             }
         }
 
         val counts = mutableListOf<String>()
         val spawns = SpawnDataIndex.getSpawnsFor(speciesName)
-        if (spawns.isNotEmpty()) counts.add("§a${buildSortedSpawns(spawns).size} spawns")
+        if (spawns.isNotEmpty()) counts.add("§a" + tr("cobbledex-rei-emi-jei.tooltip.spawns", buildSortedSpawns(spawns).size))
         val evosFrom = SpawnDataIndex.getEvolutionsFrom(speciesName)
         val evosTo = SpawnDataIndex.getEvolutionsTo(speciesName)
         val evoCount = evosFrom.size + evosTo.size
-        if (evoCount > 0) counts.add("§6${evoCount} evos")
+        if (evoCount > 0) counts.add("§6" + tr("cobbledex-rei-emi-jei.tooltip.evos", evoCount))
         val dropCount = info?.drops?.size ?: 0
-        if (dropCount > 0) counts.add("§b${dropCount} drops")
+        if (dropCount > 0) counts.add("§b" + tr("cobbledex-rei-emi-jei.tooltip.drops", dropCount))
         val obtainments = SpawnDataIndex.getObtainmentFor(speciesName)
-        if (obtainments.isNotEmpty()) counts.add("§d${obtainments.size} obtainment")
+        if (obtainments.isNotEmpty()) counts.add("§d" + tr("cobbledex-rei-emi-jei.tooltip.obtainment", obtainments.size))
         if (counts.isNotEmpty()) {
             lines.add(Component.literal(counts.joinToString(" §7| ")))
         }
@@ -739,10 +741,18 @@ object SpawnDisplayHelper {
     // --- Stats detail rendering (shared between REI/JEI/EMI) ---
 
     private val STAT_NAMES = listOf("hp", "atk", "def", "spa", "spd", "spe")
-    private val STAT_LABELS = mapOf(
-        "hp" to "HP", "atk" to "Atk", "def" to "Def",
-        "spa" to "SpA", "spd" to "SpD", "spe" to "Spe"
+    private val STAT_LABEL_KEYS = mapOf(
+        "hp" to "cobbledex-rei-emi-jei.stat.hp",
+        "atk" to "cobbledex-rei-emi-jei.stat.atk",
+        "def" to "cobbledex-rei-emi-jei.stat.def",
+        "spa" to "cobbledex-rei-emi-jei.stat.spa",
+        "spd" to "cobbledex-rei-emi-jei.stat.spd",
+        "spe" to "cobbledex-rei-emi-jei.stat.spe"
     )
+    private fun statLabel(statId: String): String {
+        val key = STAT_LABEL_KEYS[statId] ?: return statId.uppercase()
+        return tr(key)
+    }
     private val STAT_COLORS = mapOf(
         "hp" to 0xFFFF5555.toInt(),
         "atk" to 0xFFFF8844.toInt(),
@@ -791,7 +801,7 @@ object SpawnDisplayHelper {
         }
         layout.textAt(padding, 25, typeStr, typeColor(primaryType))
 
-        val bstText = "BST: $bst"
+        val bstText = tr("cobbledex-rei-emi-jei.stats.bst", bst)
         val bstColor = when {
             bst >= 600 -> 0xFFFF5555.toInt()
             bst >= 500 -> 0xFFFFCC33.toInt()
@@ -801,14 +811,15 @@ object SpawnDisplayHelper {
         layout.textRightAt(25, bstText, bstColor)
 
         layout.skipTo(40)
-        val barX = padding + 26
+        val maxLabelWidth = STAT_NAMES.maxOf { font.width(statLabel(it)) }
+        val barX = padding + maxLabelWidth + 4
         val valueSpace = 22
         val barMaxWidth = right - barX - valueSpace
         val maxStat = 255
 
         for (statId in STAT_NAMES) {
             val value = baseStats[statId] ?: 0
-            val label = STAT_LABELS[statId] ?: statId.uppercase()
+            val label = statLabel(statId)
             val color = STAT_COLORS[statId] ?: 0xFFAAAAAA.toInt()
 
             layout.text(padding, label, 0xBBBBBB)
@@ -823,8 +834,8 @@ object SpawnDisplayHelper {
 
         if (evYield != null && evYield.isNotEmpty()) {
             layout.gap(2)
-            val evParts = evYield.entries.map { "${it.value} ${STAT_LABELS[it.key] ?: it.key.uppercase()}" }
-            val evText = "EV: ${evParts.joinToString(", ")}"
+            val evParts = evYield.entries.map { "${it.value} ${statLabel(it.key)}" }
+            val evText = tr("cobbledex-rei-emi-jei.stats.ev_yield", evParts.joinToString(", "))
             layout.text(padding, evText, 0xFF88CCFF.toInt())
             layout.gap(font.lineHeight)
         }
@@ -859,7 +870,7 @@ object SpawnDisplayHelper {
                 layout.line()
             }
             data.hiddenAbility?.let { ha ->
-                layout.text(indentX, "\u2022 $ha (HA)", 0xFF66AADD.toInt())
+                layout.text(indentX, "\u2022 $ha ${tr("cobbledex-rei-emi-jei.info.hidden_ability")}", 0xFF66AADD.toInt())
                 layout.line()
             }
             layout.gap(3)
@@ -925,13 +936,6 @@ object SpawnDisplayHelper {
             }
         }
 
-        data.description?.let { desc ->
-            layout.gap(3)
-            layout.separator(0x20FFFFFF)
-            layout.gap(4)
-            layout.wrapped(indentX, desc, indentWidth, 0xFF999999.toInt())
-        }
-
         layout.gap(padding)
         return layout
     }
@@ -984,7 +988,7 @@ object SpawnDisplayHelper {
 
         layout.textAt(padding + 22, 6, formatSpeciesName(data.speciesName), 0xFFFFFF)
         val headerText = if (data.pageTotal > 1)
-            tr("category.cobbledex-rei-emi-jei.moves") + " (${data.pageIndex}/${data.pageTotal})"
+            tr("category.cobbledex-rei-emi-jei.moves") + " (" + tr("cobbledex-rei-emi-jei.moves.page", data.pageIndex, data.pageTotal) + ")"
         else
             tr("category.cobbledex-rei-emi-jei.moves")
         layout.textRightAt(6, headerText, 0xDDCC99)
@@ -995,7 +999,7 @@ object SpawnDisplayHelper {
             layout.text(padding, tr("cobbledex-rei-emi-jei.moves.levelup"), 0xEEEEEE)
             layout.line()
             for (entry in data.levelUpMoves) {
-                val lvPrefix = "Lv.${entry.level}"
+                val lvPrefix = tr("cobbledex-rei-emi-jei.moves.level_prefix", entry.level)
                 for (move in entry.moves) {
                     moveRow(layout, move, lvPrefix)
                 }
@@ -1138,11 +1142,25 @@ object SpawnDisplayHelper {
     // --- Nature layout builder ---
 
     fun buildNatureLayout(data: NatureRecipeData): PanelLayout {
-        val layout = PanelLayout(200)
-        val font = layout.font
+        val font = Minecraft.getInstance().font
         val padding = PanelLayout.PADDING
-        val right = layout.right
         val lineHeight = 10
+
+        val nameColHeader = tr("cobbledex-rei-emi-jei.natures.name_col")
+        val upColHeader = tr("cobbledex-rei-emi-jei.natures.up_col")
+        val downColHeader = tr("cobbledex-rei-emi-jei.natures.down_col")
+        val nameColWidth = maxOf(font.width(nameColHeader), NatureData.NATURES.maxOf { font.width(NatureData.natureName(it.name)) }) + 6
+        val statMaxWidth = maxOf(
+            font.width(upColHeader),
+            font.width(downColHeader),
+            NatureData.NATURES.mapNotNull { it.increasedStat?.let { s -> font.width(NatureData.statName(s)) } }.maxOrNull() ?: 0,
+            NatureData.NATURES.mapNotNull { it.decreasedStat?.let { s -> font.width(NatureData.statName(s)) } }.maxOrNull() ?: 0
+        ) + 6
+        val tableWidth = (padding + 2) + nameColWidth + statMaxWidth * 2 + padding
+        val panelWidth = maxOf(tableWidth, PanelLayout.MIN_WIDTH).coerceAtMost(PanelLayout.MAX_WIDTH)
+
+        val layout = PanelLayout(panelWidth)
+        val right = layout.right
 
         val headerText = tr("category.cobbledex-rei-emi-jei.natures")
         layout.textCentered(headerText, 0xDDCC99)
@@ -1151,25 +1169,25 @@ object SpawnDisplayHelper {
         layout.skipTo(23)
 
         val nameCol = padding + 2
-        val upCol = padding + 60
-        val downCol = padding + 112
-        layout.textAt(nameCol, layout.y, "Nature", 0xEEEEEE)
-        layout.textAt(upCol, layout.y, "+Stat", 0xFF88FF88.toInt())
-        layout.textAt(downCol, layout.y, "-Stat", 0xFFFF8888.toInt())
+        val upCol = nameCol + nameColWidth
+        val downCol = upCol + statMaxWidth
+        layout.textAt(nameCol, layout.y, nameColHeader, 0xEEEEEE)
+        layout.textAt(upCol, layout.y, upColHeader, 0xFF88FF88.toInt())
+        layout.textAt(downCol, layout.y, downColHeader, 0xFFFF8888.toInt())
         layout.gap(lineHeight + 2)
 
         layout.fill(padding, layout.y - 1, right, layout.y, 0x30FFFFFF)
 
         for (nature in data.natures) {
             val nameColor = if (nature.isNeutral) 0xFFAAAAAA.toInt() else 0xFFFFFFFF.toInt()
-            layout.text(nameCol, nature.name, nameColor)
+            layout.text(nameCol, NatureData.natureName(nature.name), nameColor)
 
             if (nature.isNeutral) {
                 layout.textAt(upCol, layout.y, "\u2014", 0xFF777777.toInt())
                 layout.textAt(downCol, layout.y, "\u2014", 0xFF777777.toInt())
             } else {
-                val upName = NatureData.STAT_NAMES[nature.increasedStat] ?: nature.increasedStat ?: ""
-                val downName = NatureData.STAT_NAMES[nature.decreasedStat] ?: nature.decreasedStat ?: ""
+                val upName = nature.increasedStat?.let { NatureData.statName(it) } ?: ""
+                val downName = nature.decreasedStat?.let { NatureData.statName(it) } ?: ""
                 layout.textAt(upCol, layout.y, upName, 0xFF88FF88.toInt())
                 layout.textAt(downCol, layout.y, downName, 0xFFFF8888.toInt())
             }
