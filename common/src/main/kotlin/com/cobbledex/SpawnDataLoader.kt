@@ -11,6 +11,9 @@ import com.cobblemon.mod.common.api.spawning.condition.SpawningCondition
 import com.cobblemon.mod.common.api.spawning.condition.SubmergedTypeSpawningCondition
 import com.cobblemon.mod.common.api.spawning.detail.PokemonSpawnDetail
 import com.cobblemon.mod.common.api.spawning.detail.SpawnDetail
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -362,6 +365,230 @@ object SpawnDataLoader {
         val result = paths.distinct()
         cachedModRoots = result
         return result
+    }
+
+    // --- File-based spawn loading (for LAN/dedicated server clients where runtime pool is empty) ---
+
+    fun loadFromModFiles(): Map<String, List<SpawnInfo>> {
+        val modRoots = findAllModRootPaths()
+        if (modRoots.isEmpty()) {
+            DebugLog.warn("No mod roots found for file-based spawn loading")
+            return emptyMap()
+        }
+
+        val presets = loadPresetsFromFiles(modRoots)
+        val result = mutableMapOf<String, MutableList<SpawnInfo>>()
+        var count = 0
+
+        for (root in modRoots) {
+            val dataDir = root.resolve("data")
+            if (!Files.exists(dataDir) || !Files.isDirectory(dataDir)) continue
+
+            try {
+                Files.list(dataDir).use { namespaces ->
+                    for (ns in namespaces) {
+                        if (!Files.isDirectory(ns)) continue
+                        val poolDir = ns.resolve("spawn_pool_world")
+                        if (!Files.isDirectory(poolDir)) continue
+
+                        Files.list(poolDir).use { files ->
+                            for (file in files) {
+                                if (!file.toString().endsWith(".json")) continue
+                                try {
+                                    val parsed = parseSpawnSetJson(Files.readString(file), presets)
+                                    for ((species, infos) in parsed) {
+                                        result.getOrPut(species) { mutableListOf() }.addAll(infos)
+                                        count += infos.size
+                                    }
+                                } catch (e: Exception) {
+                                    DebugLog.once("spawn-file-${file.fileName}") {
+                                        "Parse failed ${file.fileName}: ${e.message}"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                DebugLog.once("spawn-dir-scan") { "Data dir scan failed: ${e.message}" }
+            }
+        }
+
+        DebugLog.info("File-based: $count spawn entries for ${result.size} species from mod files")
+        return result
+    }
+
+    private fun loadPresetsFromFiles(modRoots: List<Path>): Map<String, JsonObject> {
+        val presets = mutableMapOf<String, JsonObject>()
+        for (root in modRoots) {
+            val dataDir = root.resolve("data")
+            if (!Files.exists(dataDir)) continue
+            try {
+                Files.list(dataDir).use { nsList ->
+                    for (ns in nsList) {
+                        if (!Files.isDirectory(ns)) continue
+                        val presetsDir = ns.resolve("spawn_detail_presets")
+                        if (!Files.isDirectory(presetsDir)) continue
+                        Files.list(presetsDir).use { files ->
+                            for (file in files) {
+                                val name = file.fileName.toString()
+                                if (!name.endsWith(".json")) continue
+                                try {
+                                    presets[name.removeSuffix(".json")] =
+                                        JsonParser.parseString(Files.readString(file)).asJsonObject
+                                } catch (_: Exception) {}
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+        return presets
+    }
+
+    private fun parseSpawnSetJson(json: String, presets: Map<String, JsonObject>): Map<String, List<SpawnInfo>> {
+        val root = JsonParser.parseString(json).asJsonObject
+        if (root.has("enabled") && !root["enabled"].asBoolean) return emptyMap()
+        val spawns = root.getAsJsonArray("spawns") ?: return emptyMap()
+        val result = mutableMapOf<String, MutableList<SpawnInfo>>()
+
+        for (element in spawns) {
+            try {
+                val obj = element.asJsonObject
+                val type = obj.get("type")?.asString ?: "pokemon"
+                if (type != "pokemon") continue
+                val pokemon = obj.get("pokemon")?.asString?.lowercase() ?: continue
+                val info = parseSpawnEntryJson(obj, pokemon, presets)
+                result.getOrPut(pokemon) { mutableListOf() }.add(info)
+            } catch (_: Exception) {}
+        }
+        return result
+    }
+
+    private fun parseSpawnEntryJson(obj: JsonObject, pokemon: String, presets: Map<String, JsonObject>): SpawnInfo {
+        val id = obj.get("id")?.asString ?: pokemon
+        val form = obj.get("form")?.asString
+        val aspects = obj.getAsJsonArray("aspects")?.joinToString(" ") { it.asString } ?: ""
+        val formAspects = when {
+            form != null && form.isNotBlank() && !form.equals("Normal", ignoreCase = true) -> form
+            aspects.isNotBlank() -> aspects
+            else -> ""
+        }
+
+        val bucket = obj.get("bucket")?.asString ?: "common"
+        val level = obj.get("level")?.asString ?: "1-100"
+        val context = obj.get("spawnablePositionType")?.asString ?: "grounded"
+        val weight = obj.get("weight")?.asFloat ?: 1.0f
+
+        val presetNames = obj.getAsJsonArray("presets")?.map { it.asString } ?: emptyList()
+        val condition = obj.getAsJsonObject("condition") ?: JsonObject()
+
+        // Preset provides defaults, spawn entry overrides
+        val mergedCond = JsonObject()
+        for (name in presetNames) {
+            val pc = presets[name]?.getAsJsonObject("condition") ?: continue
+            for ((k, v) in pc.entrySet()) if (!mergedCond.has(k)) mergedCond.add(k, v)
+        }
+        for ((k, v) in condition.entrySet()) mergedCond.add(k, v)
+
+        val mergedAnti = JsonObject()
+        for (name in presetNames) {
+            val pa = presets[name]?.getAsJsonObject("anticondition") ?: continue
+            for ((k, v) in pa.entrySet()) if (!mergedAnti.has(k)) mergedAnti.add(k, v)
+        }
+        obj.getAsJsonObject("anticondition")?.let { sa ->
+            for ((k, v) in sa.entrySet()) mergedAnti.add(k, v)
+        }
+
+        val anti = if (mergedAnti.size() > 0) {
+            SpawnAntiCondition(
+                biomes = jsonStrings(mergedAnti, "biomes"),
+                structures = jsonStrings(mergedAnti, "structures"),
+                neededBaseBlocks = jsonStrings(mergedAnti, "neededBaseBlocks"),
+                neededNearbyBlocks = jsonStrings(mergedAnti, "neededNearbyBlocks"),
+                minY = mergedAnti.get("minY")?.asInt,
+                maxY = mergedAnti.get("maxY")?.asInt,
+                timeRange = mergedAnti.get("timeRange")?.let(::parseJsonRange),
+                dimensions = jsonStrings(mergedAnti, "dimensions"),
+                isRaining = mergedAnti.get("isRaining")?.asBoolean,
+                isThundering = mergedAnti.get("isThundering")?.asBoolean,
+                minLight = mergedAnti.get("minLight")?.asInt,
+                maxLight = mergedAnti.get("maxLight")?.asInt,
+                moonPhase = mergedAnti.get("moonPhase")?.let(::parseJsonRange)
+            ).takeUnless { it.isEmpty }
+        } else null
+
+        // Handle both weightMultiplier (singular object) and weightMultipliers (array)
+        val weightMults = mutableListOf<WeightMultiplier>()
+        obj.getAsJsonObject("weightMultiplier")?.let { parseWeightMultJson(it)?.let(weightMults::add) }
+        obj.getAsJsonArray("weightMultipliers")?.forEach { parseWeightMultJson(it.asJsonObject)?.let(weightMults::add) }
+
+        val minLureLevel = if (context == "fishing") mergedCond.get("minLureLevel")?.asInt else null
+
+        return SpawnInfo(
+            id = id, pokemon = pokemon, formAspects = formAspects,
+            bucket = bucket, weight = weight, levelRange = level, context = context,
+            biomes = jsonStrings(mergedCond, "biomes"),
+            timeRange = mergedCond.get("timeRange")?.let(::parseJsonRange),
+            weather = SpawnWeather(mergedCond.get("isRaining")?.asBoolean, mergedCond.get("isThundering")?.asBoolean),
+            dimensions = jsonStrings(mergedCond, "dimensions"),
+            structures = jsonStrings(mergedCond, "structures"),
+            canSeeSky = mergedCond.get("canSeeSky")?.asBoolean,
+            minLight = mergedCond.get("minLight")?.asInt,
+            maxLight = mergedCond.get("maxLight")?.asInt,
+            minSkyLight = mergedCond.get("minSkyLight")?.asInt,
+            maxSkyLight = mergedCond.get("maxSkyLight")?.asInt,
+            minY = mergedCond.get("minY")?.asInt, maxY = mergedCond.get("maxY")?.asInt,
+            neededNearbyBlocks = jsonStrings(mergedCond, "neededNearbyBlocks"),
+            neededBaseBlocks = jsonStrings(mergedCond, "neededBaseBlocks"),
+            moonPhase = mergedCond.get("moonPhase")?.let(::parseJsonRange),
+            presets = presetNames,
+            fluid = mergedCond.get("fluid")?.asString,
+            anticondition = anti, weightMultipliers = weightMults,
+            minLureLevel = minLureLevel
+        )
+    }
+
+    private fun jsonStrings(obj: JsonObject, key: String): List<String> =
+        obj.getAsJsonArray(key)?.map { it.asString } ?: emptyList()
+
+    private fun parseJsonRange(element: JsonElement): String? {
+        if (element.isJsonPrimitive) return element.asString
+        if (element.isJsonObject) {
+            val ranges = element.asJsonObject.getAsJsonArray("ranges") ?: return null
+            return buildString {
+                var first = true
+                for (r in ranges) {
+                    if (!first) append(",")
+                    first = false
+                    if (r.isJsonArray) {
+                        val arr = r.asJsonArray
+                        append("${arr[0].asInt}-${arr[1].asInt}")
+                    } else append(r.asString)
+                }
+            }
+        }
+        return null
+    }
+
+    private fun parseWeightMultJson(wm: JsonObject): WeightMultiplier? {
+        val mult = wm.get("multiplier")?.asFloat ?: return null
+        val cond = wm.getAsJsonObject("condition")
+        val summary = if (cond != null) {
+            val parts = mutableListOf<String>()
+            cond.get("isThundering")?.let { if (it.asBoolean) parts.add(tr("cobbledex-rei-emi-jei.weight.thunderstorm")) }
+            cond.get("isRaining")?.let { if (it.asBoolean) parts.add(tr("cobbledex-rei-emi-jei.weight.rain")) }
+            cond.get("timeRange")?.let { parseJsonRange(it)?.let { r -> parts.add(r) } }
+            val biomes = jsonStrings(cond, "biomes")
+            if (biomes.isNotEmpty()) {
+                val names = biomes.map { formatId(it) }
+                if (names.size <= 3) parts.add(names.joinToString(", "))
+                else parts.add("${names.take(2).joinToString(", ")} " + tr("cobbledex-rei-emi-jei.weight.and_more", names.size - 2))
+            }
+            cond.get("minLureLevel")?.let { parts.add(tr("cobbledex-rei-emi-jei.weight.lure", it.asInt)) }
+            if (parts.isEmpty()) tr("cobbledex-rei-emi-jei.weight.conditional") else parts.joinToString(", ")
+        } else tr("cobbledex-rei-emi-jei.weight.always")
+        return WeightMultiplier(mult, summary)
     }
 
 }

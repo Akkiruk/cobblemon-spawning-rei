@@ -135,6 +135,9 @@ object SpawnDataIndex {
         PokemonItemCache.reset()
         SpawnDataLoader.invalidateCache()
         spawnsBySpecies = normalizeMapKeys(SpawnDataLoader.loadFromRuntime())
+        if (spawnsBySpecies.isEmpty()) {
+            spawnsBySpecies = normalizeMapKeys(SpawnDataLoader.loadFromModFiles())
+        }
 
         val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
 

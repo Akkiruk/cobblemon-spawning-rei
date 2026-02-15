@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.26.9] - 2026-02-14
+
+### Fixed
+- Spawn data now loads on LAN clients and dedicated server clients where Cobblemon's runtime spawn pool is unavailable
+- Reads spawn data directly from mod files with full preset resolution when the runtime pool is empty
+
 ## [1.26.8] - 2026-02-14
 
 ### Changed
