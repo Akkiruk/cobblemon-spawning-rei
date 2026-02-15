@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.26.7] - 2026-02-14
+
+### Fixed
+- Type chart now shows ALL weaknesses and resistances instead of only one per multiplier level
+
 ## [1.26.6] - 2026-02-14
 
 ### Fixed

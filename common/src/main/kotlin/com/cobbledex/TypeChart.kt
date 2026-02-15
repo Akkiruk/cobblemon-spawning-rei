@@ -34,8 +34,12 @@ object TypeChart {
     fun getMatchups(primary: String, secondary: String?): TypeMatchups {
         val all = defensiveMatchups(primary, secondary)
         return TypeMatchups(
-            weaknesses = all.filter { it.value > 1f }.toSortedMap(compareByDescending { all[it] }),
-            resistances = all.filter { it.value in 0.01f..0.99f }.toSortedMap(compareBy { all[it] }),
+            weaknesses = all.filter { it.value > 1f }
+                .entries.sortedWith(compareByDescending<Map.Entry<String, Float>> { it.value }.thenBy { it.key })
+                .associate { it.key to it.value },
+            resistances = all.filter { it.value in 0.01f..0.99f }
+                .entries.sortedWith(compareBy<Map.Entry<String, Float>> { it.value }.thenBy { it.key })
+                .associate { it.key to it.value },
             immunities = all.filter { it.value == 0f }.keys.sorted()
         )
     }
