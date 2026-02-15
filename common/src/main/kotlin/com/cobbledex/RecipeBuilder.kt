@@ -135,6 +135,13 @@ object RecipeBuilder {
         return buildMovesPages(speciesName, info)
     }
 
+    private sealed class MoveLine {
+        data class LevelUpLine(val level: Int, val move: MoveDetail) : MoveLine()
+        data class EggLine(val move: MoveDetail) : MoveLine()
+        data class TutorLine(val move: MoveDetail) : MoveLine()
+        data class TmLine(val move: MoveDetail) : MoveLine()
+    }
+
     private fun buildMovesPages(species: String, info: EvolutionDataLoader.SpeciesBasicInfo): List<MovesRecipeData> {
         val levelUp = info.levelUpMoves ?: emptyList()
         val egg = info.eggMoves ?: emptyList()
@@ -142,50 +149,77 @@ object RecipeBuilder {
         val tm = info.tmMoves ?: emptyList()
         if (levelUp.isEmpty() && egg.isEmpty() && tutor.isEmpty() && tm.isEmpty()) return emptyList()
 
-        // Flatten level-up moves into individual lines for pagination
-        val totalLevelUpLines = levelUp.sumOf { it.moves.size }
-        val eggLines = if (egg.isNotEmpty()) 1 + egg.size else 0
-        val tutorLines = if (tutor.isNotEmpty()) 1 + tutor.size else 0
-        val tmLines = if (tm.isNotEmpty()) 1 + tm.size else 0
-        val totalLines = totalLevelUpLines + eggLines + tutorLines + tmLines
+        val allLines = mutableListOf<MoveLine>()
+        for (entry in levelUp) {
+            for (move in entry.moves) {
+                allLines.add(MoveLine.LevelUpLine(entry.level, move))
+            }
+        }
+        egg.forEach { allLines.add(MoveLine.EggLine(it)) }
+        tutor.forEach { allLines.add(MoveLine.TutorLine(it)) }
+        tm.forEach { allLines.add(MoveLine.TmLine(it)) }
 
-        if (totalLines <= MOVES_PER_PAGE) {
+        if (allLines.size <= MOVES_PER_PAGE) {
             return listOf(MovesRecipeData(species, levelUp, egg, tutor, tm, 1, 1))
         }
 
-        // Paginate level-up moves
-        val pages = mutableListOf<MovesRecipeData>()
-        var remaining = levelUp.toMutableList()
-        var pageNum = 1
-        val pageCount = ((totalLevelUpLines + MOVES_PER_PAGE - 1) / MOVES_PER_PAGE).coerceAtLeast(1) +
-            (if (eggLines + tutorLines + tmLines > 0) 1 else 0)
-
-        while (remaining.isNotEmpty()) {
-            val pageMoves = mutableListOf<LevelUpMove>()
+        // Reserve 1 line for each section header that starts on a page
+        val pages = mutableListOf<List<MoveLine>>()
+        var i = 0
+        while (i < allLines.size) {
+            val page = mutableListOf<MoveLine>()
             var linesUsed = 0
-            while (remaining.isNotEmpty() && linesUsed < MOVES_PER_PAGE) {
-                val entry = remaining.first()
-                if (linesUsed + entry.moves.size <= MOVES_PER_PAGE) {
-                    pageMoves.add(entry)
-                    linesUsed += entry.moves.size
-                    remaining.removeAt(0)
-                } else {
-                    val canFit = MOVES_PER_PAGE - linesUsed
-                    pageMoves.add(LevelUpMove(entry.level, entry.moves.take(canFit)))
-                    remaining[0] = LevelUpMove(entry.level, entry.moves.drop(canFit))
-                    linesUsed = MOVES_PER_PAGE
+            // Check if a new section starts on this page (needs header line)
+            var prevType: String? = if (pages.isEmpty()) null else pages.last().lastOrNull()?.let { lineType(it) }
+            while (i < allLines.size && linesUsed < MOVES_PER_PAGE) {
+                val line = allLines[i]
+                val curType = lineType(line)
+                val needsHeader = curType != "levelup" && curType != prevType && !page.any { lineType(it) == curType }
+                val cost = if (needsHeader) 2 else 1  // header + move line
+                if (linesUsed + cost > MOVES_PER_PAGE && page.isNotEmpty()) break
+                page.add(line)
+                linesUsed += cost
+                prevType = curType
+                i++
+            }
+            pages.add(page)
+        }
+
+        val pageCount = pages.size
+        return pages.mapIndexed { idx, pageLines ->
+            val pageLevelUp = mutableListOf<LevelUpMove>()
+            val pageEgg = mutableListOf<MoveDetail>()
+            val pageTutor = mutableListOf<MoveDetail>()
+            val pageTm = mutableListOf<MoveDetail>()
+
+            var currentLevel = -1
+            var currentMoves = mutableListOf<MoveDetail>()
+            for (line in pageLines) {
+                when (line) {
+                    is MoveLine.LevelUpLine -> {
+                        if (line.level != currentLevel) {
+                            if (currentMoves.isNotEmpty()) pageLevelUp.add(LevelUpMove(currentLevel, currentMoves))
+                            currentLevel = line.level
+                            currentMoves = mutableListOf()
+                        }
+                        currentMoves.add(line.move)
+                    }
+                    is MoveLine.EggLine -> pageEgg.add(line.move)
+                    is MoveLine.TutorLine -> pageTutor.add(line.move)
+                    is MoveLine.TmLine -> pageTm.add(line.move)
                 }
             }
-            pages.add(MovesRecipeData(species, pageMoves, emptyList(), emptyList(), emptyList(), pageNum, pageCount))
-            pageNum++
-        }
+            if (currentMoves.isNotEmpty()) pageLevelUp.add(LevelUpMove(currentLevel, currentMoves))
 
-        // Last page with egg/tutor/tm moves
-        if (egg.isNotEmpty() || tutor.isNotEmpty() || tm.isNotEmpty()) {
-            pages.add(MovesRecipeData(species, emptyList(), egg, tutor, tm, pageNum, pageCount))
+            MovesRecipeData(species, pageLevelUp, pageEgg, pageTutor, pageTm, idx + 1, pageCount)
         }
+    }
 
-        return pages
+    private fun lineType(line: MoveLine): String = when (line) {
+        is MoveLine.LevelUpLine -> "levelup"
+        is MoveLine.EggLine -> "egg"
+        is MoveLine.TutorLine -> "tutor"
+        is MoveLine.TmLine -> "tm"
     }
 
     // --- Fossil recipes ---

@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.26.6] - 2026-02-14
+
+### Fixed
+- Moves page overflow: egg, tutor, and TM moves now paginate properly instead of overflowing past the panel bottom
+- Section headers accounted for in page line budget
+
 ## [1.26.5] - 2026-02-14
 
 ### Fixed
