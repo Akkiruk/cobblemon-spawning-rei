@@ -738,6 +738,67 @@ object SpawnDisplayHelper {
         return layout
     }
 
+    // --- Evolution chain layout builder ---
+
+    fun buildEvolutionChainLayout(rows: List<EvolutionChainBuilder.ChainRow>): PanelLayout {
+        val font = Minecraft.getInstance().font
+        val padding = EvolutionChainBuilder.CHAIN_PADDING
+        val slotSize = EvolutionChainBuilder.CHAIN_SLOT_SIZE
+        val textX = EvolutionChainBuilder.CHAIN_TEXT_X
+        val textYOff = EvolutionChainBuilder.CHAIN_TEXT_Y_OFF
+        val indentStep = EvolutionChainBuilder.CHAIN_INDENT
+
+        var maxWidth = PanelLayout.MIN_WIDTH
+        for (row in rows) {
+            val w = when (row) {
+                is EvolutionChainBuilder.ChainRow.Pokemon -> {
+                    PanelLayout.PADDING + row.indent * indentStep + textX + font.width(row.displayName) + PanelLayout.PADDING
+                }
+                is EvolutionChainBuilder.ChainRow.Arrow -> {
+                    PanelLayout.PADDING + row.indent * indentStep + 8 + font.width("\u2193 ${row.requirement}") + PanelLayout.PADDING
+                }
+                is EvolutionChainBuilder.ChainRow.Branch -> {
+                    PanelLayout.PADDING + row.indent * indentStep + textX + font.width(row.displayName) + 8 + font.width(row.requirement) + PanelLayout.PADDING
+                }
+            }
+            if (w > maxWidth) maxWidth = w
+        }
+        val width = maxWidth.coerceAtMost(PanelLayout.MAX_WIDTH)
+        val layout = PanelLayout(width)
+        val right = layout.right
+
+        layout.gap(padding)
+
+        for (row in rows) {
+            when (row) {
+                is EvolutionChainBuilder.ChainRow.Pokemon -> {
+                    val x = PanelLayout.PADDING + row.indent * indentStep
+                    layout.textAt(x + textX, layout.y + textYOff, row.displayName, 0xFFFFFF)
+                    layout.gap(EvolutionChainBuilder.CHAIN_POKEMON_ROW)
+                }
+                is EvolutionChainBuilder.ChainRow.Arrow -> {
+                    val x = PanelLayout.PADDING + row.indent * indentStep + 8
+                    val reqText = "\u2193 ${row.requirement}"
+                    val truncated = clipToWidth(font, reqText, right - x)
+                    layout.textAt(x, layout.y, truncated, 0xFFDD88)
+                    layout.gap(EvolutionChainBuilder.CHAIN_ARROW_ROW)
+                }
+                is EvolutionChainBuilder.ChainRow.Branch -> {
+                    val x = PanelLayout.PADDING + row.indent * indentStep
+                    layout.textAt(x + textX, layout.y + textYOff, row.displayName, 0xFFFFFF)
+                    val reqTruncated = clipToWidth(font, row.requirement, right - x - textX - font.width(row.displayName) - 8)
+                    if (reqTruncated.isNotBlank()) {
+                        layout.textRightAt(layout.y + textYOff, reqTruncated, 0xFFDD88)
+                    }
+                    layout.gap(EvolutionChainBuilder.CHAIN_BRANCH_ROW)
+                }
+            }
+        }
+
+        layout.gap(padding)
+        return layout
+    }
+
     // --- Stats detail rendering (shared between REI/JEI/EMI) ---
 
     private val STAT_NAMES = listOf("hp", "atk", "def", "spa", "spd", "spe")

@@ -2,6 +2,21 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.28.0] - 2026-02-15
+
+### Added
+- Full evolution chain view showing entire lineage top-to-bottom (base form → final forms)
+- Branching evolutions shown compactly with requirements on each branch
+- Clicking any Pokémon in a chain shows the complete chain it belongs to
+
+### Changed
+- Evolution display redesigned from individual A→B pages to one-page chain trees
+- Significantly fewer evolution pages to flip through (one per family instead of one per step)
+
+### Fixed
+- Left/right clicking Pokémon entries in REI now correctly opens recipes/usages
+- Recipe and usage lookups work via REI's generate() dispatch path
+
 ## [1.27.2] - 2026-02-15
 
 ### Fixed

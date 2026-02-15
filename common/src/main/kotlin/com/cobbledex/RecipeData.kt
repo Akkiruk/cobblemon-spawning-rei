@@ -14,6 +14,12 @@ data class EvolutionRecipeData(
     val branchTotal: Int = 0
 )
 
+data class EvolutionChainRecipeData(
+    val baseSpecies: String,
+    val allSpecies: Set<String>,
+    val rows: List<EvolutionChainBuilder.ChainRow>
+)
+
 data class ObtainmentRecipeData(
     val speciesName: String,
     val obtainment: ObtainmentInfo,

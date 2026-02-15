@@ -116,43 +116,59 @@ object EvolutionDex : DexCategory {
     override val maxSize = DisplayLayout::getMaxEvolutionSize
     override fun isEnabled(config: CobbleDexConfig) = config.showEvolutions
 
-    override fun buildAllRecipes() =
-        RecipeBuilder.buildAllEvolutionRecipes().map(::toHandle)
+    override fun buildAllRecipes(): List<RecipeHandle> {
+        val chains = EvolutionChainBuilder.getAllChains()
+        return chains.values.map { chain ->
+            val allSpecies = EvolutionChainBuilder.collectAllSpecies(chain)
+            val rows = EvolutionChainBuilder.flattenChain(chain)
+            toHandle(EvolutionChainRecipeData(chain.species, allSpecies, rows))
+        }
+    }
 
     override fun buildRecipesFor(species: String): List<RecipeHandle> {
-        val evos = SpawnDataIndex.getEvolutionsTo(species)
-        if (evos.isEmpty()) return emptyList()
-        return RecipeBuilder.buildEvolutionsFor(evos).map(::toHandle)
+        val chain = EvolutionChainBuilder.getChainFor(species) ?: return emptyList()
+        val allSpecies = EvolutionChainBuilder.collectAllSpecies(chain)
+        if (allSpecies.size <= 1) return emptyList()
+        val rows = EvolutionChainBuilder.flattenChain(chain)
+        return listOf(toHandle(EvolutionChainRecipeData(chain.species, allSpecies, rows)))
     }
 
-    override fun buildUsagesFor(species: String): List<RecipeHandle> {
-        val evos = SpawnDataIndex.getEvolutionsFrom(species)
-        if (evos.isEmpty()) return emptyList()
-        return RecipeBuilder.buildEvolutionsFor(evos).map(::toHandle)
-    }
+    override fun buildUsagesFor(species: String): List<RecipeHandle> = buildRecipesFor(species)
 
-    private fun toHandle(d: EvolutionRecipeData): RecipeHandle {
-        val evo = d.evolution
+    private fun toHandle(d: EvolutionChainRecipeData): RecipeHandle {
+        val allList = d.allSpecies.toList()
         return RecipeHandle(
-            recipeIdPath = "evolution/${sanitizePath(evo.id)}",
-            inputSpecies = listOf(evo.fromSpecies),
-            outputSpecies = listOf(evo.toSpecies),
-            layoutFactory = { SpawnDisplayHelper.buildEvolutionLayout(evo, d.branchIndex, d.branchTotal) },
-            _slots = { layout ->
-                val w = layout.width
-                val slotSize = 18
-                RecipeHandle.Slots(
-                    pokemon = listOf(
-                        PokemonSlotDef(evo.fromSpecies, evo.fromAspects, 20, 8, SlotRole.INPUT, disableHighlight = false),
-                        PokemonSlotDef(evo.toSpecies, evo.toAspects, w - 20 - slotSize - 12, 8, SlotRole.OUTPUT, disableHighlight = false),
-                    ),
-                    items = evo.itemRequirements.mapIndexed { i, item ->
-                        ItemSlotDef(item.itemId, 8, 48 + i * 20, SlotRole.INPUT)
-                    },
-                    hasArrow = true,
-                    arrowX = w / 2 - 12,
-                    arrowY = 8 + (slotSize - 17) / 2,
-                )
+            recipeIdPath = "evolution/chain/${sanitizePath(d.baseSpecies)}",
+            inputSpecies = allList,
+            outputSpecies = allList,
+            layoutFactory = { SpawnDisplayHelper.buildEvolutionChainLayout(d.rows) },
+            _slots = { _ ->
+                val pokemonSlots = mutableListOf<PokemonSlotDef>()
+                var y = EvolutionChainBuilder.CHAIN_PADDING
+                for (row in d.rows) {
+                    when (row) {
+                        is EvolutionChainBuilder.ChainRow.Pokemon -> {
+                            val x = PanelLayout.PADDING + row.indent * EvolutionChainBuilder.CHAIN_INDENT
+                            pokemonSlots.add(PokemonSlotDef(
+                                row.species, row.aspects, x, y,
+                                SlotRole.INPUT, disableHighlight = false
+                            ))
+                            y += EvolutionChainBuilder.CHAIN_POKEMON_ROW
+                        }
+                        is EvolutionChainBuilder.ChainRow.Arrow -> {
+                            y += EvolutionChainBuilder.CHAIN_ARROW_ROW
+                        }
+                        is EvolutionChainBuilder.ChainRow.Branch -> {
+                            val x = PanelLayout.PADDING + row.indent * EvolutionChainBuilder.CHAIN_INDENT
+                            pokemonSlots.add(PokemonSlotDef(
+                                row.species, row.aspects, x, y,
+                                SlotRole.OUTPUT, disableHighlight = false
+                            ))
+                            y += EvolutionChainBuilder.CHAIN_BRANCH_ROW
+                        }
+                    }
+                }
+                RecipeHandle.Slots(pokemon = pokemonSlots)
             },
         )
     }
