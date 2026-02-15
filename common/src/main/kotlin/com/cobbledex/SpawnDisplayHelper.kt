@@ -976,7 +976,9 @@ object SpawnDisplayHelper {
         val suffixWidth = font.width(suffix)
 
         val nameMaxWidth = right - x - suffixWidth - 4
-        layout.clipped(x, move.name, nameMaxWidth, 0xBBBBBB)
+        val moveKey = "cobblemon.move.${move.name}"
+        val displayName = tr(moveKey).let { if (it == moveKey) titleCase(move.name) else it }
+        layout.clipped(x, displayName, nameMaxWidth, 0xBBBBBB)
         layout.textRight(suffix, suffixColor)
         layout.line()
     }

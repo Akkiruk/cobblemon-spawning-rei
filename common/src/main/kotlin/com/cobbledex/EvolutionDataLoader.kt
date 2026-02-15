@@ -339,7 +339,7 @@ object EvolutionDataLoader {
 
     private fun toMoveDetail(template: MoveTemplate): MoveDetail {
         return MoveDetail(
-            name = titleCase(template.name),
+            name = template.name,
             type = template.elementalType.name.lowercase(),
             category = template.damageCategory.name,
             power = template.power.toInt(),

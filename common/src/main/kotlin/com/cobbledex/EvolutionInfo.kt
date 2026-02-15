@@ -360,9 +360,11 @@ data class EvolutionRequirement(
         if (move == null) return "move"
         val str = move.trim()
         if (str.isBlank() || str.contains("@")) return "move"
-        val name = if (str.contains(":")) str.substringAfter(":") else str
-        return name
-            .replace("_", " ")
+        val id = if (str.contains(":")) str.substringAfter(":") else str
+        val key = "cobblemon.move.${id.lowercase()}"
+        val translated = tr(key)
+        if (translated != key) return translated
+        return id.replace("_", " ")
             .split(" ")
             .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
             .ifBlank { "move" }

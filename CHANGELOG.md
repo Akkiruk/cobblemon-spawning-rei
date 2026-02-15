@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.26.5] - 2026-02-14
+
+### Fixed
+- Move names now display properly spaced ("Disarming Voice" instead of "Disarmingvoice") using Cobblemon's translation system
+- Move names in evolution requirements also use translated names
+
 ## [1.26.4] - 2026-02-16
 
 ### Fixed
