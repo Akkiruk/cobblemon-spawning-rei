@@ -1,19 +1,35 @@
 package com.cobbledex.fabric
 
 import com.cobbledex.CobbleDexMod
+import com.cobbledex.DebugLog
 import com.cobbledex.DiagnosticService
 import com.cobbledex.SpawnDataIndex
+import com.cobbledex.network.SpawnSyncPayload
+import com.cobbledex.network.SpawnSyncSerializer
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
 import net.minecraft.network.chat.Component
 
 class CobbleDexFabricClient : ClientModInitializer {
     override fun onInitializeClient() {
         CobbleDexMod.init()
         CobbleDexMod.LOGGER.info("[CobbleDex] Fabric client initialized")
+
+        ClientPlayNetworking.registerGlobalReceiver(SpawnSyncPayload.TYPE) { payload, context ->
+            context.client().execute {
+                try {
+                    val spawns = SpawnSyncSerializer.deserialize(payload.data)
+                    SpawnDataIndex.applyServerSync(spawns)
+                    DebugLog.info("Received spawn sync from server: ${spawns.size} species")
+                } catch (e: Exception) {
+                    CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process spawn sync: ${e.message}")
+                }
+            }
+        }
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             if (client.player != null) {

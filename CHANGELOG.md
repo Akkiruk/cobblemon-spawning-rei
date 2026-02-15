@@ -2,6 +2,20 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.27.0] - 2026-02-14
+
+### Added
+- Server-to-client spawn data networking: spawn locations now visible on LAN clients and dedicated server clients
+- Server sends spawn data to connecting players via custom payload packets
+- Works with both Fabric and NeoForge loaders
+
+### Changed
+- Mod now loads on both client and server sides (previously client-only)
+- Fabric API promoted from recommended to required dependency
+
+### Fixed
+- Spawn data empty on non-host LAN clients due to Cobblemon's WORLD_SPAWN_POOL being server-side only
+
 ## [1.26.9] - 2026-02-14
 
 ### Fixed

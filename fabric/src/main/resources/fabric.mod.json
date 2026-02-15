@@ -12,8 +12,14 @@
   },
   "license": "MIT",
   "icon": "assets/cobbledex-rei-emi-jei/icon.png",
-  "environment": "client",
+  "environment": "*",
   "entrypoints": {
+    "main": [
+      {
+        "adapter": "kotlin",
+        "value": "com.cobbledex.fabric.CobbleDexFabric"
+      }
+    ],
     "client": [
       {
         "adapter": "kotlin",
@@ -44,9 +50,7 @@
     "fabricloader": ">=0.15.0",
     "minecraft": ">=1.21 <1.22",
     "cobblemon": ">=1.7.1",
-    "fabric-language-kotlin": ">=1.13.4"
-  },
-  "recommends": {
+    "fabric-language-kotlin": ">=1.13.4",
     "fabric-api": "*"
   },
   "suggests": {

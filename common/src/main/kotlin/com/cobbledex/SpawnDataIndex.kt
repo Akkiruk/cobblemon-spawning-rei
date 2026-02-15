@@ -63,6 +63,10 @@ object SpawnDataIndex {
     private var emptyEvoRetries = 0
     private const val MAX_EMPTY_EVO_RETRIES = 5
 
+    /** True when spawn data was received from the server via networking */
+    @Volatile
+    private var hasServerSync = false
+
     fun isFullyLoaded(): Boolean = loadState == LoadState.FULLY_LOADED
 
     fun hasData(): Boolean = allSpeciesNames.isNotEmpty()
@@ -133,10 +137,10 @@ object SpawnDataIndex {
     private fun doLoad() {
         DebugLog.reset()
         PokemonItemCache.reset()
-        SpawnDataLoader.invalidateCache()
-        spawnsBySpecies = normalizeMapKeys(SpawnDataLoader.loadFromRuntime())
-        if (spawnsBySpecies.isEmpty()) {
-            spawnsBySpecies = normalizeMapKeys(SpawnDataLoader.loadFromModFiles())
+
+        if (!hasServerSync) {
+            SpawnDataLoader.invalidateCache()
+            spawnsBySpecies = normalizeMapKeys(SpawnDataLoader.loadFromRuntime())
         }
 
         val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
@@ -211,10 +215,25 @@ object SpawnDataIndex {
         cancelPendingLoad()
         PokemonItemCache.reset()
         emptyEvoRetries = 0
+        hasServerSync = false
         dataLock.withLock {
             loadState = LoadState.NOT_LOADED
         }
         DebugLog.info("Marked data stale on disconnect (${allSpeciesNames.size} species cached)")
+    }
+
+    /** Accept spawn data synced from the server via networking */
+    fun applyServerSync(syncedSpawns: Map<String, List<SpawnInfo>>) {
+        dataLock.withLock {
+            spawnsBySpecies = normalizeMapKeys(syncedSpawns)
+            hasServerSync = true
+            rebuildDerivedData()
+            dataVersion++
+        }
+        DebugLog.info("Applied server spawn sync: ${syncedSpawns.size} species, ${syncedSpawns.values.sumOf { it.size }} entries")
+        if (loadState != LoadState.FULLY_LOADED) {
+            ensureLoadedAsync()
+        }
     }
 
     private fun rebuildDerivedData() {

@@ -17,28 +17,28 @@ modId="neoforge"
 type="required"
 versionRange="[21.1,)"
 ordering="NONE"
-side="CLIENT"
+side="BOTH"
 
 [[dependencies.cobbledex_rei_emi_jei]]
 modId="minecraft"
 type="required"
 versionRange="[1.21,1.22)"
 ordering="NONE"
-side="CLIENT"
+side="BOTH"
 
 [[dependencies.cobbledex_rei_emi_jei]]
 modId="cobblemon"
 type="required"
 versionRange="[1.7.1,)"
 ordering="AFTER"
-side="CLIENT"
+side="BOTH"
 
 [[dependencies.cobbledex_rei_emi_jei]]
 modId="kotlinforforge"
 type="required"
 versionRange="[5.0.0,)"
 ordering="NONE"
-side="CLIENT"
+side="BOTH"
 
 [[dependencies.cobbledex_rei_emi_jei]]
 modId="roughlyenoughitems"
