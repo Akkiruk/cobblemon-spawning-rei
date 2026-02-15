@@ -2,6 +2,16 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.26.4] - 2026-02-16
+
+### Fixed
+- EMI category tab tooltips now display translated names instead of raw keys
+- Pokédex description now renders translated text instead of raw `cobblemon.species.<name>.desc` key
+- Biome names in spawn conditions now translate properly for all languages
+
+### Added
+- 84 biome translation keys across all 28 language files (climate tags, terrain types, ocean temps, Minecraft biomes)
+
 ## [1.26.3] - 2026-02-15
 
 ### Added

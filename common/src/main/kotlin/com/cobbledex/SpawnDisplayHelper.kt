@@ -1211,7 +1211,10 @@ object SpawnDisplayHelper {
         layout.fill(padding, 20, right, 21, 0x50FFFFFF)
         layout.skipTo(26)
 
-        layout.wrapped(padding + 4, data.description, right - padding - 4, 0xFFDDDDDD.toInt())
+        val descText = tr(data.description)
+        if (descText != data.description && descText.isNotBlank()) {
+            layout.wrapped(padding + 4, descText, right - padding - 4, 0xFFDDDDDD.toInt())
+        }
         
         layout.gap(padding + 4)
         return layout

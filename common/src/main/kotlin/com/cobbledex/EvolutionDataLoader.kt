@@ -435,10 +435,7 @@ object EvolutionDataLoader {
 
                 val description = try {
                     val key = species.pokedex.firstOrNull()
-                    if (key != null && key.isNotBlank()) {
-                        val translated = tr(key)
-                        if (translated != key && translated.isNotBlank()) translated else null
-                    } else null
+                    if (key != null && key.isNotBlank()) key else null
                 } catch (_: Exception) { null }
 
                 val drops = try {

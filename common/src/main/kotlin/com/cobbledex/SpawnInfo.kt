@@ -114,12 +114,13 @@ fun formatId(id: String): String {
 
 fun formatBiomeName(id: String): String {
     if (id.lowercase().endsWith("custom_spawn")) return tr("cobbledex-rei-emi-jei.biome.altar_only")
-    return titleCase(
-        stripNamespace(id)
-            .substringBefore("/")
-            .removePrefix("is_")
-            .removePrefix("has_")
-    )
+    val cleaned = stripNamespace(id)
+        .substringBefore("/")
+        .removePrefix("is_")
+        .removePrefix("has_")
+    val key = "cobbledex-rei-emi-jei.biome.${cleaned.lowercase()}"
+    val translated = tr(key)
+    return if (translated != key) translated else titleCase(cleaned)
 }
 
 fun sanitizePath(s: String): String = s.lowercase().replace(Regex("[^a-z0-9/._-]"), "")

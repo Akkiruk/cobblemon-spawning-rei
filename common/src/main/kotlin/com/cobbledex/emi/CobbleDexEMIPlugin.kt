@@ -15,6 +15,7 @@ import dev.emi.emi.api.recipe.EmiRecipe
 import dev.emi.emi.api.recipe.EmiRecipeCategory
 import dev.emi.emi.api.stack.EmiIngredient
 import dev.emi.emi.api.stack.EmiStack
+import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.Items
 
@@ -25,10 +26,12 @@ open class CobbleDexEMIPlugin : EmiPlugin {
 
         private fun emiCategory(def: DexCategory): EmiRecipeCategory =
             categories.getOrPut(def.id) {
-                EmiRecipeCategory(
+                object : EmiRecipeCategory(
                     ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, def.id),
                     EmiStack.of(def.icon)
-                )
+                ) {
+                    override fun getName(): Component = Component.translatable(def.titleKey)
+                }
             }
 
         // Pre-initialize all known categories
