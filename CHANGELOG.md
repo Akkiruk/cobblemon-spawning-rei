@@ -2,6 +2,13 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.26.3] - 2026-02-15
+
+### Added
+- 95 missing translation keys added to all 27 non-English language files
+- Proper translations for de, es, fr, it, pt, ja, ko, zh, ru, pl, nl, sv, tr, uk, th, vi, cs, hu
+- Restored 5 accidentally deleted language files (de_de, cs_cz, el_cy, en_gb, en_pt)
+
 ## [1.26.2] - 2026-02-14
 
 ### Fixed
