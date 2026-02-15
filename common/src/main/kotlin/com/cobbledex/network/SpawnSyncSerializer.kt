@@ -1,9 +1,8 @@
 package com.cobbledex.network
 
-import com.cobbledex.SpawnAntiCondition
+import com.cobbledex.EvolutionDataLoader
+import com.cobbledex.EvolutionInfo
 import com.cobbledex.SpawnInfo
-import com.cobbledex.SpawnWeather
-import com.cobbledex.WeightMultiplier
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
@@ -12,20 +11,26 @@ import java.io.ByteArrayOutputStream
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
+data class SyncBundle(
+    val spawns: Map<String, List<SpawnInfo>>,
+    val evolutions: Map<String, List<EvolutionInfo>>,
+    val speciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo>
+)
+
 object SpawnSyncSerializer {
 
     private val gson: Gson = GsonBuilder().create()
 
-    private val mapType = object : TypeToken<Map<String, List<SpawnInfo>>>() {}.type
+    private val bundleType = object : TypeToken<SyncBundle>() {}.type
 
-    fun serialize(data: Map<String, List<SpawnInfo>>): ByteArray {
-        val json = gson.toJson(data, mapType)
+    fun serialize(bundle: SyncBundle): ByteArray {
+        val json = gson.toJson(bundle, bundleType)
         return compress(json.toByteArray(Charsets.UTF_8))
     }
 
-    fun deserialize(compressed: ByteArray): Map<String, List<SpawnInfo>> {
+    fun deserialize(compressed: ByteArray): SyncBundle {
         val json = String(decompress(compressed), Charsets.UTF_8)
-        return gson.fromJson(json, mapType)
+        return gson.fromJson(json, bundleType)
     }
 
     private fun compress(data: ByteArray): ByteArray {

@@ -22,11 +22,11 @@ class CobbleDexFabricClient : ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(SpawnSyncPayload.TYPE) { payload, context ->
             context.client().execute {
                 try {
-                    val spawns = SpawnSyncSerializer.deserialize(payload.data)
-                    SpawnDataIndex.applyServerSync(spawns)
-                    DebugLog.info("Received spawn sync from server: ${spawns.size} species")
+                    val bundle = SpawnSyncSerializer.deserialize(payload.data)
+                    SpawnDataIndex.applyServerSync(bundle.spawns, bundle.evolutions, bundle.speciesInfo)
+                    DebugLog.info("Received sync from server: ${bundle.spawns.size} spawns, ${bundle.evolutions.size} evolutions")
                 } catch (e: Exception) {
-                    CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process spawn sync: ${e.message}")
+                    CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process sync: ${e.message}")
                 }
             }
         }

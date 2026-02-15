@@ -2,9 +2,11 @@ package com.cobbledex.fabric
 
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
+import com.cobbledex.EvolutionDataLoader
 import com.cobbledex.SpawnDataLoader
 import com.cobbledex.network.SpawnSyncPayload
 import com.cobbledex.network.SpawnSyncSerializer
+import com.cobbledex.network.SyncBundle
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
@@ -18,18 +20,20 @@ class CobbleDexFabric : ModInitializer {
             server.execute {
                 val player = handler.player
                 if (!ServerPlayNetworking.canSend(player, SpawnSyncPayload.TYPE)) {
-                    DebugLog.info("Client ${player.name.string} doesn't have CobbleDex, skipping spawn sync")
+                    DebugLog.info("Client ${player.name.string} doesn't have CobbleDex, skipping sync")
                     return@execute
                 }
                 try {
-                    val spawns = SpawnDataLoader.loadFromRuntime()
-                    if (spawns.isNotEmpty()) {
-                        val compressed = SpawnSyncSerializer.serialize(spawns)
-                        ServerPlayNetworking.send(player, SpawnSyncPayload(compressed))
-                        DebugLog.info("Sent spawn data to ${player.name.string}: ${spawns.size} species, ${compressed.size} bytes")
-                    }
+                    val bundle = SyncBundle(
+                        spawns = SpawnDataLoader.loadFromRuntime(),
+                        evolutions = EvolutionDataLoader.loadFromRuntime(),
+                        speciesInfo = EvolutionDataLoader.loadSpeciesBasicInfoFromRuntime()
+                    )
+                    val compressed = SpawnSyncSerializer.serialize(bundle)
+                    ServerPlayNetworking.send(player, SpawnSyncPayload(compressed))
+                    DebugLog.info("Sent sync to ${player.name.string}: ${bundle.spawns.size} spawns, ${bundle.evolutions.size} evolutions, ${bundle.speciesInfo.size} species info, ${compressed.size} bytes")
                 } catch (e: Exception) {
-                    CobbleDexMod.LOGGER.warn("[CobbleDex] Failed to send spawn data: ${e.message}")
+                    CobbleDexMod.LOGGER.warn("[CobbleDex] Failed to send sync data: ${e.message}")
                 }
             }
         }

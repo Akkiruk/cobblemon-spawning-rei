@@ -2,10 +2,12 @@ package com.cobbledex.neoforge
 
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
+import com.cobbledex.EvolutionDataLoader
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpawnDataLoader
 import com.cobbledex.network.SpawnSyncPayload
 import com.cobbledex.network.SpawnSyncSerializer
+import com.cobbledex.network.SyncBundle
 import net.minecraft.server.level.ServerPlayer
 import net.neoforged.api.distmarker.Dist
 import net.neoforged.bus.api.IEventBus
@@ -40,11 +42,11 @@ class CobbleDexNeoForge(modBus: IEventBus) {
         ) { payload, context ->
             context.enqueueWork {
                 try {
-                    val spawns = SpawnSyncSerializer.deserialize(payload.data)
-                    SpawnDataIndex.applyServerSync(spawns)
-                    DebugLog.info("Received spawn sync from server: ${spawns.size} species")
+                    val bundle = SpawnSyncSerializer.deserialize(payload.data)
+                    SpawnDataIndex.applyServerSync(bundle.spawns, bundle.evolutions, bundle.speciesInfo)
+                    DebugLog.info("Received sync from server: ${bundle.spawns.size} spawns, ${bundle.evolutions.size} evolutions")
                 } catch (e: Exception) {
-                    CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process spawn sync: ${e.message}")
+                    CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process sync: ${e.message}")
                 }
             }
         }
@@ -55,14 +57,16 @@ class CobbleDexNeoForge(modBus: IEventBus) {
         if (player !is ServerPlayer) return
         player.server.execute {
             try {
-                val spawns = SpawnDataLoader.loadFromRuntime()
-                if (spawns.isNotEmpty()) {
-                    val compressed = SpawnSyncSerializer.serialize(spawns)
-                    PacketDistributor.sendToPlayer(player, SpawnSyncPayload(compressed))
-                    DebugLog.info("Sent spawn data to ${player.name.string}: ${spawns.size} species, ${compressed.size} bytes")
-                }
+                val bundle = SyncBundle(
+                    spawns = SpawnDataLoader.loadFromRuntime(),
+                    evolutions = EvolutionDataLoader.loadFromRuntime(),
+                    speciesInfo = EvolutionDataLoader.loadSpeciesBasicInfoFromRuntime()
+                )
+                val compressed = SpawnSyncSerializer.serialize(bundle)
+                PacketDistributor.sendToPlayer(player, SpawnSyncPayload(compressed))
+                DebugLog.info("Sent sync to ${player.name.string}: ${bundle.spawns.size} spawns, ${bundle.evolutions.size} evolutions, ${bundle.speciesInfo.size} species info, ${compressed.size} bytes")
             } catch (e: Exception) {
-                DebugLog.info("Client ${player.name.string} doesn't support spawn sync or send failed: ${e.message}")
+                DebugLog.info("Client ${player.name.string} doesn't support sync or send failed: ${e.message}")
             }
         }
     }

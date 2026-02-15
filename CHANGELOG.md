@@ -2,6 +2,14 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.27.2] - 2026-02-15
+
+### Fixed
+- Evolution data and species info now sync from server to client (were only available locally before)
+- LAN clients see full evolution chains, base stats, types, abilities, and all Pokédex info
+- Server sync packet now carries spawns + evolutions + species info in one bundle
+- Client no longer tries to load server-only data locally when server sync is available
+
 ## [1.27.1] - 2026-02-15
 
 ### Fixed

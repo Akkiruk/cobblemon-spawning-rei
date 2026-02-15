@@ -138,10 +138,41 @@ object SpawnDataIndex {
         DebugLog.reset()
         PokemonItemCache.reset()
 
-        if (!hasServerSync) {
-            SpawnDataLoader.invalidateCache()
-            spawnsBySpecies = normalizeMapKeys(SpawnDataLoader.loadFromRuntime())
+        if (hasServerSync) {
+            // Server already sent spawns, evolutions, and species info — just load supplementary data
+            try {
+                obtainmentBySpecies = normalizeMapKeys(ObtainmentDataLoader.loadFromAllSources(
+                    SpawnDataLoader.getModRootPaths()
+                ))
+            } catch (e: Exception) {
+                DebugLog.warn("Obtainment data load failed: ${e.message}")
+                obtainmentBySpecies = emptyMap()
+            }
+
+            try {
+                fossilsBySpecies = normalizeMapKeys(FossilDataLoader.loadFromRuntime())
+            } catch (e: Exception) {
+                DebugLog.warn("Fossil data load failed: ${e.message}")
+                fossilsBySpecies = emptyMap()
+            }
+
+            rebuildDerivedData()
+            if (loadState != LoadState.FULLY_LOADED) {
+                loadState = LoadState.FULLY_LOADED
+            }
+            dataVersion++
+
+            DebugLog.info(
+                "Load complete (server-synced, ${loadState.name}): ${allSpeciesNames.size} species " +
+                "(${speciesInfo.count { it.value.nationalDexNumber > 0 }} with dex, " +
+                "${spawnsBySpecies.size} with spawns, ${evolutionsBySpecies.size} with evolutions, " +
+                "${obtainmentBySpecies.size} with obtainment)"
+            )
+            return
         }
+
+        SpawnDataLoader.invalidateCache()
+        spawnsBySpecies = normalizeMapKeys(SpawnDataLoader.loadFromRuntime())
 
         val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
 
@@ -222,15 +253,27 @@ object SpawnDataIndex {
         DebugLog.info("Marked data stale on disconnect (${allSpeciesNames.size} species cached)")
     }
 
-    /** Accept spawn data synced from the server via networking */
-    fun applyServerSync(syncedSpawns: Map<String, List<SpawnInfo>>) {
+    /** Accept all data synced from the server via networking */
+    fun applyServerSync(syncedSpawns: Map<String, List<SpawnInfo>>,
+                        syncedEvolutions: Map<String, List<EvolutionInfo>>,
+                        syncedSpeciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo>) {
         dataLock.withLock {
             spawnsBySpecies = normalizeMapKeys(syncedSpawns)
+            evolutionsBySpecies = normalizeMapKeys(syncedEvolutions)
+            speciesInfo = normalizeMapKeys(syncedSpeciesInfo)
             hasServerSync = true
             rebuildDerivedData()
             dataVersion++
+
+            loadState = if (spawnsBySpecies.isNotEmpty() || evolutionsBySpecies.isNotEmpty()) {
+                LoadState.FULLY_LOADED
+            } else {
+                LoadState.PARTIAL
+            }
         }
-        DebugLog.info("Applied server spawn sync: ${syncedSpawns.size} species, ${syncedSpawns.values.sumOf { it.size }} entries")
+        DebugLog.info("Applied server sync: ${syncedSpawns.size} species with spawns, " +
+            "${syncedEvolutions.size} with evolutions, ${syncedSpeciesInfo.size} with info")
+
         if (loadState != LoadState.FULLY_LOADED) {
             ensureLoadedAsync()
         }
