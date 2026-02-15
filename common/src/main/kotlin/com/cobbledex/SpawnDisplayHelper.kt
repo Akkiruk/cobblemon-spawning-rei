@@ -949,10 +949,10 @@ object SpawnDisplayHelper {
     )
 
     private fun formatMoveSuffix(move: MoveDetail): String {
+        val icon = CATEGORY_ICONS[move.category]?.first ?: "\u2022"
         val pow = if (move.power > 0) "${move.power}" else "\u2014"
         val acc = if (move.accuracy > 0) "${move.accuracy}" else "\u2014"
-        val icon = CATEGORY_ICONS[move.category]?.first ?: "\u2022"
-        return "$icon $pow/$acc"
+        return "$icon $pow | $acc"
     }
 
     private fun moveRow(layout: PanelLayout, move: MoveDetail, prefix: String? = null) {
@@ -966,11 +966,6 @@ object SpawnDisplayHelper {
             x += font.width(prefix) + 4
         }
 
-        val dot = "\u25CF "
-        val dotColor = typeColor(move.type)
-        layout.text(x, dot, dotColor)
-        x += font.width(dot)
-
         val suffix = formatMoveSuffix(move)
         val suffixColor = CATEGORY_ICONS[move.category]?.second ?: 0xFFBBBBBB.toInt()
         val suffixWidth = font.width(suffix)
@@ -978,7 +973,7 @@ object SpawnDisplayHelper {
         val nameMaxWidth = right - x - suffixWidth - 4
         val moveKey = "cobblemon.move.${move.name}"
         val displayName = tr(moveKey).let { if (it == moveKey) titleCase(move.name) else it }
-        layout.clipped(x, displayName, nameMaxWidth, 0xBBBBBB)
+        layout.clipped(x, displayName, nameMaxWidth, typeColor(move.type))
         layout.textRight(suffix, suffixColor)
         layout.line()
     }
@@ -995,7 +990,9 @@ object SpawnDisplayHelper {
             tr("category.cobbledex-rei-emi-jei.moves")
         layout.textRightAt(6, headerText, 0xDDCC99)
         layout.fill(padding, 20, right, 21, 0x50FFFFFF)
-        layout.skipTo(26)
+        val colHeader = tr("cobbledex-rei-emi-jei.moves.pow_acc")
+        layout.textRightAt(22, colHeader, 0xFF888888.toInt())
+        layout.skipTo(33)
 
         if (data.levelUpMoves.isNotEmpty()) {
             layout.text(padding, tr("cobbledex-rei-emi-jei.moves.levelup"), 0xEEEEEE)

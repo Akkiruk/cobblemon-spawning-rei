@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.26.8] - 2026-02-14
+
+### Changed
+- Move names now colored by their type (fire moves in red, water in blue, etc.) instead of plain gray with a colored dot
+- Power and accuracy displayed with labeled "Pow | Acc" column header and pipe separator for clarity
+
 ## [1.26.7] - 2026-02-14
 
 ### Fixed
