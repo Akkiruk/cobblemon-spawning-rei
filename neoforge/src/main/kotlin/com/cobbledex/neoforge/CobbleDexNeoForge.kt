@@ -52,7 +52,8 @@ class CobbleDexNeoForge(modBus: IEventBus) {
 
     private fun onPlayerJoin(event: PlayerEvent.PlayerLoggedInEvent) {
         val player = event.entity
-        if (player is ServerPlayer) {
+        if (player !is ServerPlayer) return
+        player.server.execute {
             try {
                 val spawns = SpawnDataLoader.loadFromRuntime()
                 if (spawns.isNotEmpty()) {
@@ -61,7 +62,7 @@ class CobbleDexNeoForge(modBus: IEventBus) {
                     DebugLog.info("Sent spawn data to ${player.name.string}: ${spawns.size} species, ${compressed.size} bytes")
                 }
             } catch (e: Exception) {
-                CobbleDexMod.LOGGER.warn("[CobbleDex] Failed to send spawn data: ${e.message}")
+                DebugLog.info("Client ${player.name.string} doesn't support spawn sync or send failed: ${e.message}")
             }
         }
     }

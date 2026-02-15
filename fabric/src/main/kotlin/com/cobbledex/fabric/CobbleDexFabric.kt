@@ -16,12 +16,17 @@ class CobbleDexFabric : ModInitializer {
 
         ServerPlayConnectionEvents.JOIN.register { handler, _, server ->
             server.execute {
+                val player = handler.player
+                if (!ServerPlayNetworking.canSend(player, SpawnSyncPayload.TYPE)) {
+                    DebugLog.info("Client ${player.name.string} doesn't have CobbleDex, skipping spawn sync")
+                    return@execute
+                }
                 try {
                     val spawns = SpawnDataLoader.loadFromRuntime()
                     if (spawns.isNotEmpty()) {
                         val compressed = SpawnSyncSerializer.serialize(spawns)
-                        ServerPlayNetworking.send(handler.player, SpawnSyncPayload(compressed))
-                        DebugLog.info("Sent spawn data to ${handler.player.name.string}: ${spawns.size} species, ${compressed.size} bytes")
+                        ServerPlayNetworking.send(player, SpawnSyncPayload(compressed))
+                        DebugLog.info("Sent spawn data to ${player.name.string}: ${spawns.size} species, ${compressed.size} bytes")
                     }
                 } catch (e: Exception) {
                     CobbleDexMod.LOGGER.warn("[CobbleDex] Failed to send spawn data: ${e.message}")

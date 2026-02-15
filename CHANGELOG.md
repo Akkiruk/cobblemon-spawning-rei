@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.27.1] - 2026-02-15
+
+### Fixed
+- LAN clients without CobbleDex no longer crash on connect (server now checks if client supports the packet before sending)
+- Fixed codec to use explicit StreamCodec.of() with a 1MB read limit
+
 ## [1.27.0] - 2026-02-14
 
 ### Added

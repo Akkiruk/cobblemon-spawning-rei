@@ -15,9 +15,11 @@ class SpawnSyncPayload(val data: ByteArray) : CustomPacketPayload {
             ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "spawn_sync")
         )
 
-        val CODEC: StreamCodec<FriendlyByteBuf, SpawnSyncPayload> = CustomPacketPayload.codec(
-            { payload, buf -> buf.writeByteArray(payload.data) },
-            { buf -> SpawnSyncPayload(buf.readByteArray()) }
+        private const val MAX_PAYLOAD_SIZE = 1048576
+
+        val CODEC: StreamCodec<FriendlyByteBuf, SpawnSyncPayload> = StreamCodec.of(
+            { buf: FriendlyByteBuf, payload: SpawnSyncPayload -> buf.writeByteArray(payload.data) },
+            { buf: FriendlyByteBuf -> SpawnSyncPayload(buf.readByteArray(MAX_PAYLOAD_SIZE)) }
         )
     }
 }
