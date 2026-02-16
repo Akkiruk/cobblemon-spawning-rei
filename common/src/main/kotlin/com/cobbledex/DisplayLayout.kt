@@ -135,12 +135,14 @@ object DisplayLayout {
         var maxW = MIN_WIDTH
         var maxH = 80
         for ((species, spawns) in SpawnDataIndex.spawnsBySpecies) {
-            val sorted = SpawnDisplayHelper.buildSortedSpawns(spawns)
-            for (entry in sorted) {
-                val layout = SpawnDisplayHelper.buildSpawnLayout(species, entry.spawn, entry.formVariants, entry.bucketIndex, entry.bucketTotal)
-                if (layout.width > maxW) maxW = layout.width
-                if (layout.height > maxH) maxH = layout.height
-            }
+            try {
+                val sorted = SpawnDisplayHelper.buildSortedSpawns(spawns)
+                for (entry in sorted) {
+                    val layout = SpawnDisplayHelper.buildSpawnLayout(species, entry.spawn, entry.formVariants, entry.bucketIndex, entry.bucketTotal)
+                    if (layout.width > maxW) maxW = layout.width
+                    if (layout.height > maxH) maxH = layout.height
+                }
+            } catch (_: Exception) {}
         }
         return PanelSize(maxW, maxH)
     }
@@ -152,9 +154,11 @@ object DisplayLayout {
         var maxW = MIN_WIDTH
         var maxH = 70
         for ((_, chain) in chains) {
-            val result = SpawnDisplayHelper.buildEvolutionChainLayout(chain)
-            if (result.layout.width > maxW) maxW = result.layout.width
-            if (result.layout.height > maxH) maxH = result.layout.height
+            try {
+                val result = SpawnDisplayHelper.buildEvolutionChainLayout(chain)
+                if (result.layout.width > maxW) maxW = result.layout.width
+                if (result.layout.height > maxH) maxH = result.layout.height
+            } catch (_: Exception) {}
         }
         return PanelSize(maxW, maxH)
     }
@@ -164,11 +168,13 @@ object DisplayLayout {
         var maxW = MIN_WIDTH
         var maxH = 80
         for ((species, obtainments) in SpawnDataIndex.obtainmentBySpecies) {
-            for ((i, info) in obtainments.withIndex()) {
-                val layout = SpawnDisplayHelper.buildObtainmentLayout(species, info, i + 1, obtainments.size)
-                if (layout.width > maxW) maxW = layout.width
-                if (layout.height > maxH) maxH = layout.height
-            }
+            try {
+                for ((i, info) in obtainments.withIndex()) {
+                    val layout = SpawnDisplayHelper.buildObtainmentLayout(species, info, i + 1, obtainments.size)
+                    if (layout.width > maxW) maxW = layout.width
+                    if (layout.height > maxH) maxH = layout.height
+                }
+            } catch (_: Exception) {}
         }
         return PanelSize(maxW, maxH)
     }
@@ -180,11 +186,13 @@ object DisplayLayout {
         var maxW = MIN_WIDTH
         var maxH = 80
         for ((species, info) in SpawnDataIndex.speciesInfo) {
-            val drops = info.drops ?: continue
-            if (drops.isEmpty()) continue
-            val layout = SpawnDisplayHelper.buildDropLayout(species, drops)
-            if (layout.width > maxW) maxW = layout.width
-            if (layout.height > maxH) maxH = layout.height
+            try {
+                val drops = info.drops ?: continue
+                if (drops.isEmpty()) continue
+                val layout = SpawnDisplayHelper.buildDropLayout(species, drops)
+                if (layout.width > maxW) maxW = layout.width
+                if (layout.height > maxH) maxH = layout.height
+            } catch (_: Exception) {}
         }
         return PanelSize(maxW, maxH)
     }
@@ -194,29 +202,31 @@ object DisplayLayout {
         val font = Minecraft.getInstance().font
         var maxH = 120
         for ((_, info) in SpawnDataIndex.speciesInfo) {
-            var y = 26
-            val lh = LINE_HEIGHT
-            if ((info.abilities != null && info.abilities.isNotEmpty()) || info.hiddenAbility != null) {
-                y += lh + (info.abilities?.size ?: 0) * lh
-                if (info.hiddenAbility != null) y += lh
+            try {
+                var y = 26
+                val lh = LINE_HEIGHT
+                if ((info.abilities != null && info.abilities.isNotEmpty()) || info.hiddenAbility != null) {
+                    y += lh + (info.abilities?.size ?: 0) * lh
+                    if (info.hiddenAbility != null) y += lh
+                    y += 3
+                }
+                if (info.eggGroups != null && info.eggGroups.isNotEmpty()) {
+                    y += lh + lh + 3
+                }
+                y += lh + lh + lh
+                if (info.maleRatio != null) y += lh
                 y += 3
-            }
-            if (info.eggGroups != null && info.eggGroups.isNotEmpty()) {
-                y += lh + lh + 3
-            }
-            y += lh + lh + lh // physical, catch rate, height/weight
-            if (info.maleRatio != null) y += lh
-            y += 3
-            if (info.eggCycles != null) y += lh + lh
-            val hasTraining = info.experienceGroup != null || info.baseExperienceYield != null || info.baseFriendship != null
-            if (hasTraining) {
-                y += 1 + lh
-                if (info.experienceGroup != null) y += lh
-                if (info.baseExperienceYield != null) y += lh
-                if (info.baseFriendship != null) y += lh
-            }
-            y += PADDING
-            if (y > maxH) maxH = y
+                if (info.eggCycles != null) y += lh + lh
+                val hasTraining = info.experienceGroup != null || info.baseExperienceYield != null || info.baseFriendship != null
+                if (hasTraining) {
+                    y += 1 + lh
+                    if (info.experienceGroup != null) y += lh
+                    if (info.baseExperienceYield != null) y += lh
+                    if (info.baseFriendship != null) y += lh
+                }
+                y += PADDING
+                if (y > maxH) maxH = y
+            } catch (_: Exception) {}
         }
         return PanelSize(200, maxH.coerceAtMost(350))
     }
@@ -226,12 +236,14 @@ object DisplayLayout {
         val font = Minecraft.getInstance().font
         var maxH = 80
         for ((_, info) in SpawnDataIndex.speciesInfo) {
-            val description = info.description ?: continue
-            if (description.isBlank()) continue
-            var y = 26
-            y += SpawnDisplayHelper.wrapText(font, description, 200 - PADDING * 2 - 4).size * LINE_HEIGHT
-            y += PADDING + 4
-            if (y > maxH) maxH = y
+            try {
+                val description = info.description ?: continue
+                if (description.isBlank()) continue
+                var y = 26
+                y += SpawnDisplayHelper.wrapText(font, description, 200 - PADDING * 2 - 4).size * LINE_HEIGHT
+                y += PADDING + 4
+                if (y > maxH) maxH = y
+            } catch (_: Exception) {}
         }
         return PanelSize(200, maxH.coerceAtMost(300))
     }
@@ -240,17 +252,18 @@ object DisplayLayout {
         if (SpawnDataIndex.fossilsBySpecies.isEmpty()) return PanelSize(200, 100)
         var maxH = 80
         for ((_, combos) in SpawnDataIndex.fossilsBySpecies) {
-            for (combo in combos) {
-                // header (22) + sep (1) + label (13) + items + optional tags
-                var y = 22 + 1 + LINE_HEIGHT + 2
-                y += combo.fossilItems.size * ITEM_ROW_HEIGHT
-                if (combo.extraTags != null) {
-                    y += 4 + 1 + 4
-                    y += combo.extraTags.split(" ").size * LINE_HEIGHT
+            try {
+                for (combo in combos) {
+                    var y = 22 + 1 + LINE_HEIGHT + 2
+                    y += combo.fossilItems.size * ITEM_ROW_HEIGHT
+                    if (combo.extraTags != null) {
+                        y += 4 + 1 + 4
+                        y += combo.extraTags.split(" ").size * LINE_HEIGHT
+                    }
+                    y += PADDING
+                    if (y > maxH) maxH = y
                 }
-                y += PADDING
-                if (y > maxH) maxH = y
-            }
+            } catch (_: Exception) {}
         }
         return PanelSize(200, maxH.coerceAtMost(250))
     }
@@ -259,16 +272,18 @@ object DisplayLayout {
         if (!SpawnDataIndex.hasData()) return PanelSize(200, 200)
         var maxH = 80
         for ((_, info) in SpawnDataIndex.speciesInfo) {
-            val matchups = TypeChart.getMatchups(info.primaryType, info.secondaryType)
-            var h = 40
-            if (matchups.weaknesses.isNotEmpty())
-                h += LINE_HEIGHT + matchups.weaknesses.size * LINE_HEIGHT + SECTION_GAP
-            if (matchups.resistances.isNotEmpty())
-                h += LINE_HEIGHT + matchups.resistances.size * LINE_HEIGHT + SECTION_GAP
-            if (matchups.immunities.isNotEmpty())
-                h += LINE_HEIGHT + matchups.immunities.size * LINE_HEIGHT
-            h += PADDING
-            if (h > maxH) maxH = h
+            try {
+                val matchups = TypeChart.getMatchups(info.primaryType, info.secondaryType)
+                var h = 40
+                if (matchups.weaknesses.isNotEmpty())
+                    h += LINE_HEIGHT + matchups.weaknesses.size * LINE_HEIGHT + SECTION_GAP
+                if (matchups.resistances.isNotEmpty())
+                    h += LINE_HEIGHT + matchups.resistances.size * LINE_HEIGHT + SECTION_GAP
+                if (matchups.immunities.isNotEmpty())
+                    h += LINE_HEIGHT + matchups.immunities.size * LINE_HEIGHT
+                h += PADDING
+                if (h > maxH) maxH = h
+            } catch (_: Exception) {}
         }
         return PanelSize(200, maxH)
     }

@@ -2,6 +2,19 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.30.0] - 2026-02-16
+
+### Fixed
+- Addon Pokémon (CCC and others) now load properly instead of being silently dropped when species data has missing fields
+- Species with no standard form, missing primary type, or incomplete data now use sensible fallbacks instead of crashing
+- Recipe display shows "Data unavailable" message instead of crashing when layout construction fails
+- One bad species can no longer crash an entire category's size computation
+
+### Changed
+- Data layer (EvolutionDataLoader) now handles null/missing form data, types, stats, and moves with proper fallbacks
+- RecipeHandle produces a fallback error layout instead of propagating exceptions to the render thread
+- DisplayLayout per-entry size computations are individually protected so one failure doesn't affect the rest
+
 ## [1.29.5] - 2026-02-16
 
 ### Fixed

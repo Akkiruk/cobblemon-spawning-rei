@@ -40,10 +40,24 @@ class RecipeHandle(
         val hasArrow: Boolean = false,
     )
 
-    val layout: PanelLayout by lazy(LazyThreadSafetyMode.NONE, layoutFactory)
-    val width: Int get() = _width?.invoke() ?: layout.width
-    val height: Int get() = _height?.invoke() ?: layout.height
-    val slots: Slots by lazy(LazyThreadSafetyMode.NONE) { _slots(layout) }
+    val layout: PanelLayout by lazy(LazyThreadSafetyMode.NONE) {
+        try {
+            layoutFactory()
+        } catch (e: Exception) {
+            DebugLog.once("layout-$recipeIdPath") { "Layout failed: ${e.message}" }
+            PanelLayout.error("Data unavailable")
+        }
+    }
+    val width: Int get() = try { _width?.invoke() ?: layout.width } catch (_: Exception) { 200 }
+    val height: Int get() = try { _height?.invoke() ?: layout.height } catch (_: Exception) { 100 }
+    val slots: Slots by lazy(LazyThreadSafetyMode.NONE) {
+        try {
+            _slots(layout)
+        } catch (e: Exception) {
+            DebugLog.once("slots-$recipeIdPath") { "Slots failed: ${e.message}" }
+            Slots()
+        }
+    }
 }
 
 interface DexCategory {

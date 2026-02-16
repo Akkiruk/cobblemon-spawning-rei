@@ -393,12 +393,15 @@ object EvolutionDataLoader {
         for (species in implemented) {
             try {
                 val name = species.name.lowercase()
-                val form = species.standardForm
+                val form = try { species.standardForm } catch (_: Exception) { null }
+                if (form == null) {
+                    DebugLog.once("species-no-form-$name") { "Species '$name' has no standard form, using species-level data" }
+                }
 
                 val stats = try {
                     val statMap = mutableMapOf<String, Int>()
                     for (stat in Stats.PERMANENT) {
-                        val value = form.baseStats[stat] ?: species.baseStats[stat] ?: 0
+                        val value = form?.baseStats?.get(stat) ?: species.baseStats[stat] ?: 0
                         statMap[stat.showdownId] = value
                     }
                     statMap.ifEmpty { null }
@@ -409,7 +412,8 @@ object EvolutionDataLoader {
                 val abilityNames = try {
                     val common = mutableListOf<String>()
                     var hidden: String? = null
-                    for (ability in form.abilities) {
+                    val abilities = form?.abilities ?: emptyList()
+                    for (ability in abilities) {
                         val abilityName = titleCase(ability.template.name)
                         if (ability is HiddenAbility) {
                             hidden = abilityName
@@ -421,7 +425,7 @@ object EvolutionDataLoader {
                 } catch (_: Exception) { Pair(null, null) }
 
                 val eggGroups = try {
-                    val groups = form.eggGroups.ifEmpty { species.eggGroups }
+                    val groups = (form?.eggGroups ?: emptySet()).ifEmpty { species.eggGroups }
                     groups.map { it.showdownID }.ifEmpty { null }
                 } catch (_: Exception) { null }
 
@@ -439,7 +443,7 @@ object EvolutionDataLoader {
                 } catch (_: Exception) { null }
 
                 val drops = try {
-                    val entries = form.drops.entries
+                    val entries = (form?.drops?.entries ?: emptyList())
                         .filterIsInstance<ItemDropEntry>()
                         .map { entry ->
                             DropEntryInfo(
@@ -462,14 +466,14 @@ object EvolutionDataLoader {
                 val evYield = try {
                     val yieldMap = mutableMapOf<String, Int>()
                     for (stat in Stats.PERMANENT) {
-                        val value = form.evYield[stat] ?: 0
+                        val value = form?.evYield?.get(stat) ?: 0
                         if (value > 0) yieldMap[stat.showdownId] = value
                     }
                     yieldMap.ifEmpty { null }
                 } catch (_: Exception) { null }
 
                 val levelUpMoves = try {
-                    val moves = form.moves.levelUpMoves
+                    val moves = form?.moves?.levelUpMoves ?: emptyMap()
                     val grouped = mutableMapOf<Int, MutableList<MoveDetail>>()
                     for ((level, moveList) in moves) {
                         for (move in moveList) {
@@ -482,27 +486,27 @@ object EvolutionDataLoader {
                 } catch (_: Exception) { null }
 
                 val eggMoves = try {
-                    form.moves.eggMoves.map { toMoveDetail(it) }.ifEmpty { null }
+                    form?.moves?.eggMoves?.map { toMoveDetail(it) }?.ifEmpty { null }
                 } catch (_: Exception) { null }
 
                 val tutorMoves = try {
-                    form.moves.tutorMoves.map { toMoveDetail(it) }.ifEmpty { null }
+                    form?.moves?.tutorMoves?.map { toMoveDetail(it) }?.ifEmpty { null }
                 } catch (_: Exception) { null }
 
                 val tmMoves = try {
-                    form.moves.tmMoves.map { toMoveDetail(it) }.ifEmpty { null }
+                    form?.moves?.tmMoves?.map { toMoveDetail(it) }?.ifEmpty { null }
                 } catch (_: Exception) { null }
 
                 val shoulderMount = try { species.shoulderMountable } catch (_: Exception) { false }
 
                 result[name] = SpeciesBasicInfo(
                     name = name,
-                    nationalDexNumber = species.nationalPokedexNumber,
-                    primaryType = species.primaryType.name.lowercase(),
-                    secondaryType = species.secondaryType?.name?.lowercase(),
-                    catchRate = species.catchRate,
-                    weight = species.weight,
-                    height = species.height,
+                    nationalDexNumber = try { species.nationalPokedexNumber } catch (_: Exception) { 0 },
+                    primaryType = try { species.primaryType.name.lowercase() } catch (_: Exception) { "normal" },
+                    secondaryType = try { species.secondaryType?.name?.lowercase() } catch (_: Exception) { null },
+                    catchRate = try { species.catchRate } catch (_: Exception) { 45 },
+                    weight = try { species.weight } catch (_: Exception) { 0f },
+                    height = try { species.height } catch (_: Exception) { 0f },
                     baseStats = stats,
                     baseStatTotal = bst,
                     evYield = evYield,
@@ -559,17 +563,17 @@ object EvolutionDataLoader {
                         Pair(common.ifEmpty { null }, hidden)
                     } catch (_: Exception) { Pair(null, null) }
 
-                    val megaPrimary = try { megaForm.primaryType?.name?.lowercase() ?: species.primaryType.name.lowercase() } catch (_: Exception) { species.primaryType.name.lowercase() }
+                    val megaPrimary = try { megaForm.primaryType?.name?.lowercase() ?: species.primaryType?.name?.lowercase() ?: "normal" } catch (_: Exception) { "normal" }
                     val megaSecondary = try { megaForm.secondaryType?.name?.lowercase() ?: species.secondaryType?.name?.lowercase() } catch (_: Exception) { null }
 
                     result[megaKey] = SpeciesBasicInfo(
                         name = megaKey,
-                        nationalDexNumber = species.nationalPokedexNumber,
+                        nationalDexNumber = try { species.nationalPokedexNumber } catch (_: Exception) { 0 },
                         primaryType = megaPrimary,
                         secondaryType = megaSecondary,
-                        catchRate = species.catchRate,
-                        weight = species.weight,
-                        height = species.height,
+                        catchRate = try { species.catchRate } catch (_: Exception) { 45 },
+                        weight = try { species.weight } catch (_: Exception) { 0f },
+                        height = try { species.height } catch (_: Exception) { 0f },
                         baseStats = megaStats,
                         baseStatTotal = megaBst,
                         abilities = megaAbilities.first,

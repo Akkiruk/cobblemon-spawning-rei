@@ -95,7 +95,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
         override fun getId(): ResourceLocation =
             ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "emi_${handle.recipeIdPath}")
 
-        override fun getInputs(): List<EmiIngredient> = try {
+        override fun getInputs(): List<EmiIngredient> {
             val pokemon = handle.slots.pokemon
                 .mapNotNull { slot ->
                     val item = PokemonItemCache.getItem(slot.species)
@@ -107,10 +107,10 @@ open class CobbleDexEMIPlugin : EmiPlugin {
                     val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
                     if (!stack.isEmpty) EmiStack.of(stack) else null
                 }
-            pokemon + items
-        } catch (_: Exception) { emptyList() }
+            return pokemon + items
+        }
 
-        override fun getOutputs(): List<EmiStack> = try {
+        override fun getOutputs(): List<EmiStack> {
             val pokemon = handle.slots.pokemon
                 .mapNotNull { slot ->
                     val item = PokemonItemCache.getItem(slot.species)
@@ -122,41 +122,35 @@ open class CobbleDexEMIPlugin : EmiPlugin {
                     val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
                     if (!stack.isEmpty) EmiStack.of(stack) else null
                 }
-            pokemon + items
-        } catch (_: Exception) { emptyList() }
+            return pokemon + items
+        }
 
-        override fun getDisplayWidth(): Int = try { handle.width } catch (_: Exception) { 200 }
-        override fun getDisplayHeight(): Int = try { handle.height } catch (_: Exception) { 200 }
+        override fun getDisplayWidth(): Int = handle.width
+        override fun getDisplayHeight(): Int = handle.height
 
         override fun supportsRecipeTree(): Boolean = def.supportsRecipeTree
 
         override fun addWidgets(widgets: dev.emi.emi.api.widget.WidgetHolder) {
-            try {
-                val slots = handle.slots
+            val slots = handle.slots
 
-                for (slot in slots.pokemon) {
-                    val item = PokemonItemCache.getItem(slot.species)
-                    if (item != null && !item.isEmpty) {
-                        widgets.addSlot(EmiStack.of(item), slot.x, slot.y).recipeContext(this)
-                    }
+            for (slot in slots.pokemon) {
+                val item = PokemonItemCache.getItem(slot.species)
+                if (item != null && !item.isEmpty) {
+                    widgets.addSlot(EmiStack.of(item), slot.x, slot.y).recipeContext(this)
                 }
-
-                for (slot in slots.items) {
-                    val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
-                    if (!stack.isEmpty) {
-                        widgets.addSlot(EmiStack.of(stack), slot.x, slot.y).recipeContext(this)
-                    }
-                }
-            } catch (e: Exception) {
-                DebugLog.once("emi-slots-${handle.recipeIdPath}") { "Slot setup failed: ${e.message}" }
             }
 
-            val w = try { handle.width } catch (_: Exception) { 200 }
-            val h = try { handle.height } catch (_: Exception) { 200 }
+            for (slot in slots.items) {
+                val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
+                if (!stack.isEmpty) {
+                    widgets.addSlot(EmiStack.of(stack), slot.x, slot.y).recipeContext(this)
+                }
+            }
+
+            val w = handle.width
+            val h = handle.height
             widgets.addDrawable(0, 0, w, h) { gfx, _, _, _ ->
-                try {
-                    handle.layout.render(gfx)
-                } catch (_: Exception) {}
+                handle.layout.render(gfx)
             }
         }
     }

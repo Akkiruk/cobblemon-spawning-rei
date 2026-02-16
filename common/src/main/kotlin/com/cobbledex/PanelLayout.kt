@@ -112,5 +112,14 @@ class PanelLayout(val width: Int) {
         const val ITEM_ROW_HEIGHT = 20
         const val MIN_WIDTH = 150
         const val MAX_WIDTH = 300
+
+        fun error(message: String): PanelLayout {
+            val layout = PanelLayout(200)
+            layout.gap(PADDING)
+            layout.text(PADDING, message, 0xFFAA5555.toInt(), shadow = true)
+            layout.line()
+            layout.gap(PADDING)
+            return layout
+        }
     }
 }
