@@ -120,13 +120,13 @@ object EvolutionChainBuilder {
             node.evolutions.isEmpty() -> {}
             node.evolutions.size == 1 -> {
                 val edge = node.evolutions[0]
-                val req = edge.info.textOnlyRequirements.ifBlank { edge.info.displayRequirements }
+                val req = edge.info.displayRequirements
                 rows.add(ChainRow.Arrow(req, indent))
                 flattenNode(edge.target, indent, rows, false)
             }
             else -> {
                 for (edge in node.evolutions) {
-                    val req = edge.info.textOnlyRequirements.ifBlank { edge.info.displayRequirements }
+                    val req = edge.info.displayRequirements
                     rows.add(ChainRow.Branch(
                         edge.target.species, edge.target.aspects,
                         edge.target.displayName, req, indent + 1

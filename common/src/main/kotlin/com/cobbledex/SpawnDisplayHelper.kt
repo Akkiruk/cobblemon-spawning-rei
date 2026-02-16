@@ -799,6 +799,88 @@ object SpawnDisplayHelper {
         return layout
     }
 
+    // --- Evolution chain layout builder ---
+
+    fun buildEvolutionChainLayout(chain: EvolutionChainBuilder.ChainNode): PanelLayout {
+        val font = Minecraft.getInstance().font
+        val padding = PanelLayout.PADDING
+        val headerTag = tr("category.cobbledex-rei-emi-jei.evolution")
+        val chainIndent = EvolutionChainBuilder.CHAIN_INDENT
+        val rows = EvolutionChainBuilder.flattenChain(chain)
+
+        var maxRowWidth = PanelLayout.MIN_WIDTH
+        for (row in rows) {
+            val indent = when (row) {
+                is EvolutionChainBuilder.ChainRow.Pokemon -> row.indent * chainIndent
+                is EvolutionChainBuilder.ChainRow.Arrow -> row.indent * chainIndent
+                is EvolutionChainBuilder.ChainRow.Branch -> row.indent * chainIndent
+            }
+            val textWidth = when (row) {
+                is EvolutionChainBuilder.ChainRow.Pokemon ->
+                    padding + 4 + indent + font.width(row.displayName) + padding
+                is EvolutionChainBuilder.ChainRow.Arrow ->
+                    padding + 4 + indent + font.width("\u2193 ${row.requirement}") + padding
+                is EvolutionChainBuilder.ChainRow.Branch ->
+                    padding + 4 + indent + font.width("\u251C ${row.displayName}") + 4 + font.width("\u2014 ${row.requirement}") + padding
+            }
+            if (textWidth > maxRowWidth) maxRowWidth = textWidth
+        }
+
+        val nameWidth = PanelLayout.TEXT_START_X + font.width(formatSpeciesName(chain.species)) + padding
+        val width = maxOf(maxRowWidth, nameWidth).coerceAtMost(PanelLayout.MAX_WIDTH)
+        val layout = PanelLayout(width)
+        val right = layout.right
+        val indentX = padding + 4
+
+        layout.textAt(padding + 22, 6, formatSpeciesName(chain.species), 0xFFFFFF)
+        layout.textRightAt(6, headerTag, 0xDDCC99)
+        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        layout.skipTo(26)
+
+        layout.text(padding, tr("cobbledex-rei-emi-jei.evo.section.chain"), 0xEEEEEE)
+        layout.line()
+        layout.gap(2)
+
+        for (row in rows) {
+            when (row) {
+                is EvolutionChainBuilder.ChainRow.Pokemon -> {
+                    val x = indentX + row.indent * chainIndent
+                    layout.text(x, row.displayName, 0xFFFFFF)
+                    layout.gap(EvolutionChainBuilder.CHAIN_POKEMON_ROW)
+                }
+                is EvolutionChainBuilder.ChainRow.Arrow -> {
+                    val x = indentX + row.indent * chainIndent
+                    val reqText = if (row.requirement.isNotBlank()) "\u2193 ${row.requirement}" else "\u2193"
+                    layout.clipped(x, reqText, right - x, 0xFFDD88)
+                    layout.gap(EvolutionChainBuilder.CHAIN_ARROW_ROW)
+                }
+                is EvolutionChainBuilder.ChainRow.Branch -> {
+                    val x = indentX + row.indent * chainIndent
+                    val prefix = "\u251C ${row.displayName}"
+                    layout.text(x, prefix, 0xFFFFFF)
+                    if (row.requirement.isNotBlank()) {
+                        val nameWidth2 = font.width(prefix)
+                        val reqX = x + nameWidth2 + 4
+                        val maxReqW = right - reqX
+                        if (maxReqW > 20) {
+                            layout.clipped(reqX, "\u2014 ${row.requirement}", maxReqW, 0xFFDD88)
+                        }
+                    }
+                    layout.gap(EvolutionChainBuilder.CHAIN_BRANCH_ROW)
+                }
+            }
+        }
+
+        val allSpecies = EvolutionChainBuilder.collectAllSpecies(chain)
+        layout.gap(1)
+        layout.separator(0x20FFFFFF)
+        layout.gap(4)
+        layout.text(padding, tr("cobbledex-rei-emi-jei.evo.chain_count", allSpecies.size), 0x888888)
+        layout.gap(font.lineHeight + padding)
+
+        return layout
+    }
+
     // --- Stats detail rendering (shared between REI/JEI/EMI) ---
 
     private val STAT_NAMES = listOf("hp", "atk", "def", "spa", "spd", "spe")

@@ -2,6 +2,18 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.29.1] - 2026-02-15
+
+### Added
+- Full evolution chain display showing complete family trees (e.g., Charmander → Charmeleon → Charizard)
+- Branching evolution trees with indentation (e.g., Eevee's 8 evolutions)
+- Chain footer showing total Pokémon count in family
+
+### Changed
+- Evolution category now shows one recipe per evolution family instead of individual A→B pairs
+- Clicking any Pokémon in a chain displays the full family tree
+- Requirements shown inline with each evolution step using full description text
+
 ## [1.29.0] - 2026-02-16
 
 ### Added

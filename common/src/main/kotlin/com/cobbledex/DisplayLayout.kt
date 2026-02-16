@@ -147,11 +147,12 @@ object DisplayLayout {
 
     private fun computeMaxEvolutionSize(): PanelSize {
         if (!SpawnDataIndex.hasData()) return PanelSize(180, 120)
-        val branches = SpawnDisplayHelper.deduplicateEvolutions(SpawnDataIndex.evolutionsBySpecies)
+        val chains = EvolutionChainBuilder.getAllChains()
+        if (chains.isEmpty()) return PanelSize(180, 120)
         var maxW = MIN_WIDTH
         var maxH = 70
-        for ((evo, idx, total) in branches) {
-            val layout = SpawnDisplayHelper.buildEvolutionLayout(evo, idx, total)
+        for ((_, chain) in chains) {
+            val layout = SpawnDisplayHelper.buildEvolutionChainLayout(chain)
             if (layout.width > maxW) maxW = layout.width
             if (layout.height > maxH) maxH = layout.height
         }
