@@ -12,7 +12,11 @@ object SpawnDisplayHelper {
 
     data class MergedSpawn(val spawn: SpawnInfo, val formVariants: List<String>)
 
-    data class EvolutionBranch(val evolution: EvolutionInfo, val branchIndex: Int, val branchTotal: Int)
+    data class ChainLayoutResult(
+        val layout: PanelLayout,
+        val pokemonSlots: List<PokemonSlotDef>,
+        val itemSlots: List<ItemSlotDef>,
+    )
 
     val BUCKET_COLORS = mapOf(
         "common" to 0xFF4CAF50.toInt(),
@@ -88,25 +92,6 @@ object SpawnDisplayHelper {
             "${s.minSkyLight}|${s.maxSkyLight}|${s.minY}|${s.maxY}|" +
             "${s.neededNearbyBlocks.sorted()}|${s.neededBaseBlocks.sorted()}|" +
             "${s.moonPhase}|${s.presets.sorted()}|${s.fluid}"
-    }
-
-    // --- Evolution deduplication ---
-
-    fun deduplicateEvolutions(evolutionsBySpecies: Map<String, List<EvolutionInfo>>): List<EvolutionBranch> {
-        val seen = mutableSetOf<String>()
-        val allEvos = mutableListOf<EvolutionInfo>()
-        for ((_, evos) in evolutionsBySpecies) {
-            for (evo in evos) {
-                if (evo.id in seen) continue
-                seen.add(evo.id)
-                allEvos.add(evo)
-            }
-        }
-        val grouped = allEvos.groupBy { it.fromSpecies }
-        return allEvos.map { evo ->
-            val siblings = grouped[evo.fromSpecies] ?: listOf(evo)
-            EvolutionBranch(evo, siblings.indexOf(evo) + 1, siblings.size)
-        }
     }
 
     // --- Condition / location / exclusion builders ---
@@ -655,158 +640,18 @@ object SpawnDisplayHelper {
         return layout
     }
 
-    // --- Evolution requirement lines (structured, for bullet display) ---
-
-    fun getEvolutionRequirementLines(evo: EvolutionInfo): List<String> {
-        val lines = mutableListOf<String>()
-
-        if (evo.requiredContext != null && evo.requiredContext.isNotBlank()) {
-            val rawId = evo.requiredContext.trim()
-            val itemName = rawId
-                .let { if (it.contains(":")) it.substringAfter(":") else it }
-                .let { if (it.contains("=")) it.substringAfter("=").substringBefore(" ") else it }
-                .replace("_", " ")
-                .split(" ")
-                .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
-            when {
-                evo.variant.contains("item_interact") ->
-                    lines.add(tr("cobbledex-rei-emi-jei.evo.use_item_named", itemName))
-                evo.variant == "trade" ->
-                    lines.add(tr("cobbledex-rei-emi-jei.evo.trade_with", itemName))
-                evo.variant.contains("block_click") ->
-                    lines.add(tr("cobbledex-rei-emi-jei.evo.click_block", itemName))
-                itemName.isNotBlank() ->
-                    lines.add(tr("cobbledex-rei-emi-jei.evo.use_item_named", itemName))
-            }
-        }
-
-        if (evo.variant == "trade" && evo.requiredContext == null) {
-            lines.add(tr("cobbledex-rei-emi-jei.evo.trade"))
-        }
-
-        for (req in evo.requirements) {
-            if (req.variant == "held_item" || req.variant == "owner_holds_item") continue
-            lines.add(req.displayText)
-        }
-
-        if (lines.isEmpty() && evo.itemRequirements.isEmpty()) {
-            when {
-                evo.variant.contains("level") -> lines.add(tr("cobbledex-rei-emi-jei.evo.level_up"))
-                evo.variant.contains("trade") -> lines.add(tr("cobbledex-rei-emi-jei.evo.trade"))
-                evo.variant.contains("item") -> lines.add(tr("cobbledex-rei-emi-jei.evo.use_item"))
-                else -> lines.add(tr("cobbledex-rei-emi-jei.evo.level_up"))
-            }
-        }
-
-        return lines
-    }
-
-    // --- Evolution layout builder ---
-
-    fun buildEvolutionLayout(
-        evolution: EvolutionInfo,
-        branchIndex: Int,
-        branchTotal: Int,
-        itemYRef: IntArray? = null
-    ): PanelLayout {
-        val font = Minecraft.getInstance().font
-        val padding = PanelLayout.PADDING
-        val slotSize = PanelLayout.SLOT_SIZE
-        val lineHeight = PanelLayout.LINE_HEIGHT
-        val headerTag = tr("category.cobbledex-rei-emi-jei.evolution")
-
-        val reqLines = getEvolutionRequirementLines(evolution)
-        val items = evolution.itemRequirements
-
-        val fromW = font.width(evolution.displayFromName)
-        val toW = font.width(evolution.displayToName)
-        val arrowStr = " \u2192 "
-        val arrowW = font.width(arrowStr)
-
-        val fromCenterX = 20 + slotSize / 2
-        val toCenterBase = slotSize / 2 + 20
-        val nameLineWidth = fromCenterX + fromW / 2 + arrowW + toW / 2 + toCenterBase
-        val tagWidth = font.width(headerTag) + padding * 2
-
-        val maxReqWidth = if (reqLines.isNotEmpty()) {
-            reqLines.maxOf { padding + 10 + font.width("\u2022 $it") + padding }
-        } else 0
-
-        val maxItemWidth = if (items.isNotEmpty()) {
-            items.maxOf { item ->
-                val itemName = resolveItemName(item.itemId)
-                padding + 22 + font.width("${item.label} $itemName") + padding
-            }
-        } else 0
-
-        val width = maxOf(nameLineWidth, tagWidth, maxReqWidth, maxItemWidth, PanelLayout.MIN_WIDTH)
-            .coerceAtMost(PanelLayout.MAX_WIDTH)
-        val layout = PanelLayout(width)
-        val right = layout.right
-        val centerX = width / 2
-        val indentX = padding + 6
-        val indentWidth = right - indentX
-        val toCenterX = width - 20 - slotSize / 2
-
-        // Species names below icon slots
-        layout.textAt(fromCenterX - fromW / 2, 30, evolution.displayFromName, 0xFFFFFF)
-        layout.textAt(centerX - arrowW / 2, 30, arrowStr, 0x888888)
-        layout.textAt(toCenterX - toW / 2, 30, evolution.displayToName, 0xFFFFFF)
-
-        layout.textRightAt(4, headerTag, 0xDDCC99)
-        layout.fill(padding, 42, right, 43, 0x50FFFFFF)
-        layout.skipTo(48)
-
-        // Requirements section
-        if (reqLines.isNotEmpty()) {
-            layout.text(padding, tr("cobbledex-rei-emi-jei.evo.section.requirements"), 0xEEEEEE)
-            layout.line()
-            for (line in reqLines) {
-                layout.wrapped(indentX, "\u2022 $line", indentWidth, 0xFFDD88)
-            }
-            layout.gap(PanelLayout.SECTION_GAP)
-        }
-
-        // Items section
-        if (items.isNotEmpty()) {
-            layout.text(padding, tr("cobbledex-rei-emi-jei.evo.section.items"), 0xEEEEEE)
-            layout.line()
-            itemYRef?.set(0, layout.y)
-            for (item in items) {
-                val itemName = resolveItemName(item.itemId)
-                val nameX = padding + 22
-                val labelText = "${item.label} "
-                val labelWidth = font.width(labelText)
-                layout.textAt(nameX, layout.y + 4, labelText, 0xBBBBBB)
-                layout.textAt(nameX + labelWidth, layout.y + 4,
-                    clipToWidth(font, itemName, right - nameX - labelWidth), 0xFFFFFF)
-                layout.gap(PanelLayout.ITEM_ROW_HEIGHT)
-            }
-            layout.gap(PanelLayout.SECTION_GAP)
-        }
-
-        // Footer
-        if (branchTotal > 1) {
-            layout.gap(1)
-            layout.separator(0x20FFFFFF)
-            layout.gap(4)
-            layout.text(padding, evoBranchText(branchIndex, branchTotal), 0x888888)
-            layout.gap(font.lineHeight + padding)
-        } else {
-            layout.gap(padding)
-        }
-
-        return layout
-    }
-
     // --- Evolution chain layout builder ---
 
-    fun buildEvolutionChainLayout(chain: EvolutionChainBuilder.ChainNode): PanelLayout {
+    fun buildEvolutionChainLayout(chain: EvolutionChainBuilder.ChainNode): ChainLayoutResult {
         val font = Minecraft.getInstance().font
         val padding = PanelLayout.PADDING
         val headerTag = tr("category.cobbledex-rei-emi-jei.evolution")
         val chainIndent = EvolutionChainBuilder.CHAIN_INDENT
         val rows = EvolutionChainBuilder.flattenChain(chain)
+        val pokemonSlots = mutableListOf<PokemonSlotDef>()
+        val itemSlots = mutableListOf<ItemSlotDef>()
+        val iconSize = 20
+        val afterIcon = iconSize + 2
 
         var maxRowWidth = PanelLayout.MIN_WIDTH
         for (row in rows) {
@@ -815,15 +660,21 @@ object SpawnDisplayHelper {
                 is EvolutionChainBuilder.ChainRow.Arrow -> row.indent * chainIndent
                 is EvolutionChainBuilder.ChainRow.Branch -> row.indent * chainIndent
             }
-            val textWidth = when (row) {
+            val rowW = when (row) {
                 is EvolutionChainBuilder.ChainRow.Pokemon ->
-                    padding + 4 + indent + font.width(row.displayName) + padding
-                is EvolutionChainBuilder.ChainRow.Arrow ->
-                    padding + 4 + indent + font.width("\u2193 ${row.requirement}") + padding
-                is EvolutionChainBuilder.ChainRow.Branch ->
-                    padding + 4 + indent + font.width("\u251C ${row.displayName}") + 4 + font.width("\u2014 ${row.requirement}") + padding
+                    padding + 4 + indent + iconSize + 2 + font.width(row.displayName) + padding
+                is EvolutionChainBuilder.ChainRow.Arrow -> {
+                    val itemExtra = if (row.items.isNotEmpty()) 20 else 0
+                    padding + 4 + indent + font.width("\u2193 ${row.requirement}") + itemExtra + padding
+                }
+                is EvolutionChainBuilder.ChainRow.Branch -> {
+                    val prefixW = font.width("\u251C ")
+                    val reqPart = if (row.requirement.isNotBlank()) " \u2014 ${row.requirement}" else ""
+                    val itemExtra = if (row.items.isNotEmpty()) 20 else 0
+                    padding + 4 + indent + prefixW + iconSize + 2 + font.width(row.displayName + reqPart) + itemExtra + padding
+                }
             }
-            if (textWidth > maxRowWidth) maxRowWidth = textWidth
+            if (rowW > maxRowWidth) maxRowWidth = rowW
         }
 
         val nameWidth = PanelLayout.TEXT_START_X + font.width(formatSpeciesName(chain.species)) + padding
@@ -832,10 +683,12 @@ object SpawnDisplayHelper {
         val right = layout.right
         val indentX = padding + 4
 
+        // Header
+        pokemonSlots.add(PokemonSlotDef(chain.species, chain.aspects, padding, 2, SlotRole.INPUT))
         layout.textAt(padding + 22, 6, formatSpeciesName(chain.species), 0xFFFFFF)
         layout.textRightAt(6, headerTag, 0xDDCC99)
-        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
-        layout.skipTo(26)
+        layout.fill(padding, 24, right, 25, 0x50FFFFFF)
+        layout.skipTo(30)
 
         layout.text(padding, tr("cobbledex-rei-emi-jei.evo.section.chain"), 0xEEEEEE)
         layout.line()
@@ -845,28 +698,47 @@ object SpawnDisplayHelper {
             when (row) {
                 is EvolutionChainBuilder.ChainRow.Pokemon -> {
                     val x = indentX + row.indent * chainIndent
-                    layout.text(x, row.displayName, 0xFFFFFF)
-                    layout.gap(EvolutionChainBuilder.CHAIN_POKEMON_ROW)
+                    pokemonSlots.add(PokemonSlotDef(row.species, row.aspects, x, layout.y, SlotRole.INPUT,
+                        disableBackground = false, disableHighlight = false))
+                    layout.textAt(x + afterIcon, layout.y + 5, row.displayName, 0xFFFFFF)
+                    layout.gap(22)
                 }
                 is EvolutionChainBuilder.ChainRow.Arrow -> {
-                    val x = indentX + row.indent * chainIndent
+                    val x = indentX + row.indent * chainIndent + 4
+                    val hasItems = row.items.isNotEmpty()
+                    val itemSpace = if (hasItems) 20 else 0
                     val reqText = if (row.requirement.isNotBlank()) "\u2193 ${row.requirement}" else "\u2193"
-                    layout.clipped(x, reqText, right - x, 0xFFDD88)
-                    layout.gap(EvolutionChainBuilder.CHAIN_ARROW_ROW)
+                    layout.clipped(x, reqText, right - x - itemSpace, 0xFFDD88)
+                    if (hasItems) {
+                        for ((i, item) in row.items.withIndex()) {
+                            itemSlots.add(ItemSlotDef(item.itemId, right - 18 * (row.items.size - i), layout.y, SlotRole.INPUT))
+                        }
+                    }
+                    layout.gap(if (hasItems) 20 else 14)
                 }
                 is EvolutionChainBuilder.ChainRow.Branch -> {
                     val x = indentX + row.indent * chainIndent
-                    val prefix = "\u251C ${row.displayName}"
-                    layout.text(x, prefix, 0xFFFFFF)
+                    val prefixW = font.width("\u251C ")
+                    layout.textAt(x, layout.y + 5, "\u251C", 0x888888)
+                    val slotX = x + prefixW
+                    pokemonSlots.add(PokemonSlotDef(row.species, row.aspects, slotX, layout.y, SlotRole.INPUT,
+                        disableBackground = false, disableHighlight = false))
+                    val hasItems = row.items.isNotEmpty()
+                    val itemSpace = if (hasItems) 20 else 0
                     if (row.requirement.isNotBlank()) {
-                        val nameWidth2 = font.width(prefix)
-                        val reqX = x + nameWidth2 + 4
-                        val maxReqW = right - reqX
-                        if (maxReqW > 20) {
+                        val reqX = slotX + afterIcon + font.width(row.displayName) + 4
+                        val maxReqW = right - reqX - itemSpace
+                        if (maxReqW > 10) {
                             layout.clipped(reqX, "\u2014 ${row.requirement}", maxReqW, 0xFFDD88)
                         }
                     }
-                    layout.gap(EvolutionChainBuilder.CHAIN_BRANCH_ROW)
+                    layout.textAt(slotX + afterIcon, layout.y + 5, row.displayName, 0xFFFFFF)
+                    if (hasItems) {
+                        for ((i, item) in row.items.withIndex()) {
+                            itemSlots.add(ItemSlotDef(item.itemId, right - 18 * (row.items.size - i), layout.y + 1, SlotRole.INPUT))
+                        }
+                    }
+                    layout.gap(22)
                 }
             }
         }
@@ -878,7 +750,7 @@ object SpawnDisplayHelper {
         layout.text(padding, tr("cobbledex-rei-emi-jei.evo.chain_count", allSpecies.size), 0x888888)
         layout.gap(font.lineHeight + padding)
 
-        return layout
+        return ChainLayoutResult(layout, pokemonSlots, itemSlots)
     }
 
     // --- Stats detail rendering (shared between REI/JEI/EMI) ---

@@ -24,6 +24,7 @@ object EvolutionChainBuilder {
 
         data class Arrow(
             val requirement: String,
+            val items: List<EvolutionItemInfo>,
             val indent: Int
         ) : ChainRow()
 
@@ -32,6 +33,7 @@ object EvolutionChainBuilder {
             val aspects: Set<String>,
             val displayName: String,
             val requirement: String,
+            val items: List<EvolutionItemInfo>,
             val indent: Int
         ) : ChainRow()
     }
@@ -121,7 +123,7 @@ object EvolutionChainBuilder {
             node.evolutions.size == 1 -> {
                 val edge = node.evolutions[0]
                 val req = edge.info.displayRequirements
-                rows.add(ChainRow.Arrow(req, indent))
+                rows.add(ChainRow.Arrow(req, edge.info.itemRequirements, indent))
                 flattenNode(edge.target, indent, rows, false)
             }
             else -> {
@@ -129,7 +131,7 @@ object EvolutionChainBuilder {
                     val req = edge.info.displayRequirements
                     rows.add(ChainRow.Branch(
                         edge.target.species, edge.target.aspects,
-                        edge.target.displayName, req, indent + 1
+                        edge.target.displayName, req, edge.info.itemRequirements, indent + 1
                     ))
                     if (edge.target.evolutions.isNotEmpty()) {
                         flattenNode(edge.target, indent + 1, rows, true)

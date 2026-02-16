@@ -2,6 +2,21 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.29.2] - 2026-02-15
+
+### Added
+- Clickable Pokémon icons for every species in evolution chain
+- Clickable item icons for evolution items (stones, held items)
+
+### Changed
+- Evolution chain rows now show 3D Pokémon models as interactive slots
+- Branch rows display Pokémon icon + name + requirement + item icon
+- Arrow rows show item icons when evolution requires an item
+
+### Removed
+- Dead per-evolution layout code (replaced by chain system)
+- Unused EvolutionRecipeData, EvolutionBranch, deduplicateEvolutions
+
 ## [1.29.1] - 2026-02-15
 
 ### Added

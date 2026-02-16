@@ -152,9 +152,9 @@ object DisplayLayout {
         var maxW = MIN_WIDTH
         var maxH = 70
         for ((_, chain) in chains) {
-            val layout = SpawnDisplayHelper.buildEvolutionChainLayout(chain)
-            if (layout.width > maxW) maxW = layout.width
-            if (layout.height > maxH) maxH = layout.height
+            val result = SpawnDisplayHelper.buildEvolutionChainLayout(chain)
+            if (result.layout.width > maxW) maxW = result.layout.width
+            if (result.layout.height > maxH) maxH = result.layout.height
         }
         return PanelSize(maxW, maxH)
     }

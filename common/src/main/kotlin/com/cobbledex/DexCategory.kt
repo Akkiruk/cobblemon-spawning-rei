@@ -133,12 +133,20 @@ object EvolutionDex : DexCategory {
 
     private fun toChainHandle(chain: EvolutionChainBuilder.ChainNode): RecipeHandle {
         val allSpecies = EvolutionChainBuilder.collectAllSpecies(chain).toList()
+        var chainResult: SpawnDisplayHelper.ChainLayoutResult? = null
         return RecipeHandle(
             recipeIdPath = "evolution/chain_${sanitizePath(chain.species)}",
             inputSpecies = allSpecies,
             outputSpecies = allSpecies,
-            layoutFactory = { SpawnDisplayHelper.buildEvolutionChainLayout(chain) },
-            _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(chain.species))) },
+            layoutFactory = {
+                val r = SpawnDisplayHelper.buildEvolutionChainLayout(chain)
+                chainResult = r
+                r.layout
+            },
+            _slots = { _ ->
+                val r = chainResult ?: SpawnDisplayHelper.buildEvolutionChainLayout(chain).also { chainResult = it }
+                RecipeHandle.Slots(pokemon = r.pokemonSlots, items = r.itemSlots)
+            },
         )
     }
 }

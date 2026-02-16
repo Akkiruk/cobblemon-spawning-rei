@@ -8,12 +8,6 @@ data class SpawnRecipeData(
     val bucketTotal: Int = 1
 )
 
-data class EvolutionRecipeData(
-    val evolution: EvolutionInfo,
-    val branchIndex: Int = 0,
-    val branchTotal: Int = 0
-)
-
 data class ObtainmentRecipeData(
     val speciesName: String,
     val obtainment: ObtainmentInfo,

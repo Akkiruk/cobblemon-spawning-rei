@@ -13,11 +13,6 @@ object RecipeBuilder {
         }
     }
 
-    fun buildAllEvolutionRecipes(): List<EvolutionRecipeData> {
-        return SpawnDisplayHelper.deduplicateEvolutions(SpawnDataIndex.evolutionsBySpecies)
-            .map { (evo, idx, total) -> EvolutionRecipeData(evo, idx, total) }
-    }
-
     fun buildAllObtainmentRecipes(): List<ObtainmentRecipeData> {
         val recipes = mutableListOf<ObtainmentRecipeData>()
         for ((species, obtainments) in SpawnDataIndex.obtainmentBySpecies) {
@@ -27,16 +22,6 @@ object RecipeBuilder {
             }
         }
         return recipes
-    }
-
-    fun buildEvolutionsFor(evos: List<EvolutionInfo>): List<EvolutionRecipeData> {
-        if (evos.isEmpty()) return emptyList()
-        val unique = evos.distinctBy { it.id }
-        val grouped = unique.groupBy { it.fromSpecies }
-        return unique.map { evo ->
-            val siblings = grouped[evo.fromSpecies] ?: listOf(evo)
-            EvolutionRecipeData(evo, siblings.indexOf(evo) + 1, siblings.size)
-        }
     }
 
     fun buildObtainmentsFor(species: String, obtainments: List<ObtainmentInfo>): List<ObtainmentRecipeData> {
