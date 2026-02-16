@@ -2,6 +2,13 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.28.3] - 2026-02-15
+
+### Fixed
+- Left-click on Pokémon in REI now shows recipes (where they appear/are used)
+- Right-click on Pokémon in REI now shows usages (what uses them)
+- Item click navigation also works for modded items that reference Pokémon
+
 ## [1.28.2] - 2026-02-15
 
 ### Fixed

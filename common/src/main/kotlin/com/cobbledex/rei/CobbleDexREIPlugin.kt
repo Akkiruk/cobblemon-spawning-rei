@@ -253,7 +253,31 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         }
 
         override fun generate(builder: ViewSearchBuilder): Optional<List<GenericDisplay>> {
-            if (builder.recipesFor.isNotEmpty() || builder.usagesFor.isNotEmpty()) return Optional.empty()
+            if (builder.recipesFor.isNotEmpty()) {
+                val results = mutableListOf<GenericDisplay>()
+                for (entry in builder.recipesFor) {
+                    val value = entry.value ?: continue
+                    if (value is PokemonEntry) {
+                        results.addAll(def.buildRecipesFor(value.species).map { GenericDisplay(it, def) })
+                    } else if (value is net.minecraft.world.item.ItemStack) {
+                        val itemId = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(value.item).toString()
+                        results.addAll(def.buildRecipesForItem(itemId).map { GenericDisplay(it, def) })
+                    }
+                }
+                return if (results.isEmpty()) Optional.empty() else Optional.of(results)
+            }
+
+            if (builder.usagesFor.isNotEmpty()) {
+                val results = mutableListOf<GenericDisplay>()
+                for (entry in builder.usagesFor) {
+                    val value = entry.value ?: continue
+                    if (value is PokemonEntry) {
+                        results.addAll(def.buildUsagesFor(value.species).map { GenericDisplay(it, def) })
+                    }
+                }
+                return if (results.isEmpty()) Optional.empty() else Optional.of(results)
+            }
+
             if (!SpawnDataIndex.hasData()) return Optional.empty()
             val version = SpawnDataIndex.dataVersion
             cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
