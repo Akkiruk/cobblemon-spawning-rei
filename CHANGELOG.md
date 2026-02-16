@@ -2,6 +2,13 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.28.4] - 2026-02-15
+
+### Fixed
+- GitHub Actions build failures due to Kotlin version conflicts
+- Downgraded kotlin-for-forge from 5.11.0 to 5.6.0 (5.11.0 was compiled with Kotlin 2.3.0)
+- Added dependency constraints to force Kotlin 2.1.0 for all transitive dependencies
+
 ## [1.28.3] - 2026-02-15
 
 ### Fixed
