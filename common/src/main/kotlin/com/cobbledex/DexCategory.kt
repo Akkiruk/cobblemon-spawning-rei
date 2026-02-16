@@ -117,12 +117,7 @@ object EvolutionDex : DexCategory {
     override fun isEnabled(config: CobbleDexConfig) = config.showEvolutions
 
     override fun buildAllRecipes(): List<RecipeHandle> {
-        val chains = EvolutionChainBuilder.getAllChains()
-        return chains.values.map { chain ->
-            val allSpecies = EvolutionChainBuilder.collectAllSpecies(chain)
-            val rows = EvolutionChainBuilder.flattenChain(chain)
-            toHandle(EvolutionChainRecipeData(chain.species, allSpecies, rows))
-        }
+        return RecipeBuilder.buildAllEvolutionRecipes().map(::toHandle)
     }
 
     override fun buildRecipesFor(species: String): List<RecipeHandle> {
@@ -130,12 +125,38 @@ object EvolutionDex : DexCategory {
         val allSpecies = EvolutionChainBuilder.collectAllSpecies(chain)
         if (allSpecies.size <= 1) return emptyList()
         val rows = EvolutionChainBuilder.flattenChain(chain)
-        return listOf(toHandle(EvolutionChainRecipeData(chain.species, allSpecies, rows)))
+        return listOf(toHandleChain(EvolutionChainRecipeData(chain.species, allSpecies, rows)))
     }
 
     override fun buildUsagesFor(species: String): List<RecipeHandle> = buildRecipesFor(species)
 
-    private fun toHandle(d: EvolutionChainRecipeData): RecipeHandle {
+    private fun toHandle(d: EvolutionRecipeData): RecipeHandle {
+        val evo = d.evolution
+        return RecipeHandle(
+            recipeIdPath = "evolution/${sanitizePath(evo.id)}",
+            inputSpecies = listOf(evo.fromSpecies),
+            outputSpecies = listOf(evo.toSpecies),
+            layoutFactory = { SpawnDisplayHelper.buildEvolutionLayout(evo, d.branchIndex, d.branchTotal) },
+            _slots = { layout ->
+                val w = layout.width
+                val slotSize = 18
+                RecipeHandle.Slots(
+                    pokemon = listOf(
+                        PokemonSlotDef(evo.fromSpecies, evo.fromAspects, 20, 8, SlotRole.INPUT, disableHighlight = false),
+                        PokemonSlotDef(evo.toSpecies, evo.toAspects, w - 20 - slotSize - 12, 8, SlotRole.OUTPUT, disableHighlight = false),
+                    ),
+                    items = evo.itemRequirements.mapIndexed { i, item ->
+                        ItemSlotDef(item.itemId, 8, 48 + i * 20, SlotRole.INPUT)
+                    },
+                    hasArrow = true,
+                    arrowX = w / 2 - 12,
+                    arrowY = 8 + (slotSize - 17) / 2,
+                )
+            },
+        )
+    }
+
+    private fun toHandleChain(d: EvolutionChainRecipeData): RecipeHandle {
         val allList = d.allSpecies.toList()
         return RecipeHandle(
             recipeIdPath = "evolution/chain/${sanitizePath(d.baseSpecies)}",

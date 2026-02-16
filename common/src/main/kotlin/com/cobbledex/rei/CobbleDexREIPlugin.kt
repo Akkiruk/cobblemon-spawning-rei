@@ -253,8 +253,6 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         }
 
         override fun generate(builder: ViewSearchBuilder): Optional<List<GenericDisplay>> {
-            if (!SpawnDataIndex.hasData()) return Optional.empty()
-
             if (builder.recipesFor.isNotEmpty()) {
                 val results = mutableListOf<GenericDisplay>()
                 for (entry in builder.recipesFor) {
@@ -280,6 +278,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
                 return if (results.isEmpty()) Optional.empty() else Optional.of(results)
             }
 
+            if (!SpawnDataIndex.hasData()) return Optional.empty()
             val version = SpawnDataIndex.dataVersion
             cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
 

@@ -2,6 +2,17 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.28.1] - 2026-02-15
+
+### Fixed
+- **CRITICAL:** REI initialization hang that prevented all items from displaying
+- Evolution chain building moved to on-demand (only when viewing specific Pokémon)
+- Data validation check order in display generator
+
+### Changed
+- Evolution category shows individual evolutions in main list, full chains when clicked
+- Improved initialization performance by deferring expensive chain building
+
 ## [1.28.0] - 2026-02-15
 
 ### Added
