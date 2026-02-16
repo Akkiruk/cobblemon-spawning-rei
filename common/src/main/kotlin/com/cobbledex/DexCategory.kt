@@ -133,11 +133,12 @@ object EvolutionDex : DexCategory {
 
     private fun toHandle(d: EvolutionRecipeData): RecipeHandle {
         val evo = d.evolution
+        val itemYRef = intArrayOf(0)
         return RecipeHandle(
             recipeIdPath = "evolution/${sanitizePath(evo.id)}",
             inputSpecies = listOf(evo.fromSpecies),
             outputSpecies = listOf(evo.toSpecies),
-            layoutFactory = { SpawnDisplayHelper.buildEvolutionLayout(evo, d.branchIndex, d.branchTotal) },
+            layoutFactory = { SpawnDisplayHelper.buildEvolutionLayout(evo, d.branchIndex, d.branchTotal, itemYRef) },
             _slots = { layout ->
                 val w = layout.width
                 val slotSize = 18
@@ -147,7 +148,7 @@ object EvolutionDex : DexCategory {
                         PokemonSlotDef(evo.toSpecies, evo.toAspects, w - 20 - slotSize - 12, 8, SlotRole.OUTPUT, disableHighlight = false),
                     ),
                     items = evo.itemRequirements.mapIndexed { i, item ->
-                        ItemSlotDef(item.itemId, 8, 48 + i * 20, SlotRole.INPUT)
+                        ItemSlotDef(item.itemId, 8, itemYRef[0] + i * 20, SlotRole.INPUT)
                     },
                     hasArrow = true,
                     arrowX = w / 2 - 12,

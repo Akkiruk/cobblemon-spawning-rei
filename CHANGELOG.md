@@ -2,6 +2,25 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.29.0] - 2026-02-16
+
+### Added
+- Evolution chain builder with upfront caching for fast chain lookups
+- Professional "How to Evolve" section with individual requirement bullet points
+- Dedicated "Items" section in evolution display with proper slot alignment
+- Section headers matching the quality of spawn/stats/moves panels
+
+### Changed
+- Evolution panel completely redesigned to match other display panels
+- Requirements now shown as individual bullet points instead of one long line
+- Item slots now dynamically align with layout content instead of fixed positions
+- Separator and footer styling consistent with spawn/obtainment panels
+
+### Fixed
+- Evolution items not displaying properly in some cases
+- Requirement text missing important details (items shown separately, context parsed fully)
+- EMI left/right click showing wrong categories (from v1.28.5)
+
 ## [1.28.5] - 2026-02-15
 
 ### Fixed

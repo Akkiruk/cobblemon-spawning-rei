@@ -655,85 +655,146 @@ object SpawnDisplayHelper {
         return layout
     }
 
+    // --- Evolution requirement lines (structured, for bullet display) ---
+
+    fun getEvolutionRequirementLines(evo: EvolutionInfo): List<String> {
+        val lines = mutableListOf<String>()
+
+        if (evo.requiredContext != null && evo.requiredContext.isNotBlank()) {
+            val rawId = evo.requiredContext.trim()
+            val itemName = rawId
+                .let { if (it.contains(":")) it.substringAfter(":") else it }
+                .let { if (it.contains("=")) it.substringAfter("=").substringBefore(" ") else it }
+                .replace("_", " ")
+                .split(" ")
+                .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+            when {
+                evo.variant.contains("item_interact") ->
+                    lines.add(tr("cobbledex-rei-emi-jei.evo.use_item_named", itemName))
+                evo.variant == "trade" ->
+                    lines.add(tr("cobbledex-rei-emi-jei.evo.trade_with", itemName))
+                evo.variant.contains("block_click") ->
+                    lines.add(tr("cobbledex-rei-emi-jei.evo.click_block", itemName))
+                itemName.isNotBlank() ->
+                    lines.add(tr("cobbledex-rei-emi-jei.evo.use_item_named", itemName))
+            }
+        }
+
+        if (evo.variant == "trade" && evo.requiredContext == null) {
+            lines.add(tr("cobbledex-rei-emi-jei.evo.trade"))
+        }
+
+        for (req in evo.requirements) {
+            if (req.variant == "held_item" || req.variant == "owner_holds_item") continue
+            lines.add(req.displayText)
+        }
+
+        if (lines.isEmpty() && evo.itemRequirements.isEmpty()) {
+            when {
+                evo.variant.contains("level") -> lines.add(tr("cobbledex-rei-emi-jei.evo.level_up"))
+                evo.variant.contains("trade") -> lines.add(tr("cobbledex-rei-emi-jei.evo.trade"))
+                evo.variant.contains("item") -> lines.add(tr("cobbledex-rei-emi-jei.evo.use_item"))
+                else -> lines.add(tr("cobbledex-rei-emi-jei.evo.level_up"))
+            }
+        }
+
+        return lines
+    }
+
     // --- Evolution layout builder ---
 
     fun buildEvolutionLayout(
         evolution: EvolutionInfo,
         branchIndex: Int,
         branchTotal: Int,
-        hasItemSlots: Boolean = evolution.itemRequirements.isNotEmpty()
+        itemYRef: IntArray? = null
     ): PanelLayout {
         val font = Minecraft.getInstance().font
         val padding = PanelLayout.PADDING
         val slotSize = PanelLayout.SLOT_SIZE
+        val lineHeight = PanelLayout.LINE_HEIGHT
+        val headerTag = tr("category.cobbledex-rei-emi-jei.evolution")
+
+        val reqLines = getEvolutionRequirementLines(evolution)
+        val items = evolution.itemRequirements
 
         val fromW = font.width(evolution.displayFromName)
         val toW = font.width(evolution.displayToName)
-        val neededForNames = maxOf(fromW, toW) * 2 + font.width("\u2192") + 8 + 40 + slotSize + padding * 2
+        val arrowStr = " \u2192 "
+        val arrowW = font.width(arrowStr)
 
-        val items = evolution.itemRequirements
-        var maxItemLabelWidth = 0
-        for (item in items) {
-            val stack = resolveItemStack(item.itemId)
-            val name = if (!stack.isEmpty) stack.hoverName.string else titleCase(item.itemId.substringAfter(":"))
-            maxItemLabelWidth = maxOf(maxItemLabelWidth, 30 + font.width("${item.label} $name") + padding)
-        }
+        val fromCenterX = 20 + slotSize / 2
+        val toCenterBase = slotSize / 2 + 20
+        val nameLineWidth = fromCenterX + fromW / 2 + arrowW + toW / 2 + toCenterBase
+        val tagWidth = font.width(headerTag) + padding * 2
 
-        val reqText = if (hasItemSlots) evolution.textOnlyRequirements else evolution.displayRequirements
-        val reqWidth = if (reqText.isNotBlank()) padding + font.width(reqText) + padding else 0
+        val maxReqWidth = if (reqLines.isNotEmpty()) {
+            reqLines.maxOf { padding + 10 + font.width("\u2022 $it") + padding }
+        } else 0
 
-        val width = maxOf(neededForNames, maxItemLabelWidth, reqWidth, PanelLayout.MIN_WIDTH).coerceAtMost(PanelLayout.MAX_WIDTH)
+        val maxItemWidth = if (items.isNotEmpty()) {
+            items.maxOf { item ->
+                val itemName = resolveItemName(item.itemId)
+                padding + 22 + font.width("${item.label} $itemName") + padding
+            }
+        } else 0
+
+        val width = maxOf(nameLineWidth, tagWidth, maxReqWidth, maxItemWidth, PanelLayout.MIN_WIDTH)
+            .coerceAtMost(PanelLayout.MAX_WIDTH)
         val layout = PanelLayout(width)
         val right = layout.right
         val centerX = width / 2
-
-        val fromCenterX = 20 + slotSize / 2
+        val indentX = padding + 6
+        val indentWidth = right - indentX
         val toCenterX = width - 20 - slotSize / 2
 
+        // Species names below icon slots
         layout.textAt(fromCenterX - fromW / 2, 30, evolution.displayFromName, 0xFFFFFF)
-
-        val dirText = "\u2192"
-        val dirW = font.width(dirText)
-        layout.textAt(centerX - dirW / 2, 30, dirText, 0x888888)
-
+        layout.textAt(centerX - arrowW / 2, 30, arrowStr, 0x888888)
         layout.textAt(toCenterX - toW / 2, 30, evolution.displayToName, 0xFFFFFF)
 
-        layout.fill(padding, 42, right, 43, 0x40FFFFFF)
+        layout.textRightAt(4, headerTag, 0xDDCC99)
+        layout.fill(padding, 42, right, 43, 0x50FFFFFF)
         layout.skipTo(48)
 
-        if (hasItemSlots && items.isNotEmpty()) {
-            val labelX = 30
-            val labelMaxW = right - labelX
+        // Requirements section
+        if (reqLines.isNotEmpty()) {
+            layout.text(padding, tr("cobbledex-rei-emi-jei.evo.section.requirements"), 0xEEEEEE)
+            layout.line()
+            for (line in reqLines) {
+                layout.wrapped(indentX, "\u2022 $line", indentWidth, 0xFFDD88)
+            }
+            layout.gap(PanelLayout.SECTION_GAP)
+        }
+
+        // Items section
+        if (items.isNotEmpty()) {
+            layout.text(padding, tr("cobbledex-rei-emi-jei.evo.section.items"), 0xEEEEEE)
+            layout.line()
+            itemYRef?.set(0, layout.y)
             for (item in items) {
-                val stack = resolveItemStack(item.itemId)
-                val name = if (!stack.isEmpty) stack.hoverName.string else formatItemIdFallback(item.itemId)
+                val itemName = resolveItemName(item.itemId)
+                val nameX = padding + 22
                 val labelText = "${item.label} "
                 val labelWidth = font.width(labelText)
-                layout.textAt(labelX, layout.y + 4, labelText, 0xBBBBBB)
-                val nameLines = wrapText(font, name, labelMaxW - labelWidth)
-                for ((lineIdx, line) in nameLines.withIndex()) {
-                    layout.textAt(labelX + if (lineIdx == 0) labelWidth else 0, layout.y + 4 + lineIdx * 12, line, 0xFFFFFF)
-                }
+                layout.textAt(nameX, layout.y + 4, labelText, 0xBBBBBB)
+                layout.textAt(nameX + labelWidth, layout.y + 4,
+                    clipToWidth(font, itemName, right - nameX - labelWidth), 0xFFFFFF)
                 layout.gap(PanelLayout.ITEM_ROW_HEIGHT)
             }
+            layout.gap(PanelLayout.SECTION_GAP)
         }
 
-        if (reqText.isNotBlank()) {
-            val reqWidth2 = right - padding
-            for (line in wrapToWidth(font, reqText, reqWidth2)) {
-                val lw = font.width(line)
-                layout.textAt(centerX - lw / 2, layout.y, line, 0xFFDD88)
-                layout.gap(12)
-            }
-        }
-
+        // Footer
         if (branchTotal > 1) {
-            layout.gap(2)
-            val branchText = evoBranchText(branchIndex, branchTotal)
-            layout.textRight(branchText, 0x666666)
+            layout.gap(1)
+            layout.separator(0x20FFFFFF)
+            layout.gap(4)
+            layout.text(padding, evoBranchText(branchIndex, branchTotal), 0x888888)
+            layout.gap(font.lineHeight + padding)
+        } else {
+            layout.gap(padding)
         }
-
-        layout.gap(padding)
 
         return layout
     }
