@@ -2,6 +2,15 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.29.4] - 2026-02-16
+
+### Fixed
+- Server sync no longer fails when modpacks add many Pokémon species (e.g., Complete Cobblemon Collection)
+- Players are no longer disconnected with "ByteArray bigger than allowed" when sync data exceeds 1MB
+
+### Changed
+- Sync data is now sent in chunks, supporting unlimited modpack sizes without packet limits
+
 ## [1.29.3] - 2026-02-15
 
 ### Fixed

@@ -3,6 +3,7 @@ package com.cobbledex.neoforge
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DiagnosticService
 import com.cobbledex.SpawnDataIndex
+import com.cobbledex.network.ChunkAssembler
 import net.minecraft.client.Minecraft
 import net.minecraft.commands.Commands
 import net.minecraft.network.chat.Component
@@ -27,6 +28,7 @@ object CobbleDexNeoForgeClient {
 
     private fun onDisconnect(event: ClientPlayerNetworkEvent.LoggingOut) {
         SpawnDataIndex.onDisconnect()
+        ChunkAssembler.reset()
         CobbleDexMod.resetReloadTimer()
     }
 

@@ -4,6 +4,8 @@ import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.DiagnosticService
 import com.cobbledex.SpawnDataIndex
+import com.cobbledex.network.ChunkAssembler
+import com.cobbledex.network.ChunkedSpawnSyncPayload
 import com.cobbledex.network.SpawnSyncPayload
 import com.cobbledex.network.SpawnSyncSerializer
 import net.fabricmc.api.ClientModInitializer
@@ -31,6 +33,20 @@ class CobbleDexFabricClient : ClientModInitializer {
             }
         }
 
+        ClientPlayNetworking.registerGlobalReceiver(ChunkedSpawnSyncPayload.TYPE) { payload, context ->
+            context.client().execute {
+                try {
+                    val assembled = ChunkAssembler.receiveChunk(payload) ?: return@execute
+                    val bundle = SpawnSyncSerializer.deserialize(assembled)
+                    SpawnDataIndex.applyServerSync(bundle.spawns, bundle.evolutions, bundle.speciesInfo)
+                    DebugLog.info("Received chunked sync from server: ${bundle.spawns.size} spawns, ${bundle.evolutions.size} evolutions")
+                } catch (e: Exception) {
+                    CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process chunked sync: ${e.message}")
+                    ChunkAssembler.reset()
+                }
+            }
+        }
+
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             if (client.player != null) {
                 CobbleDexMod.tickReloadCheck()
@@ -39,6 +55,7 @@ class CobbleDexFabricClient : ClientModInitializer {
 
         ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
             SpawnDataIndex.onDisconnect()
+            ChunkAssembler.reset()
             CobbleDexMod.resetReloadTimer()
         }
 
