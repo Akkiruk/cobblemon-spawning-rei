@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.29.5] - 2026-02-16
+
+### Fixed
+- Viewing CCC (Complete Cobblemon Collection) Pokémon no longer crashes with NullPointerException in EMI/REI/JEI
+- Recipe display rendering is now defensive against unexpected data from addon mods
+
 ## [1.29.4] - 2026-02-16
 
 ### Fixed

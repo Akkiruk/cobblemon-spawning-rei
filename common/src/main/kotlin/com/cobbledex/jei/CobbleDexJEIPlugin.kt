@@ -120,35 +120,41 @@ open class CobbleDexJEIPlugin : IModPlugin {
         override fun getIcon(): IDrawable = iconDrawable
 
         override fun setRecipe(builder: IRecipeLayoutBuilder, recipe: GenericRecipe, focuses: IFocusGroup) {
-            val handle = recipe.handle
-            val slots = handle.slots
+            try {
+                val handle = recipe.handle
+                val slots = handle.slots
 
-            for (slot in slots.pokemon) {
-                val role = if (slot.role == SlotRole.INPUT) RecipeIngredientRole.INPUT else RecipeIngredientRole.OUTPUT
-                builder.addSlot(role, slot.x, slot.y)
-                    .setSlotName(slot.species)
-                    .addIngredient(PokemonIngredientType, PokemonIngredient(slot.species, slot.aspects))
-            }
-
-            for (slot in slots.items) {
-                val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
-                if (!stack.isEmpty) {
+                for (slot in slots.pokemon) {
                     val role = if (slot.role == SlotRole.INPUT) RecipeIngredientRole.INPUT else RecipeIngredientRole.OUTPUT
                     builder.addSlot(role, slot.x, slot.y)
-                        .addItemStack(stack)
+                        .setSlotName(slot.species)
+                        .addIngredient(PokemonIngredientType, PokemonIngredient(slot.species, slot.aspects))
                 }
+
+                for (slot in slots.items) {
+                    val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
+                    if (!stack.isEmpty) {
+                        val role = if (slot.role == SlotRole.INPUT) RecipeIngredientRole.INPUT else RecipeIngredientRole.OUTPUT
+                        builder.addSlot(role, slot.x, slot.y)
+                            .addItemStack(stack)
+                    }
+                }
+            } catch (e: Exception) {
+                DebugLog.warn("JEI setRecipe failed for ${recipe.handle}: ${e.message}")
             }
         }
 
         override fun draw(recipe: GenericRecipe, recipeSlotsView: IRecipeSlotsView, guiGraphics: GuiGraphics, mouseX: Double, mouseY: Double) {
-            val handle = recipe.handle
-            val slots = handle.slots
+            try {
+                val handle = recipe.handle
+                val slots = handle.slots
 
-            if (slots.hasArrow) {
-                recipeArrow.draw(guiGraphics, slots.arrowX, slots.arrowY)
-            }
+                if (slots.hasArrow) {
+                    recipeArrow.draw(guiGraphics, slots.arrowX, slots.arrowY)
+                }
 
-            handle.layout.render(guiGraphics)
+                handle.layout.render(guiGraphics)
+            } catch (_: Exception) {}
         }
     }
 }

@@ -175,47 +175,53 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         override fun setupDisplay(display: GenericDisplay, bounds: Rectangle): List<Widget> {
             val widgets = mutableListOf<Widget>()
             val handle = display.handle
-            val slots = handle.slots
-            val w = handle.width
-            val h = handle.height
 
-            val yOff = (bounds.height - h).coerceAtLeast(0) / 2
-            val px = bounds.x
-            val py = bounds.y + yOff
+            try {
+                val slots = handle.slots
+                val w = handle.width
+                val h = handle.height
 
-            widgets.add(Widgets.createRecipeBase(Rectangle(px, py, w, h)))
+                val yOff = (bounds.height - h).coerceAtLeast(0) / 2
+                val px = bounds.x
+                val py = bounds.y + yOff
 
-            for (slot in slots.pokemon) {
-                val entry = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(slot.species, slot.aspects))
-                val s = Widgets.createSlot(Rectangle(px + slot.x, py + slot.y, 20, 20))
-                    .entries(listOf(entry))
-                if (slot.role == SlotRole.INPUT) s.markInput() else s.markOutput()
-                if (slot.disableBackground) s.disableBackground()
-                if (slot.disableHighlight) s.disableHighlight()
-                widgets.add(s)
-            }
+                widgets.add(Widgets.createRecipeBase(Rectangle(px, py, w, h)))
 
-            if (slots.hasArrow) {
-                widgets.add(Widgets.createArrow(Point(px + slots.arrowX, py + slots.arrowY)))
-            }
-
-            for (slot in slots.items) {
-                val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
-                if (!stack.isEmpty) {
-                    val s = Widgets.createSlot(Rectangle(px + slot.x, py + slot.y, 18, 18))
-                        .entries(listOf(EntryStacks.of(stack)))
+                for (slot in slots.pokemon) {
+                    val entry = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(slot.species, slot.aspects))
+                    val s = Widgets.createSlot(Rectangle(px + slot.x, py + slot.y, 20, 20))
+                        .entries(listOf(entry))
                     if (slot.role == SlotRole.INPUT) s.markInput() else s.markOutput()
-                    s.disableBackground()
+                    if (slot.disableBackground) s.disableBackground()
+                    if (slot.disableHighlight) s.disableHighlight()
                     widgets.add(s)
                 }
-            }
 
-            widgets.add(Widgets.createDrawableWidget { gfx, _, _, _ ->
-                gfx.pose().pushPose()
-                gfx.pose().translate(px.toFloat(), py.toFloat(), 0f)
-                handle.layout.render(gfx)
-                gfx.pose().popPose()
-            })
+                if (slots.hasArrow) {
+                    widgets.add(Widgets.createArrow(Point(px + slots.arrowX, py + slots.arrowY)))
+                }
+
+                for (slot in slots.items) {
+                    val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
+                    if (!stack.isEmpty) {
+                        val s = Widgets.createSlot(Rectangle(px + slot.x, py + slot.y, 18, 18))
+                            .entries(listOf(EntryStacks.of(stack)))
+                        if (slot.role == SlotRole.INPUT) s.markInput() else s.markOutput()
+                        s.disableBackground()
+                        widgets.add(s)
+                    }
+                }
+
+                widgets.add(Widgets.createDrawableWidget { gfx, _, _, _ ->
+                    gfx.pose().pushPose()
+                    gfx.pose().translate(px.toFloat(), py.toFloat(), 0f)
+                    try { handle.layout.render(gfx) } catch (_: Exception) {}
+                    gfx.pose().popPose()
+                })
+            } catch (e: Exception) {
+                DebugLog.once("rei-display-${handle.recipeIdPath}") { "setupDisplay failed: ${e.message}" }
+                widgets.add(Widgets.createRecipeBase(bounds))
+            }
 
             return widgets
         }
