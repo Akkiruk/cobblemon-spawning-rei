@@ -2,6 +2,13 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.28.5] - 2026-02-15
+
+### Fixed
+- EMI: Both left-click and right-click on a Pokémon now show all categories (spawns, evolutions, stats, moves, drops, etc.)
+- EMI: Left-click no longer limited to only evolution/obtainment/fossil categories
+- EMI: Right-click now correctly includes forward evolutions
+
 ## [1.28.4] - 2026-02-15
 
 ### Fixed

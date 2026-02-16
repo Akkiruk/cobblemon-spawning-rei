@@ -97,7 +97,6 @@ open class CobbleDexEMIPlugin : EmiPlugin {
 
         override fun getInputs(): List<EmiIngredient> {
             val pokemon = handle.slots.pokemon
-                .filter { it.role == SlotRole.INPUT }
                 .mapNotNull { slot ->
                     val item = PokemonItemCache.getItem(slot.species)
                     if (item != null && !item.isEmpty) EmiStack.of(item) else null
@@ -113,7 +112,6 @@ open class CobbleDexEMIPlugin : EmiPlugin {
 
         override fun getOutputs(): List<EmiStack> {
             val pokemon = handle.slots.pokemon
-                .filter { it.role == SlotRole.OUTPUT }
                 .mapNotNull { slot ->
                     val item = PokemonItemCache.getItem(slot.species)
                     if (item != null && !item.isEmpty) EmiStack.of(item) else null
