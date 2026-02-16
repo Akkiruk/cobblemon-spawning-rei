@@ -2,6 +2,16 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.28.2] - 2026-02-15
+
+### Fixed
+- Reverted v1.28.0 and v1.28.1 evolution chain changes that broke REI completely
+- Updated Kotlin to 2.1.0 (2.2.0 caused GitHub Actions build failures)
+
+### Changed
+- Restored individual A→B evolution displays (v1.27.2 system)
+- Full evolution chains will be reimplemented in a future version with proper lazy loading
+
 ## [1.27.2] - 2026-02-15
 
 ### Fixed
