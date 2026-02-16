@@ -2,6 +2,19 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.29.3] - 2026-02-15
+
+### Fixed
+- Regional form names now display correctly (e.g., "Alolan Diglett" instead of "Diglettalolan")
+- Regional form icons render the correct form model instead of gray squares
+- Evolution header text no longer overlaps the "Cobblemon Evolution" tag
+- Base species chains no longer incorrectly include regional form evolutions
+
+### Changed
+- Item-only evolutions (e.g., Thunder Stone) no longer show redundant text alongside the item icon
+- Evolution chain width accounts for header name + tag to prevent overflow
+- All recipe viewer integrations (REI/JEI/EMI) now pass form aspects for proper icon rendering
+
 ## [1.29.2] - 2026-02-15
 
 ### Added

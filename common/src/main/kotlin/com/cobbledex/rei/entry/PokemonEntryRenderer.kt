@@ -1,6 +1,7 @@
 package com.cobbledex.rei.entry
 
 import com.cobbledex.PokemonItemCache
+import com.cobbledex.SpeciesNameNormalizer
 import com.cobbledex.SpawnDisplayHelper
 import me.shedaniel.math.Rectangle
 import me.shedaniel.rei.api.client.entry.renderer.EntryRenderer
@@ -20,7 +21,9 @@ class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
         delta: Float
     ) {
         val pokemon = entry.value ?: return
-        val itemStack = PokemonItemCache.getItem(pokemon.species)
+        val decomp = SpeciesNameNormalizer.decomposeFormSpecies(pokemon.species)
+        val aspects = pokemon.formAspects.ifEmpty { decomp.cobblemonAspects }
+        val itemStack = PokemonItemCache.getItem(pokemon.species, aspects)
 
         if (itemStack != null && !itemStack.isEmpty) {
             val poseStack = graphics.pose()

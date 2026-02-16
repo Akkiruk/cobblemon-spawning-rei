@@ -17,20 +17,24 @@ object PokemonItemCache {
     private val itemCache = ConcurrentHashMap<String, ItemStack>()
 
     fun resolveSpecies(name: String): Species? {
-        // Check cache with normalized key
         val normalized = SpeciesNameNormalizer.normalize(name)
         speciesCache[normalized]?.let { return it }
         
-        // Try multiple name formats to find the species
-        val namesToTry = listOf(
+        val namesToTry = mutableListOf(
             name,
             normalized,
             SpeciesNameNormalizer.toDisplayName(normalized),
             name.lowercase(),
             name.replace(" ", "").replace(".", "").replace("'", "").replace("-", "").replace(":", "").lowercase()
-        ).distinct()
+        )
+
+        val decomp = SpeciesNameNormalizer.decomposeFormSpecies(normalized)
+        if (decomp.regionAdjective != null) {
+            namesToTry.add(decomp.baseName)
+            namesToTry.add(SpeciesNameNormalizer.toDisplayName(decomp.baseName))
+        }
         
-        for (tryName in namesToTry) {
+        for (tryName in namesToTry.distinct()) {
             val resolved = try { PokemonSpecies.getByName(tryName) } catch (_: Exception) { null }
             if (resolved != null) {
                 speciesCache[normalized] = resolved
@@ -40,12 +44,20 @@ object PokemonItemCache {
         return null
     }
 
-    fun getItem(name: String): ItemStack? {
+    fun getItem(name: String, explicitAspects: Set<String> = emptySet()): ItemStack? {
         val normalized = SpeciesNameNormalizer.normalize(name)
-        itemCache[normalized]?.let { return it.copy() }
+        val decomp = SpeciesNameNormalizer.decomposeFormSpecies(normalized)
+        val aspects = explicitAspects.ifEmpty { decomp.cobblemonAspects }
+        val cacheKey = if (aspects.isEmpty()) normalized else "$normalized|${aspects.sorted().joinToString(",")}"
+        itemCache[cacheKey]?.let { return it.copy() }
         val species = resolveSpecies(name) ?: return null
-        val item = try { PokemonItem.from(species) } catch (_: Exception) { null }
-        if (item != null && !item.isEmpty) itemCache[normalized] = item
+        val item = try {
+            if (aspects.isNotEmpty()) PokemonItem.from(species, aspects)
+            else PokemonItem.from(species)
+        } catch (_: Exception) {
+            try { PokemonItem.from(species) } catch (_: Exception) { null }
+        }
+        if (item != null && !item.isEmpty) itemCache[cacheKey] = item
         return item?.copy()
     }
 

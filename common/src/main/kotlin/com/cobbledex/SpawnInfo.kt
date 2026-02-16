@@ -96,12 +96,14 @@ fun titleCase(raw: String): String {
 }
 
 /**
- * Format a species name for display, handling special characters properly.
- * Converts normalized names like "mrmime" to "Mr. Mime".
+ * Format a species name for display, handling regional forms.
+ * Converts "diglettalolan" to "Alolan Diglett", "mrmime" to "Mr. Mime".
  */
 fun formatSpeciesName(speciesName: String): String {
-    val displayName = SpeciesNameNormalizer.toDisplayName(speciesName)
-    return titleCase(displayName)
+    val decomp = SpeciesNameNormalizer.decomposeFormSpecies(speciesName)
+    val baseDisplay = SpeciesNameNormalizer.toDisplayName(decomp.baseName)
+    val baseName = titleCase(baseDisplay)
+    return if (decomp.regionAdjective != null) "${decomp.regionAdjective} $baseName" else baseName
 }
 
 fun stripNamespace(id: String): String {

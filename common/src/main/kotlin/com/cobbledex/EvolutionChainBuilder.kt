@@ -96,12 +96,19 @@ object EvolutionChainBuilder {
         }
         visited.add(normalized)
 
-        val evos = SpawnDataIndex.getEvolutionsFrom(species)
+        val allEvos = SpawnDataIndex.getEvolutionsFrom(species)
+        // Filter to only evolutions matching this form's aspects
+        val aspectGroups = allEvos.map { it.fromAspects }.distinct()
+        val nodeAspects = if (aspectGroups.size == 1) aspectGroups.first() else emptySet()
+        val evos = allEvos.filter { it.fromAspects == nodeAspects }
+
         val seen = mutableSetOf<String>()
         val edges = evos.mapNotNull { evo ->
-            val targetNorm = SpeciesNameNormalizer.normalize(evo.toSpecies)
+            val targetComposite = if (evo.toAspects.isEmpty()) evo.toSpecies
+                else "${evo.toSpecies} ${evo.toAspects.sorted().joinToString(" ")}"
+            val targetNorm = SpeciesNameNormalizer.normalize(targetComposite)
             if (!seen.add(targetNorm)) return@mapNotNull null
-            ChainEdge(evo, buildNode(evo.toSpecies, visited))
+            ChainEdge(evo, buildNode(targetComposite, visited))
         }
 
         return ChainNode(species, emptySet(), formatSpeciesName(species), edges)
@@ -122,13 +129,15 @@ object EvolutionChainBuilder {
             node.evolutions.isEmpty() -> {}
             node.evolutions.size == 1 -> {
                 val edge = node.evolutions[0]
-                val req = edge.info.displayRequirements
+                val req = if (edge.info.itemRequirements.isNotEmpty()) edge.info.textOnlyRequirements
+                    else edge.info.displayRequirements
                 rows.add(ChainRow.Arrow(req, edge.info.itemRequirements, indent))
                 flattenNode(edge.target, indent, rows, false)
             }
             else -> {
                 for (edge in node.evolutions) {
-                    val req = edge.info.displayRequirements
+                    val req = if (edge.info.itemRequirements.isNotEmpty()) edge.info.textOnlyRequirements
+                        else edge.info.displayRequirements
                     rows.add(ChainRow.Branch(
                         edge.target.species, edge.target.aspects,
                         edge.target.displayName, req, edge.info.itemRequirements, indent + 1
@@ -148,7 +157,7 @@ object EvolutionChainBuilder {
     }
 
     private fun collectSpeciesRecursive(node: ChainNode, result: MutableSet<String>) {
-        result.add(node.species)
+        result.add(SpeciesNameNormalizer.normalize(node.species))
         for (edge in node.evolutions) {
             collectSpeciesRecursive(edge.target, result)
         }

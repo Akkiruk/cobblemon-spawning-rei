@@ -81,4 +81,44 @@ object SpeciesNameNormalizer {
         val normalized = normalize(canonicalName)
         return CANONICAL_TO_DISPLAY[normalized] ?: canonicalName
     }
+
+    data class FormDecomposition(
+        val baseName: String,
+        val regionAdjective: String?,
+        val cobblemonAspects: Set<String>
+    )
+
+    private val KNOWN_REGION_SUFFIXES = listOf(
+        "alolan" to ("Alolan" to "alolan"),
+        "galarian" to ("Galarian" to "galarian"),
+        "hisuian" to ("Hisuian" to "hisuian"),
+        "paldean" to ("Paldean" to "paldean"),
+    )
+
+    private val REGION_BIAS_NAMES = mapOf(
+        "alola" to ("Alolan" to "region_bias=alola"),
+        "galar" to ("Galarian" to "region_bias=galar"),
+        "hisui" to ("Hisuian" to "region_bias=hisui"),
+        "paldea" to ("Paldean" to "region_bias=paldea"),
+    )
+
+    fun decomposeFormSpecies(normalizedOrRaw: String): FormDecomposition {
+        val normalized = normalize(normalizedOrRaw)
+        for ((suffix, pair) in KNOWN_REGION_SUFFIXES) {
+            if (normalized.endsWith(suffix) && normalized.length > suffix.length) {
+                val base = normalized.removeSuffix(suffix)
+                return FormDecomposition(base, pair.first, setOf(pair.second))
+            }
+        }
+        val regionBiasIdx = normalized.indexOf("regionbias")
+        if (regionBiasIdx > 0) {
+            val base = normalized.substring(0, regionBiasIdx)
+            val regionName = normalized.substring(regionBiasIdx + "regionbias".length)
+            val pair = REGION_BIAS_NAMES[regionName]
+            if (pair != null) {
+                return FormDecomposition(base, pair.first, setOf(pair.second))
+            }
+        }
+        return FormDecomposition(normalized, null, emptySet())
+    }
 }

@@ -677,15 +677,23 @@ object SpawnDisplayHelper {
             if (rowW > maxRowWidth) maxRowWidth = rowW
         }
 
-        val nameWidth = PanelLayout.TEXT_START_X + font.width(formatSpeciesName(chain.species)) + padding
+        val nameWidth = padding + 22 + font.width(formatSpeciesName(chain.species)) + 8 + font.width(headerTag) + padding
         val width = maxOf(maxRowWidth, nameWidth).coerceAtMost(PanelLayout.MAX_WIDTH)
         val layout = PanelLayout(width)
         val right = layout.right
         val indentX = padding + 4
 
         // Header
+        val speciesDisplay = formatSpeciesName(chain.species)
+        val tagWidth = font.width(headerTag)
+        val maxNameW = width - padding - 22 - tagWidth - 8
+        val clippedName = if (font.width(speciesDisplay) > maxNameW && maxNameW > 20) {
+            var s = speciesDisplay
+            while (font.width("$s\u2026") > maxNameW && s.length > 1) s = s.dropLast(1)
+            if (s.length < speciesDisplay.length) "$s\u2026" else s
+        } else speciesDisplay
         pokemonSlots.add(PokemonSlotDef(chain.species, chain.aspects, padding, 2, SlotRole.INPUT))
-        layout.textAt(padding + 22, 6, formatSpeciesName(chain.species), 0xFFFFFF)
+        layout.textAt(padding + 22, 6, clippedName, 0xFFFFFF)
         layout.textRightAt(6, headerTag, 0xDDCC99)
         layout.fill(padding, 24, right, 25, 0x50FFFFFF)
         layout.skipTo(30)
