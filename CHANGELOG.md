@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.30.1] - 2026-02-17
+
+### Fixed
+- EMI users now see spawn, evolution, stats, drops, and all other data after joining a server (previously showed empty recipes because EMI registered before server sync arrived)
+- EMI recipe viewer automatically reloads when server data is received instead of requiring manual /emi reload
+
 ## [1.30.0] - 2026-02-16
 
 ### Fixed

@@ -23,6 +23,8 @@ object CobbleDexMod {
     }
 
     fun tickReloadCheck() {
+        RecipeViewerReloader.tick()
+
         if (SpawnDataIndex.isFullyLoaded()) return
 
         reloadTickCounter++

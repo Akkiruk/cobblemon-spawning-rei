@@ -274,6 +274,8 @@ object SpawnDataIndex {
         DebugLog.info("Applied server sync: ${syncedSpawns.size} species with spawns, " +
             "${syncedEvolutions.size} with evolutions, ${syncedSpeciesInfo.size} with info")
 
+        RecipeViewerReloader.scheduleReload()
+
         if (loadState != LoadState.FULLY_LOADED) {
             ensureLoadedAsync()
         }
