@@ -2,6 +2,13 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.31.0] - 2026-02-17
+
+### Fixed
+- Pokémon names now display in the client's language instead of always showing English (e.g. French players see "Bulbizarre" instead of "Bulbasaur")
+- Regional form prefixes (Alolan, Galarian, Hisuian, Paldean) are now translated using Cobblemon's language files
+- Affects all panels: spawn info, evolution chains, stats, drops, moves, Pokédex, type chart, description, fossil, and REI/EMI/JEI sidebar entries
+
 ## [1.30.1] - 2026-02-17
 
 ### Fixed

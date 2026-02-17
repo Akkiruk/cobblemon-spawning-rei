@@ -84,22 +84,22 @@ object SpeciesNameNormalizer {
 
     data class FormDecomposition(
         val baseName: String,
-        val regionAdjective: String?,
+        val regionKey: String?,
         val cobblemonAspects: Set<String>
     )
 
     private val KNOWN_REGION_SUFFIXES = listOf(
-        "alolan" to ("Alolan" to "alolan"),
-        "galarian" to ("Galarian" to "galarian"),
-        "hisuian" to ("Hisuian" to "hisuian"),
-        "paldean" to ("Paldean" to "paldean"),
+        "alolan" to ("alola" to "alolan"),
+        "galarian" to ("galar" to "galarian"),
+        "hisuian" to ("hisui" to "hisuian"),
+        "paldean" to ("paldea" to "paldean"),
     )
 
     private val REGION_BIAS_NAMES = mapOf(
-        "alola" to ("Alolan" to "region_bias=alola"),
-        "galar" to ("Galarian" to "region_bias=galar"),
-        "hisui" to ("Hisuian" to "region_bias=hisui"),
-        "paldea" to ("Paldean" to "region_bias=paldea"),
+        "alola" to ("alola" to "region_bias=alola"),
+        "galar" to ("galar" to "region_bias=galar"),
+        "hisui" to ("hisui" to "region_bias=hisui"),
+        "paldea" to ("paldea" to "region_bias=paldea"),
     )
 
     fun decomposeFormSpecies(normalizedOrRaw: String): FormDecomposition {

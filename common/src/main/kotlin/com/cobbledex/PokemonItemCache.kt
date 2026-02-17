@@ -29,7 +29,7 @@ object PokemonItemCache {
         )
 
         val decomp = SpeciesNameNormalizer.decomposeFormSpecies(normalized)
-        if (decomp.regionAdjective != null) {
+        if (decomp.regionKey != null) {
             namesToTry.add(decomp.baseName)
             namesToTry.add(SpeciesNameNormalizer.toDisplayName(decomp.baseName))
         }

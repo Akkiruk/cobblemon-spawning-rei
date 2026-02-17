@@ -96,14 +96,24 @@ fun titleCase(raw: String): String {
 }
 
 /**
- * Format a species name for display, handling regional forms.
- * Converts "diglettalolan" to "Alolan Diglett", "mrmime" to "Mr. Mime".
+ * Format a species name for display using Cobblemon's translation system.
+ * Respects the client's language setting (e.g. French: "Bulbasaur" → "Bulbizarre").
  */
 fun formatSpeciesName(speciesName: String): String {
     val decomp = SpeciesNameNormalizer.decomposeFormSpecies(speciesName)
-    val baseDisplay = SpeciesNameNormalizer.toDisplayName(decomp.baseName)
-    val baseName = titleCase(baseDisplay)
-    return if (decomp.regionAdjective != null) "${decomp.regionAdjective} $baseName" else baseName
+    val translationKey = "cobblemon.species.${decomp.baseName}.name"
+    val translated = tr(translationKey)
+    val baseName = if (translated != translationKey) {
+        translated
+    } else {
+        titleCase(SpeciesNameNormalizer.toDisplayName(decomp.baseName))
+    }
+    if (decomp.regionKey != null) {
+        val formKey = "cobblemon.ui.pokedex.info.form.${decomp.regionKey}"
+        val formTranslated = tr(formKey)
+        if (formTranslated != formKey) return "$formTranslated $baseName"
+    }
+    return baseName
 }
 
 fun stripNamespace(id: String): String {
@@ -127,12 +137,16 @@ fun formatBiomeName(id: String): String {
 
 fun sanitizePath(s: String): String = s.lowercase().replace(Regex("[^a-z0-9/._-]"), "")
 
-private val REGION_ADJECTIVES = mapOf(
-    "alola" to "Alolan", "alolan" to "Alolan",
-    "galar" to "Galarian", "galarian" to "Galarian",
-    "hisui" to "Hisuian", "hisuian" to "Hisuian",
-    "paldea" to "Paldean", "paldean" to "Paldean"
-)
+private val REGION_KEYS = setOf("alola", "alolan", "galar", "galarian", "hisui", "hisuian", "paldea", "paldean")
+
+private fun regionFormName(region: String): String {
+    val normalized = region.removeSuffix("n").removeSuffix("a").let {
+        if (it == "galari") "galar" else it
+    }
+    val key = "cobblemon.ui.pokedex.info.form.$normalized"
+    val translated = tr(key)
+    return if (translated != key) translated else titleCase(region)
+}
 
 fun formatAspect(aspect: String): String {
     val lower = aspect.lowercase().trim()
@@ -140,11 +154,12 @@ fun formatAspect(aspect: String): String {
         val key = lower.substringBefore("=").trim()
         val value = lower.substringAfter("=").trim()
         return when (key) {
-            "region_bias" -> REGION_ADJECTIVES[value] ?: titleCase(value)
+            "region_bias" -> regionFormName(value)
             else -> titleCase(value)
         }
     }
-    return REGION_ADJECTIVES[lower] ?: titleCase(aspect)
+    if (lower in REGION_KEYS) return regionFormName(lower)
+    return titleCase(aspect)
 }
 
 fun formatTypeName(rawType: String): String {
