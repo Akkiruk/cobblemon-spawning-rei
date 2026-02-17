@@ -3,7 +3,7 @@ val kotlinForForgeVersion = findProperty("kotlin_for_forge_version")?.toString()
 val cobblemonVersion = findProperty("cobblemon_version")?.toString() ?: "1.6.0+1.21.1"
 val reiVersion = findProperty("rei_version")?.toString() ?: "16.0.799"
 val jeiVersion = findProperty("jei_version")?.toString() ?: "19.27.0.340"
-val emiVersion = findProperty("emi_version")?.toString() ?: "1.1.12+1.21"
+val emiVersion = findProperty("emi_neoforge_version")?.toString() ?: "1.1.19+1.21.1"
 
 plugins {
     id("com.github.johnrengelman.shadow") version "8.1.1"
