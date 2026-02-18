@@ -2,6 +2,17 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.33.0] - 2026-02-18
+
+### Added
+- Client-side spawn data loading: spawn info now works on servers where CobbleDex is not installed server-side
+- Uses Cobblemon's own parsers to read spawn data from mod JARs, including datapack spawns
+- Server sync remains preferred when available; client-side loading is a transparent fallback
+
+### Fixed
+- Spawn and evolution data no longer carries over from singleplayer into subsequent server sessions
+- Joining a server directly (without singleplayer first) now correctly shows spawn data
+
 ## [1.32.0] - 2026-02-17
 
 ### Changed

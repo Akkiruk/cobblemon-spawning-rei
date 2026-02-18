@@ -63,6 +63,10 @@ object SpawnDataIndex {
     private var emptyEvoRetries = 0
     private const val MAX_EMPTY_EVO_RETRIES = 5
 
+    /** Tracks client-side spawn pool loading attempts */
+    @Volatile
+    private var clientSpawnLoadAttempted = false
+
     /** True when spawn data was received from the server via networking */
     @Volatile
     private var hasServerSync = false
@@ -174,6 +178,21 @@ object SpawnDataIndex {
         SpawnDataLoader.invalidateCache()
         spawnsBySpecies = normalizeMapKeys(SpawnDataLoader.loadFromRuntime())
 
+        // Fallback: if spawn pool is empty (dedicated server without CobbleDex server-side),
+        // load spawn data client-side from mod JAR files using Cobblemon's own parsers
+        if (spawnsBySpecies.isEmpty() && !clientSpawnLoadAttempted) {
+            clientSpawnLoadAttempted = true
+            DebugLog.info("Spawn pool empty — attempting client-side fallback from mod JARs")
+            val modRoots = SpawnDataLoader.getModRootPaths()
+            if (modRoots.isNotEmpty()) {
+                val loaded = SpawnPoolClientLoader.loadSpawnPoolFromModJars(modRoots)
+                if (loaded) {
+                    spawnsBySpecies = normalizeMapKeys(SpawnDataLoader.loadFromRuntime())
+                    DebugLog.info("Client-side fallback loaded ${spawnsBySpecies.size} species with spawns")
+                }
+            }
+        }
+
         val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
 
         if (runtimeCount > 0) {
@@ -241,12 +260,28 @@ object SpawnDataIndex {
         )
     }
 
-    /** Mark data stale on disconnect, keep as warm cache for instant availability on reconnect */
+    /** Mark data stale on disconnect and clear Cobblemon's spawn pool to prevent stale singleplayer data
+     *  from leaking into subsequent server sessions */
     fun onDisconnect() {
         cancelPendingLoad()
         PokemonItemCache.reset()
         emptyEvoRetries = 0
+        clientSpawnLoadAttempted = false
         hasServerSync = false
+        SpawnPoolClientLoader.reset()
+
+        // Clear stale data from Cobblemon's spawn pool (prevents singleplayer data persisting into server sessions)
+        try {
+            val pool = com.cobblemon.mod.common.api.spawning.CobblemonSpawnPools.WORLD_SPAWN_POOL
+            val staleCount = pool.details.size
+            if (staleCount > 0) {
+                pool.reload(emptyMap())
+                DebugLog.info("Cleared $staleCount stale spawn entries from Cobblemon pool")
+            }
+        } catch (e: Exception) {
+            DebugLog.once("disconnect-pool-clear") { "Failed to clear spawn pool on disconnect: ${e.message}" }
+        }
+
         dataLock.withLock {
             loadState = LoadState.NOT_LOADED
         }
