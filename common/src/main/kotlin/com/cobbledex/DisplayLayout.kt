@@ -73,7 +73,7 @@ object DisplayLayout {
     fun getMaxStatsSize(): PanelSize {
         checkCacheValidity()
         cachedStatsMax?.let { return it }
-        return PanelSize(200, 145).also { cachedStatsMax = it }
+        return computeMaxStatsSize().also { cachedStatsMax = it }
     }
 
     fun getMaxPokedexInfoSize(): PanelSize {
@@ -91,7 +91,7 @@ object DisplayLayout {
     fun getMaxMovesSize(): PanelSize {
         checkCacheValidity()
         cachedMovesMax?.let { return it }
-        return PanelSize(200, 240).also { cachedMovesMax = it }
+        return computeMaxMovesSize().also { cachedMovesMax = it }
     }
 
     fun getMaxFossilSize(): PanelSize {
@@ -109,7 +109,7 @@ object DisplayLayout {
     fun getMaxNatureSize(): PanelSize {
         checkCacheValidity()
         cachedNatureMax?.let { return it }
-        return PanelSize(200, 290).also { cachedNatureMax = it }
+        return computeMaxNatureSize().also { cachedNatureMax = it }
     }
 
     private fun checkCacheValidity() {
@@ -266,6 +266,50 @@ object DisplayLayout {
             } catch (_: Exception) {}
         }
         return PanelSize(200, maxH.coerceAtMost(250))
+    }
+
+    private fun computeMaxStatsSize(): PanelSize {
+        if (!SpawnDataIndex.hasData()) return PanelSize(200, 145)
+        var maxH = 80
+        for ((species, info) in SpawnDataIndex.speciesInfo) {
+            try {
+                val stats = info.baseStats ?: continue
+                val bst = info.baseStatTotal ?: continue
+                if (stats.isEmpty()) continue
+                val layout = SpawnDisplayHelper.buildStatsLayout(species, stats, bst, info.primaryType, info.secondaryType, info.evYield)
+                if (layout.height > maxH) maxH = layout.height
+            } catch (_: Exception) {}
+        }
+        return PanelSize(200, maxH)
+    }
+
+    private fun computeMaxMovesSize(): PanelSize {
+        if (!SpawnDataIndex.hasData()) return PanelSize(200, 240)
+        val recipes = RecipeBuilder.buildAllMovesRecipes()
+        if (recipes.isEmpty()) return PanelSize(200, 240)
+        var maxH = 80
+        for (data in recipes) {
+            try {
+                val layout = SpawnDisplayHelper.buildMovesLayout(data)
+                if (layout.height > maxH) maxH = layout.height
+            } catch (_: Exception) {}
+        }
+        return PanelSize(200, maxH)
+    }
+
+    private fun computeMaxNatureSize(): PanelSize {
+        val recipes = RecipeBuilder.buildNatureRecipes()
+        if (recipes.isEmpty()) return PanelSize(200, 290)
+        var maxW = MIN_WIDTH
+        var maxH = 80
+        for (data in recipes) {
+            try {
+                val layout = SpawnDisplayHelper.buildNatureLayout(data)
+                if (layout.width > maxW) maxW = layout.width
+                if (layout.height > maxH) maxH = layout.height
+            } catch (_: Exception) {}
+        }
+        return PanelSize(maxW, maxH)
     }
 
     private fun computeMaxTypeChartSize(): PanelSize {

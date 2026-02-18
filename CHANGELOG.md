@@ -2,6 +2,13 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.32.0] - 2026-02-17
+
+### Changed
+- Stats, Moves, Pokédex Info, Description, Fossil, and Type Chart panels now size dynamically per-recipe instead of using a fixed max size for every entry
+- Stats, Moves, and Natures max category sizes are now computed from actual data instead of hardcoded values
+- Natures panel width is computed from font column measurements instead of fixed 200px
+
 ## [1.31.0] - 2026-02-17
 
 ### Fixed

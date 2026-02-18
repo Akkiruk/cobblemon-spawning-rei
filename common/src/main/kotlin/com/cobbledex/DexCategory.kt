@@ -245,18 +245,13 @@ object StatsDex : DexCategory {
         return listOf(toHandle(r))
     }
 
-    private fun toHandle(d: StatsRecipeData): RecipeHandle {
-        val size = maxSize()
-        return RecipeHandle(
-            recipeIdPath = "stats/${sanitizePath(d.speciesName)}",
-            inputSpecies = listOf(d.speciesName),
-            outputSpecies = emptyList(),
-            layoutFactory = { SpawnDisplayHelper.buildStatsLayout(d.speciesName, d.baseStats, d.baseStatTotal, d.primaryType, d.secondaryType, evYield = d.evYield) },
-            _width = { size.width },
-            _height = { size.height },
-            _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
-        )
-    }
+    private fun toHandle(d: StatsRecipeData) = RecipeHandle(
+        recipeIdPath = "stats/${sanitizePath(d.speciesName)}",
+        inputSpecies = listOf(d.speciesName),
+        outputSpecies = emptyList(),
+        layoutFactory = { SpawnDisplayHelper.buildStatsLayout(d.speciesName, d.baseStats, d.baseStatTotal, d.primaryType, d.secondaryType, evYield = d.evYield) },
+        _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
+    )
 }
 
 // ----- Moves -----
@@ -275,18 +270,13 @@ object MovesDex : DexCategory {
     override fun buildRecipesFor(species: String) =
         RecipeBuilder.buildMovesFor(species).map(::toHandle)
 
-    private fun toHandle(d: MovesRecipeData): RecipeHandle {
-        val size = maxSize()
-        return RecipeHandle(
-            recipeIdPath = "moves/${sanitizePath(d.speciesName)}_${d.pageIndex}",
-            inputSpecies = listOf(d.speciesName),
-            outputSpecies = emptyList(),
-            layoutFactory = { SpawnDisplayHelper.buildMovesLayout(d) },
-            _width = { size.width },
-            _height = { size.height },
-            _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
-        )
-    }
+    private fun toHandle(d: MovesRecipeData) = RecipeHandle(
+        recipeIdPath = "moves/${sanitizePath(d.speciesName)}_${d.pageIndex}",
+        inputSpecies = listOf(d.speciesName),
+        outputSpecies = emptyList(),
+        layoutFactory = { SpawnDisplayHelper.buildMovesLayout(d) },
+        _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
+    )
 }
 
 // ----- Pokédex Info -----
@@ -307,18 +297,13 @@ object PokedexInfoDex : DexCategory {
         return listOf(toHandle(r))
     }
 
-    private fun toHandle(d: PokedexInfoRecipeData): RecipeHandle {
-        val size = maxSize()
-        return RecipeHandle(
-            recipeIdPath = "pokedex_info/${sanitizePath(d.speciesName)}",
-            inputSpecies = listOf(d.speciesName),
-            outputSpecies = emptyList(),
-            layoutFactory = { SpawnDisplayHelper.buildPokedexInfoLayout(d) },
-            _width = { size.width },
-            _height = { size.height },
-            _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
-        )
-    }
+    private fun toHandle(d: PokedexInfoRecipeData) = RecipeHandle(
+        recipeIdPath = "pokedex_info/${sanitizePath(d.speciesName)}",
+        inputSpecies = listOf(d.speciesName),
+        outputSpecies = emptyList(),
+        layoutFactory = { SpawnDisplayHelper.buildPokedexInfoLayout(d) },
+        _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
+    )
 }
 
 // ----- Pokemon Description -----
@@ -339,18 +324,13 @@ object PokemonDescriptionDex : DexCategory {
         return listOf(toHandle(r))
     }
 
-    private fun toHandle(d: PokemonDescriptionRecipeData): RecipeHandle {
-        val size = maxSize()
-        return RecipeHandle(
-            recipeIdPath = "pokemon_description/${sanitizePath(d.speciesName)}",
-            inputSpecies = listOf(d.speciesName),
-            outputSpecies = emptyList(),
-            layoutFactory = { SpawnDisplayHelper.buildPokemonDescriptionLayout(d) },
-            _width = { size.width },
-            _height = { size.height },
-            _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
-        )
-    }
+    private fun toHandle(d: PokemonDescriptionRecipeData) = RecipeHandle(
+        recipeIdPath = "pokemon_description/${sanitizePath(d.speciesName)}",
+        inputSpecies = listOf(d.speciesName),
+        outputSpecies = emptyList(),
+        layoutFactory = { SpawnDisplayHelper.buildPokemonDescriptionLayout(d) },
+        _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
+    )
 }
 
 // ----- Fossils -----
@@ -369,25 +349,20 @@ object FossilDex : DexCategory {
     override fun buildRecipesFor(species: String) =
         RecipeBuilder.buildFossilsFor(species).map(::toHandle)
 
-    private fun toHandle(d: FossilRecipeData): RecipeHandle {
-        val size = maxSize()
-        return RecipeHandle(
-            recipeIdPath = "fossils/${sanitizePath(d.speciesName)}",
-            inputSpecies = emptyList(),
-            outputSpecies = listOf(d.speciesName),
-            layoutFactory = { SpawnDisplayHelper.buildFossilLayout(d) },
-            _width = { size.width },
-            _height = { size.height },
-            _slots = { _ ->
-                RecipeHandle.Slots(
-                    pokemon = listOf(pokemonOutput(d.speciesName)),
-                    items = d.fossilItems.mapIndexed { i, itemId ->
-                        ItemSlotDef(itemId, 8, 38 + i * 20, SlotRole.INPUT)
-                    },
-                )
-            },
-        )
-    }
+    private fun toHandle(d: FossilRecipeData) = RecipeHandle(
+        recipeIdPath = "fossils/${sanitizePath(d.speciesName)}",
+        inputSpecies = emptyList(),
+        outputSpecies = listOf(d.speciesName),
+        layoutFactory = { SpawnDisplayHelper.buildFossilLayout(d) },
+        _slots = { _ ->
+            RecipeHandle.Slots(
+                pokemon = listOf(pokemonOutput(d.speciesName)),
+                items = d.fossilItems.mapIndexed { i, itemId ->
+                    ItemSlotDef(itemId, 8, 38 + i * 20, SlotRole.INPUT)
+                },
+            )
+        },
+    )
 }
 
 // ----- Type Chart -----
@@ -408,18 +383,13 @@ object TypeChartDex : DexCategory {
         return listOf(toHandle(r))
     }
 
-    private fun toHandle(d: TypeChartRecipeData): RecipeHandle {
-        val size = maxSize()
-        return RecipeHandle(
-            recipeIdPath = "type_chart/${sanitizePath(d.speciesName)}",
-            inputSpecies = listOf(d.speciesName),
-            outputSpecies = emptyList(),
-            layoutFactory = { SpawnDisplayHelper.buildTypeChartLayout(d) },
-            _width = { size.width },
-            _height = { size.height },
-            _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
-        )
-    }
+    private fun toHandle(d: TypeChartRecipeData) = RecipeHandle(
+        recipeIdPath = "type_chart/${sanitizePath(d.speciesName)}",
+        inputSpecies = listOf(d.speciesName),
+        outputSpecies = emptyList(),
+        layoutFactory = { SpawnDisplayHelper.buildTypeChartLayout(d) },
+        _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
+    )
 }
 
 // ----- Natures -----
