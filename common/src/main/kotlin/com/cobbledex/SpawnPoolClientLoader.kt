@@ -146,12 +146,7 @@ object SpawnPoolClientLoader {
             return false
         }
 
-        // If presets are already loaded (e.g. from singleplayer), skip
-        if (existingPresets.isNotEmpty()) {
-            DebugLog.info("Client spawn loader: ${existingPresets.size} presets already loaded, skipping preset loading")
-            return true
-        }
-
+        // Always reload presets — they may be stale after disconnect from singleplayer
         val presetMap = mutableMapOf<ResourceLocation, SpawnDetailPreset>()
         var fileCount = 0
 

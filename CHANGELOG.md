@@ -2,6 +2,16 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.34.0] - 2026-02-18
+
+### Fixed
+- Fixed 7000+ "Unknown preset name" error spam when reconnecting to a server after leaving singleplayer
+- Evolution data now loads correctly on dedicated servers without CobbleDex installed server-side
+
+### Added
+- Client-side evolution fallback: parses species JSON from mod JARs using Cobblemon's GSON when runtime evolutions are unavailable
+- Preset loading now always reloads from mod JARs instead of trusting potentially stale cached presets
+
 ## [1.33.0] - 2026-02-18
 
 ### Added

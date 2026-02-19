@@ -11,6 +11,7 @@ import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
 import com.cobblemon.mod.common.api.pokemon.evolution.ContextEvolution
 import com.cobblemon.mod.common.api.pokemon.evolution.Evolution
 import com.cobblemon.mod.common.api.pokemon.stats.Stats
+import com.cobblemon.mod.common.pokemon.Species
 import com.cobblemon.mod.common.pokemon.abilities.HiddenAbility
 import com.cobblemon.mod.common.pokemon.evolution.variants.BlockClickEvolution
 import com.cobblemon.mod.common.pokemon.evolution.variants.ItemInteractionEvolution
@@ -21,6 +22,9 @@ import net.minecraft.core.Holder
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.Item
+import java.io.InputStreamReader
+import java.nio.file.Files
+import java.nio.file.Path
 
 object EvolutionDataLoader {
 
@@ -94,6 +98,94 @@ object EvolutionDataLoader {
         }
 
         DebugLog.info("Parsed $baseEvoCount base + $formEvoCount form evolutions")
+        return result
+    }
+
+    /**
+     * Client-side fallback: parse species JSON files from mod JARs using Cobblemon's
+     * own GSON instance to extract fully structured evolution data.
+     * Used when species.evolutions is empty (dedicated server without server-side mod).
+     */
+    fun loadFromModJars(modRoots: List<Path>): Map<String, List<EvolutionInfo>> {
+        val gson = try {
+            PokemonSpecies.gson
+        } catch (e: Exception) {
+            DebugLog.warn("Evolution fallback: cannot access PokemonSpecies.gson: ${e.message}")
+            return emptyMap()
+        }
+
+        val result = mutableMapOf<String, MutableList<EvolutionInfo>>()
+        var fileCount = 0
+        var failCount = 0
+        var baseEvoCount = 0
+        var formEvoCount = 0
+
+        for (root in modRoots) {
+            try {
+                val dataDir = root.resolve("data")
+                if (!Files.exists(dataDir) || !Files.isDirectory(dataDir)) continue
+
+                Files.list(dataDir).use { namespaces ->
+                    namespaces.filter { Files.isDirectory(it) }.forEach { namespace ->
+                        val speciesDir = namespace.resolve("species")
+                        if (!Files.exists(speciesDir) || !Files.isDirectory(speciesDir)) return@forEach
+
+                        Files.walk(speciesDir, 10).use { files ->
+                            files.filter { it.toString().endsWith(".json") && Files.isRegularFile(it) }.forEach { file ->
+                                try {
+                                    val species = InputStreamReader(Files.newInputStream(file), Charsets.UTF_8).use { reader ->
+                                        gson.fromJson(reader, Species::class.java)
+                                    } ?: return@forEach
+
+                                    val baseName = species.name.lowercase()
+                                    fileCount++
+
+                                    for (evo in species.evolutions) {
+                                        try {
+                                            val info = parseEvolution(baseName, null, evo)
+                                            if (info != null) {
+                                                result.getOrPut(baseName) { mutableListOf() }.add(info)
+                                                baseEvoCount++
+                                            }
+                                        } catch (e: Exception) {
+                                            DebugLog.once("evo-jar-parse-$baseName") { "Evolution fallback: failed to parse base evo for $baseName: ${e.message}" }
+                                        }
+                                    }
+
+                                    for (form in species.forms) {
+                                        val formEvos = try { form.evolutions } catch (_: Exception) { continue }
+                                        if (formEvos.isEmpty()) continue
+                                        val formAspects = form.aspects.toSet()
+                                        val formKey = buildFormKey(baseName, formAspects)
+
+                                        for (evo in formEvos) {
+                                            try {
+                                                val info = parseEvolution(baseName, formAspects, evo)
+                                                if (info != null) {
+                                                    result.getOrPut(formKey) { mutableListOf() }.add(info)
+                                                    if (formKey != baseName) {
+                                                        result.getOrPut(baseName) { mutableListOf() }.add(info)
+                                                    }
+                                                    formEvoCount++
+                                                }
+                                            } catch (e: Exception) {
+                                                DebugLog.once("evo-jar-parse-$formKey") { "Evolution fallback: failed to parse form evo: ${e.message}" }
+                                            }
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    failCount++
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                DebugLog.once("evo-jar-root-$root") { "Evolution fallback: scan failed for root: ${e.message}" }
+            }
+        }
+
+        DebugLog.info("Evolution fallback: parsed $baseEvoCount base + $formEvoCount form evolutions from $fileCount species files ($failCount failed)")
         return result
     }
 

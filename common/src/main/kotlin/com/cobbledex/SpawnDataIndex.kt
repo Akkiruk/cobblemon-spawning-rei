@@ -203,6 +203,20 @@ object SpawnDataIndex {
                 evolutionsBySpecies = emptyMap()
             }
 
+            // Fallback: if runtime evolutions are empty (dedicated server without server-side mod),
+            // parse species JSON from mod JARs using Cobblemon's GSON
+            if (evolutionsBySpecies.isEmpty()) {
+                DebugLog.info("Runtime evolutions empty — attempting fallback from mod JARs")
+                val modRoots = SpawnDataLoader.getModRootPaths()
+                if (modRoots.isNotEmpty()) {
+                    try {
+                        evolutionsBySpecies = normalizeMapKeys(EvolutionDataLoader.loadFromModJars(modRoots))
+                    } catch (e: Exception) {
+                        DebugLog.warn("Evolution fallback from mod JARs failed: ${e.message}")
+                    }
+                }
+            }
+
             try {
                 speciesInfo = normalizeMapKeys(EvolutionDataLoader.loadSpeciesBasicInfoFromRuntime())
             } catch (e: Exception) {
