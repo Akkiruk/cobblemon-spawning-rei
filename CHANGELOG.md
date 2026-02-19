@@ -2,6 +2,22 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.35.0] - 2026-02-18
+
+### Fixed
+- Fixed 7000+ "Unknown preset name" error spam by replacing broken Cobblemon parser chain with custom JSON parsing
+- Fixed evolution data showing 0 entries on dedicated servers (all 1056 species files were failing GSON deserialization)
+- Fixed spawn data showing 0 entries on dedicated servers
+
+### Added
+- Launch-time data cache: spawn and evolution data parsed from mod JARs on game startup using lightweight custom parser
+- Cached data persists across server connections — no more re-parsing on every join
+- Server sync data still takes priority when available
+
+### Removed
+- SpawnPoolClientLoader (broken approach using Cobblemon's internal parsers)
+- EvolutionDataLoader.loadFromModJars GSON fallback (100% failure rate on client)
+
 ## [1.34.0] - 2026-02-18
 
 ### Fixed

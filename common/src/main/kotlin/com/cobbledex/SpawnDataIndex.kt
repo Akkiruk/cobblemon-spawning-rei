@@ -63,10 +63,6 @@ object SpawnDataIndex {
     private var emptyEvoRetries = 0
     private const val MAX_EMPTY_EVO_RETRIES = 5
 
-    /** Tracks client-side spawn pool loading attempts */
-    @Volatile
-    private var clientSpawnLoadAttempted = false
-
     /** True when spawn data was received from the server via networking */
     @Volatile
     private var hasServerSync = false
@@ -175,27 +171,26 @@ object SpawnDataIndex {
             return
         }
 
-        SpawnDataLoader.invalidateCache()
-        spawnsBySpecies = normalizeMapKeys(SpawnDataLoader.loadFromRuntime())
+        // --- Baseline: start with JarDataCache (loaded on game launch) ---
+        // Wait briefly for cache if it's still initializing
+        JarDataCache.awaitReady(5_000)
 
-        // Fallback: if spawn pool is empty (dedicated server without CobbleDex server-side),
-        // load spawn data client-side from mod JAR files using Cobblemon's own parsers
-        if (spawnsBySpecies.isEmpty() && !clientSpawnLoadAttempted) {
-            clientSpawnLoadAttempted = true
-            DebugLog.info("Spawn pool empty — attempting client-side fallback from mod JARs")
-            val modRoots = SpawnDataLoader.getModRootPaths()
-            if (modRoots.isNotEmpty()) {
-                val loaded = SpawnPoolClientLoader.loadSpawnPoolFromModJars(modRoots)
-                if (loaded) {
-                    spawnsBySpecies = normalizeMapKeys(SpawnDataLoader.loadFromRuntime())
-                    DebugLog.info("Client-side fallback loaded ${spawnsBySpecies.size} species with spawns")
-                }
-            }
+        // Try Cobblemon's runtime spawn pool (populated in singleplayer or by server)
+        SpawnDataLoader.invalidateCache()
+        val runtimeSpawns = normalizeMapKeys(SpawnDataLoader.loadFromRuntime())
+        spawnsBySpecies = if (runtimeSpawns.isNotEmpty()) {
+            runtimeSpawns
+        } else if (JarDataCache.hasCachedSpawns()) {
+            DebugLog.info("Using JarDataCache spawns (${JarDataCache.getCachedSpawns().size} species)")
+            normalizeMapKeys(JarDataCache.getCachedSpawns())
+        } else {
+            emptyMap()
         }
 
         val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
 
         if (runtimeCount > 0) {
+            // Try runtime evolutions (works in singleplayer, empty on dedicated servers)
             try {
                 evolutionsBySpecies = normalizeMapKeys(EvolutionDataLoader.loadFromRuntime())
             } catch (e: Exception) {
@@ -203,18 +198,10 @@ object SpawnDataIndex {
                 evolutionsBySpecies = emptyMap()
             }
 
-            // Fallback: if runtime evolutions are empty (dedicated server without server-side mod),
-            // parse species JSON from mod JARs using Cobblemon's GSON
-            if (evolutionsBySpecies.isEmpty()) {
-                DebugLog.info("Runtime evolutions empty — attempting fallback from mod JARs")
-                val modRoots = SpawnDataLoader.getModRootPaths()
-                if (modRoots.isNotEmpty()) {
-                    try {
-                        evolutionsBySpecies = normalizeMapKeys(EvolutionDataLoader.loadFromModJars(modRoots))
-                    } catch (e: Exception) {
-                        DebugLog.warn("Evolution fallback from mod JARs failed: ${e.message}")
-                    }
-                }
+            // Fall back to JarDataCache evolutions if runtime is empty
+            if (evolutionsBySpecies.isEmpty() && JarDataCache.hasCachedEvolutions()) {
+                DebugLog.info("Using JarDataCache evolutions (${JarDataCache.getCachedEvolutions().size} species)")
+                evolutionsBySpecies = normalizeMapKeys(JarDataCache.getCachedEvolutions())
             }
 
             try {
@@ -225,7 +212,12 @@ object SpawnDataIndex {
             }
         } else {
             DebugLog.warn("PokemonSpecies.implemented empty, spawn data only")
-            evolutionsBySpecies = emptyMap()
+            // Still use cached evolutions even without runtime species
+            if (JarDataCache.hasCachedEvolutions()) {
+                evolutionsBySpecies = normalizeMapKeys(JarDataCache.getCachedEvolutions())
+            } else {
+                evolutionsBySpecies = emptyMap()
+            }
             speciesInfo = emptyMap()
         }
 
@@ -248,8 +240,13 @@ object SpawnDataIndex {
         rebuildDerivedData()
 
         val hasEvolutions = evolutionsBySpecies.isNotEmpty()
+        val hasSpawns = spawnsBySpecies.isNotEmpty()
         loadState = when {
-            runtimeCount == 0 -> LoadState.PARTIAL
+            runtimeCount == 0 && !hasEvolutions && !hasSpawns -> LoadState.PARTIAL
+            runtimeCount == 0 -> {
+                // Have cached data but no runtime species yet
+                LoadState.PARTIAL
+            }
             !hasEvolutions && emptyEvoRetries < MAX_EMPTY_EVO_RETRIES -> {
                 emptyEvoRetries++
                 DebugLog.info("Species loaded ($runtimeCount) but no evolutions found (attempt $emptyEvoRetries/$MAX_EMPTY_EVO_RETRIES) — staying PARTIAL for retry")
@@ -274,15 +271,13 @@ object SpawnDataIndex {
         )
     }
 
-    /** Mark data stale on disconnect and clear Cobblemon's spawn pool to prevent stale singleplayer data
-     *  from leaking into subsequent server sessions */
+    /** Mark data stale on disconnect. Cached JAR data is preserved —
+     *  only runtime/server data is cleared. */
     fun onDisconnect() {
         cancelPendingLoad()
         PokemonItemCache.reset()
         emptyEvoRetries = 0
-        clientSpawnLoadAttempted = false
         hasServerSync = false
-        SpawnPoolClientLoader.reset()
 
         // Clear stale data from Cobblemon's spawn pool (prevents singleplayer data persisting into server sessions)
         try {

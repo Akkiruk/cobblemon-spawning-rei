@@ -20,6 +20,20 @@ object CobbleDexMod {
         } catch (e: Exception) {
             DebugLog.warn("Config load deferred: ${e.message}")
         }
+
+        // Pre-cache spawn + evolution data from mod JARs in background
+        Thread({
+            try {
+                val modRoots = SpawnDataLoader.getModRootPaths()
+                if (modRoots.isNotEmpty()) {
+                    JarDataCache.initialize(modRoots)
+                } else {
+                    DebugLog.warn("No mod roots found for JarDataCache initialization")
+                }
+            } catch (e: Exception) {
+                DebugLog.warn("JarDataCache background init failed: ${e.message}")
+            }
+        }, "CobbleDex-CacheInit").apply { isDaemon = true }.start()
     }
 
     fun tickReloadCheck() {
