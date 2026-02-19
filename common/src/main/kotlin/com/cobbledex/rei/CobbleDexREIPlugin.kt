@@ -41,6 +41,13 @@ open class CobbleDexREIPlugin : REIClientPlugin {
 
         fun categoryId(def: DexCategory): CategoryIdentifier<GenericDisplay> =
             categoryIds.getOrPut(def.id) { CategoryIdentifier.of(CobbleDexMod.MOD_ID, def.id) }
+
+        // REI discovers this plugin twice (as REIPlugin + REIClientPlugin).
+        // Guard each method by registry identity to prevent double registration.
+        @Volatile private var lastEntryTypeRegistry: Any? = null
+        @Volatile private var lastCategoryRegistry: Any? = null
+        @Volatile private var lastDisplayRegistry: Any? = null
+        @Volatile private var lastEntryRegistry: Any? = null
     }
 
     private val emiActive: Boolean by lazy {
@@ -53,6 +60,8 @@ open class CobbleDexREIPlugin : REIClientPlugin {
 
     override fun registerEntryTypes(registry: EntryTypeRegistry) {
         if (emiActive) return
+        if (lastEntryTypeRegistry === registry) return
+        lastEntryTypeRegistry = registry
         try {
             registry.register(PokemonEntryType.POKEMON.id, PokemonEntryDefinition())
             DebugLog.info("Pokémon entry type registered")
@@ -75,6 +84,8 @@ open class CobbleDexREIPlugin : REIClientPlugin {
 
     override fun registerCategories(registry: CategoryRegistry) {
         if (emiActive) return
+        if (lastCategoryRegistry === registry) return
+        lastCategoryRegistry = registry
         ensureEntryTypeAvailable()
         val config = CobbleDexConfig.get()
         val registered = mutableListOf<String>()
@@ -88,6 +99,8 @@ open class CobbleDexREIPlugin : REIClientPlugin {
 
     override fun registerDisplays(registry: DisplayRegistry) {
         if (emiActive) return
+        if (lastDisplayRegistry === registry) return
+        lastDisplayRegistry = registry
         ensureEntryTypeAvailable()
         SpawnDataIndex.ensureLoaded()
         val config = CobbleDexConfig.get()
@@ -105,6 +118,8 @@ open class CobbleDexREIPlugin : REIClientPlugin {
 
     override fun registerEntries(registry: EntryRegistry) {
         if (emiActive) return
+        if (lastEntryRegistry === registry) return
+        lastEntryRegistry = registry
         ensureEntryTypeAvailable()
         SpawnDataIndex.ensureLoaded()
 

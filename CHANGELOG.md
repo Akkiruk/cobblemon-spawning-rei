@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.35.1] - 2026-02-18
+
+### Fixed
+- Fixed every page appearing twice in all REI categories (REI was discovering the plugin under both REIPlugin and REIClientPlugin, doubling all registrations)
+
 ## [1.35.0] - 2026-02-18
 
 ### Fixed
