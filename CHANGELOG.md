@@ -5,7 +5,7 @@ All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 ## [1.35.1] - 2026-02-18
 
 ### Fixed
-- Fixed every page appearing twice in all REI categories (REI was discovering the plugin under both REIPlugin and REIClientPlugin, doubling all registrations)
+- Fixed every page appearing twice in all REI categories (DynamicDisplayGenerator was returning results from both generate() and getRecipeFor/getUsageFor for the same query)
 
 ## [1.35.0] - 2026-02-18
 
