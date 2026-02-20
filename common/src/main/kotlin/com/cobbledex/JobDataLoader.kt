@@ -2,49 +2,35 @@ package com.cobbledex
 
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import java.nio.file.Path
+import kotlin.io.path.exists
+import kotlin.io.path.readText
 
 /**
- * Discovers Cobbleworkers at runtime via reflection and extracts job rules.
+ * Loads Cobbleworkers job rules from a shared JSON file.
  * Also evaluates species eligibility against received rules.
  */
 object JobDataLoader {
 
-    private const val PROVIDER_CLASS = "accieo.cobbleworkers.integration.cobbledex.CobbledexDataProvider"
-    private const val PROVIDER_METHOD = "getJobRulesJson"
+    private val JOB_RULES_FILE: Path = Path.of("config", "cobbleworkers", "cobbledex-job-rules.json")
 
     private val gson = Gson()
     private val listType = object : TypeToken<List<JobRule>>() {}.type
 
     /**
-     * Attempts to load job rules from Cobbleworkers via reflection.
-     * Returns empty list if Cobbleworkers is not installed.
+     * Loads job rules from the Cobbleworkers JSON file.
+     * Returns empty list if the file doesn't exist (Cobbleworkers not installed).
      */
     fun loadFromCobbleworkers(): List<JobRule> {
+        if (!JOB_RULES_FILE.exists()) return emptyList()
         return try {
-            val clazz = Class.forName(PROVIDER_CLASS)
-            val method = clazz.getMethod(PROVIDER_METHOD)
-            val json = method.invoke(null) as? String ?: return emptyList()
+            val json = JOB_RULES_FILE.readText()
             val rules: List<JobRule> = gson.fromJson(json, listType)
             DebugLog.info("Loaded ${rules.size} job rules from Cobbleworkers")
             rules
-        } catch (_: ClassNotFoundException) {
-            // Cobbleworkers not installed — expected
-            emptyList()
         } catch (e: Exception) {
             DebugLog.warn("Failed to load Cobbleworkers job rules: ${e.message}")
             emptyList()
-        }
-    }
-
-    /**
-     * Checks if Cobbleworkers is available on this JVM (server or client).
-     */
-    fun isCobbleworkersPresent(): Boolean {
-        return try {
-            Class.forName(PROVIDER_CLASS)
-            true
-        } catch (_: ClassNotFoundException) {
-            false
         }
     }
 
