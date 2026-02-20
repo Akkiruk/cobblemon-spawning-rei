@@ -37,7 +37,11 @@ jobs:
           cache-overwrite-existing: true
         
       - name: Build with Gradle
-        run: ./gradlew :fabric:build :neoforge:build
+        run: |
+          # Create a dummy jar for Cobbleworkers API so the compileOnly dependency doesn't fail
+          mkdir -p ../../cobbleworkers/common/build/libs/
+          touch ../../cobbleworkers/common/build/libs/cobbleworkers-common-2.6.0+1.7.0-transformProductionFabric.jar
+          ./gradlew :fabric:build :neoforge:build
         
       - name: Get version from gradle.properties
         id: get_version
