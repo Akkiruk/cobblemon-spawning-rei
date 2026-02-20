@@ -1,8 +1,5 @@
 package com.cobbledex
 
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
-
 /**
  * Loads Cobbleworkers job rules via direct API call (compileOnly dependency).
  * Falls back to empty when Cobbleworkers isn't loaded.
@@ -49,7 +46,8 @@ object JobDataLoader {
             val rules = loadFromApi()
             DebugLog.info("Loaded ${rules.size} job rules from Cobbleworkers API")
             rules
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            // Throwable catches NoClassDefFoundError if Cobbleworkers jar is missing at runtime
             DebugLog.warn("Failed to load Cobbleworkers job rules: ${e.message}")
             emptyList()
         }

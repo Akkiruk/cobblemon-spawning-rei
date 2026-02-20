@@ -245,7 +245,7 @@ object SpawnDataIndex {
         if (jobRules.isEmpty()) {
             try {
                 jobRules = JobDataLoader.loadFromCobbleworkers()
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 DebugLog.once("jobdata-load") { "Job data load failed: ${e.message}" }
             }
         }
