@@ -275,20 +275,20 @@ object RecipeBuilder {
 
     // --- Cobbleworkers Jobs ---
 
-    fun buildAllJobsRecipes(): List<JobsRecipeData> {
+    fun buildAllJobsRecipes(): List<JobRecipeData> {
         if (!SpawnDataIndex.hasJobRules()) return emptyList()
-        val recipes = mutableListOf<JobsRecipeData>()
+        val recipes = mutableListOf<JobRecipeData>()
         for ((species, _) in SpawnDataIndex.speciesInfo) {
             val matches = SpawnDataIndex.getJobsFor(species)
-            if (matches.isEmpty()) continue
-            recipes.add(JobsRecipeData(species, matches))
+            for (match in matches) {
+                recipes.add(JobRecipeData(species, match))
+            }
         }
         return recipes
     }
 
-    fun buildJobsFor(speciesName: String): JobsRecipeData? {
+    fun buildJobsFor(speciesName: String): List<JobRecipeData> {
         val matches = SpawnDataIndex.getJobsFor(speciesName)
-        if (matches.isEmpty()) return null
-        return JobsRecipeData(speciesName, matches)
+        return matches.map { JobRecipeData(speciesName, it) }
     }
 }

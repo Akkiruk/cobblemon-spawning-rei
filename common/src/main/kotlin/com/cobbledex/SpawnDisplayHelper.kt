@@ -1276,45 +1276,85 @@ object SpawnDisplayHelper {
         "TYPE" to "\u25C6",
     )
 
-    fun buildJobsLayout(speciesName: String, matches: List<JobMatch>): PanelLayout {
+    fun buildJobLayout(speciesName: String, match: JobMatch): PanelLayout {
         val layout = PanelLayout(200)
         val padding = PanelLayout.PADDING
         val right = layout.right
+        val rule = match.rule
+        val jobColor = JOB_ICON_COLORS[rule.id] ?: 0xFFAAAAFF.toInt()
 
+        // Header: species name + job name
         layout.textAt(padding + 22, 6, formatSpeciesName(speciesName), 0xFFFFFF)
-        val headerText = tr("category.cobbledex-rei-emi-jei.jobs")
-        layout.textRightAt(6, headerText, 0xDDCC99)
+        layout.textRightAt(6, rule.displayName, jobColor)
         layout.fill(padding, 20, right, 21, 0x50FFFFFF)
-        layout.skipTo(24)
+        layout.skipTo(26)
 
-        val count = matches.size
-        layout.text(padding, tr("cobbledex-rei-emi-jei.jobs.count", count), 0xFF999999.toInt())
+        // Job description
+        layout.wrapped(padding + 4, rule.description, right - padding - 4, 0xFFCCCCCC.toInt())
+        layout.gap(6)
+        layout.separator(0x30FFFFFF)
+        layout.gap(4)
+
+        // Requirements
+        layout.text(padding, "Requirements", 0xFFDDAA44.toInt())
         layout.line()
         layout.gap(2)
 
-        for ((i, match) in matches.withIndex()) {
-            val jobColor = JOB_ICON_COLORS[match.rule.id] ?: 0xFFAAAAFF.toInt()
-            val prioritySym = PRIORITY_SYMBOLS[match.rule.priority] ?: "\u25C6"
+        var hasReqs = false
 
-            // Job name with priority indicator
-            layout.text(padding, "$prioritySym ${match.rule.displayName}", jobColor)
+        if (rule.requiredType != null && rule.requiredType != "NONE") {
+            layout.text(padding + 8, "\u2022 ${rule.requiredType.lowercase().replaceFirstChar { it.uppercase() }} type", 0xFFBBBBBB.toInt())
             layout.line()
+            hasReqs = true
+        }
 
-            // Description
-            layout.text(padding + 8, match.rule.description, 0xFF999999.toInt())
+        if (rule.requiredMoves.isNotEmpty()) {
+            val label = if (rule.requiredMoves.size == 1) "Must know move:" else "Must know one of:"
+            layout.text(padding + 8, "\u2022 $label", 0xFFBBBBBB.toInt())
             layout.line()
-
-            // Qualification reasons
-            for (reason in match.reasons) {
-                layout.text(padding + 8, "\u2022 $reason", 0xFF77BB77.toInt())
+            for (move in rule.requiredMoves) {
+                layout.text(padding + 16, "- ${move.replaceFirstChar { it.uppercase() }}", 0xFFAAAA88.toInt())
                 layout.line()
             }
+            hasReqs = true
+        }
 
-            if (i < matches.size - 1) {
-                layout.gap(2)
-                layout.separator(0x30FFFFFF)
-                layout.gap(2)
-            }
+        if (rule.requiredAbility != null) {
+            layout.text(padding + 8, "\u2022 Ability: ${rule.requiredAbility.replaceFirstChar { it.uppercase() }}", 0xFFBBBBBB.toInt())
+            layout.line()
+            hasReqs = true
+        }
+
+        if (rule.designatedSpecies.isNotEmpty()) {
+            layout.text(padding + 8, "\u2022 Designated species list", 0xFFBBBBBB.toInt())
+            layout.line()
+            hasReqs = true
+        }
+
+        if (rule.hardcodedSpeciesEnabled && rule.hardcodedSpecies.isNotEmpty()) {
+            val names = rule.hardcodedSpecies.joinToString(", ") { it.replaceFirstChar { c -> c.uppercase() } }
+            layout.text(padding + 8, "\u2022 Special: $names", 0xFFBBBBBB.toInt())
+            layout.line()
+            hasReqs = true
+        }
+
+        if (!hasReqs) {
+            layout.text(padding + 8, "\u2022 No specific requirements", 0xFF999999.toInt())
+            layout.line()
+        }
+
+        layout.gap(4)
+        layout.separator(0x30FFFFFF)
+        layout.gap(4)
+
+        // Qualifications
+        layout.text(padding, "Why ${formatSpeciesName(speciesName)} Qualifies", 0xFF77BB77.toInt())
+        layout.line()
+        layout.gap(2)
+
+        for (reason in match.reasons) {
+            layout.text(padding + 8, "\u2713 $reason", 0xFF88DD88.toInt())
+            layout.line()
         }
 
         layout.gap(padding)

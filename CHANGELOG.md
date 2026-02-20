@@ -2,6 +2,13 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.36.0] - 2026-02-19
+
+### Changed
+- Jobs category now uses direct Cobbleworkers API instead of file-based loading
+- Each job now gets its own dedicated page showing requirements and qualifications
+- Jobs pages show why a specific Pokémon qualifies (type match, moves, abilities, designated species)
+
 ## [1.35.1] - 2026-02-18
 
 ### Fixed

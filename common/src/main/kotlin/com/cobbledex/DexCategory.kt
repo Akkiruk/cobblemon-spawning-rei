@@ -436,15 +436,14 @@ object JobsDex : DexCategory {
 
     override fun buildRecipesFor(species: String): List<RecipeHandle> {
         if (!SpawnDataIndex.hasJobRules()) return emptyList()
-        val r = RecipeBuilder.buildJobsFor(species) ?: return emptyList()
-        return listOf(toHandle(r))
+        return RecipeBuilder.buildJobsFor(species).map(::toHandle)
     }
 
-    private fun toHandle(d: JobsRecipeData) = RecipeHandle(
-        recipeIdPath = "jobs/${sanitizePath(d.speciesName)}",
+    private fun toHandle(d: JobRecipeData) = RecipeHandle(
+        recipeIdPath = "jobs/${sanitizePath(d.speciesName)}/${sanitizePath(d.match.rule.id)}",
         inputSpecies = listOf(d.speciesName),
         outputSpecies = emptyList(),
-        layoutFactory = { SpawnDisplayHelper.buildJobsLayout(d.speciesName, d.matches) },
+        layoutFactory = { SpawnDisplayHelper.buildJobLayout(d.speciesName, d.match) },
         _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
     )
 }

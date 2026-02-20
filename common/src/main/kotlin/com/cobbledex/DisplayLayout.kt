@@ -347,11 +347,12 @@ object DisplayLayout {
         for ((species, _) in SpawnDataIndex.speciesInfo) {
             try {
                 val matches = SpawnDataIndex.getJobsFor(species)
-                if (matches.isEmpty()) continue
-                val layout = SpawnDisplayHelper.buildJobsLayout(species, matches)
-                if (layout.height > maxH) maxH = layout.height
+                for (match in matches) {
+                    val layout = SpawnDisplayHelper.buildJobLayout(species, match)
+                    if (layout.height > maxH) maxH = layout.height
+                }
             } catch (_: Exception) {}
         }
-        return PanelSize(200, maxH.coerceAtMost(400))
+        return PanelSize(200, maxH.coerceAtMost(300))
     }
 }

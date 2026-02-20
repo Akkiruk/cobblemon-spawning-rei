@@ -2,35 +2,76 @@ package com.cobbledex
 
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import java.nio.file.Path
-import kotlin.io.path.exists
-import kotlin.io.path.readText
 
 /**
- * Loads Cobbleworkers job rules from a shared JSON file.
+ * Loads Cobbleworkers job rules via direct API call (compileOnly dependency).
+ * Falls back to empty when Cobbleworkers isn't loaded.
  * Also evaluates species eligibility against received rules.
  */
 object JobDataLoader {
 
-    private val JOB_RULES_FILE: Path = Path.of("config", "cobbleworkers", "cobbledex-job-rules.json")
+    private val modLoadedCache = mutableMapOf<String, Boolean>()
 
-    private val gson = Gson()
-    private val listType = object : TypeToken<List<JobRule>>() {}.type
+    private fun isModLoaded(modId: String): Boolean {
+        modLoadedCache[modId]?.let { return it }
+        val loaded = checkModPresence(modId)
+        modLoadedCache[modId] = loaded
+        return loaded
+    }
+
+    private fun checkModPresence(modId: String): Boolean {
+        try {
+            val fabricLoader = Class.forName("net.fabricmc.loader.api.FabricLoader")
+            val instance = fabricLoader.getMethod("getInstance").invoke(null)
+            val result = instance.javaClass.getMethod("isModLoaded", String::class.java).invoke(instance, modId)
+            return result as Boolean
+        } catch (_: ClassNotFoundException) {}
+        catch (_: Exception) {}
+
+        try {
+            val modList = Class.forName("net.neoforged.fml.ModList")
+            val list = modList.getMethod("get").invoke(null)
+            val result = list.javaClass.getMethod("isLoaded", String::class.java).invoke(list, modId)
+            return result as Boolean
+        } catch (_: ClassNotFoundException) {}
+        catch (_: Exception) {}
+
+        return false
+    }
 
     /**
-     * Loads job rules from the Cobbleworkers JSON file.
-     * Returns empty list if the file doesn't exist (Cobbleworkers not installed).
+     * Loads job rules directly from Cobbleworkers API if the mod is present.
+     * Returns empty list if Cobbleworkers is not installed.
      */
     fun loadFromCobbleworkers(): List<JobRule> {
-        if (!JOB_RULES_FILE.exists()) return emptyList()
+        if (!isModLoaded("cobbleworkers")) return emptyList()
         return try {
-            val json = JOB_RULES_FILE.readText()
-            val rules: List<JobRule> = gson.fromJson(json, listType)
-            DebugLog.info("Loaded ${rules.size} job rules from Cobbleworkers")
+            val rules = loadFromApi()
+            DebugLog.info("Loaded ${rules.size} job rules from Cobbleworkers API")
             rules
         } catch (e: Exception) {
             DebugLog.warn("Failed to load Cobbleworkers job rules: ${e.message}")
             emptyList()
+        }
+    }
+
+    /** Isolated method — only called when we know Cobbleworkers is on the classpath. */
+    private fun loadFromApi(): List<JobRule> {
+        val apiRules = accieo.cobbleworkers.api.CobbleworkersApi.getJobRules()
+        return apiRules.map { r ->
+            JobRule(
+                id = r.id,
+                displayName = r.displayName,
+                description = r.description,
+                enabled = r.enabled,
+                requiredType = r.requiredType,
+                designatedSpecies = r.designatedSpecies,
+                requiredMoves = r.requiredMoves,
+                requiredAbility = r.requiredAbility,
+                hardcodedSpecies = r.hardcodedSpecies,
+                hardcodedSpeciesEnabled = r.hardcodedSpeciesEnabled,
+                priority = r.priority,
+            )
         }
     }
 

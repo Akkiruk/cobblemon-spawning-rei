@@ -27,7 +27,8 @@ data class JobMatch(
     val reasons: List<String>,
 )
 
-data class JobsRecipeData(
+/** One recipe page per species-job combination. */
+data class JobRecipeData(
     val speciesName: String,
-    val matches: List<JobMatch>,
+    val match: JobMatch,
 )
