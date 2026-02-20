@@ -2,6 +2,7 @@ package com.cobbledex.network
 
 import com.cobbledex.EvolutionDataLoader
 import com.cobbledex.EvolutionInfo
+import com.cobbledex.JobRule
 import com.cobbledex.SpawnInfo
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -14,7 +15,8 @@ import java.util.zip.GZIPOutputStream
 data class SyncBundle(
     val spawns: Map<String, List<SpawnInfo>>,
     val evolutions: Map<String, List<EvolutionInfo>>,
-    val speciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo>
+    val speciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo>,
+    val jobRules: List<JobRule>? = null,
 )
 
 object SpawnSyncSerializer {

@@ -7,6 +7,9 @@
   "category.cobbledex-rei-emi-jei.moves": "Moves",
   "category.cobbledex-rei-emi-jei.pokedex_info": "Pok\u00e9dex Info",
   "category.cobbledex-rei-emi-jei.pokemon_description": "Pok\u00e9dex Entry",
+  "category.cobbledex-rei-emi-jei.jobs": "Cobbleworkers Jobs",
+
+  "cobbledex-rei-emi-jei.jobs.count": "%d eligible job(s)",
 
   "cobbledex-rei-emi-jei.info.abilities": "\u2605 Abilities",
   "cobbledex-rei-emi-jei.info.egg_groups": "\u2606 Egg Groups",

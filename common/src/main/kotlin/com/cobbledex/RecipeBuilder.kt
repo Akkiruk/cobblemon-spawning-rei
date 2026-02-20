@@ -272,4 +272,23 @@ object RecipeBuilder {
         if (description.isBlank()) return null
         return PokemonDescriptionRecipeData(speciesName, description)
     }
+
+    // --- Cobbleworkers Jobs ---
+
+    fun buildAllJobsRecipes(): List<JobsRecipeData> {
+        if (!SpawnDataIndex.hasJobRules()) return emptyList()
+        val recipes = mutableListOf<JobsRecipeData>()
+        for ((species, _) in SpawnDataIndex.speciesInfo) {
+            val matches = SpawnDataIndex.getJobsFor(species)
+            if (matches.isEmpty()) continue
+            recipes.add(JobsRecipeData(species, matches))
+        }
+        return recipes
+    }
+
+    fun buildJobsFor(speciesName: String): JobsRecipeData? {
+        val matches = SpawnDataIndex.getJobsFor(speciesName)
+        if (matches.isEmpty()) return null
+        return JobsRecipeData(speciesName, matches)
+    }
 }

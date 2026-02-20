@@ -77,7 +77,7 @@ interface DexCategory {
         val ALL: List<DexCategory> = listOf(
             SpawnDex, EvolutionDex, ObtainmentDex, DropDex,
             StatsDex, MovesDex, PokedexInfoDex, PokemonDescriptionDex, FossilDex,
-            TypeChartDex, NatureDex
+            TypeChartDex, NatureDex, JobsDex
         )
     }
 }
@@ -417,4 +417,34 @@ object NatureDex : DexCategory {
             _height = { size.height },
         )
     }
+}
+
+// ----- Cobbleworkers Jobs -----
+
+object JobsDex : DexCategory {
+    override val id = "jobs"
+    override val titleKey = "category.cobbledex-rei-emi-jei.jobs"
+    override val icon: Item = Items.IRON_PICKAXE
+    override val maxSize = DisplayLayout::getMaxJobsSize
+    override val supportsRecipeTree = true
+    override fun isEnabled(config: CobbleDexConfig) = config.showJobs && SpawnDataIndex.hasJobRules()
+
+    override fun buildAllRecipes(): List<RecipeHandle> {
+        if (!SpawnDataIndex.hasJobRules()) return emptyList()
+        return RecipeBuilder.buildAllJobsRecipes().map(::toHandle)
+    }
+
+    override fun buildRecipesFor(species: String): List<RecipeHandle> {
+        if (!SpawnDataIndex.hasJobRules()) return emptyList()
+        val r = RecipeBuilder.buildJobsFor(species) ?: return emptyList()
+        return listOf(toHandle(r))
+    }
+
+    private fun toHandle(d: JobsRecipeData) = RecipeHandle(
+        recipeIdPath = "jobs/${sanitizePath(d.speciesName)}",
+        inputSpecies = listOf(d.speciesName),
+        outputSpecies = emptyList(),
+        layoutFactory = { SpawnDisplayHelper.buildJobsLayout(d.speciesName, d.matches) },
+        _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
+    )
 }

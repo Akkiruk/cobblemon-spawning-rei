@@ -29,6 +29,7 @@ object DisplayLayout {
     @Volatile private var cachedFossilMax: PanelSize? = null
     @Volatile private var cachedTypeChartMax: PanelSize? = null
     @Volatile private var cachedNatureMax: PanelSize? = null
+    @Volatile private var cachedJobsMax: PanelSize? = null
     @Volatile private var cachedDataVersion: Long = -1L
 
     fun invalidateCache() {
@@ -43,6 +44,7 @@ object DisplayLayout {
         cachedFossilMax = null
         cachedTypeChartMax = null
         cachedNatureMax = null
+        cachedJobsMax = null
         cachedDataVersion = -1L
     }
 
@@ -112,6 +114,12 @@ object DisplayLayout {
         return computeMaxNatureSize().also { cachedNatureMax = it }
     }
 
+    fun getMaxJobsSize(): PanelSize {
+        checkCacheValidity()
+        cachedJobsMax?.let { return it }
+        return computeMaxJobsSize().also { cachedJobsMax = it }
+    }
+
     private fun checkCacheValidity() {
         val ver = SpawnDataIndex.dataVersion
         if (ver != cachedDataVersion) {
@@ -126,6 +134,7 @@ object DisplayLayout {
             cachedFossilMax = null
             cachedTypeChartMax = null
             cachedNatureMax = null
+            cachedJobsMax = null
             cachedDataVersion = ver
         }
     }
@@ -330,5 +339,19 @@ object DisplayLayout {
             } catch (_: Exception) {}
         }
         return PanelSize(200, maxH)
+    }
+
+    private fun computeMaxJobsSize(): PanelSize {
+        if (!SpawnDataIndex.hasJobRules()) return PanelSize(200, 120)
+        var maxH = 80
+        for ((species, _) in SpawnDataIndex.speciesInfo) {
+            try {
+                val matches = SpawnDataIndex.getJobsFor(species)
+                if (matches.isEmpty()) continue
+                val layout = SpawnDisplayHelper.buildJobsLayout(species, matches)
+                if (layout.height > maxH) maxH = layout.height
+            } catch (_: Exception) {}
+        }
+        return PanelSize(200, maxH.coerceAtMost(400))
     }
 }

@@ -51,6 +51,10 @@ object SpawnDataIndex {
         private set
 
     @Volatile
+    var jobRules: List<JobRule> = emptyList()
+        private set
+
+    @Volatile
     var allSpeciesNames: List<String> = emptyList()
         private set
 
@@ -237,6 +241,15 @@ object SpawnDataIndex {
             fossilsBySpecies = emptyMap()
         }
 
+        // Try loading Cobbleworkers job rules (singleplayer or if on same JVM)
+        if (jobRules.isEmpty()) {
+            try {
+                jobRules = JobDataLoader.loadFromCobbleworkers()
+            } catch (e: Exception) {
+                DebugLog.once("jobdata-load") { "Job data load failed: ${e.message}" }
+            }
+        }
+
         rebuildDerivedData()
 
         val hasEvolutions = evolutionsBySpecies.isNotEmpty()
@@ -278,6 +291,7 @@ object SpawnDataIndex {
         PokemonItemCache.reset()
         emptyEvoRetries = 0
         hasServerSync = false
+        jobRules = emptyList()
 
         // Clear stale data from Cobblemon's spawn pool (prevents singleplayer data persisting into server sessions)
         try {
@@ -300,11 +314,13 @@ object SpawnDataIndex {
     /** Accept all data synced from the server via networking */
     fun applyServerSync(syncedSpawns: Map<String, List<SpawnInfo>>,
                         syncedEvolutions: Map<String, List<EvolutionInfo>>,
-                        syncedSpeciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo>) {
+                        syncedSpeciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo>,
+                        syncedJobRules: List<JobRule>? = null) {
         dataLock.withLock {
             spawnsBySpecies = normalizeMapKeys(syncedSpawns)
             evolutionsBySpecies = normalizeMapKeys(syncedEvolutions)
             speciesInfo = normalizeMapKeys(syncedSpeciesInfo)
+            jobRules = syncedJobRules ?: emptyList()
             hasServerSync = true
             rebuildDerivedData()
             dataVersion++
@@ -315,8 +331,9 @@ object SpawnDataIndex {
                 LoadState.PARTIAL
             }
         }
+        val jobMsg = if (jobRules.isNotEmpty()) ", ${jobRules.size} job rules" else ""
         DebugLog.info("Applied server sync: ${syncedSpawns.size} species with spawns, " +
-            "${syncedEvolutions.size} with evolutions, ${syncedSpeciesInfo.size} with info")
+            "${syncedEvolutions.size} with evolutions, ${syncedSpeciesInfo.size} with info$jobMsg")
 
         RecipeViewerReloader.scheduleReload()
 
@@ -402,4 +419,17 @@ object SpawnDataIndex {
     fun getFossilsFor(species: String): List<FossilCombo> = fossilsBySpecies[SpeciesNameNormalizer.normalize(species)] ?: emptyList()
 
     fun getSpeciesDroppingItem(itemId: String): List<String> = dropsByItem[itemId] ?: emptyList()
+
+    fun getJobsFor(species: String): List<JobMatch> {
+        if (jobRules.isEmpty()) return emptyList()
+        val info = getSpeciesInfo(species) ?: return emptyList()
+        val allMoves = JobDataLoader.collectAllMoves(info)
+        val allAbilities = JobDataLoader.collectAllAbilities(info)
+        return JobDataLoader.evaluateJobs(
+            jobRules, info.primaryType, info.secondaryType,
+            allAbilities, allMoves, species
+        )
+    }
+
+    fun hasJobRules(): Boolean = jobRules.isNotEmpty()
 }

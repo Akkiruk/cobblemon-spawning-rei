@@ -3,6 +3,7 @@ package com.cobbledex.neoforge
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.EvolutionDataLoader
+import com.cobbledex.JobDataLoader
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpawnDataLoader
 import com.cobbledex.network.ChunkAssembler
@@ -45,7 +46,7 @@ class CobbleDexNeoForge(modBus: IEventBus) {
             context.enqueueWork {
                 try {
                     val bundle = SpawnSyncSerializer.deserialize(payload.data)
-                    SpawnDataIndex.applyServerSync(bundle.spawns, bundle.evolutions, bundle.speciesInfo)
+                    SpawnDataIndex.applyServerSync(bundle.spawns, bundle.evolutions, bundle.speciesInfo, bundle.jobRules)
                     DebugLog.info("Received sync from server: ${bundle.spawns.size} spawns, ${bundle.evolutions.size} evolutions")
                 } catch (e: Exception) {
                     CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process sync: ${e.message}")
@@ -60,7 +61,7 @@ class CobbleDexNeoForge(modBus: IEventBus) {
                 try {
                     val assembled = ChunkAssembler.receiveChunk(payload) ?: return@enqueueWork
                     val bundle = SpawnSyncSerializer.deserialize(assembled)
-                    SpawnDataIndex.applyServerSync(bundle.spawns, bundle.evolutions, bundle.speciesInfo)
+                    SpawnDataIndex.applyServerSync(bundle.spawns, bundle.evolutions, bundle.speciesInfo, bundle.jobRules)
                     DebugLog.info("Received chunked sync from server: ${bundle.spawns.size} spawns, ${bundle.evolutions.size} evolutions")
                 } catch (e: Exception) {
                     CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process chunked sync: ${e.message}")
@@ -75,10 +76,12 @@ class CobbleDexNeoForge(modBus: IEventBus) {
         if (player !is ServerPlayer) return
         player.server.execute {
             try {
+                val jobRules = JobDataLoader.loadFromCobbleworkers()
                 val bundle = SyncBundle(
                     spawns = SpawnDataLoader.loadFromRuntime(),
                     evolutions = EvolutionDataLoader.loadFromRuntime(),
-                    speciesInfo = EvolutionDataLoader.loadSpeciesBasicInfoFromRuntime()
+                    speciesInfo = EvolutionDataLoader.loadSpeciesBasicInfoFromRuntime(),
+                    jobRules = jobRules.ifEmpty { null }
                 )
                 val compressed = SpawnSyncSerializer.serialize(bundle)
                 val chunks = ChunkedSpawnSyncPayload.split(compressed)

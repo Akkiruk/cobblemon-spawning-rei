@@ -25,7 +25,7 @@ class CobbleDexFabricClient : ClientModInitializer {
             context.client().execute {
                 try {
                     val bundle = SpawnSyncSerializer.deserialize(payload.data)
-                    SpawnDataIndex.applyServerSync(bundle.spawns, bundle.evolutions, bundle.speciesInfo)
+                    SpawnDataIndex.applyServerSync(bundle.spawns, bundle.evolutions, bundle.speciesInfo, bundle.jobRules)
                     DebugLog.info("Received sync from server: ${bundle.spawns.size} spawns, ${bundle.evolutions.size} evolutions")
                 } catch (e: Exception) {
                     CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process sync: ${e.message}")
@@ -38,7 +38,7 @@ class CobbleDexFabricClient : ClientModInitializer {
                 try {
                     val assembled = ChunkAssembler.receiveChunk(payload) ?: return@execute
                     val bundle = SpawnSyncSerializer.deserialize(assembled)
-                    SpawnDataIndex.applyServerSync(bundle.spawns, bundle.evolutions, bundle.speciesInfo)
+                    SpawnDataIndex.applyServerSync(bundle.spawns, bundle.evolutions, bundle.speciesInfo, bundle.jobRules)
                     DebugLog.info("Received chunked sync from server: ${bundle.spawns.size} spawns, ${bundle.evolutions.size} evolutions")
                 } catch (e: Exception) {
                     CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process chunked sync: ${e.message}")

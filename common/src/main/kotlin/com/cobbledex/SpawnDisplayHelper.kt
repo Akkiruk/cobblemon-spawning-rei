@@ -1242,4 +1242,83 @@ object SpawnDisplayHelper {
         return layout
     }
 
+    // --- Cobbleworkers Jobs layout builder ---
+
+    private val JOB_ICON_COLORS = mapOf(
+        "apricorn_harvester" to 0xFFFF9933.toInt(),
+        "amethyst_harvester" to 0xFFCC88FF.toInt(),
+        "berry_harvester" to 0xFFFF6688.toInt(),
+        "crop_harvester" to 0xFF88CC44.toInt(),
+        "mint_harvester" to 0xFF66DDAA.toInt(),
+        "netherwart_harvester" to 0xFFCC3333.toInt(),
+        "tumblestone_harvester" to 0xFF88AACC.toInt(),
+        "crop_irrigator" to 0xFF44AAFF.toInt(),
+        "lava_generator" to 0xFFFF6600.toInt(),
+        "water_generator" to 0xFF3399FF.toInt(),
+        "snow_generator" to 0xFFAADDFF.toInt(),
+        "fuel_generator" to 0xFFFF8833.toInt(),
+        "brewing_stand_fuel_generator" to 0xFFDD66FF.toInt(),
+        "fishing_loot_generator" to 0xFF3388CC.toInt(),
+        "pickup_looter" to 0xFFDDAA33.toInt(),
+        "dive_looter" to 0xFF2277BB.toInt(),
+        "ground_item_gatherer" to 0xFFBB88CC.toInt(),
+        "fire_extinguisher" to 0xFF44CCFF.toInt(),
+        "honey_collector" to 0xFFFFCC00.toInt(),
+        "archeologist" to 0xFFCC9966.toInt(),
+        "healer" to 0xFFFF88AA.toInt(),
+        "scout" to 0xFF66BBFF.toInt(),
+    )
+
+    private val PRIORITY_SYMBOLS = mapOf(
+        "COMBO" to "\u2726",
+        "MOVE" to "\u2694",
+        "SPECIES" to "\u2605",
+        "TYPE" to "\u25C6",
+    )
+
+    fun buildJobsLayout(speciesName: String, matches: List<JobMatch>): PanelLayout {
+        val layout = PanelLayout(200)
+        val padding = PanelLayout.PADDING
+        val right = layout.right
+
+        layout.textAt(padding + 22, 6, formatSpeciesName(speciesName), 0xFFFFFF)
+        val headerText = tr("category.cobbledex-rei-emi-jei.jobs")
+        layout.textRightAt(6, headerText, 0xDDCC99)
+        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        layout.skipTo(24)
+
+        val count = matches.size
+        layout.text(padding, tr("cobbledex-rei-emi-jei.jobs.count", count), 0xFF999999.toInt())
+        layout.line()
+        layout.gap(2)
+
+        for ((i, match) in matches.withIndex()) {
+            val jobColor = JOB_ICON_COLORS[match.rule.id] ?: 0xFFAAAAFF.toInt()
+            val prioritySym = PRIORITY_SYMBOLS[match.rule.priority] ?: "\u25C6"
+
+            // Job name with priority indicator
+            layout.text(padding, "$prioritySym ${match.rule.displayName}", jobColor)
+            layout.line()
+
+            // Description
+            layout.text(padding + 8, match.rule.description, 0xFF999999.toInt())
+            layout.line()
+
+            // Qualification reasons
+            for (reason in match.reasons) {
+                layout.text(padding + 8, "\u2022 $reason", 0xFF77BB77.toInt())
+                layout.line()
+            }
+
+            if (i < matches.size - 1) {
+                layout.gap(2)
+                layout.separator(0x30FFFFFF)
+                layout.gap(2)
+            }
+        }
+
+        layout.gap(padding)
+        return layout
+    }
+
 }
