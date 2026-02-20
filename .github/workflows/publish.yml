@@ -21,6 +21,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          path: cobblemon-spawning-rei
+
+      - name: Checkout cobbleworkers
+        uses: actions/checkout@v4
+        with:
+          repository: Akkiruk/cobbleworkers
+          path: cobbleworkers
         
       - name: Set up JDK 21
         uses: actions/setup-java@v5
@@ -28,24 +36,27 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
           
-      - name: Make gradlew executable
-        run: chmod +x gradlew
-          
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-overwrite-existing: true
+
+      - name: Build cobbleworkers API
+        run: |
+          cd cobbleworkers
+          chmod +x gradlew
+          ./gradlew :common:build
         
       - name: Build with Gradle
         run: |
-          # Create a dummy jar for Cobbleworkers API so the compileOnly dependency doesn't fail
-          mkdir -p ../../cobbleworkers/common/build/libs/
-          touch ../../cobbleworkers/common/build/libs/cobbleworkers-common-2.6.0+1.7.0-transformProductionFabric.jar
+          cd cobblemon-spawning-rei
+          chmod +x gradlew
           ./gradlew :fabric:build :neoforge:build
         
       - name: Get version from gradle.properties
         id: get_version
         run: |
+          cd cobblemon-spawning-rei
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             VERSION="${{ github.event.inputs.version }}"
           else
@@ -57,6 +68,7 @@ jobs:
       - name: Get changelog for this version
         id: changelog
         run: |
+          cd cobblemon-spawning-rei
           VERSION="${{ steps.get_version.outputs.VERSION }}"
           sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | sed '$d' | tail -n +2 > current_changelog.txt
           echo "Changelog:"
@@ -67,10 +79,10 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: "v${{ steps.get_version.outputs.VERSION }}"
-          body_path: current_changelog.txt
+          body_path: cobblemon-spawning-rei/current_changelog.txt
           files: |
-            fabric/build/libs/cobbledex-rei-emi-jei-fabric-${{ steps.get_version.outputs.VERSION }}.jar
-            neoforge/build/libs/cobbledex-rei-emi-jei-neoforge-${{ steps.get_version.outputs.VERSION }}.jar
+            cobblemon-spawning-rei/fabric/build/libs/cobbledex-rei-emi-jei-fabric-${{ steps.get_version.outputs.VERSION }}.jar
+            cobblemon-spawning-rei/neoforge/build/libs/cobbledex-rei-emi-jei-neoforge-${{ steps.get_version.outputs.VERSION }}.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
@@ -86,13 +98,13 @@ jobs:
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
           
           files: |
-            fabric/build/libs/!(*-@(dev|shadow|sources|javadoc)).jar
+            cobblemon-spawning-rei/fabric/build/libs/!(*-@(dev|shadow|sources|javadoc)).jar
           
           name: "[Fabric] v${{ steps.get_version.outputs.VERSION }}"
           version: ${{ steps.get_version.outputs.VERSION }}+fabric
           version-type: release
           
-          changelog-file: current_changelog.txt
+          changelog-file: cobblemon-spawning-rei/current_changelog.txt
           
           loaders: fabric
           
@@ -119,13 +131,13 @@ jobs:
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
           
           files: |
-            neoforge/build/libs/!(*-@(dev|shadow|sources|javadoc)).jar
+            cobblemon-spawning-rei/neoforge/build/libs/!(*-@(dev|shadow|sources|javadoc)).jar
           
           name: "[NeoForge] v${{ steps.get_version.outputs.VERSION }}"
           version: ${{ steps.get_version.outputs.VERSION }}+neoforge
           version-type: release
           
-          changelog-file: current_changelog.txt
+          changelog-file: cobblemon-spawning-rei/current_changelog.txt
           
           loaders: neoforge
           

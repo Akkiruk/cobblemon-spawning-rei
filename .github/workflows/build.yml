@@ -13,8 +13,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          path: cobblemon-spawning-rei
+
+      - name: Checkout cobbleworkers
+        uses: actions/checkout@v4
+        with:
+          repository: Akkiruk/cobbleworkers
+          path: cobbleworkers
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5
@@ -22,34 +30,38 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Make gradlew executable
-        run: chmod +x gradlew
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-overwrite-existing: true
 
+      - name: Build cobbleworkers API
+        run: |
+          cd cobbleworkers
+          chmod +x gradlew
+          ./gradlew :common:build
+
       - name: Build Fabric
         run: |
-          # Create a dummy jar for Cobbleworkers API so the compileOnly dependency doesn't fail
-          mkdir -p ../../cobbleworkers/common/build/libs/
-          touch ../../cobbleworkers/common/build/libs/cobbleworkers-common-2.6.0+1.7.0-transformProductionFabric.jar
+          cd cobblemon-spawning-rei
+          chmod +x gradlew
           ./gradlew :fabric:build
 
       - name: Build NeoForge
-        run: ./gradlew :neoforge:build
+        run: |
+          cd cobblemon-spawning-rei
+          ./gradlew :neoforge:build
 
       - name: Upload Fabric artifact
         uses: actions/upload-artifact@v6
         with:
           name: fabric-build
-          path: fabric/build/libs/*.jar
+          path: cobblemon-spawning-rei/fabric/build/libs/*.jar
           retention-days: 7
 
       - name: Upload NeoForge artifact
         uses: actions/upload-artifact@v6
         with:
           name: neoforge-build
-          path: neoforge/build/libs/*.jar
+          path: cobblemon-spawning-rei/neoforge/build/libs/*.jar
           retention-days: 7
