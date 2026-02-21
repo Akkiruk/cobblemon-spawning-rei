@@ -88,13 +88,17 @@ class PokemonEntryDefinition : EntryDefinition<PokemonEntry> {
     }
 
     override fun asFormattedText(entry: EntryStack<PokemonEntry>, value: PokemonEntry): Component {
+        val parts = mutableListOf(value.displayName)
         val info = SpawnDataIndex.getSpeciesInfo(value.species)
-        return if (info != null) {
+        if (info != null) {
             val types = listOfNotNull(info.primaryType, info.secondaryType).joinToString(" ") { formatTypeName(it) }
-            Component.literal("${value.displayName} $types")
-        } else {
-            Component.literal(value.displayName)
+            parts.add(types)
         }
+        val jobs = SpawnDataIndex.getJobsFor(value.species)
+        if (jobs.isNotEmpty()) {
+            parts.addAll(jobs.map { "job:${it.rule.id} ${it.rule.displayName}" })
+        }
+        return Component.literal(parts.joinToString(" "))
     }
 
     override fun getTagsFor(entry: EntryStack<PokemonEntry>, value: PokemonEntry): Stream<out TagKey<*>> {

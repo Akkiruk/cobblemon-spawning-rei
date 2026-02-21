@@ -2,6 +2,16 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.39.0] - 2026-02-20
+
+### Added
+- Job search filtering: type a Cobbleworkers job name in the search bar to filter Pokémon to only those that can do that job
+- Works across all three platforms (REI, JEI, EMI)
+- REI: job names included in entry search text (search "job:harvester" or just "harvester")
+- JEI: job names included in tooltip text (automatically indexed for search)
+- EMI: job names added as lore to Pokémon stacks (searchable via tooltip)
+- Pokémon tooltips now show eligible Cobbleworkers jobs
+
 ## [1.38.0] - 2026-02-20
 
 ### Added

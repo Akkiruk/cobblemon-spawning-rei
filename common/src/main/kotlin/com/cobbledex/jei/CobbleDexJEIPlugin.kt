@@ -66,6 +66,25 @@ open class CobbleDexJEIPlugin : IModPlugin {
                 }
                 addedRecipes[def.id] = recipes
             }
+
+            // Re-register Pokémon ingredients so search index includes job names
+            if (SpawnDataIndex.hasJobRules()) {
+                try {
+                    val ingredientManager = rt.ingredientManager
+                    val existing = ingredientManager.getAllIngredients(PokemonIngredientType).toList()
+                    if (existing.isNotEmpty()) {
+                        ingredientManager.removeIngredientsAtRuntime(PokemonIngredientType, existing)
+                    }
+                    val updated = SpawnDataIndex.allSpeciesNames
+                        .filter { PokemonItemCache.canRender(it) }
+                        .map { PokemonIngredient(it) }
+                    ingredientManager.addIngredientsAtRuntime(PokemonIngredientType, updated)
+                    DebugLog.info("JEI: Re-indexed ${updated.size} Pokémon ingredients with job data")
+                } catch (e: Exception) {
+                    DebugLog.once("jei-ingredient-reload") { "JEI ingredient reload failed: ${e.message}" }
+                }
+            }
+
             DebugLog.info("JEI: Reloaded recipes after server sync")
         }
     }
