@@ -272,28 +272,30 @@ object MovesDex : DexCategory {
         RecipeBuilder.buildMovesFor(species).map(::toHandle)
 
     override fun buildRecipesForItem(itemId: String): List<RecipeHandle> {
-        val move = TmItemUtils.extractMove(itemId) ?: return emptyList()
-        val species = SpawnDataIndex.getSpeciesWithTmMove(move)
-        if (species.isEmpty()) return emptyList()
-        return species.flatMap { RecipeBuilder.buildMovesFor(it) }.map(::toHandle)
+        if (!TmItemUtils.isTmItem(itemId)) return emptyList()
+        return RecipeBuilder.buildTmLearnersForItem(itemId).map(::toTmLearnerHandle)
     }
 
-    private fun toHandle(d: MovesRecipeData) : RecipeHandle {
-        val allTmMoves = SpawnDataIndex.getSpeciesInfo(d.speciesName)?.tmMoves ?: d.tmMoves
-        return RecipeHandle(
-            recipeIdPath = "moves/${sanitizePath(d.speciesName)}_${d.pageIndex}",
-            inputSpecies = listOf(d.speciesName),
-            outputSpecies = emptyList(),
-            layoutFactory = { SpawnDisplayHelper.buildMovesLayout(d) },
-            _slots = {
-                val tmIds = allTmMoves.map { TmItemUtils.tmItemId(it.name) }
-                RecipeHandle.Slots(
-                    pokemon = listOf(pokemonInput(d.speciesName)),
-                    catalogInputIds = tmIds,
-                )
-            },
-        )
-    }
+    private fun toHandle(d: MovesRecipeData) = RecipeHandle(
+        recipeIdPath = "moves/${sanitizePath(d.speciesName)}_${d.pageIndex}",
+        inputSpecies = listOf(d.speciesName),
+        outputSpecies = emptyList(),
+        layoutFactory = { SpawnDisplayHelper.buildMovesLayout(d) },
+        _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
+    )
+
+    private fun toTmLearnerHandle(d: TmLearnerRecipeData) = RecipeHandle(
+        recipeIdPath = "moves/tm_${sanitizePath(d.moveName)}_${sanitizePath(d.speciesName)}",
+        inputSpecies = listOf(d.speciesName),
+        outputSpecies = emptyList(),
+        layoutFactory = { SpawnDisplayHelper.buildTmLearnerLayout(d) },
+        _slots = {
+            RecipeHandle.Slots(
+                pokemon = listOf(pokemonInput(d.speciesName)),
+                catalogInputIds = listOf(TmItemUtils.tmItemId(d.moveName)),
+            )
+        },
+    )
 }
 
 // ----- Pokédex Info -----

@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.39.8] - 2026-02-21
+
+### Changed
+- TM usage lookup now shows a focused per-Pokémon page with only how that species learns the move (Level Up, TM, Egg Move, Tutor) instead of listing all moves the Pokémon knows
+
 ## [1.39.7] - 2026-02-21
 
 ### Added

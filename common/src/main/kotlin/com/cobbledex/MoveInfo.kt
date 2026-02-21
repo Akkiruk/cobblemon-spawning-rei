@@ -23,3 +23,14 @@ data class MovesRecipeData(
     val pageIndex: Int,
     val pageTotal: Int
 )
+
+data class LearnMethod(val label: String, val detail: String?)
+
+data class TmLearnerRecipeData(
+    val speciesName: String,
+    val moveName: String,
+    val moveDetail: MoveDetail?,
+    val learnMethods: List<LearnMethod>,
+    val pageIndex: Int,
+    val pageTotal: Int
+)

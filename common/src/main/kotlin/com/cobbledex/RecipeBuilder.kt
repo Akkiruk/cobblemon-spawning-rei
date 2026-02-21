@@ -291,4 +291,47 @@ object RecipeBuilder {
         val matches = SpawnDataIndex.getJobsFor(speciesName)
         return matches.map { JobRecipeData(speciesName, it) }
     }
+
+    // --- TM learner lookup ---
+
+    fun buildTmLearnersForItem(itemId: String): List<TmLearnerRecipeData> {
+        val moveName = TmItemUtils.extractMove(itemId) ?: return emptyList()
+        val species = SpawnDataIndex.getSpeciesWithTmMove(moveName)
+        if (species.isEmpty()) return emptyList()
+
+        val total = species.size
+        return species.mapIndexed { i, sp ->
+            val info = SpawnDataIndex.getSpeciesInfo(sp)
+            val methods = mutableListOf<LearnMethod>()
+            var moveDetail: MoveDetail? = null
+
+            // Check level-up
+            info?.levelUpMoves?.forEach { entry ->
+                entry.moves.firstOrNull { it.name.equals(moveName, ignoreCase = true) }?.let {
+                    moveDetail = moveDetail ?: it
+                    methods.add(LearnMethod("Level Up", "Lv. ${entry.level}"))
+                }
+            }
+
+            // Check TM
+            info?.tmMoves?.firstOrNull { it.name.equals(moveName, ignoreCase = true) }?.let {
+                moveDetail = moveDetail ?: it
+                methods.add(LearnMethod("TM", null))
+            }
+
+            // Check egg
+            info?.eggMoves?.firstOrNull { it.name.equals(moveName, ignoreCase = true) }?.let {
+                moveDetail = moveDetail ?: it
+                methods.add(LearnMethod("Egg Move", null))
+            }
+
+            // Check tutor
+            info?.tutorMoves?.firstOrNull { it.name.equals(moveName, ignoreCase = true) }?.let {
+                moveDetail = moveDetail ?: it
+                methods.add(LearnMethod("Tutor", null))
+            }
+
+            TmLearnerRecipeData(sp, moveName, moveDetail, methods, i + 1, total)
+        }
+    }
 }

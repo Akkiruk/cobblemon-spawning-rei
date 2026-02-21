@@ -1413,4 +1413,59 @@ object SpawnDisplayHelper {
         return layout
     }
 
+    // --- TM learner layout builder ---
+
+    fun buildTmLearnerLayout(data: TmLearnerRecipeData): PanelLayout {
+        val layout = PanelLayout(200)
+        val padding = PanelLayout.PADDING
+        val right = layout.right
+
+        layout.textAt(padding + 22, 6, formatSpeciesName(data.speciesName), 0xFFFFFF)
+        val pageText = if (data.pageTotal > 1) "${data.pageIndex}/${data.pageTotal}" else ""
+        if (pageText.isNotEmpty()) layout.textRightAt(6, pageText, 0xFF888888.toInt())
+        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        layout.skipTo(24)
+
+        // Move info
+        val moveKey = "cobblemon.move.${data.moveName}"
+        val displayName = tr(moveKey).let { if (it == moveKey) titleCase(data.moveName) else it }
+        val detail = data.moveDetail
+        if (detail != null) {
+            layout.text(padding, displayName, typeColor(detail.type))
+            val suffix = formatMoveSuffix(detail)
+            val suffixColor = CATEGORY_ICONS[detail.category]?.second ?: 0xFFBBBBBB.toInt()
+            layout.textRight(suffix, suffixColor)
+            layout.line()
+
+            val ppText = "PP: ${detail.pp}"
+            layout.text(padding + 4, ppText, 0xFFAAAAAA.toInt())
+            layout.line()
+        } else {
+            layout.text(padding, displayName, 0xFFFFFF)
+            layout.line()
+        }
+
+        layout.gap(3)
+        layout.separator()
+        layout.gap(3)
+
+        layout.text(padding, "Learn Methods", 0xFFDDCC99.toInt())
+        layout.line()
+        layout.gap(2)
+
+        for (method in data.learnMethods) {
+            val label = if (method.detail != null) "${method.label} (${method.detail})" else method.label
+            layout.text(padding + 6, "\u2726 $label", 0xFF88DD88.toInt())
+            layout.line()
+        }
+
+        if (data.learnMethods.isEmpty()) {
+            layout.text(padding + 6, "\u2726 TM", 0xFF88DD88.toInt())
+            layout.line()
+        }
+
+        layout.gap(padding)
+        return layout
+    }
+
 }
