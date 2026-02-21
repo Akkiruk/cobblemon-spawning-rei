@@ -1,5 +1,6 @@
 package com.cobbledex
 
+import com.cobblemon.mod.common.api.moves.Moves
 import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -250,6 +251,9 @@ object SpawnDataIndex {
             }
         }
 
+        // Enrich speciesInfo with JAR-cached moves when runtime API returned null
+        enrichWithJarMoves()
+
         rebuildDerivedData()
 
         val hasEvolutions = evolutionsBySpecies.isNotEmpty()
@@ -388,6 +392,72 @@ object SpawnDataIndex {
                 if (dex == 0) Int.MAX_VALUE else dex
             }.thenBy { it }
         )
+    }
+
+    /**
+     * Fill in missing move data from JarDataCache when the runtime API
+     * didn't provide egg/tutor/tm/level-up moves (common on dedicated-server clients).
+     */
+    private fun enrichWithJarMoves() {
+        if (!JarDataCache.hasCachedMoves()) return
+        if (speciesInfo.isEmpty()) return
+        val jarMoves = JarDataCache.getCachedMoves()
+
+        val enriched = speciesInfo.toMutableMap()
+        var enrichCount = 0
+
+        for ((species, info) in enriched) {
+            val jarData = jarMoves[species] ?: continue
+            val needsEnrichment = info.levelUpMoves == null || info.eggMoves == null ||
+                info.tutorMoves == null || info.tmMoves == null
+            if (!needsEnrichment) continue
+
+            val resolvedLevelUp = if (info.levelUpMoves == null && jarData.levelUp.isNotEmpty()) {
+                jarData.levelUp.entries.sortedBy { it.key }.mapNotNull { (level, names) ->
+                    val moves = names.mapNotNull { resolveMoveByName(it) }
+                    if (moves.isEmpty()) null else LevelUpMove(level, moves)
+                }.ifEmpty { null }
+            } else info.levelUpMoves
+
+            val resolvedEgg = if (info.eggMoves == null && jarData.egg.isNotEmpty()) {
+                jarData.egg.mapNotNull { resolveMoveByName(it) }.ifEmpty { null }
+            } else info.eggMoves
+
+            val resolvedTutor = if (info.tutorMoves == null && jarData.tutor.isNotEmpty()) {
+                jarData.tutor.mapNotNull { resolveMoveByName(it) }.ifEmpty { null }
+            } else info.tutorMoves
+
+            val resolvedTm = if (info.tmMoves == null && jarData.tm.isNotEmpty()) {
+                jarData.tm.mapNotNull { resolveMoveByName(it) }.ifEmpty { null }
+            } else info.tmMoves
+
+            enriched[species] = info.copy(
+                levelUpMoves = resolvedLevelUp,
+                eggMoves = resolvedEgg,
+                tutorMoves = resolvedTutor,
+                tmMoves = resolvedTm,
+            )
+            enrichCount++
+        }
+
+        if (enrichCount > 0) {
+            speciesInfo = enriched
+            DebugLog.info("Enriched $enrichCount species with JAR-cached move data")
+        }
+    }
+
+    private fun resolveMoveByName(name: String): MoveDetail? {
+        return try {
+            val template = Moves.getByName(name) ?: return null
+            MoveDetail(
+                name = template.name,
+                type = try { template.elementalType.name.lowercase() } catch (_: Exception) { "normal" },
+                category = try { template.damageCategory.name } catch (_: Exception) { "PHYSICAL" },
+                power = try { template.power.toInt() } catch (_: Exception) { 0 },
+                accuracy = try { template.accuracy.toInt() } catch (_: Exception) { 0 },
+                pp = try { template.pp } catch (_: Exception) { 0 },
+            )
+        } catch (_: Exception) { null }
     }
 
     private fun <T> normalizeMapKeys(map: Map<String, T>): Map<String, T> {

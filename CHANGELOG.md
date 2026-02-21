@@ -2,6 +2,16 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.36.1] - 2026-02-20
+
+### Fixed
+- Fixed moves page only showing level-up moves when CobbleDex is not installed on the server (egg, TM, and tutor moves now fall back to JAR-parsed data)
+- Fixed Jobs category not appearing consistently when server sync arrives after REI/EMI/JEI registration
+
+### Changed
+- JarDataCache now also parses move data from species JSON files as a robust fallback
+- Jobs category is always registered when enabled in config; recipes populate dynamically when job rules arrive
+
 ## [1.36.0] - 2026-02-19
 
 ### Changed

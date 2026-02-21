@@ -24,6 +24,16 @@ object JarDataCache {
     private var cachedEvolutions: Map<String, List<EvolutionInfo>> = emptyMap()
     @Volatile
     private var cachedSpawns: Map<String, List<SpawnInfo>> = emptyMap()
+    @Volatile
+    private var cachedMoves: Map<String, JarMoveData> = emptyMap()
+
+    /** Raw move data parsed from species JSON in mod JARs. */
+    data class JarMoveData(
+        val levelUp: Map<Int, List<String>>,
+        val egg: List<String>,
+        val tutor: List<String>,
+        val tm: List<String>,
+    )
 
     private val initialized = AtomicBoolean(false)
     private val loading = AtomicBoolean(false)
@@ -36,6 +46,8 @@ object JarDataCache {
 
     fun hasCachedEvolutions(): Boolean = cachedEvolutions.isNotEmpty()
     fun hasCachedSpawns(): Boolean = cachedSpawns.isNotEmpty()
+    fun hasCachedMoves(): Boolean = cachedMoves.isNotEmpty()
+    fun getCachedMoves(): Map<String, JarMoveData> = cachedMoves
 
     /**
      * Wait for the cache to finish initializing (up to timeout).
@@ -62,12 +74,15 @@ object JarDataCache {
             DebugLog.info("JarDataCache: loaded ${presets.size} spawn presets")
 
             cachedSpawns = parseSpawnsFromJars(modRoots, presets)
-            cachedEvolutions = parseEvolutionsFromJars(modRoots)
+            val evoAndMoves = parseEvolutionsAndMovesFromJars(modRoots)
+            cachedEvolutions = evoAndMoves.first
+            cachedMoves = evoAndMoves.second
 
             val elapsed = System.currentTimeMillis() - startTime
             DebugLog.info("JarDataCache: ready in ${elapsed}ms — " +
                 "${cachedSpawns.size} species with spawns, " +
-                "${cachedEvolutions.size} species with evolutions")
+                "${cachedEvolutions.size} species with evolutions, " +
+                "${cachedMoves.size} species with moves")
 
             initialized.set(true)
         } catch (e: Exception) {
@@ -386,8 +401,9 @@ object JarDataCache {
 
     // ==================== Evolution Parsing ====================
 
-    private fun parseEvolutionsFromJars(modRoots: List<Path>): Map<String, List<EvolutionInfo>> {
+    private fun parseEvolutionsAndMovesFromJars(modRoots: List<Path>): Pair<Map<String, List<EvolutionInfo>>, Map<String, JarMoveData>> {
         val result = mutableMapOf<String, MutableList<EvolutionInfo>>()
+        val movesResult = mutableMapOf<String, JarMoveData>()
         var fileCount = 0
         var failCount = 0
         var baseEvoCount = 0
@@ -412,6 +428,35 @@ object JarDataCache {
 
                                     val name = obj.optString("name")?.lowercase() ?: return@forEach
                                     fileCount++
+
+                                    // Parse moves
+                                    val movesArray = obj.optArray("moves")
+                                    if (movesArray != null) {
+                                        val levelUp = mutableMapOf<Int, MutableList<String>>()
+                                        val egg = mutableListOf<String>()
+                                        val tutor = mutableListOf<String>()
+                                        val tm = mutableListOf<String>()
+                                        for (elem in movesArray) {
+                                            try {
+                                                val str = elem.asString
+                                                val colonIdx = str.indexOf(':')
+                                                if (colonIdx < 1) continue
+                                                val prefix = str.substring(0, colonIdx)
+                                                val moveName = str.substring(colonIdx + 1)
+                                                when (prefix) {
+                                                    "egg" -> egg.add(moveName)
+                                                    "tm" -> tm.add(moveName)
+                                                    "tutor" -> tutor.add(moveName)
+                                                    else -> prefix.toIntOrNull()?.let { level ->
+                                                        levelUp.getOrPut(level) { mutableListOf() }.add(moveName)
+                                                    }
+                                                }
+                                            } catch (_: Exception) {}
+                                        }
+                                        if (levelUp.isNotEmpty() || egg.isNotEmpty() || tutor.isNotEmpty() || tm.isNotEmpty()) {
+                                            movesResult[name] = JarMoveData(levelUp, egg, tutor, tm)
+                                        }
+                                    }
 
                                     // Base evolutions
                                     val evolutions = obj.optArray("evolutions")
@@ -464,7 +509,7 @@ object JarDataCache {
         }
 
         DebugLog.info("JarDataCache: parsed $baseEvoCount base + $formEvoCount form evolutions from $fileCount species files ($failCount failed)")
-        return result
+        return Pair(result, movesResult)
     }
 
     private fun parseEvolutionFromJson(fromSpecies: String, fromAspects: Set<String>?, evo: JsonObject): EvolutionInfo? {

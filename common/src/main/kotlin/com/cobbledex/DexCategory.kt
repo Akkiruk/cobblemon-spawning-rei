@@ -427,7 +427,7 @@ object JobsDex : DexCategory {
     override val icon: Item = Items.IRON_PICKAXE
     override val maxSize = DisplayLayout::getMaxJobsSize
     override val supportsRecipeTree = true
-    override fun isEnabled(config: CobbleDexConfig) = config.showJobs && SpawnDataIndex.hasJobRules()
+    override fun isEnabled(config: CobbleDexConfig) = config.showJobs
 
     override fun buildAllRecipes(): List<RecipeHandle> {
         if (!SpawnDataIndex.hasJobRules()) return emptyList()
