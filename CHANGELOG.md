@@ -2,6 +2,13 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.39.3] - 2026-02-21
+
+### Changed
+- Biome tooltips are now per-biome: hover any individual biome name to see only its resolved biomes instead of one giant combined list
+- Biome tags (e.g. "Mountain") resolve to actual biome names (Meadow, Frozen Peaks, etc.) using Minecraft's biome registry
+- Specific biomes show their translated name with the raw ID
+
 ## [1.39.2] - 2026-02-21
 
 ### Changed
