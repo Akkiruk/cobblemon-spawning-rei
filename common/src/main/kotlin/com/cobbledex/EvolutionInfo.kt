@@ -9,8 +9,11 @@ data class EvolutionInfo(
     val variant: String,
     val requirements: List<EvolutionRequirement>,
     val requiredContext: String?,
-    val consumeHeldItem: Boolean
+    val consumeHeldItem: Boolean,
+    val collapsedVariantCount: Int = 0
 ) {
+    fun withVariantNote(count: Int) = copy(collapsedVariantCount = count)
+
     val displayFromName: String
         get() {
             val base = formatSpeciesName(fromSpecies)
@@ -57,13 +60,14 @@ data class EvolutionInfo(
             }
 
             return if (parts.isEmpty()) {
-                when {
+                val base = when {
                     variant.contains("level") -> tr("cobbledex-rei-emi-jei.evo.level_up")
                     variant.contains("trade") -> tr("cobbledex-rei-emi-jei.evo.trade")
                     variant.contains("item") -> tr("cobbledex-rei-emi-jei.evo.use_item")
                     else -> tr("cobbledex-rei-emi-jei.evo.level_up")
                 }
-            } else parts.joinToString(", ")
+                appendVariantNote(base)
+            } else appendVariantNote(parts.joinToString(", "))
         }
 
     val itemRequirements: List<EvolutionItemInfo>
@@ -111,8 +115,13 @@ data class EvolutionInfo(
                     else -> parts.add(tr("cobbledex-rei-emi-jei.evo.level_up"))
                 }
             }
-            return parts.joinToString(", ")
+            return appendVariantNote(parts.joinToString(", "))
         }
+
+    private fun appendVariantNote(text: String): String {
+        if (collapsedVariantCount <= 0) return text
+        return "$text (+$collapsedVariantCount variants)"
+    }
 }
 
 data class EvolutionItemInfo(val itemId: String, val label: String)
@@ -339,9 +348,41 @@ data class EvolutionRequirement(
                 val type = lower.substringAfter("type=").substringBefore(" ").replaceFirstChar { it.uppercase() }
                 tr("cobbledex-rei-emi-jei.evo.type", type)
             }
-            target.length <= 30 -> titleCase(target)
-            else -> tr("cobbledex-rei-emi-jei.evo.special_condition")
+            else -> {
+                // Parse generic feature=value properties (e.g., "gimmighoul gimmighoul_coins=999")
+                val featureMatch = parseFeatureProperties(lower)
+                if (featureMatch != null) featureMatch
+                else if (target.length <= 30) titleCase(target)
+                else tr("cobbledex-rei-emi-jei.evo.special_condition")
+            }
         }
+    }
+
+    /**
+     * Parse "species feature_name=numeric_value" patterns from properties targets.
+     * e.g. "gimmighoul gimmighoul_coins=999" → "Collect 999 Gimmighoul Coins"
+     */
+    private fun parseFeatureProperties(target: String): String? {
+        val parts = target.trim().split(" ").filter { it.isNotBlank() }
+        val featureParts = parts.filter { it.contains("=") }
+        if (featureParts.isEmpty()) return null
+
+        val results = featureParts.mapNotNull { part ->
+            val key = part.substringBefore("=").trim()
+            val value = part.substringAfter("=").trim()
+            if (key.isBlank() || value.isBlank()) return@mapNotNull null
+            // Strip the species name prefix from the feature key if present
+            val speciesParts = parts.filter { !it.contains("=") }
+            val cleanKey = speciesParts.fold(key) { k, sp -> k.removePrefix("${sp}_") }
+            val featureName = titleCase(cleanKey)
+            val numericValue = value.toIntOrNull()
+            if (numericValue != null) {
+                tr("cobbledex-rei-emi-jei.evo.collect_feature", numericValue, featureName)
+            } else {
+                tr("cobbledex-rei-emi-jei.evo.feature_value", featureName, titleCase(value))
+            }
+        }
+        return results.joinToString(", ").ifBlank { null }
     }
 
     private fun formatItemName(item: String?): String {

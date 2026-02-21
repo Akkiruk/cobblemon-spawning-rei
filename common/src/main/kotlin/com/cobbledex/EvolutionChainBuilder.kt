@@ -102,13 +102,24 @@ object EvolutionChainBuilder {
         val nodeAspects = if (aspectGroups.size == 1) aspectGroups.first() else emptySet()
         val evos = allEvos.filter { it.fromAspects == nodeAspects }
 
+        // Collapse cosmetic aspect variants — group by base target species,
+        // keep only one representative per species (prefer the one with no aspects)
+        val grouped = evos.groupBy { SpeciesNameNormalizer.normalize(it.toSpecies) }
+        val collapsed = grouped.map { (_, group) ->
+            if (group.size == 1) group.first()
+            else {
+                // Prefer the evolution with no toAspects (the "base" variant)
+                val base = group.firstOrNull { it.toAspects.isEmpty() } ?: group.first()
+                val variantCount = group.size - 1
+                if (variantCount > 0) base.withVariantNote(variantCount) else base
+            }
+        }
+
         val seen = mutableSetOf<String>()
-        val edges = evos.mapNotNull { evo ->
-            val targetComposite = if (evo.toAspects.isEmpty()) evo.toSpecies
-                else "${evo.toSpecies} ${evo.toAspects.sorted().joinToString(" ")}"
-            val targetNorm = SpeciesNameNormalizer.normalize(targetComposite)
+        val edges = collapsed.mapNotNull { evo ->
+            val targetNorm = SpeciesNameNormalizer.normalize(evo.toSpecies)
             if (!seen.add(targetNorm)) return@mapNotNull null
-            ChainEdge(evo, buildNode(targetComposite, visited))
+            ChainEdge(evo, buildNode(evo.toSpecies, visited))
         }
 
         return ChainNode(species, emptySet(), formatSpeciesName(species), edges)

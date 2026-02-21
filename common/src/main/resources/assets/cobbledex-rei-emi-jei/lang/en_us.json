@@ -213,6 +213,8 @@
   "cobbledex-rei-emi-jei.evo.region": "Region: %s",
   "cobbledex-rei-emi-jei.evo.type": "%s type",
   "cobbledex-rei-emi-jei.evo.feature_range": "%1$s: %2$s",
+  "cobbledex-rei-emi-jei.evo.collect_feature": "Collect %1$d %2$s",
+  "cobbledex-rei-emi-jei.evo.feature_value": "%1$s: %2$s",
 
   "cobbledex-rei-emi-jei.evo.item.use": "Use",
   "cobbledex-rei-emi-jei.evo.item.click": "Click",

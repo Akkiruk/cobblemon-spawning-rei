@@ -2,6 +2,13 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.39.6] - 2026-02-21
+
+### Fixed
+- Gimmighoul evolution page: 9 netherite variant branches collapsed into 1 clean entry
+- Properties requirements like "gimmighoul_coins=999" now display as "Collect 999 Coins" instead of "Special condition"
+- Generic feature=value properties parsed and displayed with human-readable names
+
 ## [1.39.5] - 2026-02-21
 
 ### Fixed
@@ -36,14 +43,6 @@ All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
 ### Added
 - New config option `showDetailedBiomeIds` to display raw biome identifiers (e.g. `#cobblemon:is_temperate`) below the friendly names in spawn displays (#18)
-
-## [1.39.1] - 2026-02-21
-
-### Changed
-- Job search filtering no longer adds visible job names to Pokémon tooltips
-- REI: job names indexed via invisible search text (asFormattedText)
-- EMI: job names registered as search aliases (addAlias API)
-- JEI: job names indexed via hidden tooltip entry, re-indexed when job rules arrive
 
 ## [1.39.0] - 2026-02-20
 
@@ -740,6 +739,7 @@ All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 ### Fixed
 - EMI crash via JEMI compat layer on NeoForge caused by unsanitized species names in PokemonRef.identifier (Farfetch'd)
 - Affects both JEI ingredient lookups and REI entry identifiers
+
 ## [1.10.3] - 2026-02-11
 
 ### Fixed
@@ -934,15 +934,6 @@ All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 ### Added
 - EvolutionDataLoader logs when reflection extracts no data for a requirement type
 
----
-
-## [Unreleased]
-
-### Added
-- Automated CurseForge and Modrinth publishing via GitHub Actions
-
----
-
 ## [1.4.7] - 2026-02-09
 
 ### Fixed
@@ -965,15 +956,10 @@ All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 - Defeat/party member targets no longer show raw underscored IDs
 - Spawn preset labels, form aspect names, and time range fallbacks normalized
 
-## [1.4.5] - 2026-02-09
-
-### Changed
-- Level range text color increased to bright cyan for improved visibility
-
 ## [1.4.4] - 2026-02-09
 
 ### Changed
-- Level range text now uses cyan color for better visibility
+- Level range text now uses cyan color for improved visibility
 
 ## [1.4.3] - 2026-02-09
 
