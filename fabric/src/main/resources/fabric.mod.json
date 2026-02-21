@@ -12,7 +12,7 @@
   },
   "license": "MIT",
   "icon": "assets/cobbledex-rei-emi-jei/icon.png",
-  "environment": "*",
+  "environment": "client",
   "entrypoints": {
     "main": [
       {
