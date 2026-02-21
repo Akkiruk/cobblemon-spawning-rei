@@ -443,6 +443,12 @@ object SpawnDisplayHelper {
             layout.text(padding, header, 0xEEEEEE)
             layout.line()
             layout.wrappedCommas(indentX, biomeNames.joinToString(", "), indentWidth, 0xDDDDDD)
+            if (CobbleDexConfig.get().showDetailedBiomeIds) {
+                layout.gap(1)
+                for (rawId in spawn.biomes) {
+                    layout.wrapped(indentX + 4, "§7$rawId", indentWidth - 4, 0x999999)
+                }
+            }
             layout.gap(PanelLayout.SECTION_GAP)
         }
 

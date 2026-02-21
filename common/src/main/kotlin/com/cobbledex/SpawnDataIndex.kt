@@ -288,18 +288,6 @@ object SpawnDataIndex {
         hasServerSync = false
         jobRules = emptyList()
 
-        // Clear stale data from Cobblemon's spawn pool (prevents singleplayer data persisting into server sessions)
-        try {
-            val pool = com.cobblemon.mod.common.api.spawning.CobblemonSpawnPools.WORLD_SPAWN_POOL
-            val staleCount = pool.details.size
-            if (staleCount > 0) {
-                pool.reload(emptyMap())
-                DebugLog.info("Cleared $staleCount stale spawn entries from Cobblemon pool")
-            }
-        } catch (e: Exception) {
-            DebugLog.once("disconnect-pool-clear") { "Failed to clear spawn pool on disconnect: ${e.message}" }
-        }
-
         dataLock.withLock {
             loadState = LoadState.NOT_LOADED
         }

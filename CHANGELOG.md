@@ -2,6 +2,14 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.39.1] - 2026-02-21
+
+### Fixed
+- Fixed critical bug where CobbleDex could wipe Cobblemon's spawn pool on disconnect, causing all Pokémon to stop spawning (#17)
+
+### Added
+- New config option `showDetailedBiomeIds` to display raw biome identifiers (e.g. `#cobblemon:is_temperate`) below the friendly names in spawn displays (#18)
+
 ## [1.39.0] - 2026-02-20
 
 ### Added
