@@ -4,9 +4,12 @@ import com.cobbledex.config.CobbleDexConfig
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.core.registries.Registries
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceLocation
+import net.minecraft.tags.TagKey
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.level.biome.Biome
 
 object SpawnDisplayHelper {
 
@@ -330,25 +333,49 @@ object SpawnDisplayHelper {
 
     // --- Biome tooltip builder ---
 
+    private fun resolveBiomeTag(tagId: String): List<String> {
+        val clean = tagId.removePrefix("#")
+        val loc = ResourceLocation.tryParse(clean) ?: return emptyList()
+        val tagKey = TagKey.create(Registries.BIOME, loc)
+        val registry = Minecraft.getInstance().connection?.registryAccess()
+            ?.registryOrThrow(Registries.BIOME) ?: return emptyList()
+        val tag = registry.getTag(tagKey)
+        if (tag.isEmpty) return emptyList()
+        return tag.get().map { holder ->
+            holder.unwrapKey().map { it.location().toString() }.orElse("")
+        }.filter { it.isNotEmpty() }.sorted()
+    }
+
+    private fun translateBiomeId(id: String): String {
+        val loc = ResourceLocation.tryParse(id) ?: return titleCase(id)
+        val key = "biome.${loc.namespace}.${loc.path}"
+        val translated = tr(key)
+        return if (translated != key) translated else titleCase(loc.path.replace("_", " "))
+    }
+
     private fun buildBiomeTooltip(biomes: List<String>): List<Component> {
         val lines = mutableListOf<Component>()
         val tags = biomes.filter { it.startsWith("#") }
         val specific = biomes.filter { !it.startsWith("#") }
 
-        if (tags.isNotEmpty()) {
-            lines.add(Component.literal("§e§l${tr("cobbledex-rei-emi-jei.tooltip.biome_tags")}"))
-            for (tag in tags) {
-                val pretty = formatBiomeName(tag)
-                lines.add(Component.literal("  §f$pretty §8(${tag.removePrefix("#")})"))
+        for ((i, tag) in tags.withIndex()) {
+            val pretty = formatBiomeName(tag)
+            lines.add(Component.literal("§e§l$pretty"))
+            val resolved = resolveBiomeTag(tag)
+            if (resolved.isNotEmpty()) {
+                for (biomeId in resolved) {
+                    lines.add(Component.literal("  §7${translateBiomeId(biomeId)}"))
+                }
+            } else {
+                lines.add(Component.literal("  §8${tag.removePrefix("#")}"))
             }
+            if (i < tags.size - 1 || specific.isNotEmpty()) lines.add(Component.empty())
         }
 
         if (specific.isNotEmpty()) {
-            if (tags.isNotEmpty()) lines.add(Component.empty())
             lines.add(Component.literal("§e§l${tr("cobbledex-rei-emi-jei.tooltip.biome_specific")}"))
             for (id in specific) {
-                val pretty = formatBiomeName(id)
-                lines.add(Component.literal("  §f$pretty §8(${id})"))
+                lines.add(Component.literal("  §7${translateBiomeId(id)}"))
             }
         }
 
