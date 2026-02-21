@@ -14,7 +14,7 @@ dependencies {
     compileOnly("dev.architectury:architectury-injectables:1.0.10")
 
     // Cobbleworkers API (optional, server-side only — guarded by mod-loaded check at runtime)
-    compileOnly(files("../../cobbleworkers/common/build/libs/cobbleworkers-common-2.7.1+1.7.0-transformProductionFabric.jar"))
+    compileOnly(files("../../cobbleworkers/common/build/libs/cobbleworkers-common-2.8.0+1.7.0-transformProductionFabric.jar"))
 
     // REI API (common, cross-platform)
     modCompileOnly("me.shedaniel:RoughlyEnoughItems-api:$reiVersion")

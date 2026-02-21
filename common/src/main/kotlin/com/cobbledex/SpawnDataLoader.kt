@@ -247,32 +247,33 @@ object SpawnDataLoader {
         val mults = detail.weightMultipliers ?: return emptyList()
         return mults.mapNotNull { wm ->
             try {
-                WeightMultiplier(wm.multiplier, summarizeWeightConditions(wm.conditions ?: emptyList()))
+                WeightMultiplier(
+                    multiplier = wm.multiplier,
+                    conditionParts = summarizeWeightConditions(wm.conditions ?: emptyList())
+                )
             } catch (_: Exception) { null }
         }
     }
 
-    private fun summarizeWeightConditions(conditions: List<SpawningCondition<*>>): String {
-        if (conditions.isEmpty()) return tr("cobbledex-rei-emi-jei.weight.always")
-        val parts = mutableListOf<String>()
+    private fun summarizeWeightConditions(conditions: List<SpawningCondition<*>>): List<WeightConditionPart> {
+        if (conditions.isEmpty()) return listOf(WeightConditionPart(type = "always"))
+        val parts = mutableListOf<WeightConditionPart>()
         for (cond in conditions) {
-            cond.isThundering?.let { if (it) parts.add(tr("cobbledex-rei-emi-jei.weight.thunderstorm")) }
-            cond.isRaining?.let { if (it) parts.add(tr("cobbledex-rei-emi-jei.weight.rain")) }
+            cond.isThundering?.let { if (it) parts.add(WeightConditionPart(type = "thunderstorm")) }
+            cond.isRaining?.let { if (it) parts.add(WeightConditionPart(type = "rain")) }
             cond.timeRange?.let { tr ->
                 val str = tr.ranges.joinToString(",") { "${it.first}-${it.last}" }
-                if (str.isNotBlank()) parts.add(str)
+                if (str.isNotBlank()) parts.add(WeightConditionPart(type = "time_range", text = str))
             }
             val biomes = cond.biomes?.mapNotNull { extractRegistryId(it) } ?: emptyList()
             if (biomes.isNotEmpty()) {
-                val names = biomes.map { formatId(it) }
-                if (names.size <= 3) parts.add(names.joinToString(", "))
-                else parts.add("${names.take(2).joinToString(", ")} " + tr("cobbledex-rei-emi-jei.weight.and_more", names.size - 2))
+                parts.add(WeightConditionPart(type = "biomes", ids = biomes))
             }
             if (cond is FishingSpawningCondition) {
-                cond.minLureLevel?.let { parts.add(tr("cobbledex-rei-emi-jei.weight.lure", it)) }
+                cond.minLureLevel?.let { parts.add(WeightConditionPart(type = "lure", number = it)) }
             }
         }
-        return if (parts.isEmpty()) tr("cobbledex-rei-emi-jei.weight.conditional") else parts.joinToString(", ")
+        return if (parts.isEmpty()) listOf(WeightConditionPart(type = "conditional")) else parts
     }
 
     // --- Registry ID helpers ---

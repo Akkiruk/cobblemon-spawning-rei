@@ -6,6 +6,7 @@ import com.cobbledex.DiagnosticService
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.network.ChunkAssembler
 import com.cobbledex.network.ChunkedSpawnSyncPayload
+import com.cobbledex.network.CobbleworkersJobSyncPayload
 import com.cobbledex.network.SpawnSyncPayload
 import com.cobbledex.network.SpawnSyncSerializer
 import net.fabricmc.api.ClientModInitializer
@@ -14,6 +15,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
 import net.minecraft.network.chat.Component
 
 class CobbleDexFabricClient : ClientModInitializer {
@@ -43,6 +45,18 @@ class CobbleDexFabricClient : ClientModInitializer {
                 } catch (e: Exception) {
                     CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process chunked sync: ${e.message}")
                     ChunkAssembler.reset()
+                }
+            }
+        }
+
+        // Register Cobbleworkers job sync packet (sent by Cobbleworkers server-side)
+        PayloadTypeRegistry.playS2C().register(CobbleworkersJobSyncPayload.TYPE, CobbleworkersJobSyncPayload.CODEC)
+        ClientPlayNetworking.registerGlobalReceiver(CobbleworkersJobSyncPayload.TYPE) { payload, context ->
+            context.client().execute {
+                try {
+                    CobbleworkersJobSyncPayload.applyJobRules(payload.data)
+                } catch (e: Exception) {
+                    CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process Cobbleworkers job sync: ${e.message}")
                 }
             }
         }

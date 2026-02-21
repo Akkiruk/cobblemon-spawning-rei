@@ -2,6 +2,13 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.37.0] - 2026-02-20
+
+### Changed
+- Jobs data now received directly from Cobbleworkers via its own network packet — CobbleDex no longer needs to be installed on the server for Jobs to work
+- Removed job rules from CobbleDex's own server sync bundle (Cobbleworkers handles this independently)
+- JEI runtime recipe reload now works via IRecipeManager.addRecipes() public API
+
 ## [1.36.2] - 2026-02-20
 
 ### Fixed

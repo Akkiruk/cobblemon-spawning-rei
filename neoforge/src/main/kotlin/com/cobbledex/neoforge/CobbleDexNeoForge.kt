@@ -3,11 +3,11 @@ package com.cobbledex.neoforge
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.EvolutionDataLoader
-import com.cobbledex.JobDataLoader
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpawnDataLoader
 import com.cobbledex.network.ChunkAssembler
 import com.cobbledex.network.ChunkedSpawnSyncPayload
+import com.cobbledex.network.CobbleworkersJobSyncPayload
 import com.cobbledex.network.SpawnSyncPayload
 import com.cobbledex.network.SpawnSyncSerializer
 import com.cobbledex.network.SyncBundle
@@ -69,6 +69,21 @@ class CobbleDexNeoForge(modBus: IEventBus) {
                 }
             }
         }
+
+        // Register Cobbleworkers job sync packet (sent by Cobbleworkers server-side)
+        val cwRegistrar = event.registrar("cobbleworkers").optional()
+        cwRegistrar.playToClient(
+            CobbleworkersJobSyncPayload.TYPE,
+            CobbleworkersJobSyncPayload.CODEC
+        ) { payload, context ->
+            context.enqueueWork {
+                try {
+                    CobbleworkersJobSyncPayload.applyJobRules(payload.data)
+                } catch (e: Exception) {
+                    CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process Cobbleworkers job sync: ${e.message}")
+                }
+            }
+        }
     }
 
     private fun onPlayerJoin(event: PlayerEvent.PlayerLoggedInEvent) {
@@ -76,12 +91,10 @@ class CobbleDexNeoForge(modBus: IEventBus) {
         if (player !is ServerPlayer) return
         player.server.execute {
             try {
-                val jobRules = JobDataLoader.loadFromCobbleworkers()
                 val bundle = SyncBundle(
                     spawns = SpawnDataLoader.loadFromRuntime(),
                     evolutions = EvolutionDataLoader.loadFromRuntime(),
                     speciesInfo = EvolutionDataLoader.loadSpeciesBasicInfoFromRuntime(),
-                    jobRules = jobRules.ifEmpty { null }
                 )
                 val compressed = SpawnSyncSerializer.serialize(bundle)
                 val chunks = ChunkedSpawnSyncPayload.split(compressed)

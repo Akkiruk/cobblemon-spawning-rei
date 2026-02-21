@@ -3,7 +3,6 @@ package com.cobbledex.fabric
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.EvolutionDataLoader
-import com.cobbledex.JobDataLoader
 import com.cobbledex.SpawnDataLoader
 import com.cobbledex.network.ChunkedSpawnSyncPayload
 import com.cobbledex.network.SpawnSyncPayload
@@ -29,12 +28,10 @@ class CobbleDexFabric : ModInitializer {
                     return@execute
                 }
                 try {
-                    val jobRules = JobDataLoader.loadFromCobbleworkers()
                     val bundle = SyncBundle(
                         spawns = SpawnDataLoader.loadFromRuntime(),
                         evolutions = EvolutionDataLoader.loadFromRuntime(),
                         speciesInfo = EvolutionDataLoader.loadSpeciesBasicInfoFromRuntime(),
-                        jobRules = jobRules.ifEmpty { null }
                     )
                     val compressed = SpawnSyncSerializer.serialize(bundle)
                     if (supportsChunked) {

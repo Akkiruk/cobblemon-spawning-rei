@@ -85,8 +85,45 @@ data class SpawnAntiCondition(
 
 data class WeightMultiplier(
     val multiplier: Float,
-    val conditionSummary: String
+    val conditionSummary: String = "",
+    val conditionParts: List<WeightConditionPart> = emptyList()
 )
+
+data class WeightConditionPart(
+    val type: String,
+    val text: String? = null,
+    val number: Int? = null,
+    val ids: List<String> = emptyList()
+)
+
+fun WeightMultiplier.displayConditionSummary(): String {
+    if (conditionParts.isEmpty()) {
+        return conditionSummary.ifBlank { tr("cobbledex-rei-emi-jei.weight.conditional") }
+    }
+
+    val parts = conditionParts.mapNotNull { part ->
+        when (part.type) {
+            "always" -> tr("cobbledex-rei-emi-jei.weight.always")
+            "thunderstorm" -> tr("cobbledex-rei-emi-jei.weight.thunderstorm")
+            "rain" -> tr("cobbledex-rei-emi-jei.weight.rain")
+            "conditional" -> tr("cobbledex-rei-emi-jei.weight.conditional")
+            "time_range" -> part.text
+            "biomes" -> {
+                if (part.ids.isEmpty()) null
+                else {
+                    val names = part.ids.map { formatId(it) }
+                    if (names.size <= 3) names.joinToString(", ")
+                    else "${names.take(2).joinToString(", ")} " + tr("cobbledex-rei-emi-jei.weight.and_more", names.size - 2)
+                }
+            }
+            "lure" -> part.number?.let { tr("cobbledex-rei-emi-jei.weight.lure", it) }
+            else -> part.text
+        }
+    }
+
+    if (parts.isNotEmpty()) return parts.joinToString(", ")
+    return conditionSummary.ifBlank { tr("cobbledex-rei-emi-jei.weight.conditional") }
+}
 
 fun titleCase(raw: String): String {
     return raw.replace("_", " ")

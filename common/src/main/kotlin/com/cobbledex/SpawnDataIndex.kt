@@ -346,6 +346,16 @@ object SpawnDataIndex {
         }
     }
 
+    /** Accept job rules from Cobbleworkers' own network packet (independent of CobbleDex server sync) */
+    fun applyJobRules(rules: List<JobRule>) {
+        dataLock.withLock {
+            jobRules = rules
+            dataVersion++
+        }
+        DebugLog.info("Applied ${rules.size} job rules from Cobbleworkers packet")
+        RecipeViewerReloader.scheduleReload()
+    }
+
     private fun rebuildDerivedData() {
         val reverseMap = mutableMapOf<String, MutableList<EvolutionInfo>>()
         for ((_, evolutions) in evolutionsBySpecies) {
