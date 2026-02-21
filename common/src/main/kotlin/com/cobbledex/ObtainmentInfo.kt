@@ -5,11 +5,13 @@ data class ObtainmentInfo(
     val formAspects: String = "",
     val method: String,
     val description: String,
+    val descriptionKey: String? = null,
     val items: List<String> = emptyList(),
     val block: String? = null,
     val structure: String? = null,
     val dimension: String? = null,
     val notes: List<String> = emptyList(),
+    val noteKeys: List<String> = emptyList(),
     val source: String = "datapack"
 ) {
     val displayMethodName: String
@@ -27,7 +29,10 @@ data class ObtainmentInfo(
         }
 
     val displayDescription: String
-        get() = description.ifBlank { displayMethodName }
+        get() = descriptionKey?.let { tr(it) } ?: description.ifBlank { displayMethodName }
+
+    val displayNotes: List<String>
+        get() = if (noteKeys.isNotEmpty()) noteKeys.map { tr(it) } else notes
 
     val displayItems: List<String>
         get() = items.map { SpawnDisplayHelper.resolveItemName(it) }

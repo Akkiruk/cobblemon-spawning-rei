@@ -43,6 +43,8 @@ object RecipeViewerReloader {
             val cls = Class.forName("com.cobbledex.jei.CobbleDexJEIPlugin")
             cls.getMethod("reloadRecipes").invoke(null)
         } catch (_: ClassNotFoundException) {
+        } catch (_: NoClassDefFoundError) {
+            // JEI not installed — loading our plugin class fails because its superclass (IModPlugin) is absent
         } catch (e: Exception) {
             DebugLog.once("jei-reload") { "JEI reload failed: ${e.message}" }
         }

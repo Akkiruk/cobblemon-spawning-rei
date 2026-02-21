@@ -289,8 +289,8 @@ object JarDataCache {
                 val wm = wmElem.asJsonObject
                 val mult = wm.optFloat("multiplier") ?: return@forEach
                 val wmConditions = wm.optArray("conditions")
-                val summary = summarizeWeightConditionsFromJson(wmConditions)
-                weightMults.add(WeightMultiplier(mult, summary))
+                val parts = summarizeWeightConditionsFromJson(wmConditions)
+                weightMults.add(WeightMultiplier(multiplier = mult, conditionParts = parts))
             } catch (_: Exception) {}
         }
 
@@ -347,23 +347,37 @@ object JarDataCache {
         )
     }
 
-    private fun summarizeWeightConditionsFromJson(conditions: JsonArray?): String {
-        if (conditions == null || conditions.isEmpty) return tr("cobbledex-rei-emi-jei.weight.always")
-        val parts = mutableListOf<String>()
+    private fun summarizeWeightConditionsFromJson(conditions: JsonArray?): List<WeightConditionPart> {
+        if (conditions == null || conditions.isEmpty) return listOf(WeightConditionPart(type = "always"))
+        val parts = mutableListOf<WeightConditionPart>()
         for (condElem in conditions) {
             try {
                 val cond = condElem.asJsonObject
-                cond.optBool("isThundering")?.let { if (it) parts.add(tr("cobbledex-rei-emi-jei.weight.thunderstorm")) }
-                cond.optBool("isRaining")?.let { if (it) parts.add(tr("cobbledex-rei-emi-jei.weight.rain")) }
+                cond.optBool("isThundering")?.let { if (it) parts.add(WeightConditionPart(type = "thunderstorm")) }
+                cond.optBool("isRaining")?.let { if (it) parts.add(WeightConditionPart(type = "rain")) }
+
+                cond.optObject("timeRange")?.let { timeRange ->
+                    val ranges = timeRange.optArray("ranges")
+                    if (ranges != null && !ranges.isEmpty) {
+                        val str = ranges.mapNotNull {
+                            if (!it.isJsonArray) return@mapNotNull null
+                            val arr = it.asJsonArray
+                            if (arr.size() < 2) return@mapNotNull null
+                            "${arr[0].asInt}-${arr[1].asInt}"
+                        }.joinToString(",")
+                        if (str.isNotBlank()) parts.add(WeightConditionPart(type = "time_range", text = str))
+                    }
+                }
+
                 val biomes = cond.optStringArray("biomes")
                 if (biomes.isNotEmpty()) {
-                    val names = biomes.map { formatId(it) }
-                    if (names.size <= 3) parts.add(names.joinToString(", "))
-                    else parts.add("${names.take(2).joinToString(", ")} " + tr("cobbledex-rei-emi-jei.weight.and_more", names.size - 2))
+                    parts.add(WeightConditionPart(type = "biomes", ids = biomes))
                 }
+
+                cond.optInt("minLureLevel")?.let { parts.add(WeightConditionPart(type = "lure", number = it)) }
             } catch (_: Exception) {}
         }
-        return if (parts.isEmpty()) tr("cobbledex-rei-emi-jei.weight.conditional") else parts.joinToString(", ")
+        return if (parts.isEmpty()) listOf(WeightConditionPart(type = "conditional")) else parts
     }
 
     /**

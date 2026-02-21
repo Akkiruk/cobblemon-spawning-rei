@@ -192,86 +192,123 @@ object ObtainmentDataLoader {
     @Suppress("LongMethod")
     private fun buildBundledObtainment(): List<ObtainmentInfo> = listOf(
             altar("articuno", "lumymon:glacier_feather", "lumymon:articuno_altar",
-                tr("cobbledex-rei-emi-jei.bundled.articuno")),
+                "cobbledex-rei-emi-jei.bundled.articuno"),
             altar("zapdos", "lumymon:thunder_feather", "lumymon:zapdos_altar",
-                tr("cobbledex-rei-emi-jei.bundled.zapdos")),
+                "cobbledex-rei-emi-jei.bundled.zapdos"),
             altar("moltres", "lumymon:ember_feather", "lumymon:moltres_altar",
-                tr("cobbledex-rei-emi-jei.bundled.moltres")),
+                "cobbledex-rei-emi-jei.bundled.moltres"),
 
             altar("lugia", "lumymon:silver_wing", "lumymon:lugia_altar",
-                tr("cobbledex-rei-emi-jei.bundled.lugia")),
+                "cobbledex-rei-emi-jei.bundled.lugia"),
             altar("hooh", "lumymon:rainbow_wing", "lumymon:hooh_altar",
-                tr("cobbledex-rei-emi-jei.bundled.hooh")),
+                "cobbledex-rei-emi-jei.bundled.hooh"),
 
             shrine("celebi", "lumymon:gs_ball", "lumymon:ilex_shrine",
-                tr("cobbledex-rei-emi-jei.bundled.celebi")),
+                "cobbledex-rei-emi-jei.bundled.celebi"),
             shrine("mew", "lumymon:melodic_tape_vol_1", "lumymon:mew_shrine",
-                tr("cobbledex-rei-emi-jei.bundled.mew")),
+                "cobbledex-rei-emi-jei.bundled.mew"),
             shrine("jirachi", "lumymon:meteorite_crystal", "lumymon:jirachi_shrine",
-                tr("cobbledex-rei-emi-jei.bundled.jirachi")),
+                "cobbledex-rei-emi-jei.bundled.jirachi"),
 
             altar("regirock", "lumymon:pebble_relic", "lumymon:regirock_altar",
-                tr("cobbledex-rei-emi-jei.bundled.regirock")),
+                "cobbledex-rei-emi-jei.bundled.regirock"),
             altar("regice", "lumymon:cryo_relic", "lumymon:regice_altar",
-                tr("cobbledex-rei-emi-jei.bundled.regice")),
+                "cobbledex-rei-emi-jei.bundled.regice"),
             altar("registeel", "lumymon:metal_relic", "lumymon:registeel_altar",
-                tr("cobbledex-rei-emi-jei.bundled.registeel")),
+                "cobbledex-rei-emi-jei.bundled.registeel"),
 
             altar("regieleki", "lumymon:metal_relic", "lumymon:regieleki_altar",
-                tr("cobbledex-rei-emi-jei.bundled.regieleki"),
-                notes = listOf(tr("cobbledex-rei-emi-jei.bundled.note.regi_nearby"))),
+                "cobbledex-rei-emi-jei.bundled.regieleki",
+                noteKeys = listOf("cobbledex-rei-emi-jei.bundled.note.regi_nearby")),
             altar("regidrago", "lumymon:metal_relic", "lumymon:regidrago_altar",
-                tr("cobbledex-rei-emi-jei.bundled.regidrago"),
-                notes = listOf(tr("cobbledex-rei-emi-jei.bundled.note.regi_nearby"))),
+                "cobbledex-rei-emi-jei.bundled.regidrago",
+                noteKeys = listOf("cobbledex-rei-emi-jei.bundled.note.regi_nearby")),
 
             altar("latias", "lumymon:ruby_dew", "lumymon:latias_altar",
-                tr("cobbledex-rei-emi-jei.bundled.latias")),
+                "cobbledex-rei-emi-jei.bundled.latias"),
             altar("latios", "lumymon:sapphire_dew", "lumymon:latios_altar",
-                tr("cobbledex-rei-emi-jei.bundled.latios")),
+                "cobbledex-rei-emi-jei.bundled.latios"),
 
             altar("kyogre", "lumymon:ocean_core", "lumymon:kyogre_altar",
-                tr("cobbledex-rei-emi-jei.bundled.kyogre")),
+                "cobbledex-rei-emi-jei.bundled.kyogre"),
             altar("groudon", "lumymon:earth_core", "lumymon:groudon_altar",
-                tr("cobbledex-rei-emi-jei.bundled.groudon")),
+                "cobbledex-rei-emi-jei.bundled.groudon"),
             altar("rayquaza", "lumymon:sky_core", "lumymon:rayquaza_altar",
-                tr("cobbledex-rei-emi-jei.bundled.rayquaza")),
+                "cobbledex-rei-emi-jei.bundled.rayquaza"),
 
             shrine("deoxys", "lumymon:meteorite_crystal", "lumymon:deoxys_shrine",
-                tr("cobbledex-rei-emi-jei.bundled.deoxys")),
+                "cobbledex-rei-emi-jei.bundled.deoxys"),
 
             altar("calyrex", "lumymon:calyrex_crown", "lumymon:calyrex_statue",
-                tr("cobbledex-rei-emi-jei.bundled.calyrex")),
+                "cobbledex-rei-emi-jei.bundled.calyrex"),
             altar("glastrier", "lumymon:iceroot_carrot", "lumymon:summon_trigger",
-                tr("cobbledex-rei-emi-jei.bundled.glastrier"),
-                notes = listOf(tr("cobbledex-rei-emi-jei.bundled.note.calyrex_nearby"))),
+                "cobbledex-rei-emi-jei.bundled.glastrier",
+                noteKeys = listOf("cobbledex-rei-emi-jei.bundled.note.calyrex_nearby")),
             altar("spectrier", "lumymon:shaderoot_carrot", "lumymon:summon_trigger",
-                tr("cobbledex-rei-emi-jei.bundled.spectrier"),
-                notes = listOf(tr("cobbledex-rei-emi-jei.bundled.note.calyrex_nearby"))),
+                "cobbledex-rei-emi-jei.bundled.spectrier",
+                noteKeys = listOf("cobbledex-rei-emi-jei.bundled.note.calyrex_nearby")),
 
             resurrection("mewtwo", "lumymon:ancient_dna", "cobblemon:resurrection_machine",
-                tr("cobbledex-rei-emi-jei.bundled.mewtwo")),
+                "cobbledex-rei-emi-jei.bundled.mewtwo"),
             resurrection("type_null", "lumymon:fossilized_helmet", "cobblemon:resurrection_machine",
-                tr("cobbledex-rei-emi-jei.bundled.type_null")),
+                "cobbledex-rei-emi-jei.bundled.type_null"),
 
             transformation("lugia", "lumymon:shadow_soul_stone", null,
-                tr("cobbledex-rei-emi-jei.bundled.lugia_shadow"),
+                "cobbledex-rei-emi-jei.bundled.lugia_shadow",
                 form = "shadow",
-                notes = listOf(tr("cobbledex-rei-emi-jei.bundled.note.shadow_transform")))
+                noteKeys = listOf("cobbledex-rei-emi-jei.bundled.note.shadow_transform"))
     )
 
-    private fun altar(pokemon: String, item: String, block: String, description: String,
-                      notes: List<String> = emptyList()) =
-        ObtainmentInfo(pokemon, "", "altar", description, listOf(item), block, notes = notes, source = "bundled")
+    private fun altar(pokemon: String, item: String, block: String, descriptionKey: String,
+                      noteKeys: List<String> = emptyList()) =
+        ObtainmentInfo(
+            pokemon = pokemon,
+            method = "altar",
+            description = "",
+            descriptionKey = descriptionKey,
+            items = listOf(item),
+            block = block,
+            noteKeys = noteKeys,
+            source = "bundled"
+        )
 
-    private fun shrine(pokemon: String, item: String, block: String, description: String,
-                       notes: List<String> = emptyList()) =
-        ObtainmentInfo(pokemon, "", "shrine", description, listOf(item), block, notes = notes, source = "bundled")
+    private fun shrine(pokemon: String, item: String, block: String, descriptionKey: String,
+                       noteKeys: List<String> = emptyList()) =
+        ObtainmentInfo(
+            pokemon = pokemon,
+            method = "shrine",
+            description = "",
+            descriptionKey = descriptionKey,
+            items = listOf(item),
+            block = block,
+            noteKeys = noteKeys,
+            source = "bundled"
+        )
 
-    private fun resurrection(pokemon: String, item: String, block: String?, description: String,
-                             notes: List<String> = emptyList()) =
-        ObtainmentInfo(pokemon, "", "resurrection", description, listOf(item), block, notes = notes, source = "bundled")
+    private fun resurrection(pokemon: String, item: String, block: String?, descriptionKey: String,
+                             noteKeys: List<String> = emptyList()) =
+        ObtainmentInfo(
+            pokemon = pokemon,
+            method = "resurrection",
+            description = "",
+            descriptionKey = descriptionKey,
+            items = listOf(item),
+            block = block,
+            noteKeys = noteKeys,
+            source = "bundled"
+        )
 
-    private fun transformation(pokemon: String, item: String, block: String?, description: String,
-                               form: String = "", notes: List<String> = emptyList()) =
-        ObtainmentInfo(pokemon, form, "transformation", description, listOf(item), block, notes = notes, source = "bundled")
+    private fun transformation(pokemon: String, item: String, block: String?, descriptionKey: String,
+                               form: String = "", noteKeys: List<String> = emptyList()) =
+        ObtainmentInfo(
+            pokemon = pokemon,
+            formAspects = form,
+            method = "transformation",
+            description = "",
+            descriptionKey = descriptionKey,
+            items = listOf(item),
+            block = block,
+            noteKeys = noteKeys,
+            source = "bundled"
+        )
 }

@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.37.1] - 2026-02-20
+
+### Fixed
+- Fixed crash when joining server without JEI installed (NoClassDefFoundError on JEI reload after Cobbleworkers job sync)
+
 ## [1.37.0] - 2026-02-20
 
 ### Changed

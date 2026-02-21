@@ -483,7 +483,7 @@ object SpawnDisplayHelper {
                     wm.multiplier < 1f -> { arrow = "\u25BC"; c = 0xEE8888 }
                     else -> { arrow = "\u25CF"; c = 0xBBBBBB }
                 }
-                val wmText = "$arrow ${formatWeight(wm.multiplier)}x ${wm.conditionSummary}"
+                val wmText = "$arrow ${formatWeight(wm.multiplier)}x ${wm.displayConditionSummary()}"
                 layout.wrapped(indentX, wmText, indentWidth, c)
             }
         }
@@ -544,7 +544,7 @@ object SpawnDisplayHelper {
             layout.gap(4)
         }
 
-        for (note in obtainment.notes) {
+        for (note in obtainment.displayNotes) {
             layout.wrapped(indentX, "\u2139 $note", indentWidth, 0xBBBBBB)
         }
 
