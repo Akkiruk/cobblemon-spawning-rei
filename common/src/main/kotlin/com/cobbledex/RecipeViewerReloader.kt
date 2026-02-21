@@ -40,15 +40,11 @@ object RecipeViewerReloader {
 
     private fun reloadJEI() {
         try {
-            val cls = Class.forName("mezz.jei.library.reload.JeiReloadManager")
-            // JEI doesn't expose a static reload — the runtime holds the manager instance.
-            // Trigger via the public IJeiRuntime if available.
-            val runtimeCls = Class.forName("mezz.jei.api.runtime.IJeiRuntime")
-            val internalCls = Class.forName("mezz.jei.library.runtime.JeiRuntime")
-            // If JEI's internal API changes, we silently give up.
-            DebugLog.once("jei-reload-skip") { "JEI reload after sync not supported (no public API)" }
+            val cls = Class.forName("com.cobbledex.jei.CobbleDexJEIPlugin")
+            cls.getMethod("reloadRecipes").invoke(null)
         } catch (_: ClassNotFoundException) {
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            DebugLog.once("jei-reload") { "JEI reload failed: ${e.message}" }
         }
     }
 }

@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.36.2] - 2026-02-20
+
+### Fixed
+- Fixed JEI not updating recipes after server sync (jobs and other synced data now appear in JEI via runtime addRecipes API)
+
 ## [1.36.1] - 2026-02-20
 
 ### Fixed

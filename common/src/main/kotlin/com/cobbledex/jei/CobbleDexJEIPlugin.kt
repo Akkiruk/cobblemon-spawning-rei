@@ -22,6 +22,7 @@ import mezz.jei.api.registration.IModIngredientRegistration
 import mezz.jei.api.registration.IRecipeCatalystRegistration
 import mezz.jei.api.registration.IRecipeCategoryRegistration
 import mezz.jei.api.registration.IRecipeRegistration
+import mezz.jei.api.runtime.IJeiRuntime
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceLocation
@@ -32,6 +33,9 @@ open class CobbleDexJEIPlugin : IModPlugin {
 
     companion object {
         private val recipeTypes = mutableMapOf<String, RecipeType<GenericRecipe>>()
+        private val addedRecipes = mutableMapOf<String, List<GenericRecipe>>()
+        @Volatile var runtime: IJeiRuntime? = null
+            private set
 
         fun recipeType(def: DexCategory): RecipeType<GenericRecipe> =
             recipeTypes.getOrPut(def.id) {
@@ -40,6 +44,30 @@ open class CobbleDexJEIPlugin : IModPlugin {
                     GenericRecipe::class.java
                 )
             }
+
+        /** Called by RecipeViewerReloader after server sync to push new recipes into JEI */
+        @JvmStatic
+        fun reloadRecipes() {
+            val rt = runtime ?: return
+            val manager = rt.recipeManager
+            val config = CobbleDexConfig.get()
+            for (def in DexCategory.ALL) {
+                if (!def.isEnabled(config)) continue
+                val type = recipeType(def)
+
+                // Hide previously added recipes to avoid duplicates
+                addedRecipes[def.id]?.let { old ->
+                    if (old.isNotEmpty()) manager.hideRecipes(type, old)
+                }
+
+                val recipes = def.buildAllRecipes().map { GenericRecipe(it) }
+                if (recipes.isNotEmpty()) {
+                    manager.addRecipes(type, recipes)
+                }
+                addedRecipes[def.id] = recipes
+            }
+            DebugLog.info("JEI: Reloaded recipes after server sync")
+        }
     }
 
     override fun getPluginUid(): ResourceLocation =
@@ -83,8 +111,14 @@ open class CobbleDexJEIPlugin : IModPlugin {
             if (recipes.isNotEmpty()) {
                 registration.addRecipes(recipeType(def), recipes)
             }
+            addedRecipes[def.id] = recipes
         }
         DebugLog.info("JEI: All recipes registered")
+    }
+
+    override fun onRuntimeAvailable(jeiRuntime: IJeiRuntime) {
+        runtime = jeiRuntime
+        DebugLog.info("JEI: Runtime captured")
     }
 
     override fun registerRecipeCatalysts(registration: IRecipeCatalystRegistration) {
