@@ -2,6 +2,14 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.39.4] - 2026-02-21
+
+### Changed
+- Job search filtering no longer adds visible job names to Pokémon tooltips
+- REI: job names indexed via invisible search text
+- EMI: job names registered as search aliases (addAlias API)
+- JEI: job names indexed via hidden tooltip entry, re-indexed when job rules arrive
+
 ## [1.39.3] - 2026-02-21
 
 ### Changed
@@ -22,6 +30,14 @@ All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
 ### Added
 - New config option `showDetailedBiomeIds` to display raw biome identifiers (e.g. `#cobblemon:is_temperate`) below the friendly names in spawn displays (#18)
+
+## [1.39.1] - 2026-02-21
+
+### Changed
+- Job search filtering no longer adds visible job names to Pokémon tooltips
+- REI: job names indexed via invisible search text (asFormattedText)
+- EMI: job names registered as search aliases (addAlias API)
+- JEI: job names indexed via hidden tooltip entry, re-indexed when job rules arrive
 
 ## [1.39.0] - 2026-02-20
 

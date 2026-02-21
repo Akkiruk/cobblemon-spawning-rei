@@ -419,12 +419,6 @@ object SpawnDisplayHelper {
             lines.add(Component.literal(counts.joinToString(" §7| ")))
         }
 
-        val jobs = SpawnDataIndex.getJobsFor(speciesName)
-        if (jobs.isNotEmpty()) {
-            val jobNames = jobs.joinToString(" §7| ") { "§e" + it.rule.displayName }
-            lines.add(Component.literal("§8Jobs: $jobNames"))
-        }
-
         return lines
     }
 

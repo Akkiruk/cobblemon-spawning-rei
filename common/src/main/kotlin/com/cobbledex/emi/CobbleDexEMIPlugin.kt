@@ -17,8 +17,8 @@ import dev.emi.emi.api.stack.EmiIngredient
 import dev.emi.emi.api.stack.EmiStack
 import net.minecraft.core.component.DataComponents
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.Style
 import net.minecraft.resources.ResourceLocation
-import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import net.minecraft.world.item.component.ItemLore
 
@@ -59,7 +59,13 @@ open class CobbleDexEMIPlugin : EmiPlugin {
         for (species in SpawnDataIndex.allSpeciesNames) {
             val item = PokemonItemCache.getItem(species) ?: continue
             if (item.isEmpty) continue
-            addJobLore(item, species)
+            // Add job names as invisible lore for EMI search indexing (black text = invisible on tooltip)
+            val jobs = SpawnDataIndex.getJobsFor(species)
+            if (jobs.isNotEmpty()) {
+                val searchText = jobs.joinToString(" ") { "job:${it.rule.id} ${it.rule.displayName}" }
+                val loreLine = Component.literal(searchText).withStyle(Style.EMPTY.withColor(0x100010))
+                item.set(DataComponents.LORE, ItemLore(listOf(loreLine)))
+            }
             val stack = EmiStack.of(item)
             registry.addEmiStack(stack)
             registry.setDefaultComparison(stack) { _ ->
@@ -84,15 +90,6 @@ open class CobbleDexEMIPlugin : EmiPlugin {
         }
 
         DebugLog.info("EMI: Registered $registered Pokémon, categories: ${registeredCats.joinToString(" + ")}")
-    }
-
-    private fun addJobLore(item: ItemStack, species: String) {
-        val jobs = SpawnDataIndex.getJobsFor(species)
-        if (jobs.isEmpty()) return
-        val loreLines = jobs.map { Component.literal("Job: ${it.rule.displayName}") }
-        val existing = item.get(DataComponents.LORE)
-        val merged = if (existing != null) existing.lines() + loreLines else loreLines
-        item.set(DataComponents.LORE, ItemLore(merged))
     }
 
     // ----- Generic EMI Recipe wrapping RecipeHandle -----
