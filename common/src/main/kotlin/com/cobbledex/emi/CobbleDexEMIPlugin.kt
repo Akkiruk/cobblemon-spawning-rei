@@ -117,7 +117,11 @@ open class CobbleDexEMIPlugin : EmiPlugin {
                     val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
                     if (!stack.isEmpty) EmiStack.of(stack) else null
                 }
-            return pokemon + items
+            val catalog = handle.slots.catalogInputIds.mapNotNull { itemId ->
+                val stack = SpawnDisplayHelper.resolveItemStack(itemId)
+                if (!stack.isEmpty) EmiStack.of(stack) else null
+            }
+            return pokemon + items + catalog
         }
 
         override fun getOutputs(): List<EmiStack> {

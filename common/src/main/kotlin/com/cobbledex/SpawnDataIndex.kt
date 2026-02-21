@@ -52,6 +52,10 @@ object SpawnDataIndex {
         private set
 
     @Volatile
+    var speciesByTmMove: Map<String, List<String>> = emptyMap()
+        private set
+
+    @Volatile
     var jobRules: List<JobRule> = emptyList()
         private set
 
@@ -375,6 +379,15 @@ object SpawnDataIndex {
         }
         dropsByItem = dropIndex
 
+        val tmIndex = mutableMapOf<String, MutableList<String>>()
+        for ((species, info) in speciesInfo) {
+            val tms = info.tmMoves ?: continue
+            for (move in tms) {
+                tmIndex.getOrPut(move.name.lowercase()) { mutableListOf() }.add(species)
+            }
+        }
+        speciesByTmMove = tmIndex
+
         allSpeciesNames = allNames.sortedWith(
             compareBy<String> {
                 val dex = speciesInfo[it]?.nationalDexNumber ?: 0
@@ -491,4 +504,7 @@ object SpawnDataIndex {
     }
 
     fun hasJobRules(): Boolean = jobRules.isNotEmpty()
+
+    fun getSpeciesWithTmMove(moveName: String): List<String> =
+        speciesByTmMove[moveName.lowercase()] ?: emptyList()
 }

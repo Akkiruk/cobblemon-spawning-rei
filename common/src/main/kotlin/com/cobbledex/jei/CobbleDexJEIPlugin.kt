@@ -191,6 +191,14 @@ open class CobbleDexJEIPlugin : IModPlugin {
                         .addItemStack(stack)
                 }
             }
+
+            if (slots.catalogInputIds.isNotEmpty()) {
+                val invisible = builder.addInvisibleIngredients(RecipeIngredientRole.INPUT)
+                for (itemId in slots.catalogInputIds) {
+                    val stack = SpawnDisplayHelper.resolveItemStack(itemId)
+                    if (!stack.isEmpty) invisible.addItemStack(stack)
+                }
+            }
         }
 
         override fun draw(recipe: GenericRecipe, recipeSlotsView: IRecipeSlotsView, guiGraphics: GuiGraphics, mouseX: Double, mouseY: Double) {

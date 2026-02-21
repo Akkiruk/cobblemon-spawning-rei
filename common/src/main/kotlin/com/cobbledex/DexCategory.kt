@@ -38,6 +38,7 @@ class RecipeHandle(
         val arrowX: Int = 0,
         val arrowY: Int = 0,
         val hasArrow: Boolean = false,
+        val catalogInputIds: List<String> = emptyList(),
     )
 
     val layout: PanelLayout by lazy(LazyThreadSafetyMode.NONE) {
@@ -270,13 +271,29 @@ object MovesDex : DexCategory {
     override fun buildRecipesFor(species: String) =
         RecipeBuilder.buildMovesFor(species).map(::toHandle)
 
-    private fun toHandle(d: MovesRecipeData) = RecipeHandle(
-        recipeIdPath = "moves/${sanitizePath(d.speciesName)}_${d.pageIndex}",
-        inputSpecies = listOf(d.speciesName),
-        outputSpecies = emptyList(),
-        layoutFactory = { SpawnDisplayHelper.buildMovesLayout(d) },
-        _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
-    )
+    override fun buildRecipesForItem(itemId: String): List<RecipeHandle> {
+        val move = TmItemUtils.extractMove(itemId) ?: return emptyList()
+        val species = SpawnDataIndex.getSpeciesWithTmMove(move)
+        if (species.isEmpty()) return emptyList()
+        return species.flatMap { RecipeBuilder.buildMovesFor(it) }.map(::toHandle)
+    }
+
+    private fun toHandle(d: MovesRecipeData) : RecipeHandle {
+        val allTmMoves = SpawnDataIndex.getSpeciesInfo(d.speciesName)?.tmMoves ?: d.tmMoves
+        return RecipeHandle(
+            recipeIdPath = "moves/${sanitizePath(d.speciesName)}_${d.pageIndex}",
+            inputSpecies = listOf(d.speciesName),
+            outputSpecies = emptyList(),
+            layoutFactory = { SpawnDisplayHelper.buildMovesLayout(d) },
+            _slots = {
+                val tmIds = allTmMoves.map { TmItemUtils.tmItemId(it.name) }
+                RecipeHandle.Slots(
+                    pokemon = listOf(pokemonInput(d.speciesName)),
+                    catalogInputIds = tmIds,
+                )
+            },
+        )
+    }
 }
 
 // ----- Pokédex Info -----

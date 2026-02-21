@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.39.7] - 2026-02-21
+
+### Added
+- TM usage lookup: checking usage on a TMCraft TM item now shows Moves pages for every Pokémon that can learn that TM
+- Works on REI, JEI, and EMI
+
 ## [1.39.6] - 2026-02-21
 
 ### Fixed
