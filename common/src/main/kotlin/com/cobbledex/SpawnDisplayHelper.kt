@@ -353,30 +353,23 @@ object SpawnDisplayHelper {
         return if (translated != key) translated else titleCase(loc.path.replace("_", " "))
     }
 
-    private fun buildBiomeTooltip(biomes: List<String>): List<Component> {
+    private fun buildSingleBiomeTooltip(biomeId: String): List<Component> {
         val lines = mutableListOf<Component>()
-        val tags = biomes.filter { it.startsWith("#") }
-        val specific = biomes.filter { !it.startsWith("#") }
+        val pretty = formatBiomeName(biomeId)
 
-        for ((i, tag) in tags.withIndex()) {
-            val pretty = formatBiomeName(tag)
+        if (biomeId.startsWith("#")) {
             lines.add(Component.literal("§e§l$pretty"))
-            val resolved = resolveBiomeTag(tag)
+            val resolved = resolveBiomeTag(biomeId)
             if (resolved.isNotEmpty()) {
-                for (biomeId in resolved) {
-                    lines.add(Component.literal("  §7${translateBiomeId(biomeId)}"))
+                for (id in resolved) {
+                    lines.add(Component.literal("  §7${translateBiomeId(id)}"))
                 }
             } else {
-                lines.add(Component.literal("  §8${tag.removePrefix("#")}"))
+                lines.add(Component.literal("  §8${biomeId.removePrefix("#")}"))
             }
-            if (i < tags.size - 1 || specific.isNotEmpty()) lines.add(Component.empty())
-        }
-
-        if (specific.isNotEmpty()) {
-            lines.add(Component.literal("§e§l${tr("cobbledex-rei-emi-jei.tooltip.biome_specific")}"))
-            for (id in specific) {
-                lines.add(Component.literal("  §7${translateBiomeId(id)}"))
-            }
+        } else {
+            lines.add(Component.literal("§f${translateBiomeId(biomeId)}"))
+            lines.add(Component.literal("§8$biomeId"))
         }
 
         return lines
@@ -496,12 +489,10 @@ object SpawnDisplayHelper {
             val header = if (biomeNames.size > 1) tr("cobbledex-rei-emi-jei.spawn.section.biomes") else tr("cobbledex-rei-emi-jei.spawn.section.biome")
             layout.text(padding, header, 0xEEEEEE)
             layout.line()
-            val biomeStartY = layout.y
-            layout.wrappedCommas(indentX, biomeNames.joinToString(", "), indentWidth, 0xDDDDDD)
-            val biomeEndY = layout.y
-            if (spawn.biomes.isNotEmpty()) {
-                val tooltipLines = buildBiomeTooltip(spawn.biomes)
-                layout.addTooltipZone(indentX, biomeStartY, indentWidth, biomeEndY - biomeStartY, tooltipLines)
+            val placements = layout.wrappedItemsWithPositions(indentX, biomeNames, ", ", indentWidth, 0xDDDDDD)
+            for ((placement, rawId) in placements.zip(spawn.biomes)) {
+                val tooltipLines = buildSingleBiomeTooltip(rawId)
+                layout.addTooltipZone(placement.x, placement.y, placement.width, PanelLayout.LINE_HEIGHT, tooltipLines)
             }
             layout.gap(PanelLayout.SECTION_GAP)
         }

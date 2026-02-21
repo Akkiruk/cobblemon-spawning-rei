@@ -78,6 +78,30 @@ class PanelLayout(val width: Int) {
         return lines.size
     }
 
+    data class ItemPlacement(val x: Int, val y: Int, val width: Int, val index: Int)
+
+    fun wrappedItemsWithPositions(
+        startX: Int, items: List<String>, separator: String, maxWidth: Int, color: Int,
+        lineHeight: Int = LINE_HEIGHT, shadow: Boolean = true
+    ): List<ItemPlacement> {
+        val placements = mutableListOf<ItemPlacement>()
+        var curX = startX
+        for ((i, item) in items.withIndex()) {
+            val suffix = if (i < items.size - 1) separator else ""
+            val itemWidth = font.width(item)
+            val fullWidth = font.width(item + suffix)
+            if (curX > startX && curX + fullWidth > startX + maxWidth) {
+                y += lineHeight
+                curX = startX
+            }
+            placements.add(ItemPlacement(curX, y, itemWidth, i))
+            elements.add(Element.Text(curX, y, item + suffix, color, shadow))
+            curX += fullWidth
+        }
+        y += lineHeight
+        return placements
+    }
+
     // --- Structural ---
 
     fun separator(color: Int = 0x50FFFFFF): PanelLayout {
