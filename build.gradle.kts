@@ -46,7 +46,14 @@ subprojects {
         maven("https://maven.shedaniel.me/")
         maven("https://maven.blamejared.com/")
         maven("https://maven.terraformersmc.com/")
-        maven("https://api.modrinth.com/maven") // Backup for EMI
+        exclusiveContent {
+            forRepository {
+                maven("https://api.modrinth.com/maven") {
+                    name = "Modrinth"
+                }
+            }
+            filter { includeGroup("maven.modrinth") }
+        }
     }
 
     @Suppress("UnstableApiUsage")

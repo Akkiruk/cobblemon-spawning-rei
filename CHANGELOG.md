@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.39.5] - 2026-02-21
+
+### Fixed
+- Fix CI build failure: switched EMI dependencies from TerraformersMC maven to Modrinth maven
+- Updated EMI to 1.1.22 (from 1.1.12)
+
 ## [1.39.4] - 2026-02-21
 
 ### Changed

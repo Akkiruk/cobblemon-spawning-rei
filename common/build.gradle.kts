@@ -20,8 +20,8 @@ dependencies {
     // JEI API (common)
     modCompileOnly("mezz.jei:jei-1.21.1-common-api:$jeiVersion")
 
-    // EMI API (common, intermediary-mapped)
-    modCompileOnly("dev.emi:emi-xplat-intermediary:$emiVersion")
+    // EMI API (Modrinth maven)
+    modCompileOnly("maven.modrinth:emi:$emiVersion")
 }
 
 tasks.processResources {
