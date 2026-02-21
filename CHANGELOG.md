@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.39.2] - 2026-02-21
+
+### Changed
+- Biome IDs now show as a hover tooltip over biome names in spawn displays instead of a config toggle — hover any biome to see the raw IDs (#18)
+- Removed `showDetailedBiomeIds` config option (no longer needed)
+
 ## [1.39.1] - 2026-02-21
 
 ### Fixed

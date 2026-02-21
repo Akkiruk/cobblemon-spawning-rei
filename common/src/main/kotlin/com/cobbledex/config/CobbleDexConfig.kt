@@ -7,7 +7,6 @@ import java.nio.file.Files
 
 data class CobbleDexConfig(
     val showSpawnWeights: Boolean = true,
-    val showDetailedBiomeIds: Boolean = false,
     val showEvolutions: Boolean = true,
     val showObtainment: Boolean = true,
     val showDrops: Boolean = true,

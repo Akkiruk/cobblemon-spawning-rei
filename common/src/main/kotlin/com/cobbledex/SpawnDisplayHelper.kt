@@ -442,12 +442,16 @@ object SpawnDisplayHelper {
             val header = if (biomeNames.size > 1) tr("cobbledex-rei-emi-jei.spawn.section.biomes") else tr("cobbledex-rei-emi-jei.spawn.section.biome")
             layout.text(padding, header, 0xEEEEEE)
             layout.line()
+            val biomeStartY = layout.y
             layout.wrappedCommas(indentX, biomeNames.joinToString(", "), indentWidth, 0xDDDDDD)
-            if (CobbleDexConfig.get().showDetailedBiomeIds) {
-                layout.gap(1)
+            val biomeEndY = layout.y
+            if (spawn.biomes.isNotEmpty()) {
+                val tooltipLines = mutableListOf<Component>()
+                tooltipLines.add(Component.literal("\u00A7e\u00A7lBiome IDs"))
                 for (rawId in spawn.biomes) {
-                    layout.wrapped(indentX + 4, "§7$rawId", indentWidth - 4, 0x999999)
+                    tooltipLines.add(Component.literal("\u00A77$rawId"))
                 }
+                layout.addTooltipZone(indentX, biomeStartY, indentWidth, biomeEndY - biomeStartY, tooltipLines)
             }
             layout.gap(PanelLayout.SECTION_GAP)
         }

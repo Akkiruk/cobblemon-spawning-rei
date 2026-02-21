@@ -203,5 +203,9 @@ open class CobbleDexJEIPlugin : IModPlugin {
 
             handle.layout.render(guiGraphics)
         }
+
+        override fun getTooltipStrings(recipe: GenericRecipe, recipeSlotsView: IRecipeSlotsView, mouseX: Double, mouseY: Double): List<Component> {
+            return recipe.handle.layout.getTooltipAt(mouseX.toInt(), mouseY.toInt()) ?: emptyList()
+        }
     }
 }

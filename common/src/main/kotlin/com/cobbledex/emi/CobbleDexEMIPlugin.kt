@@ -162,8 +162,12 @@ open class CobbleDexEMIPlugin : EmiPlugin {
 
             val w = handle.width
             val h = handle.height
-            widgets.addDrawable(0, 0, w, h) { gfx, _, _, _ ->
+            widgets.addDrawable(0, 0, w, h) { gfx, mouseX, mouseY, _ ->
                 handle.layout.render(gfx)
+                val tooltip = handle.layout.getTooltipAt(mouseX, mouseY)
+                if (tooltip != null) {
+                    gfx.renderComponentTooltip(net.minecraft.client.Minecraft.getInstance().font, tooltip, mouseX, mouseY)
+                }
             }
         }
     }

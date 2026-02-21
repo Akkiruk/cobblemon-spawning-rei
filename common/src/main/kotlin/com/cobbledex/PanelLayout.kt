@@ -3,8 +3,11 @@ package com.cobbledex
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.network.chat.Component
 
 class PanelLayout(val width: Int) {
+
+    data class TooltipZone(val x: Int, val y: Int, val width: Int, val height: Int, val lines: List<Component>)
 
     private sealed class Element {
         data class Text(val x: Int, val y: Int, val text: String, val color: Int, val shadow: Boolean) : Element()
@@ -12,6 +15,7 @@ class PanelLayout(val width: Int) {
     }
 
     private val elements = mutableListOf<Element>()
+    val tooltipZones = mutableListOf<TooltipZone>()
     val font: Font = Minecraft.getInstance().font
 
     var y: Int = 0
@@ -90,6 +94,19 @@ class PanelLayout(val width: Int) {
     fun gap(px: Int): PanelLayout { y += px; return this }
     fun line(): PanelLayout { y += LINE_HEIGHT; return this }
     fun skipTo(newY: Int): PanelLayout { y = newY; return this }
+
+    // --- Tooltip zones ---
+
+    fun addTooltipZone(x: Int, y: Int, width: Int, height: Int, lines: List<Component>) {
+        tooltipZones.add(TooltipZone(x, y, width, height, lines))
+    }
+
+    fun getTooltipAt(mouseX: Int, mouseY: Int): List<Component>? {
+        return tooltipZones.firstOrNull { zone ->
+            mouseX >= zone.x && mouseX < zone.x + zone.width &&
+            mouseY >= zone.y && mouseY < zone.y + zone.height
+        }?.lines
+    }
 
     // --- Rendering ---
 

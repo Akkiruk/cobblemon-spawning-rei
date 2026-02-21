@@ -210,11 +210,15 @@ open class CobbleDexREIPlugin : REIClientPlugin {
                 }
             }
 
-            widgets.add(Widgets.createDrawableWidget { gfx, _, _, _ ->
+            widgets.add(Widgets.createDrawableWidget { gfx, mouseX, mouseY, _ ->
                 gfx.pose().pushPose()
                 gfx.pose().translate(px.toFloat(), py.toFloat(), 0f)
                 handle.layout.render(gfx)
                 gfx.pose().popPose()
+                val tooltip = handle.layout.getTooltipAt(mouseX - px, mouseY - py)
+                if (tooltip != null) {
+                    gfx.renderComponentTooltip(net.minecraft.client.Minecraft.getInstance().font, tooltip, mouseX, mouseY)
+                }
             })
 
             return widgets
