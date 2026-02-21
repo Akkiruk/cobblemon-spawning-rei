@@ -307,6 +307,8 @@
   "cobbledex-rei-emi-jei.tooltip.drop_count": "%d item drop(s)",
   "cobbledex-rei-emi-jei.tooltip.obtainment_count": "%d special obtainment(s)",
   "cobbledex-rei-emi-jei.tooltip.pokedex_number": "#%d",
+  "cobbledex-rei-emi-jei.tooltip.biome_tags": "Biome Categories",
+  "cobbledex-rei-emi-jei.tooltip.biome_specific": "Specific Biomes",
 
   "cobbledex-rei-emi-jei.drops.header": "\u25C6 Dropped Items",
   "cobbledex-rei-emi-jei.drops.count": "%d item(s)",

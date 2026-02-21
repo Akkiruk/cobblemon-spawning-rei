@@ -328,6 +328,33 @@ object SpawnDisplayHelper {
         return parts
     }
 
+    // --- Biome tooltip builder ---
+
+    private fun buildBiomeTooltip(biomes: List<String>): List<Component> {
+        val lines = mutableListOf<Component>()
+        val tags = biomes.filter { it.startsWith("#") }
+        val specific = biomes.filter { !it.startsWith("#") }
+
+        if (tags.isNotEmpty()) {
+            lines.add(Component.literal("§e§l${tr("cobbledex-rei-emi-jei.tooltip.biome_tags")}"))
+            for (tag in tags) {
+                val pretty = formatBiomeName(tag)
+                lines.add(Component.literal("  §f$pretty §8(${tag.removePrefix("#")})"))
+            }
+        }
+
+        if (specific.isNotEmpty()) {
+            if (tags.isNotEmpty()) lines.add(Component.empty())
+            lines.add(Component.literal("§e§l${tr("cobbledex-rei-emi-jei.tooltip.biome_specific")}"))
+            for (id in specific) {
+                val pretty = formatBiomeName(id)
+                lines.add(Component.literal("  §f$pretty §8(${id})"))
+            }
+        }
+
+        return lines
+    }
+
     // --- Tooltip builder (shared across REI/JEI) ---
 
     fun buildPokemonTooltipLines(speciesName: String, displayName: String): List<Component> {
@@ -446,11 +473,7 @@ object SpawnDisplayHelper {
             layout.wrappedCommas(indentX, biomeNames.joinToString(", "), indentWidth, 0xDDDDDD)
             val biomeEndY = layout.y
             if (spawn.biomes.isNotEmpty()) {
-                val tooltipLines = mutableListOf<Component>()
-                tooltipLines.add(Component.literal("\u00A7e\u00A7lBiome IDs"))
-                for (rawId in spawn.biomes) {
-                    tooltipLines.add(Component.literal("\u00A77$rawId"))
-                }
+                val tooltipLines = buildBiomeTooltip(spawn.biomes)
                 layout.addTooltipZone(indentX, biomeStartY, indentWidth, biomeEndY - biomeStartY, tooltipLines)
             }
             layout.gap(PanelLayout.SECTION_GAP)
