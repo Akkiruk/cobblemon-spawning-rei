@@ -242,15 +242,6 @@ object SpawnDataIndex {
             fossilsBySpecies = emptyMap()
         }
 
-        // Try loading Cobbleworkers job rules (singleplayer or if on same JVM)
-        if (jobRules.isEmpty()) {
-            try {
-                jobRules = JobDataLoader.loadFromCobbleworkers()
-            } catch (e: Throwable) {
-                DebugLog.once("jobdata-load") { "Job data load failed: ${e.message}" }
-            }
-        }
-
         // Enrich speciesInfo with JAR-cached moves when runtime API returned null
         enrichWithJarMoves()
 

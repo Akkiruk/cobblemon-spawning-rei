@@ -2,6 +2,13 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.38.0] - 2026-02-20
+
+### Added
+- TM tooltip enrichment: hovering over TMCraft TM/Tutor/Egg/Star Move items now shows which Cobbleworkers jobs the move enables
+- Combo jobs show required companion moves on TM tooltips
+- Tooltip rebuilds automatically when job rules are synced from the server
+
 ## [1.37.1] - 2026-02-20
 
 ### Fixed

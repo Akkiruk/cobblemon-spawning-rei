@@ -4,6 +4,7 @@ import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.DiagnosticService
 import com.cobbledex.SpawnDataIndex
+import com.cobbledex.TmTooltipHandler
 import com.cobbledex.network.ChunkAssembler
 import com.cobbledex.network.ChunkedSpawnSyncPayload
 import com.cobbledex.network.CobbleworkersJobSyncPayload
@@ -13,6 +14,7 @@ import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
@@ -65,6 +67,10 @@ class CobbleDexFabricClient : ClientModInitializer {
             if (client.player != null) {
                 CobbleDexMod.tickReloadCheck()
             }
+        }
+
+        ItemTooltipCallback.EVENT.register { stack, _, _, lines ->
+            TmTooltipHandler.appendTooltip(stack, lines)
         }
 
         ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->

@@ -3,6 +3,7 @@ package com.cobbledex.neoforge
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DiagnosticService
 import com.cobbledex.SpawnDataIndex
+import com.cobbledex.TmTooltipHandler
 import com.cobbledex.network.ChunkAssembler
 import net.minecraft.client.Minecraft
 import net.minecraft.commands.Commands
@@ -11,6 +12,7 @@ import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent
 import net.neoforged.neoforge.client.event.ClientTickEvent
 import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent
 import net.neoforged.neoforge.common.NeoForge
+import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent
 
 object CobbleDexNeoForgeClient {
 
@@ -18,6 +20,7 @@ object CobbleDexNeoForgeClient {
         NeoForge.EVENT_BUS.addListener(::onClientTick)
         NeoForge.EVENT_BUS.addListener(::onDisconnect)
         NeoForge.EVENT_BUS.addListener(::onRegisterCommands)
+        NeoForge.EVENT_BUS.addListener(::onItemTooltip)
     }
 
     private fun onClientTick(event: ClientTickEvent.Post) {
@@ -30,6 +33,10 @@ object CobbleDexNeoForgeClient {
         SpawnDataIndex.onDisconnect()
         ChunkAssembler.reset()
         CobbleDexMod.resetReloadTimer()
+    }
+
+    private fun onItemTooltip(event: ItemTooltipEvent) {
+        TmTooltipHandler.appendTooltip(event.itemStack, event.toolTip)
     }
 
     private fun onRegisterCommands(event: RegisterClientCommandsEvent) {
