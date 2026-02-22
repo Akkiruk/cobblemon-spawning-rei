@@ -107,7 +107,7 @@ fun WeightMultiplier.displayConditionSummary(): String {
             "thunderstorm" -> tr("cobbledex-rei-emi-jei.weight.thunderstorm")
             "rain" -> tr("cobbledex-rei-emi-jei.weight.rain")
             "conditional" -> tr("cobbledex-rei-emi-jei.weight.conditional")
-            "time_range" -> part.text
+            "time_range" -> part.text?.let { formatTimeRange(it) }
             "biomes" -> {
                 if (part.ids.isEmpty()) null
                 else {
@@ -159,6 +159,104 @@ fun stripNamespace(id: String): String {
 
 fun formatId(id: String): String {
     return titleCase(stripNamespace(id).replace("/", " "))
+}
+
+/**
+ * Translate a block ID using Minecraft's block translation keys.
+ * Falls back to titleCase if no translation exists.
+ */
+fun formatBlockName(id: String): String {
+    val cleaned = id.removePrefix("#")
+    val namespace = if (":" in cleaned) cleaned.substringBefore(":") else "minecraft"
+    val path = cleaned.substringAfter(":")
+    // Try block translation key first
+    val blockKey = "block.$namespace.$path"
+    val translated = tr(blockKey)
+    if (translated != blockKey) return translated
+    // For Cobblemon blocks, also try cobblemon-specific patterns
+    if (namespace == "cobblemon") {
+        val cobbleKey = "block.cobblemon.$path"
+        val cobbleTranslated = tr(cobbleKey)
+        if (cobbleTranslated != cobbleKey) return cobbleTranslated
+    }
+    return titleCase(path.replace("_", " "))
+}
+
+/**
+ * Translate a structure ID. Uses our own translation keys first,
+ * then Minecraft's structure translation keys, then falls back to titleCase.
+ */
+fun formatStructureName(id: String): String {
+    val cleaned = id.removePrefix("#")
+    val path = stripNamespace(cleaned).replace("/", "_")
+    // Try our own translation key
+    val ourKey = "cobbledex-rei-emi-jei.structure.$path"
+    val ourTranslated = tr(ourKey)
+    if (ourTranslated != ourKey) return ourTranslated
+    return titleCase(stripNamespace(cleaned).replace("/", " "))
+}
+
+/**
+ * Translate an ability name using Cobblemon's translation keys.
+ */
+fun formatAbilityName(name: String): String {
+    val key = "cobblemon.ability.${name.lowercase().replace(" ", "").replace("-", "").replace("_", "")}"
+    val translated = tr(key)
+    return if (translated != key) translated else name
+}
+
+/**
+ * Translate an egg group name using Cobblemon's translation keys.
+ */
+fun formatEggGroupName(group: String): String {
+    val normalized = group.lowercase().replace("-", "_").replace(" ", "_")
+    val key = "cobbledex-rei-emi-jei.egg_group.$normalized"
+    val translated = tr(key)
+    if (translated != key) return translated
+    // Fallback to Cobblemon's own key if available
+    val cobbleKey = "cobblemon.egg_group.$normalized"
+    val cobbleTranslated = tr(cobbleKey)
+    if (cobbleTranslated != cobbleKey) return cobbleTranslated
+    return titleCase(group.replace("-", " "))
+}
+
+/**
+ * Translate an EXP group name.
+ */
+fun formatExpGroup(group: String): String {
+    val normalized = group.lowercase().replace(" ", "_")
+    val key = "cobbledex-rei-emi-jei.exp_group.$normalized"
+    val translated = tr(key)
+    return if (translated != key) translated else titleCase(group.replace("_", " "))
+}
+
+/**
+ * Convert tick-based time ranges to human-readable 24h clock format.
+ * Minecraft day ticks: 0 = 6:00, 6000 = 12:00, 12000 = 18:00, 18000 = 0:00, 24000 = 6:00
+ */
+fun formatTimeRange(raw: String): String {
+    // Check for named time ranges first ("day", "night", etc.)
+    val lower = raw.lowercase().trim()
+    if (lower.contains(Regex("[a-z]"))) return titleCase(raw)
+
+    return raw.split(",").joinToString(", ") { segment ->
+        val parts = segment.trim().split("-")
+        if (parts.size == 2) {
+            val start = parts[0].trim().toIntOrNull()
+            val end = parts[1].trim().toIntOrNull()
+            if (start != null && end != null) {
+                "${tickToTime(start)}\u2013${tickToTime(end)}"
+            } else segment.trim()
+        } else segment.trim()
+    }
+}
+
+private fun tickToTime(tick: Int): String {
+    // Minecraft: tick 0 = 6:00 AM, tick 6000 = 12:00, tick 12000 = 18:00, tick 18000 = 0:00
+    val totalMinutes = ((tick + 6000) % 24000) * 60 / 1000
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    return "%02d:%02d".format(hours, minutes)
 }
 
 fun formatBiomeName(id: String): String {

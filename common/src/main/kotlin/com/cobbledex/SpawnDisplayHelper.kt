@@ -106,9 +106,9 @@ object SpawnDisplayHelper {
                 it.contains("day", true) -> "\u2600 "
                 it.contains("night", true) -> "\u263D "
                 it.contains("dusk", true) || it.contains("dawn", true) -> "\u263C "
-                else -> ""
+                else -> "\u23F0 "
             }
-            list.add("$icon${titleCase(it)}")
+            list.add("$icon${formatTimeRange(it)}")
         }
         val weatherData = spawn.weather
         val weatherText = weatherData.displayText
@@ -154,7 +154,7 @@ object SpawnDisplayHelper {
 
     fun buildSpecials(spawn: SpawnInfo): List<String> {
         val list = mutableListOf<String>()
-        val structNames = spawn.structures.map { formatId(it) }.toSet()
+        val structNames = spawn.structures.map { formatStructureName(it) }.toSet()
         if (structNames.isNotEmpty()) {
             list.add(tr("cobbledex-rei-emi-jei.spawn.special.structure", structNames.joinToString(", ")))
         }
@@ -170,12 +170,12 @@ object SpawnDisplayHelper {
             list.add(tr("cobbledex-rei-emi-jei.spawn.special.in_fluid", name))
         }
         if (spawn.neededBaseBlocks.isNotEmpty()) {
-            val names = spawn.neededBaseBlocks.map { formatId(it) }
+            val names = spawn.neededBaseBlocks.map { formatBlockName(it) }
             val redundant = structNames.isNotEmpty() && names.all { it.lowercase().contains("structure") }
             if (!redundant) list.add(tr("cobbledex-rei-emi-jei.spawn.special.spawns_on", names.joinToString(", ")))
         }
         if (spawn.neededNearbyBlocks.isNotEmpty()) {
-            val names = spawn.neededNearbyBlocks.map { formatId(it) }
+            val names = spawn.neededNearbyBlocks.map { formatBlockName(it) }
             val redundant = structNames.isNotEmpty() && names.all { it.lowercase().contains("structure") }
             if (!redundant) list.add(tr("cobbledex-rei-emi-jei.spawn.special.near", names.joinToString(", ")))
         }
@@ -188,14 +188,14 @@ object SpawnDisplayHelper {
             lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.biomes", anti.biomes.map { formatBiomeName(it) }.joinToString(", ")))
         }
         if (anti.structures.isNotEmpty()) {
-            lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.structures", anti.structures.map { formatId(it) }.joinToString(", ")))
+            lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.structures", anti.structures.map { formatStructureName(it) }.joinToString(", ")))
         }
         if (anti.minY != null || anti.maxY != null) {
             val r = listOfNotNull(anti.minY?.let { "Y \u2265 $it" }, anti.maxY?.let { "Y \u2264 $it" })
             lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.height", r.joinToString(", ")))
         }
         if (anti.timeRange != null) {
-            lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.time", titleCase(anti.timeRange)))
+            lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.time", formatTimeRange(anti.timeRange)))
         }
         if (anti.dimensions.isNotEmpty()) {
             lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.dimensions", anti.dimensions.map { formatDimension(it) }.joinToString(", ")))
@@ -941,11 +941,11 @@ object SpawnDisplayHelper {
             layout.text(padding, tr("cobbledex-rei-emi-jei.info.abilities"), 0xEEEEEE)
             layout.line()
             for (ability in data.abilities) {
-                layout.text(indentX, "\u2022 $ability", 0xFF88CCFF.toInt())
+                layout.text(indentX, "\u2022 ${formatAbilityName(ability)}", 0xFF88CCFF.toInt())
                 layout.line()
             }
             data.hiddenAbility?.let { ha ->
-                layout.text(indentX, "\u2022 $ha ${tr("cobbledex-rei-emi-jei.info.hidden_ability")}", 0xFF66AADD.toInt())
+                layout.text(indentX, "\u2022 ${formatAbilityName(ha)} ${tr("cobbledex-rei-emi-jei.info.hidden_ability")}", 0xFF66AADD.toInt())
                 layout.line()
             }
             layout.gap(3)
@@ -954,7 +954,7 @@ object SpawnDisplayHelper {
         if (data.eggGroups.isNotEmpty()) {
             layout.text(padding, tr("cobbledex-rei-emi-jei.info.egg_groups"), 0xEEEEEE)
             layout.line()
-            val groupText = data.eggGroups.joinToString(", ") { titleCase(it.replace("-", " ")) }
+            val groupText = data.eggGroups.joinToString(", ") { formatEggGroupName(it) }
             layout.wrapped(indentX, groupText, indentWidth, 0xFFDDDD88.toInt())
             layout.gap(3)
         }
@@ -998,7 +998,7 @@ object SpawnDisplayHelper {
             layout.text(padding, tr("cobbledex-rei-emi-jei.info.training"), 0xEEEEEE)
             layout.line()
             data.experienceGroup?.let { group ->
-                layout.text(indentX, tr("cobbledex-rei-emi-jei.info.exp_group", titleCase(group.replace("_", " "))), 0xBBBBBB)
+                layout.text(indentX, tr("cobbledex-rei-emi-jei.info.exp_group", formatExpGroup(group)), 0xBBBBBB)
                 layout.line()
             }
             data.baseExperienceYield?.let { exp ->

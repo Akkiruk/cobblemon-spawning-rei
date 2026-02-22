@@ -2,6 +2,15 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.39.9] - 2026-02-22
+
+### Fixed
+- Chinese (zh_cn) localization: ability names, egg groups, EXP groups now use proper translation keys instead of raw English
+- Structure and block names in spawn conditions now use Minecraft/Cobblemon translation keys for proper localization
+- Time ranges in spawn conditions display as human-readable 24h clock (e.g., "18:00–06:00") instead of raw tick values
+- Added ~65 new translation keys for structures, egg groups, and EXP groups in both en_us and zh_cn
+- Synced 10 missing translation keys to zh_cn (evolution, tooltip, and category keys)
+
 ## [1.39.8] - 2026-02-21
 
 ### Changed
