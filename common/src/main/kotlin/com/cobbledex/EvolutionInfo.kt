@@ -34,6 +34,8 @@ data class EvolutionInfo(
 
     val displayRequirements: String
         get() {
+            if (variant == "form_change" && requiredContext != null) return appendVariantNote(requiredContext)
+
             val parts = mutableListOf<String>()
 
             if (requiredContext != null && requiredContext.isNotBlank()) {
@@ -101,6 +103,8 @@ data class EvolutionInfo(
 
     val textOnlyRequirements: String
         get() {
+            if (variant == "form_change" && requiredContext != null) return appendVariantNote(requiredContext)
+
             val parts = mutableListOf<String>()
             if (variant == "trade") parts.add(tr("cobbledex-rei-emi-jei.evo.trade"))
             for (req in requirements) {

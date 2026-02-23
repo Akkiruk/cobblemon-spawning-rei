@@ -1507,7 +1507,9 @@ object SpawnDisplayHelper {
                 form.formKey, form.formAspects, padding + 2, layout.y, SlotRole.INPUT,
                 disableBackground = false, disableHighlight = false
             ))
-            layout.textAt(padding + 2 + afterIcon, layout.y + 5, form.formDisplayName, 0xFFFFFF)
+            val nameX = padding + 2 + afterIcon
+            val clippedName = clipToWidth(font, form.formDisplayName, right - nameX - 2)
+            layout.textAt(nameX, layout.y + 5, clippedName, 0xFFFFFF)
             layout.gap(22)
 
             // Types

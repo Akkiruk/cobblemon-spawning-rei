@@ -157,7 +157,7 @@ object EvolutionChainBuilder {
                 toAspects = info.formAspects,
                 variant = "form_change",
                 requirements = emptyList(),
-                requiredContext = null,
+                requiredContext = requirement,
                 consumeHeldItem = false
             )
 

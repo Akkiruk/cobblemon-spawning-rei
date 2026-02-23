@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.41.1] - 2026-02-23
+
+### Fixed
+- Evolution chain arrows for Mega/Primal/Gmax/Ultra Burst forms now show the correct label instead of "Level up"
+- Form display names are now clipped to prevent text overflow on long names
+
 ## [1.41.0] - 2026-02-23
 
 ### Added
