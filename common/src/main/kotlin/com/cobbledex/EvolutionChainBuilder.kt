@@ -182,6 +182,7 @@ object EvolutionChainBuilder {
         for (species in SpawnDataIndex.allSpeciesNames) {
             val normalized = SpeciesNameNormalizer.normalize(species)
             if (normalized in processed) continue
+            if (SpawnDataIndex.getSpeciesInfo(species)?.baseSpeciesName != null) continue // skip form entries (O4)
 
             val hasEvosFrom = SpawnDataIndex.getEvolutionsFrom(species).isNotEmpty()
             val hasEvosTo = SpawnDataIndex.getEvolutionsTo(species).isNotEmpty()

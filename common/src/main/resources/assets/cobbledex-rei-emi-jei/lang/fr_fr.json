@@ -401,5 +401,6 @@
   "cobbledex-rei-emi-jei.biome.snowy_slopes": "Pentes enneigées",
   "cobbledex-rei-emi-jei.biome.sunflower_plains": "Plaines de tournesols",
   "cobbledex-rei-emi-jei.biome.windswept_forest": "Forêt venteuse",
-  "cobbledex-rei-emi-jei.moves.pow_acc": "Pui | Pré"
+  "cobbledex-rei-emi-jei.moves.pow_acc": "Pui | Pré",
+  "cobbledex-rei-emi-jei.display.form_name": "%1$s (%2$s)"
 }

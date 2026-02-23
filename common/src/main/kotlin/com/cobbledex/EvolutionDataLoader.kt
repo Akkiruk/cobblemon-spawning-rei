@@ -375,7 +375,10 @@ object EvolutionDataLoader {
         val eggMoves: List<MoveDetail>? = null,
         val tutorMoves: List<MoveDetail>? = null,
         val tmMoves: List<MoveDetail>? = null,
-        val shoulderMountable: Boolean = false
+        val shoulderMountable: Boolean = false,
+        val formName: String? = null,
+        val baseSpeciesName: String? = null,
+        val formAspects: Set<String> = emptySet()
     )
 
     fun loadSpeciesBasicInfoFromRuntime(): Map<String, SpeciesBasicInfo> {
@@ -533,61 +536,239 @@ object EvolutionDataLoader {
             }
         }
 
-        // Load mega forms as separate entries
-        var megaCount = 0
-        for (species in implemented) {
-            for (megaForm in species.forms) {
-                if (!megaForm.labels.contains("mega")) continue
-                try {
-                    val megaKey = "${species.name.lowercase()}-${megaForm.name.lowercase()}"
-
-                    val megaStats = try {
-                        val statMap = mutableMapOf<String, Int>()
-                        for (stat in Stats.PERMANENT) {
-                            val value = megaForm.baseStats[stat] ?: species.baseStats[stat] ?: 0
-                            statMap[stat.showdownId] = value
+        // Load alternate forms as separate entries
+        if (com.cobbledex.config.CobbleDexConfig.get().showAlternateForms) {
+            var formCount = 0
+            for (species in implemented) {
+                val baseName = species.name.lowercase()
+                val baseForm = try { species.standardForm } catch (_: Exception) { null }
+                for (form in try { species.forms } catch (_: Exception) { emptyList() }) {
+                    if (!shouldIncludeForm(species, form, baseForm)) continue
+                    try {
+                        val formKey = buildFormEntryKey(baseName, form, species)
+                        val info = buildFormSpeciesInfo(formKey, species, form, baseForm)
+                        val existing = result[formKey]
+                        if (existing != null) {
+                            // Merge: form data fills in gaps (O3 regional dedup)
+                            result[formKey] = mergeFormInfo(existing, info)
+                        } else {
+                            result[formKey] = info
                         }
-                        statMap.ifEmpty { null }
-                    } catch (_: Exception) { null }
-
-                    val megaBst = megaStats?.values?.sum()
-
-                    val megaAbilities = try {
-                        val common = mutableListOf<String>()
-                        var hidden: String? = null
-                        for (ability in megaForm.abilities) {
-                            val abilityName = titleCase(ability.template.name)
-                            if (ability is HiddenAbility) hidden = abilityName
-                            else common.add(abilityName)
-                        }
-                        Pair(common.ifEmpty { null }, hidden)
-                    } catch (_: Exception) { Pair(null, null) }
-
-                    val megaPrimary = try { megaForm.primaryType?.name?.lowercase() ?: species.primaryType?.name?.lowercase() ?: "normal" } catch (_: Exception) { "normal" }
-                    val megaSecondary = try { megaForm.secondaryType?.name?.lowercase() ?: species.secondaryType?.name?.lowercase() } catch (_: Exception) { null }
-
-                    result[megaKey] = SpeciesBasicInfo(
-                        name = megaKey,
-                        nationalDexNumber = try { species.nationalPokedexNumber } catch (_: Exception) { 0 },
-                        primaryType = megaPrimary,
-                        secondaryType = megaSecondary,
-                        catchRate = try { species.catchRate } catch (_: Exception) { 45 },
-                        weight = try { species.weight } catch (_: Exception) { 0f },
-                        height = try { species.height } catch (_: Exception) { 0f },
-                        baseStats = megaStats,
-                        baseStatTotal = megaBst,
-                        abilities = megaAbilities.first,
-                        hiddenAbility = megaAbilities.second,
-                        labels = megaForm.labels.ifEmpty { null }
-                    )
-                    megaCount++
-                } catch (e: Exception) {
-                    DebugLog.once("mega-${species.name}-${megaForm.name}") { "Failed to load mega form: ${e.message}" }
+                        formCount++
+                    } catch (e: Exception) {
+                        DebugLog.once("form-${species.name}-${form.name}") { "Failed to load form: ${e.message}" }
+                    }
                 }
             }
+            DebugLog.info("Loaded ${result.size} species from runtime API ($dropSpeciesCount with drops, $formCount alternate forms)")
+        } else {
+            DebugLog.info("Loaded ${result.size} species from runtime API ($dropSpeciesCount with drops, alternate forms disabled)")
         }
 
-        DebugLog.info("Loaded ${result.size} species from runtime API ($dropSpeciesCount with drops, $megaCount mega forms)")
         return result
+    }
+
+    private val SIGNIFICANT_LABELS = setOf(
+        "mega", "primal", "ultra_burst", "gmax",
+        "alolan_form", "galarian_form", "hisuian_form", "paldean_form"
+    )
+
+    private val REGIONAL_LABEL_TO_SUFFIX = mapOf(
+        "alolan_form" to "alolan",
+        "galarian_form" to "galarian",
+        "hisuian_form" to "hisuian",
+        "paldean_form" to "paldean"
+    )
+
+    private fun shouldIncludeForm(species: com.cobblemon.mod.common.pokemon.Species, form: com.cobblemon.mod.common.pokemon.FormData, baseForm: com.cobblemon.mod.common.pokemon.FormData?): Boolean {
+        if (baseForm != null && form == baseForm) return false
+        if (form.name.isBlank()) return false
+
+        if (form.labels.any { it in SIGNIFICANT_LABELS }) return true
+
+        val base = baseForm ?: return false
+        val typeDiffers = form.primaryType != base.primaryType || form.secondaryType != base.secondaryType
+        val statsDiffer = form.baseStats != base.baseStats && form.baseStats.isNotEmpty()
+        val abilitiesDiffer = try {
+            val formAbilityList = form.abilities.toList()
+            val baseAbilityList = base.abilities.toList()
+            formAbilityList != baseAbilityList && formAbilityList.isNotEmpty()
+        } catch (_: Exception) { false }
+
+        return typeDiffers || statsDiffer || abilitiesDiffer
+    }
+
+    private fun buildFormEntryKey(baseName: String, form: com.cobblemon.mod.common.pokemon.FormData, species: com.cobblemon.mod.common.pokemon.Species): String {
+        // Regional forms reuse SpeciesNameNormalizer's pattern for dedup with spawn data (O3)
+        val regionalLabel = form.labels.firstOrNull { it in REGIONAL_LABEL_TO_SUFFIX }
+        if (regionalLabel != null) {
+            val suffix = REGIONAL_LABEL_TO_SUFFIX[regionalLabel]!!
+            return "${SpeciesNameNormalizer.normalize(baseName)}$suffix"
+        }
+        // Non-regional: underscore-separated normalized key (O12)
+        val normalizedFormName = form.name.lowercase().replace(Regex("[^a-z0-9]"), "")
+        return "${SpeciesNameNormalizer.normalize(baseName)}_$normalizedFormName"
+    }
+
+    private fun buildFormSpeciesInfo(
+        formKey: String,
+        species: com.cobblemon.mod.common.pokemon.Species,
+        form: com.cobblemon.mod.common.pokemon.FormData,
+        baseForm: com.cobblemon.mod.common.pokemon.FormData?
+    ): SpeciesBasicInfo {
+        val baseName = species.name.lowercase()
+
+        val stats = try {
+            val statMap = mutableMapOf<String, Int>()
+            for (stat in Stats.PERMANENT) {
+                val value = if (form.baseStats.isNotEmpty()) {
+                    form.baseStats[stat] ?: species.baseStats[stat] ?: 0
+                } else {
+                    species.baseStats[stat] ?: 0
+                }
+                statMap[stat.showdownId] = value
+            }
+            statMap.ifEmpty { null }
+        } catch (_: Exception) { null }
+
+        val bst = stats?.values?.sum()
+
+        val abilityNames = try {
+            val common = mutableListOf<String>()
+            var hidden: String? = null
+            val abilities = form.abilities.toList().let { if (it.isNotEmpty()) it else baseForm?.abilities?.toList() ?: emptyList() }
+            for (ability in abilities) {
+                val abilityName = titleCase(ability.template.name)
+                if (ability is HiddenAbility) hidden = abilityName
+                else common.add(abilityName)
+            }
+            Pair(common.ifEmpty { null }, hidden)
+        } catch (_: Exception) { Pair(null, null) }
+
+        val primaryType = try { form.primaryType?.name?.lowercase() ?: species.primaryType?.name?.lowercase() ?: "normal" } catch (_: Exception) { "normal" }
+        val secondaryType = try { form.secondaryType?.name?.lowercase() ?: species.secondaryType?.name?.lowercase() } catch (_: Exception) { null }
+
+        val eggGroups = try {
+            val groups = form.eggGroups.ifEmpty { species.eggGroups }
+            groups.map { it.showdownID }.ifEmpty { null }
+        } catch (_: Exception) { null }
+
+        val description = try {
+            val key = form.pokedex.firstOrNull() ?: species.pokedex.firstOrNull()
+            if (key != null && key.isNotBlank()) key else null
+        } catch (_: Exception) { null }
+
+        val drops = try {
+            val entries = form.drops.entries
+                .filterIsInstance<ItemDropEntry>()
+                .map { entry ->
+                    DropEntryInfo(
+                        itemId = entry.item.toString(),
+                        percentage = entry.percentage,
+                        quantity = entry.quantity,
+                        quantityRange = entry.quantityRange?.let { "${it.first}-${it.last}" }
+                    )
+                }
+            entries.ifEmpty { null }
+        } catch (_: Exception) { null }
+
+        val evYield = try {
+            val yieldMap = mutableMapOf<String, Int>()
+            for (stat in Stats.PERMANENT) {
+                val value = form.evYield[stat] ?: 0
+                if (value > 0) yieldMap[stat.showdownId] = value
+            }
+            yieldMap.ifEmpty { null }
+        } catch (_: Exception) { null }
+
+        val levelUpMoves = try {
+            val moves = form.moves.levelUpMoves
+            if (moves.isNotEmpty()) {
+                val grouped = mutableMapOf<Int, MutableList<MoveDetail>>()
+                for ((level, moveList) in moves) {
+                    for (move in moveList) {
+                        grouped.getOrPut(level) { mutableListOf() }.add(toMoveDetail(move))
+                    }
+                }
+                grouped.entries.sortedBy { it.key }
+                    .map { LevelUpMove(it.key, it.value) }
+                    .ifEmpty { null }
+            } else null
+        } catch (_: Exception) { null }
+
+        val eggMoves = try {
+            form.moves.eggMoves.map { toMoveDetail(it) }.ifEmpty { null }
+        } catch (_: Exception) { null }
+
+        val tutorMoves = try {
+            form.moves.tutorMoves.map { toMoveDetail(it) }.ifEmpty { null }
+        } catch (_: Exception) { null }
+
+        val tmMoves = try {
+            form.moves.tmMoves.map { toMoveDetail(it) }.ifEmpty { null }
+        } catch (_: Exception) { null }
+
+        // Build the form name for i18n: preserve original casing with hyphens (e.g. "mega-x", "therian")
+        val rawFormName = form.name.lowercase()
+
+        // Build formAspects for rendering
+        val formAspects = form.aspects.toSet()
+
+        return SpeciesBasicInfo(
+            name = formKey,
+            nationalDexNumber = try { species.nationalPokedexNumber } catch (_: Exception) { 0 },
+            primaryType = primaryType,
+            secondaryType = secondaryType,
+            catchRate = try { form.catchRate } catch (_: Exception) { try { species.catchRate } catch (_: Exception) { 45 } },
+            weight = try { form.weight } catch (_: Exception) { try { species.weight } catch (_: Exception) { 0f } },
+            height = try { form.height } catch (_: Exception) { try { species.height } catch (_: Exception) { 0f } },
+            baseStats = stats,
+            baseStatTotal = bst,
+            evYield = evYield,
+            abilities = abilityNames.first,
+            hiddenAbility = abilityNames.second,
+            eggGroups = eggGroups,
+            labels = form.labels.ifEmpty { null },
+            preEvolution = try { species.preEvolution?.species?.name?.lowercase() } catch (_: Exception) { null },
+            description = description,
+            drops = drops,
+            maleRatio = try { species.maleRatio } catch (_: Exception) { null },
+            eggCycles = try { species.eggCycles } catch (_: Exception) { null },
+            experienceGroup = try { species.experienceGroup.name } catch (_: Exception) { null },
+            baseExperienceYield = try { species.baseExperienceYield } catch (_: Exception) { null },
+            baseFriendship = try { species.baseFriendship } catch (_: Exception) { null },
+            levelUpMoves = levelUpMoves,
+            eggMoves = eggMoves,
+            tutorMoves = tutorMoves,
+            tmMoves = tmMoves,
+            shoulderMountable = try { species.shoulderMountable } catch (_: Exception) { false },
+            formName = rawFormName,
+            baseSpeciesName = baseName,
+            formAspects = formAspects
+        )
+    }
+
+    /** Merge a form entry into an existing one (e.g. regional form dedup — O3) */
+    private fun mergeFormInfo(existing: SpeciesBasicInfo, incoming: SpeciesBasicInfo): SpeciesBasicInfo {
+        return existing.copy(
+            primaryType = incoming.primaryType,
+            secondaryType = incoming.secondaryType,
+            baseStats = incoming.baseStats ?: existing.baseStats,
+            baseStatTotal = incoming.baseStatTotal ?: existing.baseStatTotal,
+            evYield = incoming.evYield ?: existing.evYield,
+            abilities = incoming.abilities ?: existing.abilities,
+            hiddenAbility = incoming.hiddenAbility ?: existing.hiddenAbility,
+            eggGroups = incoming.eggGroups ?: existing.eggGroups,
+            labels = incoming.labels ?: existing.labels,
+            description = incoming.description ?: existing.description,
+            drops = incoming.drops ?: existing.drops,
+            levelUpMoves = incoming.levelUpMoves ?: existing.levelUpMoves,
+            eggMoves = incoming.eggMoves ?: existing.eggMoves,
+            tutorMoves = incoming.tutorMoves ?: existing.tutorMoves,
+            tmMoves = incoming.tmMoves ?: existing.tmMoves,
+            formName = incoming.formName ?: existing.formName,
+            baseSpeciesName = incoming.baseSpeciesName ?: existing.baseSpeciesName,
+            formAspects = incoming.formAspects.ifEmpty { existing.formAspects }
+        )
     }
 }

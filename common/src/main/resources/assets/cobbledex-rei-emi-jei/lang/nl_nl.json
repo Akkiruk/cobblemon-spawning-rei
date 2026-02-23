@@ -401,5 +401,6 @@
   "cobbledex-rei-emi-jei.biome.snowy_slopes": "Besneeuwde hellingen",
   "cobbledex-rei-emi-jei.biome.sunflower_plains": "Zonnebloemvlaktes",
   "cobbledex-rei-emi-jei.biome.windswept_forest": "Stormachtig bos",
-  "cobbledex-rei-emi-jei.moves.pow_acc": "Kra | Nau"
+  "cobbledex-rei-emi-jei.moves.pow_acc": "Kra | Nau",
+  "cobbledex-rei-emi-jei.display.form_name": "%1$s (%2$s)"
 }

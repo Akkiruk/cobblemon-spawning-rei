@@ -401,5 +401,6 @@
   "cobbledex-rei-emi-jei.biome.snowy_slopes": "눈 덮인 경사면",
   "cobbledex-rei-emi-jei.biome.sunflower_plains": "해바라기 평원",
   "cobbledex-rei-emi-jei.biome.windswept_forest": "바람이 휘몰아치는 숲",
-  "cobbledex-rei-emi-jei.moves.pow_acc": "위력 | 명중"
+  "cobbledex-rei-emi-jei.moves.pow_acc": "위력 | 명중",
+  "cobbledex-rei-emi-jei.display.form_name": "%1$s (%2$s)"
 }

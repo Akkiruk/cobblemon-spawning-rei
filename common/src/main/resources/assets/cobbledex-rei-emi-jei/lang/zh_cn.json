@@ -473,5 +473,6 @@
   "cobbledex-rei-emi-jei.structure.trail_ruins": "古道废墟",
   "cobbledex-rei-emi-jei.structure.ocean_ruin_cold": "寒带海底废墟",
   "cobbledex-rei-emi-jei.structure.ocean_ruin_warm": "暖带海底废墟",
-  "cobbledex-rei-emi-jei.structure.trial_chambers": "试炼密室"
+  "cobbledex-rei-emi-jei.structure.trial_chambers": "试炼密室",
+  "cobbledex-rei-emi-jei.display.form_name": "%1$s (%2$s)"
 }

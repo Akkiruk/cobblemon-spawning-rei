@@ -41,13 +41,28 @@ object PokemonItemCache {
                 return resolved
             }
         }
+
+        // Fallback for form keys: resolve via baseSpeciesName (O2)
+        val formInfo = SpawnDataIndex.getSpeciesInfo(normalized)
+        if (formInfo?.baseSpeciesName != null) {
+            val baseSpecies = try { PokemonSpecies.getByName(formInfo.baseSpeciesName) } catch (_: Exception) { null }
+            if (baseSpecies != null) {
+                speciesCache[normalized] = baseSpecies
+                return baseSpecies
+            }
+        }
+
         return null
     }
 
     fun getItem(name: String, explicitAspects: Set<String> = emptySet()): ItemStack? {
         val normalized = SpeciesNameNormalizer.normalize(name)
         val decomp = SpeciesNameNormalizer.decomposeFormSpecies(normalized)
-        val aspects = explicitAspects.ifEmpty { decomp.cobblemonAspects }
+        val aspects = explicitAspects.ifEmpty {
+            decomp.cobblemonAspects.ifEmpty {
+                SpawnDataIndex.getSpeciesInfo(name)?.formAspects ?: emptySet()
+            }
+        }
         val cacheKey = if (aspects.isEmpty()) normalized else "$normalized|${aspects.sorted().joinToString(",")}"
         itemCache[cacheKey]?.let { return it.copy() }
         val species = resolveSpecies(name) ?: return null

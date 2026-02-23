@@ -2,6 +2,20 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.40.0] - 2026-02-23
+
+### Added
+- Alternate form support: Mega evolutions, Primal forms, Therian/Origin/Gmax forms, and other significant alternate forms now appear as separate browsable entries with their own stats, types, abilities, moves, and pokedex info
+- ~150+ form entries including 48 Megas, 34 Gmax, regional forms, Therian formes, Origin formes, Primal reversions, and more
+- Form names use Cobblemon's i18n translation system — displays correctly in all 28 supported languages
+- Config option `showAlternateForms` to toggle form entries on/off
+- Regional forms (Alolan, Galarian, Hisuian, Paldean) merge with existing spawn data entries instead of creating duplicates
+
+### Fixed
+- Form entries now correctly resolve sprites via the PokemonItem rendering system
+- Evolution chain builder no longer creates orphan chains for form entries
+- Species name display for non-regional forms no longer produces garbled names
+
 ## [1.39.10] - 2026-02-22
 
 ### Fixed

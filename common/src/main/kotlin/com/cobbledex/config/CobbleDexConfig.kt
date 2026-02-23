@@ -18,6 +18,7 @@ data class CobbleDexConfig(
     val showTypeChart: Boolean = true,
     val showNatures: Boolean = true,
     val showJobs: Boolean = true,
+    val showAlternateForms: Boolean = true,
     val debugMode: Boolean = false
 ) {
     companion object {

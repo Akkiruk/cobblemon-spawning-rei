@@ -135,8 +135,30 @@ fun titleCase(raw: String): String {
 /**
  * Format a species name for display using Cobblemon's translation system.
  * Respects the client's language setting (e.g. French: "Bulbasaur" → "Bulbizarre").
+ * For form entries, uses Cobblemon's form translation keys at render time (O11).
  */
 fun formatSpeciesName(speciesName: String): String {
+    // Check if this is a form entry with stored form metadata
+    val info = SpawnDataIndex.getSpeciesInfo(speciesName)
+    if (info?.formName != null && info.baseSpeciesName != null) {
+        val speciesKey = "cobblemon.species.${info.baseSpeciesName}.name"
+        val translatedSpecies = tr(speciesKey).let {
+            if (it == speciesKey) titleCase(SpeciesNameNormalizer.toDisplayName(info.baseSpeciesName)) else it
+        }
+        // Try specific form key first, then generic, then titleCase fallback
+        val formNameLower = info.formName
+        val specificFormKey = "cobblemon.ui.pokedex.info.form.${info.baseSpeciesName}-$formNameLower"
+        val genericFormKey = "cobblemon.ui.pokedex.info.form.$formNameLower"
+        // Also try with hyphens preserved (Cobblemon uses inconsistent separators)
+        val translatedForm = tr(specificFormKey).let { specific ->
+            if (specific == specificFormKey) tr(genericFormKey).let { generic ->
+                if (generic == genericFormKey) titleCase(formNameLower.replace("-", " "))
+                else generic
+            } else specific
+        }
+        return tr("cobbledex-rei-emi-jei.display.form_name", translatedSpecies, translatedForm)
+    }
+
     val decomp = SpeciesNameNormalizer.decomposeFormSpecies(speciesName)
     val translationKey = "cobblemon.species.${decomp.baseName}.name"
     val translated = tr(translationKey)
