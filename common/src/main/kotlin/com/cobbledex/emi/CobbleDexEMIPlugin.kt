@@ -57,6 +57,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
         // Register Pokémon entries
         var registered = 0
         for (species in SpawnDataIndex.allSpeciesNames) {
+            if (SpawnDataIndex.getSpeciesInfo(species)?.baseSpeciesName != null) continue
             val item = PokemonItemCache.getItem(species) ?: continue
             if (item.isEmpty) continue
             // Add job names as invisible lore for EMI search indexing (black text = invisible on tooltip)

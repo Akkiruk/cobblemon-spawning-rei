@@ -76,6 +76,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
                         ingredientManager.removeIngredientsAtRuntime(PokemonIngredientType, existing)
                     }
                     val updated = SpawnDataIndex.allSpeciesNames
+                        .filter { SpawnDataIndex.getSpeciesInfo(it)?.baseSpeciesName == null }
                         .filter { PokemonItemCache.canRender(it) }
                         .map { PokemonIngredient(it) }
                     ingredientManager.addIngredientsAtRuntime(PokemonIngredientType, updated)
@@ -95,6 +96,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
     override fun registerIngredients(registration: IModIngredientRegistration) {
         SpawnDataIndex.ensureLoaded()
         val allPokemon = SpawnDataIndex.allSpeciesNames
+            .filter { SpawnDataIndex.getSpeciesInfo(it)?.baseSpeciesName == null }
             .filter { PokemonItemCache.canRender(it) }
             .map { PokemonIngredient(it) }
 

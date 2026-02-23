@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.40.1] - 2026-02-23
+
+### Changed
+- Form entries (Mega, Primal, Therian, etc.) no longer appear in the REI/JEI/EMI search sidebar to avoid visual clutter — form data is still loaded and their recipe pages still exist when navigated to from a base species
+
 ## [1.40.0] - 2026-02-23
 
 ### Added
