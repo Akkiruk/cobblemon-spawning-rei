@@ -78,7 +78,7 @@ interface DexCategory {
         val ALL: List<DexCategory> = listOf(
             SpawnDex, EvolutionDex, ObtainmentDex, DropDex,
             StatsDex, MovesDex, PokedexInfoDex, PokemonDescriptionDex, FossilDex,
-            TypeChartDex, NatureDex, JobsDex
+            TypeChartDex, NatureDex, JobsDex, FormsDex
         )
     }
 }
@@ -465,4 +465,43 @@ object JobsDex : DexCategory {
         layoutFactory = { SpawnDisplayHelper.buildJobLayout(d.speciesName, d.match) },
         _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
     )
+}
+
+// ----- Alternate Forms -----
+
+object FormsDex : DexCategory {
+    override val id = "forms"
+    override val titleKey = "category.cobbledex-rei-emi-jei.forms"
+    override val icon: Item = Items.AMETHYST_SHARD
+    override val maxSize = DisplayLayout::getMaxFormsSize
+    override val supportsRecipeTree = true
+    override fun isEnabled(config: CobbleDexConfig) = config.showAlternateForms
+
+    override fun buildAllRecipes(): List<RecipeHandle> {
+        return RecipeBuilder.buildAllFormRecipes().map(::toHandle)
+    }
+
+    override fun buildRecipesFor(species: String): List<RecipeHandle> {
+        val data = RecipeBuilder.buildFormsFor(species) ?: return emptyList()
+        return listOf(toHandle(data))
+    }
+
+    private fun toHandle(d: FormRecipeData): RecipeHandle {
+        val allFormKeys = d.forms.map { it.formKey }
+        var formResult: SpawnDisplayHelper.FormLayoutResult? = null
+        return RecipeHandle(
+            recipeIdPath = "forms/${sanitizePath(d.baseSpeciesName)}",
+            inputSpecies = listOf(d.baseSpeciesName) + allFormKeys,
+            outputSpecies = emptyList(),
+            layoutFactory = {
+                val r = SpawnDisplayHelper.buildFormLayout(d)
+                formResult = r
+                r.layout
+            },
+            _slots = { _ ->
+                val r = formResult ?: SpawnDisplayHelper.buildFormLayout(d).also { formResult = it }
+                RecipeHandle.Slots(pokemon = r.pokemonSlots)
+            },
+        )
+    }
 }

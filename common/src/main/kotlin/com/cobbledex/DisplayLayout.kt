@@ -30,6 +30,7 @@ object DisplayLayout {
     @Volatile private var cachedTypeChartMax: PanelSize? = null
     @Volatile private var cachedNatureMax: PanelSize? = null
     @Volatile private var cachedJobsMax: PanelSize? = null
+    @Volatile private var cachedFormsMax: PanelSize? = null
     @Volatile private var cachedDataVersion: Long = -1L
 
     fun invalidateCache() {
@@ -45,6 +46,7 @@ object DisplayLayout {
         cachedTypeChartMax = null
         cachedNatureMax = null
         cachedJobsMax = null
+        cachedFormsMax = null
         cachedDataVersion = -1L
     }
 
@@ -120,6 +122,12 @@ object DisplayLayout {
         return computeMaxJobsSize().also { cachedJobsMax = it }
     }
 
+    fun getMaxFormsSize(): PanelSize {
+        checkCacheValidity()
+        cachedFormsMax?.let { return it }
+        return computeMaxFormsSize().also { cachedFormsMax = it }
+    }
+
     private fun checkCacheValidity() {
         val ver = SpawnDataIndex.dataVersion
         if (ver != cachedDataVersion) {
@@ -135,6 +143,7 @@ object DisplayLayout {
             cachedTypeChartMax = null
             cachedNatureMax = null
             cachedJobsMax = null
+            cachedFormsMax = null
             cachedDataVersion = ver
         }
     }
@@ -354,5 +363,19 @@ object DisplayLayout {
             } catch (_: Exception) {}
         }
         return PanelSize(200, maxH.coerceAtMost(300))
+    }
+
+    private fun computeMaxFormsSize(): PanelSize {
+        if (!SpawnDataIndex.hasData()) return PanelSize(200, 120)
+        val recipes = RecipeBuilder.buildAllFormRecipes()
+        if (recipes.isEmpty()) return PanelSize(200, 120)
+        var maxH = 80
+        for (data in recipes) {
+            try {
+                val result = SpawnDisplayHelper.buildFormLayout(data)
+                if (result.layout.height > maxH) maxH = result.layout.height
+            } catch (_: Exception) {}
+        }
+        return PanelSize(200, maxH.coerceAtMost(400))
     }
 }

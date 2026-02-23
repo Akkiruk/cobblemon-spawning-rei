@@ -1468,4 +1468,87 @@ object SpawnDisplayHelper {
         return layout
     }
 
+    // --- Alternate Forms layout ---
+
+    data class FormLayoutResult(
+        val layout: PanelLayout,
+        val pokemonSlots: List<PokemonSlotDef>
+    )
+
+    fun buildFormLayout(data: FormRecipeData): FormLayoutResult {
+        val font = Minecraft.getInstance().font
+        val padding = PanelLayout.PADDING
+        val headerTag = tr("category.cobbledex-rei-emi-jei.forms")
+        val iconSize = 20
+        val afterIcon = iconSize + 2
+        val lineHeight = 13
+
+        val width = 200
+        val layout = PanelLayout(width)
+        val right = layout.right
+        val pokemonSlots = mutableListOf<PokemonSlotDef>()
+
+        // Header: base species name + "Forms" tag
+        val baseDisplay = formatSpeciesName(data.baseSpeciesName)
+        pokemonSlots.add(PokemonSlotDef(data.baseSpeciesName, emptySet(), padding, 2, SlotRole.INPUT))
+        layout.textAt(padding + 22, 6, baseDisplay, 0xFFFFFF)
+        layout.textRightAt(6, headerTag, 0xDDCC99)
+        layout.fill(padding, 24, right, 25, 0x50FFFFFF)
+        layout.skipTo(30)
+
+        val formCount = tr("cobbledex-rei-emi-jei.forms.count", data.forms.size)
+        layout.text(padding, formCount, 0x888888)
+        layout.line()
+        layout.gap(2)
+
+        for (form in data.forms) {
+            // Form sprite + name
+            pokemonSlots.add(PokemonSlotDef(
+                form.formKey, form.formAspects, padding + 2, layout.y, SlotRole.INPUT,
+                disableBackground = false, disableHighlight = false
+            ))
+            layout.textAt(padding + 2 + afterIcon, layout.y + 5, form.formDisplayName, 0xFFFFFF)
+            layout.gap(22)
+
+            // Types
+            val typeStr = buildString {
+                append(formatTypeName(form.primaryType))
+                form.secondaryType?.let { append(" / ${formatTypeName(it)}") }
+            }
+            layout.text(padding + 6, typeStr, typeColor(form.primaryType))
+            layout.gap(lineHeight)
+
+            // Abilities (compact)
+            val allAbilities = buildList {
+                addAll(form.abilities)
+                form.hiddenAbility?.let { add("$it (H)") }
+            }
+            if (allAbilities.isNotEmpty()) {
+                val abilityStr = allAbilities.joinToString(", ")
+                layout.clipped(padding + 6, "\u2605 $abilityStr", right - padding - 6, 0xFF88CCFF.toInt())
+                layout.gap(lineHeight)
+            }
+
+            // BST
+            val bst = form.baseStatTotal
+            if (bst != null) {
+                val bstColor = when {
+                    bst >= 600 -> 0xFFFF5555.toInt()
+                    bst >= 500 -> 0xFFFFCC33.toInt()
+                    bst >= 400 -> 0xFF77CC55.toInt()
+                    else -> 0xFFBBBBBB.toInt()
+                }
+                layout.text(padding + 6, tr("cobbledex-rei-emi-jei.stats.bst", bst), bstColor)
+                layout.gap(lineHeight)
+            }
+
+            layout.separator(0x20FFFFFF)
+            layout.gap(4)
+        }
+
+        layout.gap(padding)
+        return FormLayoutResult(layout, pokemonSlots)
+    }
+
 }
+

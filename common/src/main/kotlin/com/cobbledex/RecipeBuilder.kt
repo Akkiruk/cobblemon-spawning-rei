@@ -334,4 +334,40 @@ object RecipeBuilder {
             TmLearnerRecipeData(sp, moveName, moveDetail, methods, i + 1, total)
         }
     }
+
+    // --- Alternate form recipes ---
+
+    fun buildAllFormRecipes(): List<FormRecipeData> {
+        val formsByBase = mutableMapOf<String, MutableList<FormInfoEntry>>()
+        for ((key, info) in SpawnDataIndex.speciesInfo) {
+            val base = info.baseSpeciesName ?: continue
+            formsByBase.getOrPut(SpeciesNameNormalizer.normalize(base)) { mutableListOf() }
+                .add(toFormEntry(key, info))
+        }
+        return formsByBase.map { (base, forms) -> FormRecipeData(base, forms) }
+    }
+
+    fun buildFormsFor(speciesName: String): FormRecipeData? {
+        val normalized = SpeciesNameNormalizer.normalize(speciesName)
+        val forms = mutableListOf<FormInfoEntry>()
+        for ((key, info) in SpawnDataIndex.speciesInfo) {
+            if (info.baseSpeciesName == null) continue
+            if (SpeciesNameNormalizer.normalize(info.baseSpeciesName) != normalized) continue
+            forms.add(toFormEntry(key, info))
+        }
+        if (forms.isEmpty()) return null
+        return FormRecipeData(normalized, forms)
+    }
+
+    private fun toFormEntry(key: String, info: EvolutionDataLoader.SpeciesBasicInfo) = FormInfoEntry(
+        formKey = key,
+        formDisplayName = formatSpeciesName(key),
+        primaryType = info.primaryType,
+        secondaryType = info.secondaryType,
+        abilities = info.abilities ?: emptyList(),
+        hiddenAbility = info.hiddenAbility,
+        baseStats = info.baseStats,
+        baseStatTotal = info.baseStatTotal,
+        formAspects = info.formAspects
+    )
 }

@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.41.0] - 2026-02-23
+
+### Added
+- New "Alternate Forms" DexCategory: dedicated panel showing all forms for a species with types, abilities, and BST at a glance
+- Evolution chain integration: Mega Evolutions, Primal Reversions, Ultra Burst, and Gigantamax forms now appear as branches in the evolution chain view
+
 ## [1.40.1] - 2026-02-23
 
 ### Changed

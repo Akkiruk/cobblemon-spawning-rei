@@ -402,5 +402,12 @@
   "cobbledex-rei-emi-jei.biome.sunflower_plains": "Sonnenblumenebene",
   "cobbledex-rei-emi-jei.biome.windswept_forest": "Windgepeitschter Wald",
   "cobbledex-rei-emi-jei.moves.pow_acc": "Stk | Gen",
-  "cobbledex-rei-emi-jei.display.form_name": "%1$s (%2$s)"
+  "cobbledex-rei-emi-jei.display.form_name": "%1$s (%2$s)",
+  "category.cobbledex-rei-emi-jei.forms": "Alternate Forms",
+  "cobbledex-rei-emi-jei.forms.count": "%d form(s)",
+  "cobbledex-rei-emi-jei.evo.form_change": "Form Change",
+  "cobbledex-rei-emi-jei.evo.form_change.mega": "Mega Evolution",
+  "cobbledex-rei-emi-jei.evo.form_change.primal": "Primal Reversion",
+  "cobbledex-rei-emi-jei.evo.form_change.ultra_burst": "Ultra Burst",
+  "cobbledex-rei-emi-jei.evo.form_change.gmax": "Gigantamax"
 }

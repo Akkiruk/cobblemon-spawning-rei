@@ -122,7 +122,49 @@ object EvolutionChainBuilder {
             ChainEdge(evo, buildNode(evo.toSpecies, visited))
         }
 
-        return ChainNode(species, emptySet(), formatSpeciesName(species), edges)
+        // Append form-change branches (mega, primal, gmax, ultra_burst)
+        val formEdges = buildFormChangeEdges(normalized, seen)
+
+        return ChainNode(species, emptySet(), formatSpeciesName(species), edges + formEdges)
+    }
+
+    private val EVOLUTION_LIKE_LABELS = setOf("mega", "primal", "ultra_burst", "gmax")
+
+    private fun buildFormChangeEdges(baseNormalized: String, seen: MutableSet<String>): List<ChainEdge> {
+        val edges = mutableListOf<ChainEdge>()
+        for ((key, info) in SpawnDataIndex.speciesInfo) {
+            if (info.baseSpeciesName == null) continue
+            if (SpeciesNameNormalizer.normalize(info.baseSpeciesName) != baseNormalized) continue
+            val labels = info.labels ?: continue
+            if (labels.none { it in EVOLUTION_LIKE_LABELS }) continue
+
+            val keyNorm = SpeciesNameNormalizer.normalize(key)
+            if (!seen.add(keyNorm)) continue
+
+            val requirement = when {
+                labels.any { it == "mega" } -> tr("cobbledex-rei-emi-jei.evo.form_change.mega")
+                labels.any { it == "primal" } -> tr("cobbledex-rei-emi-jei.evo.form_change.primal")
+                labels.any { it == "ultra_burst" } -> tr("cobbledex-rei-emi-jei.evo.form_change.ultra_burst")
+                labels.any { it == "gmax" } -> tr("cobbledex-rei-emi-jei.evo.form_change.gmax")
+                else -> tr("cobbledex-rei-emi-jei.evo.form_change")
+            }
+
+            val syntheticEvo = EvolutionInfo(
+                id = "form_change_${info.formName}",
+                fromSpecies = info.baseSpeciesName,
+                fromAspects = emptySet(),
+                toSpecies = key,
+                toAspects = info.formAspects,
+                variant = "form_change",
+                requirements = emptyList(),
+                requiredContext = null,
+                consumeHeldItem = false
+            )
+
+            val node = ChainNode(key, info.formAspects, formatSpeciesName(key), emptyList())
+            edges.add(ChainEdge(syntheticEvo, node))
+        }
+        return edges
     }
 
     fun flattenChain(root: ChainNode): List<ChainRow> {
