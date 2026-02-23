@@ -51,14 +51,14 @@ class CobbleDexFabricClient : ClientModInitializer {
             }
         }
 
-        // Register Cobbleworkers job sync packet (sent by Cobbleworkers server-side)
+        // Register CobbleCrew job sync packet (sent by CobbleCrew server-side)
         PayloadTypeRegistry.playS2C().register(CobbleworkersJobSyncPayload.TYPE, CobbleworkersJobSyncPayload.CODEC)
         ClientPlayNetworking.registerGlobalReceiver(CobbleworkersJobSyncPayload.TYPE) { payload, context ->
             context.client().execute {
                 try {
                     CobbleworkersJobSyncPayload.applyJobRules(payload.data)
                 } catch (e: Exception) {
-                    CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process Cobbleworkers job sync: ${e.message}")
+                    CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process CobbleCrew job sync: ${e.message}")
                 }
             }
         }

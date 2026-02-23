@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.39.10] - 2026-02-22
+
+### Fixed
+- CobbleCrew job sync: updated packet namespace from "cobbleworkers" to "cobblecrew" to match the rebranded mod ID
+
 ## [1.39.9] - 2026-02-22
 
 ### Fixed

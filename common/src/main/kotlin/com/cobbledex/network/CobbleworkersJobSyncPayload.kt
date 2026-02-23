@@ -12,9 +12,9 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload
 import net.minecraft.resources.ResourceLocation
 
 /**
- * Receives the job_sync packet sent by Cobbleworkers (server-side).
- * Payload ID matches Cobbleworkers' namespace so the server's packet
- * is routed to this handler. CobbleDex does NOT need Cobbleworkers on
+ * Receives the job_sync packet sent by CobbleCrew (server-side).
+ * Payload ID matches CobbleCrew's namespace so the server's packet
+ * is routed to this handler. CobbleDex does NOT need CobbleCrew on
  * the client classpath — just the matching payload ID.
  */
 class CobbleworkersJobSyncPayload(val data: ByteArray) : CustomPacketPayload {
@@ -23,7 +23,7 @@ class CobbleworkersJobSyncPayload(val data: ByteArray) : CustomPacketPayload {
 
     companion object {
         val TYPE = CustomPacketPayload.Type<CobbleworkersJobSyncPayload>(
-            ResourceLocation.fromNamespaceAndPath("cobbleworkers", "job_sync")
+            ResourceLocation.fromNamespaceAndPath("cobblecrew", "job_sync")
         )
 
         private const val MAX_PAYLOAD_SIZE = 1_048_576
@@ -42,7 +42,7 @@ class CobbleworkersJobSyncPayload(val data: ByteArray) : CustomPacketPayload {
             val rules = wireRules.map { it.toJobRule() }
 
             SpawnDataIndex.applyJobRules(rules)
-            DebugLog.info("Received ${rules.size} job rules from Cobbleworkers")
+            DebugLog.info("Received ${rules.size} job rules from CobbleCrew")
         }
     }
 }

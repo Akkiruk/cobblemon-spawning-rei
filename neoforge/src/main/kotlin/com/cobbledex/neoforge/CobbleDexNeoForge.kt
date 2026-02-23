@@ -70,8 +70,8 @@ class CobbleDexNeoForge(modBus: IEventBus) {
             }
         }
 
-        // Register Cobbleworkers job sync packet (sent by Cobbleworkers server-side)
-        val cwRegistrar = event.registrar("cobbleworkers").optional()
+        // Register CobbleCrew job sync packet (sent by CobbleCrew server-side)
+        val cwRegistrar = event.registrar("cobblecrew").optional()
         cwRegistrar.playToClient(
             CobbleworkersJobSyncPayload.TYPE,
             CobbleworkersJobSyncPayload.CODEC
@@ -80,7 +80,7 @@ class CobbleDexNeoForge(modBus: IEventBus) {
                 try {
                     CobbleworkersJobSyncPayload.applyJobRules(payload.data)
                 } catch (e: Exception) {
-                    CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process Cobbleworkers job sync: ${e.message}")
+                    CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process CobbleCrew job sync: ${e.message}")
                 }
             }
         }
