@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.41.2] - 2026-02-23
+
+### Improved
+- Alternate forms now have full individual pages (Stats, Moves, Type Chart, Pokédex Info, Evolution, etc.) accessible by clicking their sprite from the base Pokémon's Forms tab
+- When viewing a form's pages, the Forms tab still appears showing all sibling forms for easy navigation between them
+
 ## [1.41.1] - 2026-02-23
 
 ### Fixed

@@ -482,7 +482,10 @@ object FormsDex : DexCategory {
     }
 
     override fun buildRecipesFor(species: String): List<RecipeHandle> {
-        val data = RecipeBuilder.buildFormsFor(species) ?: return emptyList()
+        // If species is itself a form, show its base species' form list for sibling navigation
+        val info = SpawnDataIndex.getSpeciesInfo(species)
+        val lookupKey = info?.baseSpeciesName ?: species
+        val data = RecipeBuilder.buildFormsFor(lookupKey) ?: return emptyList()
         return listOf(toHandle(data))
     }
 
