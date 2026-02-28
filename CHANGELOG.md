@@ -2,6 +2,13 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.41.3] - 2026-02-28
+
+### Fixed
+- Combo jobs now correctly require ALL listed moves instead of just one
+- Jobs display now shows "Must know all moves:" for combo jobs instead of "Must know one of:"
+- Pokémon that only know one of a combo's two required moves no longer falsely qualify
+
 ## [1.41.2] - 2026-02-23
 
 ### Improved

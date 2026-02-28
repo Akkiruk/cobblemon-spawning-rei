@@ -1361,7 +1361,8 @@ object SpawnDisplayHelper {
         }
 
         if (rule.requiredMoves.isNotEmpty()) {
-            val label = if (rule.requiredMoves.size == 1) "Must know move:" else "Must know one of:"
+            val isCombo = rule.priority.equals("COMBO", ignoreCase = true)
+            val label = if (isCombo) "Must know all moves:" else "Must know move:"
             layout.text(padding + 8, "\u2022 $label", 0xFFBBBBBB.toInt())
             layout.line()
             for (move in rule.requiredMoves) {

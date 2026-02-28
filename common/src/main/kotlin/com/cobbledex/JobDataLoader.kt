@@ -57,14 +57,18 @@ object JobDataLoader {
             }
 
             // Check required moves
-            val matchingMoves = rule.requiredMoves.filter { reqMove ->
-                normalizedMoves.any { it.equals(reqMove, ignoreCase = true) }
-            }
-            if (matchingMoves.isNotEmpty()) {
-                reasons += if (matchingMoves.size == 1) {
-                    "Knows move: ${matchingMoves.first()}"
-                } else {
-                    "Knows moves: ${matchingMoves.joinToString(", ")}"
+            if (rule.requiredMoves.isNotEmpty()) {
+                val isCombo = rule.priority.equals("COMBO", ignoreCase = true)
+                val matchingMoves = rule.requiredMoves.filter { reqMove ->
+                    normalizedMoves.any { it.equals(reqMove, ignoreCase = true) }
+                }
+                if (isCombo) {
+                    // Combo jobs require ALL listed moves
+                    if (matchingMoves.size == rule.requiredMoves.size) {
+                        reasons += "Knows moves: ${matchingMoves.joinToString(" + ")}"
+                    }
+                } else if (matchingMoves.isNotEmpty()) {
+                    reasons += "Knows move: ${matchingMoves.first()}"
                 }
             }
 
