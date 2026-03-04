@@ -155,6 +155,7 @@ class PanelLayout(val width: Int) {
         const val ITEM_ROW_HEIGHT = 20
         const val MIN_WIDTH = 150
         const val MAX_WIDTH = 300
+        const val MAX_HEIGHT = 550
 
         // Content budgets — cap visible items per section, overflow to tooltips
         const val MAX_VISIBLE_BIOMES = 8
@@ -163,6 +164,8 @@ class PanelLayout(val width: Int) {
         const val MAX_VISIBLE_WEIGHT_MODS = 4
         const val MAX_VISIBLE_FORMS = 8
         const val MAX_DESCRIPTION_LINES = 10
+        const val MAX_VISIBLE_CHAIN_ROWS = 30
+        const val MAX_VISIBLE_SPECIALS = 4
 
         fun error(message: String): PanelLayout {
             val layout = PanelLayout(200)

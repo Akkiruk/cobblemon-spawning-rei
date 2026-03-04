@@ -544,9 +544,9 @@ object SpawnDisplayHelper {
                 val moreY = layout.y
                 layout.text(indentX, moreText, 0xFF999999.toInt())
                 layout.line()
-                val overflowTooltip = spawn.biomes.drop(maxBiomes).map { rawId ->
-                    Component.literal(formatBiomeName(rawId)).withStyle { it.withColor(0xDDDDDD) }
-                }
+                val overflowTooltip = spawn.biomes.drop(maxBiomes).flatMap { rawId ->
+                    buildSingleBiomeTooltip(rawId) + listOf(Component.literal(""))
+                }.dropLast(1) // remove trailing blank
                 layout.addTooltipZone(indentX, moreY, layout.font.width(moreText), PanelLayout.LINE_HEIGHT, overflowTooltip)
             }
             layout.gap(PanelLayout.SECTION_GAP)
@@ -577,10 +577,23 @@ object SpawnDisplayHelper {
 
         val specials = buildSpecials(spawn)
         if (specials.isNotEmpty()) {
+            val maxSpecials = PanelLayout.MAX_VISIBLE_SPECIALS
             layout.text(padding, tr("cobbledex-rei-emi-jei.spawn.section.location"), 0xEEEEEE)
             layout.line()
-            for (s in specials) {
+            val visibleSpecials = if (specials.size > maxSpecials) specials.take(maxSpecials) else specials
+            for (s in visibleSpecials) {
                 layout.wrappedCommas(indentX, s, indentWidth, 0xFFCC66)
+            }
+            if (specials.size > maxSpecials) {
+                val overflow = specials.size - maxSpecials
+                val moreText = "+$overflow more..."
+                val moreY = layout.y
+                layout.text(indentX, moreText, 0xFF999999.toInt())
+                layout.line()
+                val overflowTooltip = specials.drop(maxSpecials).map {
+                    Component.literal(it).withStyle { s -> s.withColor(0xFFCC66) }
+                }
+                layout.addTooltipZone(indentX, moreY, layout.font.width(moreText), PanelLayout.LINE_HEIGHT, overflowTooltip)
             }
             layout.gap(PanelLayout.SECTION_GAP)
         }
@@ -856,7 +869,10 @@ object SpawnDisplayHelper {
         layout.line()
         layout.gap(2)
 
-        for (row in rows) {
+        val maxRows = PanelLayout.MAX_VISIBLE_CHAIN_ROWS
+        val visibleRows = if (rows.size > maxRows) rows.take(maxRows) else rows
+
+        for (row in visibleRows) {
             when (row) {
                 is EvolutionChainBuilder.ChainRow.Pokemon -> {
                     val x = indentX + row.indent * chainIndent
@@ -903,6 +919,25 @@ object SpawnDisplayHelper {
                     layout.gap(22)
                 }
             }
+        }
+
+        if (rows.size > maxRows) {
+            val overflow = rows.size - maxRows
+            val overflowSpecies = rows.drop(maxRows).mapNotNull { row ->
+                when (row) {
+                    is EvolutionChainBuilder.ChainRow.Pokemon -> row.displayName
+                    is EvolutionChainBuilder.ChainRow.Branch -> row.displayName
+                    else -> null
+                }
+            }.distinct()
+            val moreText = "+$overflow more rows (${ overflowSpecies.size } Pokémon)..."
+            val moreY = layout.y
+            layout.text(indentX, moreText, 0xFF999999.toInt())
+            layout.line()
+            val overflowTooltip = overflowSpecies.map { name ->
+                Component.literal(name).withStyle { s -> s.withColor(0xFFFFFF) }
+            }
+            layout.addTooltipZone(indentX, moreY, font.width(moreText), PanelLayout.LINE_HEIGHT, overflowTooltip)
         }
 
         val allSpecies = EvolutionChainBuilder.collectAllSpecies(chain)

@@ -2,6 +2,16 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.43.1] - 2026-03-04
+
+### Fixed
+- Added MAX_HEIGHT (550px) safety cap in CategorySizer — prevents extreme evolution chains from bloating all category panels
+- Evolution chain rows capped at 30 visible, overflow Pokémon listed in hover tooltip
+- Specials (location) section capped at 4 visible, overflow in hover tooltip
+- CategorySizer cache now invalidates on language change — switching languages mid-session recalculates panel sizes with correct glyph widths
+- Biome overflow tooltip now shows rich detail (tag expansion, raw IDs) instead of plain names
+- Performance: CategorySizer early-exits after 50 recipes with no size growth, avoiding full iteration on large categories
+
 ## [1.43.0] - 2026-03-04
 
 ### Changed
