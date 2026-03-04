@@ -2,6 +2,19 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.43.0] - 2026-03-04
+
+### Changed
+- **Panel sizing V2**: Replaced the 382-line DisplayLayout max-size estimation system with a 40-line CategorySizer that measures actual layouts — zero divergence between estimation and rendering
+- Content budgets: biomes capped at 8 visible (overflow in tooltip), conditions at 6, exclusion lines at 4, weight multipliers at 4, description at 10 lines, forms at 8
+- Dramatically reduced height variance across all variable-length categories, eliminating wasted dead space in REI/JEI
+- Removed all manual `coerceAtMost` height caps — content budgets keep panels naturally bounded
+- NatureDex recipes now derive size from their actual layout instead of forcing category max size
+
+### Fixed
+- Panels with extreme data (40+ biomes, many conditions/exclusions) no longer force every recipe in the category to be oversized
+- Overflow data (extra biomes, conditions, weight multipliers, description lines, forms) is accessible via hover tooltips instead of being cut off
+
 ## [1.42.0] - 2026-02-28
 
 ### Added

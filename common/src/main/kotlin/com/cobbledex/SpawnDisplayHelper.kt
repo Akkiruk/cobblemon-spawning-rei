@@ -527,23 +527,50 @@ object SpawnDisplayHelper {
 
         val biomeNames = spawn.biomes.map { formatBiomeName(it) }
         if (biomeNames.isNotEmpty()) {
+            val maxBiomes = PanelLayout.MAX_VISIBLE_BIOMES
             val header = if (biomeNames.size > 1) tr("cobbledex-rei-emi-jei.spawn.section.biomes") else tr("cobbledex-rei-emi-jei.spawn.section.biome")
             layout.text(padding, header, 0xEEEEEE)
             layout.line()
-            val placements = layout.wrappedItemsWithPositions(indentX, biomeNames, ", ", indentWidth, 0xDDDDDD)
-            for ((placement, rawId) in placements.zip(spawn.biomes)) {
+            val visibleNames = if (biomeNames.size > maxBiomes) biomeNames.take(maxBiomes) else biomeNames
+            val visibleRawIds = if (spawn.biomes.size > maxBiomes) spawn.biomes.take(maxBiomes) else spawn.biomes
+            val placements = layout.wrappedItemsWithPositions(indentX, visibleNames, ", ", indentWidth, 0xDDDDDD)
+            for ((placement, rawId) in placements.zip(visibleRawIds)) {
                 val tooltipLines = buildSingleBiomeTooltip(rawId)
                 layout.addTooltipZone(placement.x, placement.y, placement.width, PanelLayout.LINE_HEIGHT, tooltipLines)
+            }
+            if (biomeNames.size > maxBiomes) {
+                val overflow = biomeNames.size - maxBiomes
+                val moreText = "+$overflow more..."
+                val moreY = layout.y
+                layout.text(indentX, moreText, 0xFF999999.toInt())
+                layout.line()
+                val overflowTooltip = spawn.biomes.drop(maxBiomes).map { rawId ->
+                    Component.literal(formatBiomeName(rawId)).withStyle { it.withColor(0xDDDDDD) }
+                }
+                layout.addTooltipZone(indentX, moreY, layout.font.width(moreText), PanelLayout.LINE_HEIGHT, overflowTooltip)
             }
             layout.gap(PanelLayout.SECTION_GAP)
         }
 
         val conditions = buildConditions(spawn)
         if (conditions.isNotEmpty()) {
+            val maxConds = PanelLayout.MAX_VISIBLE_CONDITIONS
             layout.text(padding, tr("cobbledex-rei-emi-jei.spawn.section.conditions"), 0xEEEEEE)
             layout.line()
-            for (cond in conditions) {
+            val visibleConds = if (conditions.size > maxConds) conditions.take(maxConds) else conditions
+            for (cond in visibleConds) {
                 layout.wrapped(indentX, cond, indentWidth, 0xDDDDDD)
+            }
+            if (conditions.size > maxConds) {
+                val overflow = conditions.size - maxConds
+                val moreText = "+$overflow more..."
+                val moreY = layout.y
+                layout.text(indentX, moreText, 0xFF999999.toInt())
+                layout.line()
+                val overflowTooltip = conditions.drop(maxConds).map {
+                    Component.literal(it).withStyle { s -> s.withColor(0xDDDDDD) }
+                }
+                layout.addTooltipZone(indentX, moreY, layout.font.width(moreText), PanelLayout.LINE_HEIGHT, overflowTooltip)
             }
             layout.gap(PanelLayout.SECTION_GAP)
         }
@@ -562,19 +589,34 @@ object SpawnDisplayHelper {
         if (anti != null && !anti.isEmpty) {
             val exLines = buildExclusionLines(anti)
             if (exLines.isNotEmpty()) {
+                val maxEx = PanelLayout.MAX_VISIBLE_EXCLUSION_LINES
                 layout.text(padding, tr("cobbledex-rei-emi-jei.spawn.section.excluded"), 0xFF7777)
                 layout.line()
-                for (line in exLines) {
+                val visibleEx = if (exLines.size > maxEx) exLines.take(maxEx) else exLines
+                for (line in visibleEx) {
                     layout.wrappedCommas(indentX, line, indentWidth, 0xEE8888)
+                }
+                if (exLines.size > maxEx) {
+                    val overflow = exLines.size - maxEx
+                    val moreText = "+$overflow more..."
+                    val moreY = layout.y
+                    layout.text(indentX, moreText, 0xFF999999.toInt())
+                    layout.line()
+                    val overflowTooltip = exLines.drop(maxEx).map {
+                        Component.literal(it).withStyle { s -> s.withColor(0xEE8888) }
+                    }
+                    layout.addTooltipZone(indentX, moreY, layout.font.width(moreText), PanelLayout.LINE_HEIGHT, overflowTooltip)
                 }
                 layout.gap(PanelLayout.SECTION_GAP)
             }
         }
 
         if (CobbleDexConfig.get().showSpawnWeights && spawn.weightMultipliers.isNotEmpty()) {
+            val maxWm = PanelLayout.MAX_VISIBLE_WEIGHT_MODS
             layout.text(padding, tr("cobbledex-rei-emi-jei.spawn.section.weight_mods"), 0xEEEEEE)
             layout.line()
-            for (wm in spawn.weightMultipliers) {
+            val visibleWm = if (spawn.weightMultipliers.size > maxWm) spawn.weightMultipliers.take(maxWm) else spawn.weightMultipliers
+            for (wm in visibleWm) {
                 val arrow: String
                 val c: Int
                 when {
@@ -584,6 +626,19 @@ object SpawnDisplayHelper {
                 }
                 val wmText = "$arrow ${formatWeight(wm.multiplier)}x ${wm.displayConditionSummary()}"
                 layout.wrapped(indentX, wmText, indentWidth, c)
+            }
+            if (spawn.weightMultipliers.size > maxWm) {
+                val overflow = spawn.weightMultipliers.size - maxWm
+                val moreText = "+$overflow more..."
+                val moreY = layout.y
+                layout.text(indentX, moreText, 0xFF999999.toInt())
+                layout.line()
+                val overflowTooltip = spawn.weightMultipliers.drop(maxWm).map { wm ->
+                    val arrow = when { wm.multiplier > 1f -> "\u25B2"; wm.multiplier < 1f -> "\u25BC"; else -> "\u25CF" }
+                    val color = when { wm.multiplier > 1f -> 0x88DD88; wm.multiplier < 1f -> 0xEE8888; else -> 0xBBBBBB }
+                    Component.literal("$arrow ${formatWeight(wm.multiplier)}x ${wm.displayConditionSummary()}").withStyle { s -> s.withColor(color) }
+                }
+                layout.addTooltipZone(indentX, moreY, layout.font.width(moreText), PanelLayout.LINE_HEIGHT, overflowTooltip)
             }
         }
 
@@ -1348,9 +1403,25 @@ object SpawnDisplayHelper {
 
         val descText = tr(data.description)
         if (descText != data.description && descText.isNotBlank()) {
-            layout.wrapped(padding + 4, descText, right - padding - 4, 0xFFDDDDDD.toInt())
+            val maxLines = PanelLayout.MAX_DESCRIPTION_LINES
+            val allLines = wrapText(layout.font, descText, right - padding * 2 - 4)
+            val visibleLines = if (allLines.size > maxLines) allLines.take(maxLines) else allLines
+            for (line in visibleLines) {
+                layout.text(padding + 4, line, 0xFFDDDDDD.toInt())
+                layout.line()
+            }
+            if (allLines.size > maxLines) {
+                val moreText = "..."
+                val moreY = layout.y
+                layout.text(padding + 4, moreText, 0xFF999999.toInt())
+                layout.line()
+                val overflowTooltip = allLines.drop(maxLines).map {
+                    Component.literal(it).withStyle { s -> s.withColor(0xDDDDDD) }
+                }
+                layout.addTooltipZone(padding + 4, moreY, layout.font.width(moreText), PanelLayout.LINE_HEIGHT, overflowTooltip)
+            }
         }
-        
+
         layout.gap(padding + 4)
         return layout
     }
@@ -1563,7 +1634,10 @@ object SpawnDisplayHelper {
         layout.line()
         layout.gap(2)
 
-        for (form in data.forms) {
+        val maxForms = PanelLayout.MAX_VISIBLE_FORMS
+        val visibleForms = if (data.forms.size > maxForms) data.forms.take(maxForms) else data.forms
+
+        for (form in visibleForms) {
             // Form sprite + name
             pokemonSlots.add(PokemonSlotDef(
                 form.formKey, form.formAspects, padding + 2, layout.y, SlotRole.INPUT,
@@ -1591,7 +1665,6 @@ object SpawnDisplayHelper {
                 val abilityY = layout.y
                 val abilityStr = allAbilities.joinToString(", ")
                 layout.clipped(padding + 6, "\u2605 $abilityStr", right - padding - 6, 0xFF88CCFF.toInt())
-                // Tooltip showing each ability with its description
                 val tooltipLines = mutableListOf<Component>()
                 for (ab in form.abilities) {
                     tooltipLines.addAll(buildAbilityTooltip(ab))
@@ -1621,6 +1694,18 @@ object SpawnDisplayHelper {
 
             layout.separator(0x20FFFFFF)
             layout.gap(4)
+        }
+
+        if (data.forms.size > maxForms) {
+            val overflow = data.forms.size - maxForms
+            val moreText = "+$overflow more forms..."
+            val moreY = layout.y
+            layout.text(padding + 4, moreText, 0xFF999999.toInt())
+            layout.line()
+            val overflowTooltip = data.forms.drop(maxForms).map { form ->
+                Component.literal(form.formDisplayName).withStyle { s -> s.withColor(0xFFFFFF) }
+            }
+            layout.addTooltipZone(padding + 4, moreY, font.width(moreText), PanelLayout.LINE_HEIGHT, overflowTooltip)
         }
 
         layout.gap(padding)
