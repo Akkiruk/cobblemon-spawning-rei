@@ -253,15 +253,17 @@ object SpawnDisplayHelper {
     }
 
     fun wrapToWidth(font: net.minecraft.client.gui.Font, text: String, maxWidth: Int): List<String> {
+        if (maxWidth <= 0) return listOf(clipToWidth(font, text, maxWidth.coerceAtLeast(1)))
         if (font.width(text) <= maxWidth) return listOf(text)
         val items = text.split(", ")
         val lines = mutableListOf<String>()
         var current = ""
         for (item in items) {
-            val next = if (current.isEmpty()) item else "$current, $item"
+            val clipped = if (font.width(item) > maxWidth) clipToWidth(font, item, maxWidth) else item
+            val next = if (current.isEmpty()) clipped else "$current, $clipped"
             if (font.width(next) > maxWidth && current.isNotEmpty()) {
                 lines.add(current)
-                current = item
+                current = clipped
             } else {
                 current = next
             }
@@ -271,16 +273,17 @@ object SpawnDisplayHelper {
     }
 
     fun wrapText(font: net.minecraft.client.gui.Font, text: String, maxWidth: Int): List<String> {
-        if (maxWidth <= 0) return listOf(text)
+        if (maxWidth <= 0) return listOf(clipToWidth(font, text, maxWidth.coerceAtLeast(1)))
         if (font.width(text) <= maxWidth) return listOf(text)
         val words = text.split(" ")
         val lines = mutableListOf<String>()
         var current = ""
         for (word in words) {
-            val next = if (current.isEmpty()) word else "$current $word"
+            val clipped = if (font.width(word) > maxWidth) clipToWidth(font, word, maxWidth) else word
+            val next = if (current.isEmpty()) clipped else "$current $clipped"
             if (font.width(next) > maxWidth && current.isNotEmpty()) {
                 lines.add(current)
-                current = word
+                current = clipped
             } else {
                 current = next
             }
@@ -372,6 +375,50 @@ object SpawnDisplayHelper {
             lines.add(Component.literal("§8$biomeId"))
         }
 
+        return lines
+    }
+
+    // --- Ability / Move tooltip builders ---
+
+    private fun abilityDescKey(name: String): String =
+        "cobblemon.ability.${name.lowercase().replace(" ", "").replace("-", "").replace("_", "")}.desc"
+
+    private fun buildAbilityTooltip(ability: String, hidden: Boolean = false): List<Component> {
+        val lines = mutableListOf<Component>()
+        val displayName = formatAbilityName(ability)
+        val label = if (hidden) "$displayName §7(${tr("cobbledex-rei-emi-jei.info.hidden_ability")})" else displayName
+        lines.add(Component.literal("§b§l$label"))
+        val descKey = abilityDescKey(ability)
+        val desc = tr(descKey)
+        if (desc != descKey) lines.add(Component.literal("§7$desc"))
+        return lines
+    }
+
+    private fun buildMoveTooltip(move: MoveDetail): List<Component> {
+        val lines = mutableListOf<Component>()
+        val moveKey = "cobblemon.move.${move.name}"
+        val displayName = tr(moveKey).let { if (it == moveKey) titleCase(move.name) else it }
+        lines.add(Component.literal("§f§l$displayName"))
+        lines.add(Component.literal("§e${titleCase(move.type)} §7\u2022 §e${titleCase(move.category)}"))
+        val pow = if (move.power > 0) "${move.power}" else "\u2014"
+        val acc = if (move.accuracy > 0) "${move.accuracy}" else "\u2014"
+        lines.add(Component.literal("§7Power: §f$pow §7| Acc: §f$acc §7| PP: §f${move.pp}"))
+        val descKey = "cobblemon.move.${move.name}.desc"
+        val desc = tr(descKey)
+        if (desc != descKey) {
+            lines.add(Component.literal(""))
+            // Wrap long move descriptions into multiple tooltip lines (~40 chars each)
+            val words = desc.split(" ")
+            var current = ""
+            for (word in words) {
+                val next = if (current.isEmpty()) word else "$current $word"
+                if (next.length > 40 && current.isNotEmpty()) {
+                    lines.add(Component.literal("§7$current"))
+                    current = word
+                } else current = next
+            }
+            if (current.isNotEmpty()) lines.add(Component.literal("§7$current"))
+        }
         return lines
     }
 
@@ -506,7 +553,7 @@ object SpawnDisplayHelper {
             layout.text(padding, tr("cobbledex-rei-emi-jei.spawn.section.location"), 0xEEEEEE)
             layout.line()
             for (s in specials) {
-                layout.wrapped(indentX, s, indentWidth, 0xFFCC66)
+                layout.wrappedCommas(indentX, s, indentWidth, 0xFFCC66)
             }
             layout.gap(PanelLayout.SECTION_GAP)
         }
@@ -518,7 +565,7 @@ object SpawnDisplayHelper {
                 layout.text(padding, tr("cobbledex-rei-emi-jei.spawn.section.excluded"), 0xFF7777)
                 layout.line()
                 for (line in exLines) {
-                    layout.wrapped(indentX, line, indentWidth, 0xEE8888)
+                    layout.wrappedCommas(indentX, line, indentWidth, 0xEE8888)
                 }
                 layout.gap(PanelLayout.SECTION_GAP)
             }
@@ -941,12 +988,22 @@ object SpawnDisplayHelper {
             layout.text(padding, tr("cobbledex-rei-emi-jei.info.abilities"), 0xEEEEEE)
             layout.line()
             for (ability in data.abilities) {
+                val abilityY = layout.y
                 layout.text(indentX, "\u2022 ${formatAbilityName(ability)}", 0xFF88CCFF.toInt())
                 layout.line()
+                val tooltip = buildAbilityTooltip(ability)
+                if (tooltip.isNotEmpty()) {
+                    layout.addTooltipZone(indentX, abilityY, right - indentX, lineHeight, tooltip)
+                }
             }
             data.hiddenAbility?.let { ha ->
+                val haY = layout.y
                 layout.text(indentX, "\u2022 ${formatAbilityName(ha)} ${tr("cobbledex-rei-emi-jei.info.hidden_ability")}", 0xFF66AADD.toInt())
                 layout.line()
+                val tooltip = buildAbilityTooltip(ha, hidden = true)
+                if (tooltip.isNotEmpty()) {
+                    layout.addTooltipZone(indentX, haY, right - indentX, lineHeight, tooltip)
+                }
             }
             layout.gap(3)
         }
@@ -1034,6 +1091,7 @@ object SpawnDisplayHelper {
         val padding = PanelLayout.PADDING
         val right = layout.right
         val font = layout.font
+        val rowY = layout.y
 
         var x = padding + 4
         if (prefix != null) {
@@ -1051,6 +1109,9 @@ object SpawnDisplayHelper {
         layout.clipped(x, displayName, nameMaxWidth, typeColor(move.type))
         layout.textRight(suffix, suffixColor)
         layout.line()
+
+        val tooltip = buildMoveTooltip(move)
+        layout.addTooltipZone(padding, rowY, right - padding, PanelLayout.LINE_HEIGHT, tooltip)
     }
 
     fun buildMovesLayout(data: MovesRecipeData): PanelLayout {
@@ -1527,8 +1588,21 @@ object SpawnDisplayHelper {
                 form.hiddenAbility?.let { add("$it (H)") }
             }
             if (allAbilities.isNotEmpty()) {
+                val abilityY = layout.y
                 val abilityStr = allAbilities.joinToString(", ")
                 layout.clipped(padding + 6, "\u2605 $abilityStr", right - padding - 6, 0xFF88CCFF.toInt())
+                // Tooltip showing each ability with its description
+                val tooltipLines = mutableListOf<Component>()
+                for (ab in form.abilities) {
+                    tooltipLines.addAll(buildAbilityTooltip(ab))
+                }
+                form.hiddenAbility?.let { ha ->
+                    if (tooltipLines.isNotEmpty()) tooltipLines.add(Component.literal(""))
+                    tooltipLines.addAll(buildAbilityTooltip(ha, hidden = true))
+                }
+                if (tooltipLines.isNotEmpty()) {
+                    layout.addTooltipZone(padding + 6, abilityY, right - padding - 6, lineHeight, tooltipLines)
+                }
                 layout.gap(lineHeight)
             }
 

@@ -66,7 +66,9 @@ object SpeciesNameNormalizer {
      * Used for all map keys and lookups.
      */
     fun normalize(name: String): String {
-        val lower = name.lowercase()
+        // Strip namespace prefix (e.g. "cobblemon:charizard" -> "charizard")
+        val stripped = if (name.contains(':')) name.substringAfter(':') else name
+        val lower = stripped.lowercase()
         // First check if this is a known display name
         DISPLAY_TO_CANONICAL[lower]?.let { return it }
         // Otherwise strip special characters

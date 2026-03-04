@@ -86,7 +86,9 @@ class PanelLayout(val width: Int) {
     ): List<ItemPlacement> {
         val placements = mutableListOf<ItemPlacement>()
         var curX = startX
-        for ((i, item) in items.withIndex()) {
+        for ((i, rawItem) in items.withIndex()) {
+            val item = if (font.width(rawItem) > maxWidth)
+                SpawnDisplayHelper.clipToWidth(font, rawItem, maxWidth) else rawItem
             val suffix = if (i < items.size - 1) separator else ""
             val itemWidth = font.width(item)
             val fullWidth = font.width(item + suffix)

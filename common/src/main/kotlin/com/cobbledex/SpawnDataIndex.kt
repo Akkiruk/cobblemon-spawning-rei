@@ -275,6 +275,14 @@ object SpawnDataIndex {
         }
         dataVersion++
 
+        // Diagnostic: report species with spawns but no species info entry
+        if (spawnsBySpecies.isNotEmpty() && speciesInfo.isNotEmpty()) {
+            val orphanSpawns = spawnsBySpecies.keys.filter { it !in speciesInfo }
+            if (orphanSpawns.isNotEmpty()) {
+                DebugLog.info("Spawn-only species (no speciesInfo): ${orphanSpawns.take(20).joinToString(", ")}${if (orphanSpawns.size > 20) " (+${orphanSpawns.size - 20} more)" else ""}")
+            }
+        }
+
         DebugLog.info(
             "Load complete (${loadState.name}): ${allSpeciesNames.size} species " +
             "(${speciesInfo.count { it.value.nationalDexNumber > 0 }} with dex, " +

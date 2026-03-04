@@ -2,6 +2,19 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.42.0] - 2026-02-28
+
+### Added
+- Ability tooltips: hover over any ability in Pokédex Info or Forms to see its description
+- Move tooltips: hover over any move row in Moves to see type, category, power/acc/PP, and description
+- Diagnostic logging for species with spawn data but no species info entry
+
+### Fixed
+- Text overflow on long structure names, dimensions, and exclusion lists in spawn panels
+- Comma-separated lists (structures, blocks, exclusion biomes) now wrap correctly at comma boundaries
+- Individual items wider than the panel are now clipped with ellipsis instead of overflowing
+- Species names with namespace prefixes (e.g. from addon datapacks) are now correctly stripped for consistent lookup
+
 ## [1.41.3] - 2026-02-28
 
 ### Fixed

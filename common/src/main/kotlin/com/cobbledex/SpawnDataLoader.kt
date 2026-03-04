@@ -44,7 +44,9 @@ object SpawnDataLoader {
         for (detail in details) {
             if (detail !is PokemonSpawnDetail) continue
             try {
-                val species = detail.pokemon.species?.lowercase() ?: continue
+                val rawSpecies = detail.pokemon.species?.lowercase() ?: continue
+                // Strip namespace prefix for consistent keying (e.g. "cobblemon:charizard" -> "charizard")
+                val species = if (rawSpecies.contains(':')) rawSpecies.substringAfter(':') else rawSpecies
                 val info = extractSpawnInfo(detail, species)
                 result.getOrPut(species) { mutableListOf() }.add(info)
                 count++
