@@ -359,7 +359,12 @@ object SpawnDataIndex {
 
         val allNames = mutableSetOf<String>()
         allNames.addAll(spawnsBySpecies.keys)
-        allNames.addAll(evolutionsBySpecies.keys)
+        // Only add evolution keys that have matching speciesInfo entries —
+        // form evo keys (e.g. "growlithehisui") use a different format than
+        // speciesInfo form keys (e.g. "growlithehisuian") and create ghost browser entries
+        for (key in evolutionsBySpecies.keys) {
+            if (key in speciesInfo) allNames.add(key)
+        }
         for ((_, evos) in evolutionsBySpecies) {
             for (evo in evos) allNames.add(SpeciesNameNormalizer.normalize(evo.toSpecies))
         }

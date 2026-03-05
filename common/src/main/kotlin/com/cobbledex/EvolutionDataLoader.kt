@@ -378,7 +378,8 @@ object EvolutionDataLoader {
         val shoulderMountable: Boolean = false,
         val formName: String? = null,
         val baseSpeciesName: String? = null,
-        val formAspects: Set<String> = emptySet()
+        val formAspects: Set<String> = emptySet(),
+        val source: String? = null
     )
 
     fun loadSpeciesBasicInfoFromRuntime(): Map<String, SpeciesBasicInfo> {
@@ -501,6 +502,7 @@ object EvolutionDataLoader {
                 } catch (_: Exception) { null }
 
                 val shoulderMount = try { species.shoulderMountable } catch (_: Exception) { false }
+                val source = try { species.resourceIdentifier?.namespace } catch (_: Exception) { null }
 
                 result[name] = SpeciesBasicInfo(
                     name = name,
@@ -529,7 +531,8 @@ object EvolutionDataLoader {
                     eggMoves = eggMoves,
                     tutorMoves = tutorMoves,
                     tmMoves = tmMoves,
-                    shoulderMountable = shoulderMount
+                    shoulderMountable = shoulderMount,
+                    source = source
                 )
             } catch (e: Exception) {
                 DebugLog.once("species-info-${species.name}") { "Failed to load species info for ${species.name}: ${e.message}" }
@@ -744,7 +747,8 @@ object EvolutionDataLoader {
             shoulderMountable = try { species.shoulderMountable } catch (_: Exception) { false },
             formName = rawFormName,
             baseSpeciesName = baseName,
-            formAspects = formAspects
+            formAspects = formAspects,
+            source = try { species.resourceIdentifier?.namespace } catch (_: Exception) { null }
         )
     }
 

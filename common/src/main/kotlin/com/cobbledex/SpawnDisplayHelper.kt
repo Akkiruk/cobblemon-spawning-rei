@@ -1133,6 +1133,14 @@ object SpawnDisplayHelper {
         }
         layout.gap(3)
 
+        data.source?.let { ns ->
+            if (ns != "cobblemon") {
+                layout.text(padding, tr("cobbledex-rei-emi-jei.info.added_by", titleCase(ns)), 0xFF888888.toInt(), shadow = false)
+                layout.line()
+                layout.gap(3)
+            }
+        }
+
         data.eggCycles?.let { cycles ->
             layout.text(padding, tr("cobbledex-rei-emi-jei.info.breeding"), 0xEEEEEE)
             layout.line()

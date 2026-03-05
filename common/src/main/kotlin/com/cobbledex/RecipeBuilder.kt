@@ -101,7 +101,8 @@ object RecipeBuilder {
             height = info.height,
             weight = info.weight,
             description = info.description,
-            shoulderMountable = info.shoulderMountable
+            shoulderMountable = info.shoulderMountable,
+            source = info.source
         )
     }
 

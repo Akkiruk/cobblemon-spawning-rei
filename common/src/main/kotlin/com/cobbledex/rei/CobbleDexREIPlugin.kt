@@ -111,7 +111,8 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         var registered = 0
         var hidden = 0
         for (species in SpawnDataIndex.allSpeciesNames) {
-            if (SpawnDataIndex.getSpeciesInfo(species)?.baseSpeciesName != null) continue
+            val info = SpawnDataIndex.getSpeciesInfo(species)
+            if (info == null || info.baseSpeciesName != null) continue
             if (!PokemonItemCache.canRender(species)) {
                 DebugLog.trackMissingModel(species)
                 hidden++

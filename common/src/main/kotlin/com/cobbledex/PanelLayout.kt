@@ -54,7 +54,12 @@ class PanelLayout(val width: Int) {
     // --- Clipped text (truncates with ellipsis, does NOT advance cursor) ---
 
     fun clipped(x: Int, text: String, maxWidth: Int, color: Int, shadow: Boolean = true): PanelLayout {
-        elements.add(Element.Text(x, y, SpawnDisplayHelper.clipToWidth(font, text, maxWidth), color, shadow))
+        val clippedText = SpawnDisplayHelper.clipToWidth(font, text, maxWidth)
+        elements.add(Element.Text(x, y, clippedText, color, shadow))
+        if (clippedText != text) {
+            addTooltipZone(x, y, font.width(clippedText), LINE_HEIGHT,
+                listOf(Component.literal(text).withStyle { s -> s.withColor(0xDDDDDD) }))
+        }
         return this
     }
 
@@ -89,6 +94,7 @@ class PanelLayout(val width: Int) {
         for ((i, rawItem) in items.withIndex()) {
             val item = if (font.width(rawItem) > maxWidth)
                 SpawnDisplayHelper.clipToWidth(font, rawItem, maxWidth) else rawItem
+            val wasClipped = item != rawItem
             val suffix = if (i < items.size - 1) separator else ""
             val itemWidth = font.width(item)
             val fullWidth = font.width(item + suffix)
@@ -98,6 +104,10 @@ class PanelLayout(val width: Int) {
             }
             placements.add(ItemPlacement(curX, y, itemWidth, i))
             elements.add(Element.Text(curX, y, item + suffix, color, shadow))
+            if (wasClipped) {
+                addTooltipZone(curX, y, itemWidth, LINE_HEIGHT,
+                    listOf(Component.literal(rawItem).withStyle { s -> s.withColor(0xDDDDDD) }))
+            }
             curX += fullWidth
         }
         y += lineHeight
@@ -128,7 +138,7 @@ class PanelLayout(val width: Int) {
     }
 
     fun getTooltipAt(mouseX: Int, mouseY: Int): List<Component>? {
-        return tooltipZones.firstOrNull { zone ->
+        return tooltipZones.lastOrNull { zone ->
             mouseX >= zone.x && mouseX < zone.x + zone.width &&
             mouseY >= zone.y && mouseY < zone.y + zone.height
         }?.lines

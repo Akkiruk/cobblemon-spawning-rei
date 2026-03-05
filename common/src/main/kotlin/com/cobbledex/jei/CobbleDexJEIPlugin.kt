@@ -96,7 +96,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
     override fun registerIngredients(registration: IModIngredientRegistration) {
         SpawnDataIndex.ensureLoaded()
         val allPokemon = SpawnDataIndex.allSpeciesNames
-            .filter { SpawnDataIndex.getSpeciesInfo(it)?.baseSpeciesName == null }
+            .filter { SpawnDataIndex.getSpeciesInfo(it)?.let { info -> info.baseSpeciesName == null } == true }
             .filter { PokemonItemCache.canRender(it) }
             .map { PokemonIngredient(it) }
 

@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.43.2] - 2026-03-04
+
+### Fixed
+- Removed ghost alternate form entries from the Pokémon browser — form evolution keys (e.g. "growlithehisui") used a different format than speciesInfo keys ("growlithehisuian"), causing them to slip past the form filter and appear as duplicate entries with only evolution data
+- Added null-speciesInfo safety check to all 3 browser entry filters (REI, JEI, EMI)
+
 ## [1.43.1] - 2026-03-04
 
 ### Fixed
