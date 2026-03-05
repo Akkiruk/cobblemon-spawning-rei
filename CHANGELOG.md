@@ -2,6 +2,14 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.43.3] - 2026-03-05
+
+### Fixed
+- JarDataCache now reads singular `weightMultiplier` objects (not just plural `weightMultipliers` arrays) — fixes most weight modifiers silently missing from spawn display
+- Weight multiplier condition parsing now handles singular `condition` objects (not just plural `conditions` arrays) — fixes all weight modifier triggers showing as "always" instead of the actual condition
+- JarDataCache now checks the `context` JSON field as a fallback for spawn position type, fixing some spawns incorrectly defaulting to "grounded"
+- timeRange in weight multiplier conditions now handles string values (e.g. "twilight") in addition to range objects
+
 ## [1.43.2] - 2026-03-04
 
 ### Fixed

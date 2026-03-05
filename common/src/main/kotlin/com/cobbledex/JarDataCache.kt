@@ -248,7 +248,7 @@ object JarDataCache {
         val bucket = spawn.optString("bucket") ?: "common"
         val levelStr = spawn.optString("level") ?: "1-100"
         val weight = spawn.optFloat("weight") ?: 1.0f
-        val context = spawn.optString("spawnablePositionType") ?: spawn.optString("type") ?: "grounded"
+        val context = spawn.optString("spawnablePositionType") ?: spawn.optString("context") ?: spawn.optString("type") ?: "grounded"
 
         // Load preset names and merge their conditions
         val presetNames = spawn.optStringArray("presets")
@@ -282,16 +282,25 @@ object JarDataCache {
         val moonPhase = condition?.optString("moonPhase")
         val fluid = condition?.optString("fluid")
 
-        // Weight multipliers
+        // Weight multipliers — handle both plural array and singular object forms
         val weightMults = mutableListOf<WeightMultiplier>()
         spawn.optArray("weightMultipliers")?.forEach { wmElem ->
             try {
                 val wm = wmElem.asJsonObject
                 val mult = wm.optFloat("multiplier") ?: return@forEach
-                val wmConditions = wm.optArray("conditions")
-                val parts = summarizeWeightConditionsFromJson(wmConditions)
+                val parts = parseWeightMultiplierConditions(wm)
                 weightMults.add(WeightMultiplier(multiplier = mult, conditionParts = parts))
             } catch (_: Exception) {}
+        }
+        // Singular "weightMultiplier" (single object, not array)
+        if (weightMults.isEmpty()) {
+            spawn.optObject("weightMultiplier")?.let { wm ->
+                val mult = wm.optFloat("multiplier")
+                if (mult != null) {
+                    val parts = parseWeightMultiplierConditions(wm)
+                    weightMults.add(WeightMultiplier(multiplier = mult, conditionParts = parts))
+                }
+            }
         }
 
         // Fishing lure level
@@ -347,37 +356,71 @@ object JarDataCache {
         )
     }
 
+    /**
+     * Parse conditions from a weight multiplier object. Handles both:
+     * - "conditions": [...] (array of condition objects)
+     * - "condition": {...} (single condition object)
+     */
+    private fun parseWeightMultiplierConditions(wm: JsonObject): List<WeightConditionPart> {
+        // Try plural array first, then singular object
+        val condArray = wm.optArray("conditions")
+        if (condArray != null && !condArray.isEmpty) {
+            return summarizeWeightConditionsFromJson(condArray)
+        }
+        val condObj = wm.optObject("condition")
+        if (condObj != null) {
+            return summarizeWeightConditionFromObject(condObj)
+        }
+        return listOf(WeightConditionPart(type = "always"))
+    }
+
+    private fun summarizeWeightConditionFromObject(cond: JsonObject): List<WeightConditionPart> {
+        val parts = mutableListOf<WeightConditionPart>()
+        parseConditionFields(cond, parts)
+        return if (parts.isEmpty()) listOf(WeightConditionPart(type = "conditional")) else parts
+    }
+
     private fun summarizeWeightConditionsFromJson(conditions: JsonArray?): List<WeightConditionPart> {
         if (conditions == null || conditions.isEmpty) return listOf(WeightConditionPart(type = "always"))
         val parts = mutableListOf<WeightConditionPart>()
         for (condElem in conditions) {
             try {
                 val cond = condElem.asJsonObject
-                cond.optBool("isThundering")?.let { if (it) parts.add(WeightConditionPart(type = "thunderstorm")) }
-                cond.optBool("isRaining")?.let { if (it) parts.add(WeightConditionPart(type = "rain")) }
-
-                cond.optObject("timeRange")?.let { timeRange ->
-                    val ranges = timeRange.optArray("ranges")
-                    if (ranges != null && !ranges.isEmpty) {
-                        val str = ranges.mapNotNull {
-                            if (!it.isJsonArray) return@mapNotNull null
-                            val arr = it.asJsonArray
-                            if (arr.size() < 2) return@mapNotNull null
-                            "${arr[0].asInt}-${arr[1].asInt}"
-                        }.joinToString(",")
-                        if (str.isNotBlank()) parts.add(WeightConditionPart(type = "time_range", text = str))
-                    }
-                }
-
-                val biomes = cond.optStringArray("biomes")
-                if (biomes.isNotEmpty()) {
-                    parts.add(WeightConditionPart(type = "biomes", ids = biomes))
-                }
-
-                cond.optInt("minLureLevel")?.let { parts.add(WeightConditionPart(type = "lure", number = it)) }
+                parseConditionFields(cond, parts)
             } catch (_: Exception) {}
         }
         return if (parts.isEmpty()) listOf(WeightConditionPart(type = "conditional")) else parts
+    }
+
+    private fun parseConditionFields(cond: JsonObject, parts: MutableList<WeightConditionPart>) {
+        cond.optBool("isThundering")?.let { if (it) parts.add(WeightConditionPart(type = "thunderstorm")) }
+        cond.optBool("isRaining")?.let { if (it) parts.add(WeightConditionPart(type = "rain")) }
+
+        // timeRange can be a string ("twilight", "night") or an object with ranges
+        val timeRangeElem = cond.get("timeRange")
+        if (timeRangeElem != null) {
+            if (timeRangeElem.isJsonPrimitive) {
+                parts.add(WeightConditionPart(type = "time_range", text = timeRangeElem.asString))
+            } else if (timeRangeElem.isJsonObject) {
+                val ranges = timeRangeElem.asJsonObject.optArray("ranges")
+                if (ranges != null && !ranges.isEmpty) {
+                    val str = ranges.mapNotNull {
+                        if (!it.isJsonArray) return@mapNotNull null
+                        val arr = it.asJsonArray
+                        if (arr.size() < 2) return@mapNotNull null
+                        "${arr[0].asInt}-${arr[1].asInt}"
+                    }.joinToString(",")
+                    if (str.isNotBlank()) parts.add(WeightConditionPart(type = "time_range", text = str))
+                }
+            }
+        }
+
+        val biomes = cond.optStringArray("biomes")
+        if (biomes.isNotEmpty()) {
+            parts.add(WeightConditionPart(type = "biomes", ids = biomes))
+        }
+
+        cond.optInt("minLureLevel")?.let { parts.add(WeightConditionPart(type = "lure", number = it)) }
     }
 
     /**
