@@ -148,7 +148,7 @@ object SpawnDataIndex {
         PokemonItemCache.reset()
 
         if (hasServerSync) {
-            // Server already sent spawns, evolutions, and species info — just load supplementary data
+            // Server already sent spawns, evolutions, species info, and fossils — just load supplementary data
             try {
                 obtainmentBySpecies = normalizeMapKeys(ObtainmentDataLoader.loadFromAllSources(
                     SpawnDataLoader.getModRootPaths()
@@ -158,11 +158,13 @@ object SpawnDataIndex {
                 obtainmentBySpecies = emptyMap()
             }
 
-            try {
-                fossilsBySpecies = normalizeMapKeys(FossilDataLoader.loadFromRuntime())
-            } catch (e: Exception) {
-                DebugLog.warn("Fossil data load failed: ${e.message}")
-                fossilsBySpecies = emptyMap()
+            // Fossils were already applied via applyServerSync; only try runtime as supplement
+            if (fossilsBySpecies.isEmpty()) {
+                try {
+                    fossilsBySpecies = normalizeMapKeys(FossilDataLoader.loadFromRuntime())
+                } catch (e: Exception) {
+                    DebugLog.warn("Fossil data load failed: ${e.message}")
+                }
             }
 
             rebuildDerivedData()
@@ -310,12 +312,14 @@ object SpawnDataIndex {
     fun applyServerSync(syncedSpawns: Map<String, List<SpawnInfo>>,
                         syncedEvolutions: Map<String, List<EvolutionInfo>>,
                         syncedSpeciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo>,
-                        syncedJobRules: List<JobRule>? = null) {
+                        syncedJobRules: List<JobRule>? = null,
+                        syncedFossils: Map<String, List<FossilCombo>>? = null) {
         dataLock.withLock {
             spawnsBySpecies = normalizeMapKeys(syncedSpawns)
             evolutionsBySpecies = normalizeMapKeys(syncedEvolutions)
             speciesInfo = normalizeMapKeys(syncedSpeciesInfo)
             jobRules = syncedJobRules ?: emptyList()
+            if (syncedFossils != null) fossilsBySpecies = normalizeMapKeys(syncedFossils)
             hasServerSync = true
             rebuildDerivedData()
             dataVersion++

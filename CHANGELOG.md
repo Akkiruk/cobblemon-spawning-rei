@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.44.2] - 2026-03-05
+
+### Fixed
+- Fossil data is now included in server-to-client sync — fixes fossils not appearing in EMI/REI/JEI on dedicated servers (Cobblemon doesn't sync its Fossils registry to clients)
+
 ## [1.44.1] - 2026-03-05
 
 ### Fixed

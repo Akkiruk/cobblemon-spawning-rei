@@ -3,6 +3,7 @@ package com.cobbledex.fabric
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.EvolutionDataLoader
+import com.cobbledex.FossilDataLoader
 import com.cobbledex.SpawnDataLoader
 import com.cobbledex.network.ChunkedSpawnSyncPayload
 import com.cobbledex.network.SpawnSyncPayload
@@ -32,6 +33,7 @@ class CobbleDexFabric : ModInitializer {
                         spawns = SpawnDataLoader.loadFromRuntime(),
                         evolutions = EvolutionDataLoader.loadFromRuntime(),
                         speciesInfo = EvolutionDataLoader.loadSpeciesBasicInfoFromRuntime(),
+                        fossils = FossilDataLoader.loadFromRuntime(),
                     )
                     val compressed = SpawnSyncSerializer.serialize(bundle)
                     if (supportsChunked) {
