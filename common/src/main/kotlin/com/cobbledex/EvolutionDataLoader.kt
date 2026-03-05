@@ -70,7 +70,7 @@ object EvolutionDataLoader {
                 val formEvos = try { form.evolutions } catch (_: Exception) { continue }
                 if (formEvos.isEmpty()) continue
                 val formAspects = form.aspects.toSet()
-                val formKey = buildFormKey(baseName, formAspects)
+                val formKey = buildFormEntryKey(baseName, form, species)
 
                 for (evo in formEvos) {
                     try {
@@ -95,11 +95,6 @@ object EvolutionDataLoader {
 
         DebugLog.info("Parsed $baseEvoCount base + $formEvoCount form evolutions")
         return result
-    }
-
-    private fun buildFormKey(baseName: String, aspects: Set<String>): String {
-        return if (aspects.isEmpty()) baseName
-        else "$baseName ${aspects.sorted().joinToString(" ")}"
     }
 
     private fun parseEvolution(fromSpecies: String, fromAspects: Set<String>?, evo: Evolution): EvolutionInfo? {
@@ -380,7 +375,9 @@ object EvolutionDataLoader {
         val baseSpeciesName: String? = null,
         val formAspects: Set<String> = emptySet(),
         val source: String? = null
-    )
+    ) {
+        val isForm: Boolean get() = baseSpeciesName != null
+    }
 
     fun loadSpeciesBasicInfoFromRuntime(): Map<String, SpeciesBasicInfo> {
         val implemented = try {

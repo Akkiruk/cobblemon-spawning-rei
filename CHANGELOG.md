@@ -2,6 +2,16 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.44.0] - 2026-03-05
+
+### Improved
+- Unified form key system — evolution data and species info now use a single consistent key format, eliminating ghost form entries at the source
+- Regional form evolution chains (Hisuian, Alolan, Galarian, Paldean) now appear as distinct branches in the evolution tree instead of being silently dropped
+- Added `isForm` property and convenience methods (`getFormsOf`, `getBaseOf`) to SpawnDataIndex for cleaner form handling
+- Orphan evolution keys are now automatically backfilled with species info cloned from the base species
+- Browser filters across REI, JEI, and EMI cleaned up to use semantic `isForm` checks
+- Added "Regional Form" i18n key to all 28 language files
+
 ## [1.43.3] - 2026-03-05
 
 ### Fixed

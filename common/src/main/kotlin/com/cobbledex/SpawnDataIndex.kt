@@ -357,14 +357,31 @@ object SpawnDataIndex {
         }
         evolutionsToSpecies = reverseMap
 
+        // Backfill: any evolution key that doesn't have a speciesInfo entry gets a
+        // thin inherited entry from its base species so it's properly marked as a form
+        val enriched = speciesInfo.toMutableMap()
+        var backfilled = 0
+        for (key in evolutionsBySpecies.keys) {
+            if (key in enriched) continue
+            // Try to resolve the base species from the evolution's fromSpecies
+            val evos = evolutionsBySpecies[key] ?: continue
+            val baseName = SpeciesNameNormalizer.normalize(evos.firstOrNull()?.fromSpecies ?: continue)
+            val baseInfo = enriched[baseName] ?: continue
+            enriched[key] = baseInfo.copy(
+                name = key,
+                baseSpeciesName = baseName,
+                formAspects = evos.firstOrNull()?.fromAspects ?: emptySet()
+            )
+            backfilled++
+        }
+        if (backfilled > 0) {
+            speciesInfo = enriched
+            DebugLog.info("Backfilled $backfilled orphan evolution keys into speciesInfo")
+        }
+
         val allNames = mutableSetOf<String>()
         allNames.addAll(spawnsBySpecies.keys)
-        // Only add evolution keys that have matching speciesInfo entries —
-        // form evo keys (e.g. "growlithehisui") use a different format than
-        // speciesInfo form keys (e.g. "growlithehisuian") and create ghost browser entries
-        for (key in evolutionsBySpecies.keys) {
-            if (key in speciesInfo) allNames.add(key)
-        }
+        allNames.addAll(evolutionsBySpecies.keys)
         for ((_, evos) in evolutionsBySpecies) {
             for (evo in evos) allNames.add(SpeciesNameNormalizer.normalize(evo.toSpecies))
         }
@@ -517,6 +534,18 @@ object SpawnDataIndex {
     }
 
     fun hasJobRules(): Boolean = jobRules.isNotEmpty()
+
+    fun isForm(species: String): Boolean = getSpeciesInfo(species)?.isForm == true
+
+    fun getFormsOf(baseSpecies: String): List<EvolutionDataLoader.SpeciesBasicInfo> {
+        val normalized = SpeciesNameNormalizer.normalize(baseSpecies)
+        return speciesInfo.values.filter {
+            it.isForm && SpeciesNameNormalizer.normalize(it.baseSpeciesName!!) == normalized
+        }
+    }
+
+    fun getBaseOf(formSpecies: String): String? =
+        getSpeciesInfo(formSpecies)?.baseSpeciesName
 
     fun getSpeciesWithTmMove(moveName: String): List<String> =
         speciesByTmMove[moveName.lowercase()] ?: emptyList()

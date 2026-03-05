@@ -97,18 +97,20 @@ object EvolutionChainBuilder {
         visited.add(normalized)
 
         val allEvos = SpawnDataIndex.getEvolutionsFrom(species)
-        // Filter to only evolutions matching this form's aspects
-        val aspectGroups = allEvos.map { it.fromAspects }.distinct()
-        val nodeAspects = if (aspectGroups.size == 1) aspectGroups.first() else emptySet()
-        val evos = allEvos.filter { it.fromAspects == nodeAspects }
+
+        // Group evolutions by fromAspects to separate base chain from form chains
+        val byAspects = allEvos.groupBy { it.fromAspects }
+        // Base evolutions (empty aspects) get built as direct edges
+        val baseEvos = byAspects[emptySet()] ?: emptyList()
+        // Form evolutions (non-empty aspects) become separate branches
+        val formGroups = byAspects.filterKeys { it.isNotEmpty() }
 
         // Collapse cosmetic aspect variants — group by base target species,
         // keep only one representative per species (prefer the one with no aspects)
-        val grouped = evos.groupBy { SpeciesNameNormalizer.normalize(it.toSpecies) }
+        val grouped = baseEvos.groupBy { SpeciesNameNormalizer.normalize(it.toSpecies) }
         val collapsed = grouped.map { (_, group) ->
             if (group.size == 1) group.first()
             else {
-                // Prefer the evolution with no toAspects (the "base" variant)
                 val base = group.firstOrNull { it.toAspects.isEmpty() } ?: group.first()
                 val variantCount = group.size - 1
                 if (variantCount > 0) base.withVariantNote(variantCount) else base
@@ -122,13 +124,58 @@ object EvolutionChainBuilder {
             ChainEdge(evo, buildNode(evo.toSpecies, visited))
         }
 
-        // Append form-change branches (mega, primal, gmax, ultra_burst)
-        val formEdges = buildFormChangeEdges(normalized, seen)
+        // Build regional form evolution branches (e.g. Hisuian Growlithe → Hisuian Arcanine)
+        val formEdges = mutableListOf<ChainEdge>()
+        for ((aspects, formEvos) in formGroups) {
+            // Find the speciesInfo form key for this aspect set
+            val formInfo = SpawnDataIndex.getFormsOf(species).firstOrNull {
+                it.formAspects == aspects
+            }
+            val formKey = formInfo?.name ?: continue
+            val formKeyNorm = SpeciesNameNormalizer.normalize(formKey)
+            if (formKeyNorm in seen) continue
+            seen.add(formKeyNorm)
 
-        return ChainNode(species, emptySet(), formatSpeciesName(species), edges + formEdges)
+            // Build a sub-chain: FormSpecies → its targets
+            val formTargets = formEvos.mapNotNull { evo ->
+                val targetNorm = SpeciesNameNormalizer.normalize(evo.toSpecies)
+                if (targetNorm in seen) return@mapNotNull null
+                seen.add(targetNorm)
+                ChainEdge(evo, buildNode(evo.toSpecies, visited))
+            }
+            val formDisplayName = formatSpeciesName(formKey)
+
+            // Create the form's own evolution info for the "base → form" step
+            val regionLabel = formInfo.labels?.firstOrNull {
+                it.endsWith("_form")
+            }?.removeSuffix("_form")?.let { titleCase(it) }
+            val requirement = regionLabel?.let {
+                tr("cobbledex-rei-emi-jei.evo.form_change.regional", it)
+            } ?: tr("cobbledex-rei-emi-jei.evo.form_change")
+
+            val syntheticEvo = EvolutionInfo(
+                id = "regional_${formKey}",
+                fromSpecies = species,
+                fromAspects = emptySet(),
+                toSpecies = formKey,
+                toAspects = aspects,
+                variant = "form_change",
+                requirements = emptyList(),
+                requiredContext = requirement,
+                consumeHeldItem = false
+            )
+            val formNode = ChainNode(formKey, aspects, formDisplayName, formTargets)
+            formEdges.add(ChainEdge(syntheticEvo, formNode))
+        }
+
+        // Append mega/primal/gmax/ultra_burst form changes (non-regional, no evo data)
+        val transformEdges = buildFormChangeEdges(normalized, seen)
+
+        return ChainNode(species, emptySet(), formatSpeciesName(species), edges + formEdges + transformEdges)
     }
 
     private val EVOLUTION_LIKE_LABELS = setOf("mega", "primal", "ultra_burst", "gmax")
+    private val REGIONAL_LABELS = setOf("alolan_form", "galarian_form", "hisuian_form", "paldean_form")
 
     private fun buildFormChangeEdges(baseNormalized: String, seen: MutableSet<String>): List<ChainEdge> {
         val edges = mutableListOf<ChainEdge>()
@@ -136,6 +183,8 @@ object EvolutionChainBuilder {
             if (info.baseSpeciesName == null) continue
             if (SpeciesNameNormalizer.normalize(info.baseSpeciesName) != baseNormalized) continue
             val labels = info.labels ?: continue
+            // Skip regional forms — those are handled as proper evolution branches in buildNode
+            if (labels.any { it in REGIONAL_LABELS }) continue
             if (labels.none { it in EVOLUTION_LIKE_LABELS }) continue
 
             val keyNorm = SpeciesNameNormalizer.normalize(key)

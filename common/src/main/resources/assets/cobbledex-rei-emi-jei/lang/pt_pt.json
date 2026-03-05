@@ -409,5 +409,6 @@
   "cobbledex-rei-emi-jei.evo.form_change.mega": "Mega Evolution",
   "cobbledex-rei-emi-jei.evo.form_change.primal": "Primal Reversion",
   "cobbledex-rei-emi-jei.evo.form_change.ultra_burst": "Ultra Burst",
-  "cobbledex-rei-emi-jei.evo.form_change.gmax": "Gigantamax"
+  "cobbledex-rei-emi-jei.evo.form_change.gmax": "Gigantamax",
+  "cobbledex-rei-emi-jei.evo.form_change.regional": "%1$s Form"
 }
