@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.44.1] - 2026-03-05
+
+### Fixed
+- JarDataCache now reads spawn data from ZIP datapacks (previously only read directory datapacks) — fixes missing spawn info for Pokémon whose spawns are defined exclusively in ZIP datapacks (e.g. Reshiram, Buzzwole, Iron Valiant, Yveltal, Scream Tail, Guzzlord)
+
 ## [1.44.0] - 2026-03-05
 
 ### Improved

@@ -7,6 +7,7 @@ import com.google.gson.JsonParser
 import java.io.InputStreamReader
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.zip.ZipFile
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -123,7 +124,7 @@ object JarDataCache {
             } catch (_: Exception) {}
         }
 
-        // Also scan local datapacks
+        // Also scan local datapacks (directories)
         try {
             val datapacksDir = com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
             if (Files.exists(datapacksDir) && Files.isDirectory(datapacksDir)) {
@@ -149,6 +150,12 @@ object JarDataCache {
                             }
                         }
                     }
+                }
+
+                // Scan ZIP datapacks for presets
+                scanZipDatapacks(datapacksDir, "spawn_detail_presets") { _, entryName, json ->
+                    val name = entryName.substringAfterLast('/').removeSuffix(".json")
+                    presets[name] = json
                 }
             }
         } catch (_: Exception) {}
@@ -182,7 +189,7 @@ object JarDataCache {
             } catch (_: Exception) {}
         }
 
-        // Collect from local datapacks
+        // Collect from local datapacks (directories)
         try {
             val datapacksDir = com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
             if (Files.exists(datapacksDir) && Files.isDirectory(datapacksDir)) {
@@ -198,6 +205,29 @@ object JarDataCache {
                                 }
                             }
                         }
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+
+        // Collect spawns from ZIP datapacks
+        try {
+            val datapacksDir = com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
+            if (Files.exists(datapacksDir) && Files.isDirectory(datapacksDir)) {
+                scanZipDatapacks(datapacksDir, "spawn_pool_world") { _, _, json ->
+                    if (json.has("enabled") && !json.get("enabled").asBoolean) return@scanZipDatapacks
+                    val spawns = json.getAsJsonArray("spawns") ?: return@scanZipDatapacks
+                    fileCount++
+                    for (spawnElem in spawns) {
+                        try {
+                            val spawnObj = spawnElem.asJsonObject
+                            val info = parseSpawnEntry(spawnObj, presets)
+                            if (info != null) {
+                                val species = SpeciesNameNormalizer.normalize(info.pokemon)
+                                result.getOrPut(species) { mutableListOf() }.add(info)
+                                spawnCount++
+                            }
+                        } catch (_: Exception) { failCount++ }
                     }
                 }
             }
@@ -689,6 +719,39 @@ object JarDataCache {
         }
 
         return EvolutionRequirement(variant, data)
+    }
+
+    // ==================== ZIP Datapack Scanning ====================
+
+    private fun scanZipDatapacks(
+        datapacksDir: Path,
+        subDir: String,
+        handler: (namespace: String, entryName: String, json: JsonObject) -> Unit
+    ) {
+        try {
+            Files.list(datapacksDir).use { packs ->
+                packs.filter { it.toString().endsWith(".zip") && Files.isRegularFile(it) }.forEach { zipPath ->
+                    try {
+                        ZipFile(zipPath.toFile()).use { zip ->
+                            val pattern = Regex("^data/([^/]+)/${subDir}/.+\\.json\$")
+                            for (entry in zip.entries()) {
+                                if (entry.isDirectory) continue
+                                val match = pattern.matchEntire(entry.name) ?: continue
+                                val namespace = match.groupValues[1]
+                                try {
+                                    val json = zip.getInputStream(entry).use { stream ->
+                                        InputStreamReader(stream, Charsets.UTF_8).use { reader ->
+                                            JsonParser.parseReader(reader).asJsonObject
+                                        }
+                                    }
+                                    handler(namespace, entry.name, json)
+                                } catch (_: Exception) {}
+                            }
+                        }
+                    } catch (_: Exception) {}
+                }
+            }
+        } catch (_: Exception) {}
     }
 
     // ==================== JSON Helper Extensions ====================
