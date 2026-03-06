@@ -6,10 +6,14 @@ import me.shedaniel.rei.api.common.entry.EntryStack
 import me.shedaniel.rei.api.common.entry.comparison.ComparisonContext
 import me.shedaniel.rei.api.common.entry.type.EntryDefinition
 import me.shedaniel.rei.api.common.entry.type.EntryType
+import net.minecraft.client.Minecraft
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.tags.TagKey
+import net.minecraft.world.item.ItemStack
+import com.cobbledex.PokemonCheatHandler
+import com.cobbledex.PokemonItemCache
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.formatTypeName
 import com.cobbledex.titleCase
@@ -99,6 +103,16 @@ class PokemonEntryDefinition : EntryDefinition<PokemonEntry> {
             parts.addAll(jobs.map { "job:${it.rule.id} ${it.rule.displayName}" })
         }
         return Component.literal(parts.joinToString(" "))
+    }
+
+    override fun cheatsAs(entry: EntryStack<PokemonEntry>, value: PokemonEntry): ItemStack? {
+        val player = Minecraft.getInstance().player ?: return null
+        // Only fire pokegive when cursor is empty (actual cheat click, not delete-item check)
+        if (player.containerMenu.carried.isEmpty) {
+            PokemonCheatHandler.sendPokegiveCommand(value.species, value.formAspects)
+        }
+        // Return the cosmetic PokemonItem so REI considers the cheat "handled" and doesn't open the recipe view
+        return PokemonItemCache.getItem(value.species, value.formAspects)
     }
 
     override fun getTagsFor(entry: EntryStack<PokemonEntry>, value: PokemonEntry): Stream<out TagKey<*>> {

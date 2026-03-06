@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.45.0] - 2026-03-06
+
+### Added
+- Cheat-in Pokémon support for REI and JEI — clicking a Pokémon entry in cheat mode now runs `/pokegive` to add a real Pokémon to your party instead of just giving the cosmetic model item
+- New `PokemonCheatHandler` utility for cross-viewer pokegive command execution
+
 ## [1.44.2] - 2026-03-05
 
 ### Fixed

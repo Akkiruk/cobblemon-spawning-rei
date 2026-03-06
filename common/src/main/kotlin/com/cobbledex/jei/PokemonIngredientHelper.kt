@@ -1,9 +1,12 @@
 package com.cobbledex.jei
 
+import com.cobbledex.PokemonCheatHandler
+import com.cobbledex.PokemonItemCache
 import mezz.jei.api.ingredients.IIngredientHelper
 import mezz.jei.api.ingredients.IIngredientType
 import mezz.jei.api.ingredients.subtypes.UidContext
 import net.minecraft.resources.ResourceLocation
+import net.minecraft.world.item.ItemStack
 import java.util.Optional
 
 @Suppress("DEPRECATION")
@@ -32,4 +35,10 @@ class PokemonIngredientHelper : IIngredientHelper<PokemonIngredient> {
     override fun getColors(ingredient: PokemonIngredient): Iterable<Int> = emptyList()
 
     override fun isValidIngredient(ingredient: PokemonIngredient): Boolean = ingredient.species.isNotBlank()
+
+    override fun getCheatItemStack(ingredient: PokemonIngredient): ItemStack {
+        PokemonCheatHandler.sendPokegiveCommand(ingredient.species, ingredient.formAspects)
+        // Return the cosmetic PokemonItem so JEI considers the cheat "handled"
+        return PokemonItemCache.getItem(ingredient.species, ingredient.formAspects) ?: ItemStack.EMPTY
+    }
 }
