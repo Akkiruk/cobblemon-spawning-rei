@@ -158,14 +158,7 @@ object SpawnDataIndex {
                 obtainmentBySpecies = emptyMap()
             }
 
-            // Fossils were already applied via applyServerSync; try runtime then JAR cache as supplement
-            if (fossilsBySpecies.isEmpty()) {
-                try {
-                    fossilsBySpecies = normalizeMapKeys(FossilDataLoader.loadFromRuntime())
-                } catch (e: Exception) {
-                    DebugLog.warn("Fossil data load failed: ${e.message}")
-                }
-            }
+            // Fossils from server sync; fall back to JarDataCache if sync had none
             if (fossilsBySpecies.isEmpty() && JarDataCache.hasCachedFossils()) {
                 DebugLog.info("Using JarDataCache fossils (${JarDataCache.getCachedFossils().size} species)")
                 fossilsBySpecies = normalizeMapKeys(JarDataCache.getCachedFossils())
@@ -245,15 +238,12 @@ object SpawnDataIndex {
             obtainmentBySpecies = emptyMap()
         }
 
-        try {
-            fossilsBySpecies = normalizeMapKeys(FossilDataLoader.loadFromRuntime())
-        } catch (e: Exception) {
-            DebugLog.warn("Fossil data load failed: ${e.message}")
-            fossilsBySpecies = emptyMap()
-        }
-        if (fossilsBySpecies.isEmpty() && JarDataCache.hasCachedFossils()) {
-            DebugLog.info("Using JarDataCache fossils (${JarDataCache.getCachedFossils().size} species)")
+        // Cobblemon's client-side Fossils.all() has empty ingredient lists due to
+        // FossilRegistrySyncPacket.decodeEntry() not syncing ItemPredicates — use JarDataCache instead
+        if (JarDataCache.hasCachedFossils()) {
             fossilsBySpecies = normalizeMapKeys(JarDataCache.getCachedFossils())
+        } else {
+            fossilsBySpecies = emptyMap()
         }
 
         // Enrich speciesInfo with JAR-cached moves when runtime API returned null

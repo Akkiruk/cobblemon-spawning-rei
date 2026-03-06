@@ -368,6 +368,9 @@ object FossilDex : DexCategory {
     override fun buildRecipesFor(species: String) =
         RecipeBuilder.buildFossilsFor(species).map(::toHandle)
 
+    override fun buildRecipesForItem(itemId: String) =
+        RecipeBuilder.buildFossilRecipesForItem(itemId).map(::toHandle)
+
     private fun toHandle(d: FossilRecipeData) = RecipeHandle(
         recipeIdPath = "fossils/${sanitizePath(d.speciesName)}",
         inputSpecies = emptyList(),

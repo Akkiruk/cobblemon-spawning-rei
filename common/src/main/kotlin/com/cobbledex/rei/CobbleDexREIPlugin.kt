@@ -143,7 +143,13 @@ open class CobbleDexREIPlugin : REIClientPlugin {
                 val stack = SpawnDisplayHelper.resolveItemStack(itemId)
                 if (!stack.isEmpty) EntryIngredient.of(EntryStacks.of(stack)) else null
             }
-            pokemon + catalog
+            val itemInputs = handle.slots.items
+                .filter { it.role == SlotRole.INPUT }
+                .mapNotNull { slot ->
+                    val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
+                    if (!stack.isEmpty) EntryIngredient.of(EntryStacks.of(stack)) else null
+                }
+            pokemon + catalog + itemInputs
         }
 
         private val cachedOutputEntries: List<EntryIngredient> by lazy {

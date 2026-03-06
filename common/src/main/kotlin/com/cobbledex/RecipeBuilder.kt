@@ -226,6 +226,13 @@ object RecipeBuilder {
         return combos.map { FossilRecipeData(speciesName, it.fossilItems, it.extraTags) }
     }
 
+    fun buildFossilRecipesForItem(itemId: String): List<FossilRecipeData> {
+        return SpawnDataIndex.fossilsBySpecies.flatMap { (species, combos) ->
+            combos.filter { it.fossilItems.contains(itemId) }
+                .map { FossilRecipeData(species, it.fossilItems, it.extraTags) }
+        }
+    }
+
     // --- Type chart recipes ---
 
     fun buildAllTypeChartRecipes(): List<TypeChartRecipeData> {

@@ -2,6 +2,13 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.45.2] - 2026-03-06
+
+### Fixed
+- Right-clicking a fossil item (e.g. Dome Fossil) now shows the Pokémon it produces in REI/JEI/EMI
+- Removed broken client-side `Fossils.all()` calls — Cobblemon's sync packet drops ingredient data, so fossils now load exclusively from JarDataCache on the client
+- REI input index now includes fossil item slots, enabling proper usage lookups
+
 ## [1.45.1] - 2026-03-06
 
 ### Fixed
