@@ -9,8 +9,18 @@ import net.minecraft.world.item.ItemStack
  */
 object PokemonCheatHandler {
 
+    // Debounce to prevent double-fire (JEI calls getCheatItemStack on both simulate + execute phases)
+    private var lastSpecies = ""
+    private var lastFireTick = 0L
+
     fun sendPokegiveCommand(species: String, formAspects: Set<String> = emptySet()) {
         val player = Minecraft.getInstance().player ?: return
+        val tick = player.level().gameTime
+        // Skip if same species fired within 10 ticks (~500ms)
+        val key = "$species|${formAspects.sorted()}"
+        if (key == lastSpecies && tick - lastFireTick < 10) return
+        lastSpecies = key
+        lastFireTick = tick
         val cmd = buildCommand(species, formAspects)
         player.connection?.sendCommand(cmd)
     }
