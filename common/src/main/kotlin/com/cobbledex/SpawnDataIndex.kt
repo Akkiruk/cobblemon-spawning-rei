@@ -158,13 +158,17 @@ object SpawnDataIndex {
                 obtainmentBySpecies = emptyMap()
             }
 
-            // Fossils were already applied via applyServerSync; only try runtime as supplement
+            // Fossils were already applied via applyServerSync; try runtime then JAR cache as supplement
             if (fossilsBySpecies.isEmpty()) {
                 try {
                     fossilsBySpecies = normalizeMapKeys(FossilDataLoader.loadFromRuntime())
                 } catch (e: Exception) {
                     DebugLog.warn("Fossil data load failed: ${e.message}")
                 }
+            }
+            if (fossilsBySpecies.isEmpty() && JarDataCache.hasCachedFossils()) {
+                DebugLog.info("Using JarDataCache fossils (${JarDataCache.getCachedFossils().size} species)")
+                fossilsBySpecies = normalizeMapKeys(JarDataCache.getCachedFossils())
             }
 
             rebuildDerivedData()
@@ -246,6 +250,10 @@ object SpawnDataIndex {
         } catch (e: Exception) {
             DebugLog.warn("Fossil data load failed: ${e.message}")
             fossilsBySpecies = emptyMap()
+        }
+        if (fossilsBySpecies.isEmpty() && JarDataCache.hasCachedFossils()) {
+            DebugLog.info("Using JarDataCache fossils (${JarDataCache.getCachedFossils().size} species)")
+            fossilsBySpecies = normalizeMapKeys(JarDataCache.getCachedFossils())
         }
 
         // Enrich speciesInfo with JAR-cached moves when runtime API returned null

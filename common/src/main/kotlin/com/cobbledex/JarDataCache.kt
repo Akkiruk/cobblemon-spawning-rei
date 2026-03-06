@@ -27,6 +27,8 @@ object JarDataCache {
     private var cachedSpawns: Map<String, List<SpawnInfo>> = emptyMap()
     @Volatile
     private var cachedMoves: Map<String, JarMoveData> = emptyMap()
+    @Volatile
+    private var cachedFossils: Map<String, List<FossilCombo>> = emptyMap()
 
     /** Raw move data parsed from species JSON in mod JARs. */
     data class JarMoveData(
@@ -49,6 +51,8 @@ object JarDataCache {
     fun hasCachedSpawns(): Boolean = cachedSpawns.isNotEmpty()
     fun hasCachedMoves(): Boolean = cachedMoves.isNotEmpty()
     fun getCachedMoves(): Map<String, JarMoveData> = cachedMoves
+    fun hasCachedFossils(): Boolean = cachedFossils.isNotEmpty()
+    fun getCachedFossils(): Map<String, List<FossilCombo>> = cachedFossils
 
     /**
      * Wait for the cache to finish initializing (up to timeout).
@@ -78,12 +82,14 @@ object JarDataCache {
             val evoAndMoves = parseEvolutionsAndMovesFromJars(modRoots)
             cachedEvolutions = evoAndMoves.first
             cachedMoves = evoAndMoves.second
+            cachedFossils = parseFossilsFromJars(modRoots)
 
             val elapsed = System.currentTimeMillis() - startTime
             DebugLog.info("JarDataCache: ready in ${elapsed}ms — " +
                 "${cachedSpawns.size} species with spawns, " +
                 "${cachedEvolutions.size} species with evolutions, " +
-                "${cachedMoves.size} species with moves")
+                "${cachedMoves.size} species with moves, " +
+                "${cachedFossils.values.sumOf { it.size }} fossils for ${cachedFossils.size} species")
 
             initialized.set(true)
         } catch (e: Exception) {
@@ -719,6 +725,93 @@ object JarDataCache {
         }
 
         return EvolutionRequirement(variant, data)
+    }
+
+    // ==================== Fossil Parsing ====================
+
+    private fun parseFossilsFromJars(modRoots: List<Path>): Map<String, List<FossilCombo>> {
+        val result = mutableMapOf<String, MutableList<FossilCombo>>()
+
+        fun processFossilJson(json: JsonObject) {
+            val resultStr = json.optString("result") ?: return
+            val fossilArr = json.optArray("fossils") ?: return
+            val items = fossilArr.mapNotNull { if (it.isJsonPrimitive) it.asString else null }
+            if (items.isEmpty()) return
+
+            // Parse "species form=X aspect=Y min_perfect_ivs=2" format
+            val parts = resultStr.split(" ")
+            val species = parts.first().lowercase()
+            val extraParts = parts.drop(1)
+            val formPart = extraParts.firstOrNull { it.startsWith("form=") }
+            val aspectParts = extraParts.filter { it.startsWith("aspect=") }.map { it.removePrefix("aspect=") }
+            val extras = mutableListOf<String>()
+            formPart?.let { extras.add(it) }
+            extras.addAll(aspectParts)
+            val extraTags = extras.joinToString(" ").takeIf { it.isNotBlank() }
+
+            result.getOrPut(species) { mutableListOf() }.add(FossilCombo(species, items, extraTags))
+        }
+
+        // Scan mod JARs
+        for (root in modRoots) {
+            try {
+                val dataDir = root.resolve("data")
+                if (!Files.exists(dataDir) || !Files.isDirectory(dataDir)) continue
+                Files.list(dataDir).use { namespaces ->
+                    namespaces.filter { Files.isDirectory(it) }.forEach { namespace ->
+                        val fossilDir = namespace.resolve("fossils")
+                        if (!Files.exists(fossilDir) || !Files.isDirectory(fossilDir)) return@forEach
+                        Files.walk(fossilDir, 5).use { files ->
+                            files.filter { it.toString().endsWith(".json") && Files.isRegularFile(it) }.forEach { file ->
+                                try {
+                                    val json = InputStreamReader(Files.newInputStream(file), Charsets.UTF_8).use { reader ->
+                                        JsonParser.parseReader(reader).asJsonObject
+                                    }
+                                    processFossilJson(json)
+                                } catch (_: Exception) {}
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        // Scan local datapacks (directories)
+        try {
+            val datapacksDir = com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
+            if (Files.exists(datapacksDir) && Files.isDirectory(datapacksDir)) {
+                Files.list(datapacksDir).use { packs ->
+                    packs.filter { Files.isDirectory(it) }.forEach { pack ->
+                        val dataDir = pack.resolve("data")
+                        if (!Files.exists(dataDir)) return@forEach
+                        Files.list(dataDir).use { namespaces ->
+                            namespaces.filter { Files.isDirectory(it) }.forEach { namespace ->
+                                val fossilDir = namespace.resolve("fossils")
+                                if (!Files.exists(fossilDir) || !Files.isDirectory(fossilDir)) return@forEach
+                                Files.walk(fossilDir, 5).use { files ->
+                                    files.filter { it.toString().endsWith(".json") && Files.isRegularFile(it) }.forEach { file ->
+                                        try {
+                                            val json = InputStreamReader(Files.newInputStream(file), Charsets.UTF_8).use { reader ->
+                                                JsonParser.parseReader(reader).asJsonObject
+                                            }
+                                            processFossilJson(json)
+                                        } catch (_: Exception) {}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Scan ZIP datapacks
+                scanZipDatapacks(datapacksDir, "fossils") { _, _, json ->
+                    processFossilJson(json)
+                }
+            }
+        } catch (_: Exception) {}
+
+        DebugLog.info("JarDataCache: parsed ${result.values.sumOf { it.size }} fossils for ${result.size} species")
+        return result
     }
 
     // ==================== ZIP Datapack Scanning ====================

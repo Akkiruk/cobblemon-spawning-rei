@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.45.1] - 2026-03-06
+
+### Fixed
+- Fossil data now loads from mod JARs and datapacks as fallback when Cobblemon's runtime Fossils registry is unavailable — fixes fossils not appearing on dedicated servers even after the 1.44.2 sync fix
+- JarDataCache now scans `data/*/fossils/*.json` from mod JARs, directory datapacks, and ZIP datapacks
+
 ## [1.45.0] - 2026-03-06
 
 ### Added
