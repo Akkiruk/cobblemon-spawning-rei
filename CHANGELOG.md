@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.45.3] - 2026-03-06
+
+### Fixed
+- Nether sub-biome tags (nether/is_basalt, nether/is_desert, etc.) now display distinct names instead of all showing "Nether"
+- has_block/mud tag now displays "Near Mud" instead of meaningless "Block"
+
 ## [1.45.2] - 2026-03-06
 
 ### Fixed

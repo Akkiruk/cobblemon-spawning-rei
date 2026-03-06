@@ -105,6 +105,13 @@
   "cobbledex-rei-emi-jei.biome.snowy_forest": "Snowy Forest",
   "cobbledex-rei-emi-jei.biome.snowy_taiga": "Snowy Taiga",
   "cobbledex-rei-emi-jei.biome.nether_frozen": "Frozen Nether",
+  "cobbledex-rei-emi-jei.biome.nether_basalt": "Nether Basalt",
+  "cobbledex-rei-emi-jei.biome.nether_desert": "Nether Desert",
+  "cobbledex-rei-emi-jei.biome.nether_forest": "Nether Forest",
+  "cobbledex-rei-emi-jei.biome.nether_fungus": "Nether Fungus",
+  "cobbledex-rei-emi-jei.biome.nether_toxic": "Nether Toxic",
+  "cobbledex-rei-emi-jei.biome.nether_wasteland": "Nether Wasteland",
+  "cobbledex-rei-emi-jei.biome.block_mud": "Near Mud",
 
   "cobbledex-rei-emi-jei.biome.cold_ocean": "Cold Ocean",
   "cobbledex-rei-emi-jei.biome.frozen_ocean": "Frozen Ocean",

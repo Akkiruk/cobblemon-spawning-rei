@@ -284,9 +284,8 @@ private fun tickToTime(tick: Int): String {
 fun formatBiomeName(id: String): String {
     if (id.lowercase().endsWith("custom_spawn")) return tr("cobbledex-rei-emi-jei.biome.altar_only")
     val cleaned = stripNamespace(id)
-        .substringBefore("/")
-        .removePrefix("is_")
-        .removePrefix("has_")
+        .split("/")
+        .joinToString("_") { it.removePrefix("is_").removePrefix("has_") }
     val key = "cobbledex-rei-emi-jei.biome.${cleaned.lowercase()}"
     val translated = tr(key)
     return if (translated != key) translated else titleCase(cleaned)
