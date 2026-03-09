@@ -10,12 +10,22 @@ import java.util.zip.ZipOutputStream
 
 /**
  * Exports all CobbleDex data as a single .xlsx workbook with multiple sheet tabs.
+ * Uses human-readable names as primary columns with raw IDs preserved alongside.
  * Import directly into Google Sheets (File → Import) and all tabs are preserved.
- * Run via /spawningrei export in-game after data is loaded.
  */
 object SpreadsheetExporter {
 
     data class ExportResult(val filePath: Path, val sheetNames: List<String>, val speciesCount: Int)
+
+    // Per-export caches for frequently-called formatters
+    private val speciesNameCache = mutableMapOf<String, String>()
+    private val itemNameCache = mutableMapOf<String, String>()
+
+    private fun cachedSpeciesName(raw: String): String =
+        speciesNameCache.getOrPut(raw) { formatSpeciesName(raw) }
+
+    private fun cachedItemName(raw: String): String =
+        itemNameCache.getOrPut(raw) { SpawnDisplayHelper.resolveItemName(raw) }
 
     fun export(sender: DiagnosticService.MessageSender): Int {
         val index = SpawnDataIndex
@@ -43,6 +53,9 @@ object SpreadsheetExporter {
     }
 
     private fun doExport(index: SpawnDataIndex): ExportResult {
+        speciesNameCache.clear()
+        itemNameCache.clear()
+
         val gameDir = try {
             com.cobbledex.platform.PlatformHelper.getGameDir()
         } catch (_: Exception) {
@@ -73,7 +86,7 @@ object SpreadsheetExporter {
     }
 
     // ══════════════════════════════════════════════════════════════════
-    //  Sheet data builders — return name + rows, no file I/O
+    //  Sheet builders — human-readable primary text + raw IDs
     // ══════════════════════════════════════════════════════════════════
 
     private data class SheetData(val name: String, val rows: List<List<String>>)
@@ -84,10 +97,10 @@ object SpreadsheetExporter {
 
         val rows = mutableListOf<List<String>>()
         rows.add(listOf(
-            "Name", "Dex #", "Form", "Base Species",
+            "Name", "Species ID", "Dex #", "Form", "Base Species",
             "Type 1", "Type 2",
-            "HP", "Attack", "Defense", "Sp.Atk", "Sp.Def", "Speed", "BST",
-            "Catch Rate", "Height", "Weight",
+            "HP", "Attack", "Defense", "Sp. Atk", "Sp. Def", "Speed", "BST",
+            "Catch Rate", "Height (m)", "Weight (kg)",
             "Ability 1", "Ability 2", "Hidden Ability",
             "Egg Group 1", "Egg Group 2",
             "Male Ratio %", "Egg Cycles",
@@ -108,12 +121,13 @@ object SpreadsheetExporter {
             val eggGroups = info.eggGroups ?: emptyList()
 
             rows.add(listOf(
-                info.name,
+                cachedSpeciesName(info.name),
+                key,
                 if (info.nationalDexNumber > 0) info.nationalDexNumber.toString() else "",
-                info.formName ?: "",
-                info.baseSpeciesName ?: "",
-                info.primaryType,
-                info.secondaryType ?: "",
+                info.formName?.let { titleCase(it) } ?: "",
+                info.baseSpeciesName?.let { cachedSpeciesName(it) } ?: "",
+                formatTypeName(info.primaryType),
+                info.secondaryType?.let { formatTypeName(it) } ?: "",
                 stats?.get("hp")?.toString() ?: "",
                 stats?.get("attack")?.toString() ?: "",
                 stats?.get("defense")?.toString() ?: "",
@@ -122,16 +136,16 @@ object SpreadsheetExporter {
                 stats?.get("spe")?.toString() ?: "",
                 info.baseStatTotal?.toString() ?: "",
                 info.catchRate.toString(),
-                info.height.toString(),
-                info.weight.toString(),
-                abilities.getOrElse(0) { "" },
-                abilities.getOrElse(1) { "" },
-                info.hiddenAbility ?: "",
-                eggGroups.getOrElse(0) { "" },
-                eggGroups.getOrElse(1) { "" },
+                "%.1f".format(info.height),
+                "%.1f".format(info.weight),
+                abilities.getOrElse(0) { "" }.let { if (it.isNotEmpty()) formatAbilityName(it) else "" },
+                abilities.getOrElse(1) { "" }.let { if (it.isNotEmpty()) formatAbilityName(it) else "" },
+                info.hiddenAbility?.let { formatAbilityName(it) } ?: "",
+                eggGroups.getOrElse(0) { "" }.let { if (it.isNotEmpty()) formatEggGroupName(it) else "" },
+                eggGroups.getOrElse(1) { "" }.let { if (it.isNotEmpty()) formatEggGroupName(it) else "" },
                 info.maleRatio?.let { "%.1f".format(it * 100) } ?: "",
                 info.eggCycles?.toString() ?: "",
-                info.experienceGroup ?: "",
+                info.experienceGroup?.let { formatExpGroup(it) } ?: "",
                 info.baseExperienceYield?.toString() ?: "",
                 info.baseFriendship?.toString() ?: "",
                 evs?.get("hp")?.toString() ?: "0",
@@ -143,7 +157,7 @@ object SpreadsheetExporter {
                 if (index.spawnsBySpecies.containsKey(key)) "Yes" else "No",
                 if (info.drops?.isNotEmpty() == true) "Yes" else "No",
                 if (index.evolutionsBySpecies.containsKey(key)) "Yes" else "No",
-                info.labels?.joinToString("; ") ?: "",
+                info.labels?.joinToString("; ") { titleCase(it) } ?: "",
                 if (info.shoulderMountable) "Yes" else "No"
             ))
         }
@@ -157,15 +171,19 @@ object SpreadsheetExporter {
 
         val rows = mutableListOf<List<String>>()
         rows.add(listOf(
-            "Pokemon", "Form", "Bucket", "Spawn Weight",
+            "Pokemon", "Pokemon ID", "Form", "Bucket", "Spawn Weight",
             "Level Range", "Context",
-            "Biomes", "Time", "Weather",
-            "Dimensions", "Structures",
+            "Biomes", "Biome IDs",
+            "Time", "Weather",
+            "Dimensions", "Dimension IDs",
+            "Structures", "Structure IDs",
             "Can See Sky", "Min Light", "Max Light",
             "Min Sky Light", "Max Sky Light",
             "Min Y", "Max Y",
-            "Needed Nearby Blocks", "Needed Base Blocks",
-            "Moon Phase", "Presets", "Fluid",
+            "Nearby Blocks", "Nearby Block IDs",
+            "Base Blocks", "Base Block IDs",
+            "Moon Phase", "Presets",
+            "Fluid", "Fluid ID",
             "Weight Multipliers", "Min Lure Level"
         ))
 
@@ -184,28 +202,35 @@ object SpreadsheetExporter {
                 }
 
                 rows.add(listOf(
+                    cachedSpeciesName(spawn.pokemon),
                     spawn.pokemon,
-                    spawn.formAspects,
-                    spawn.bucket,
+                    if (spawn.formAspects.isNotBlank()) SpawnDisplayHelper.formatFormAspects(spawn.formAspects) else "",
+                    titleCase(spawn.bucket),
                     spawn.weight.toString(),
                     spawn.levelRange,
-                    spawn.context,
+                    titleCase(spawn.context),
+                    spawn.biomes.joinToString("; ") { formatBiomeName(it) },
                     spawn.biomes.joinToString("; "),
-                    spawn.timeRange ?: "Any",
+                    spawn.timeRange?.let { formatTimeRange(it) } ?: "Any",
                     weatherText.ifEmpty { "Any" },
+                    spawn.dimensions.joinToString("; ") { SpawnDisplayHelper.formatDimension(it) },
                     spawn.dimensions.joinToString("; "),
+                    spawn.structures.joinToString("; ") { formatStructureName(it) },
                     spawn.structures.joinToString("; "),
-                    spawn.canSeeSky?.toString() ?: "",
+                    spawn.canSeeSky?.let { if (it) "Yes" else "No" } ?: "",
                     spawn.minLight?.toString() ?: "",
                     spawn.maxLight?.toString() ?: "",
                     spawn.minSkyLight?.toString() ?: "",
                     spawn.maxSkyLight?.toString() ?: "",
                     spawn.minY?.toString() ?: "",
                     spawn.maxY?.toString() ?: "",
+                    spawn.neededNearbyBlocks.joinToString("; ") { formatBlockName(it) },
                     spawn.neededNearbyBlocks.joinToString("; "),
+                    spawn.neededBaseBlocks.joinToString("; ") { formatBlockName(it) },
                     spawn.neededBaseBlocks.joinToString("; "),
                     spawn.moonPhase ?: "",
-                    spawn.presets.joinToString("; "),
+                    spawn.presets.joinToString("; ") { titleCase(it) },
+                    spawn.fluid?.let { formatId(it) } ?: "",
                     spawn.fluid ?: "",
                     multipliers,
                     spawn.minLureLevel?.toString() ?: ""
@@ -222,20 +247,24 @@ object SpreadsheetExporter {
 
         val rows = mutableListOf<List<String>>()
         rows.add(listOf(
-            "From Pokemon", "From Aspects", "To Pokemon", "To Aspects",
+            "From", "From ID", "From Form",
+            "To", "To ID", "To Form",
             "Method", "Requirements",
-            "Required Item/Block", "Consumes Held Item"
+            "Required Item", "Required Item ID", "Consumes Held Item"
         ))
 
         for ((_, evoList) in evolutions.entries.sortedBy { it.key }) {
             for (evo in evoList) {
                 rows.add(listOf(
+                    cachedSpeciesName(evo.fromSpecies),
                     evo.fromSpecies,
-                    evo.fromAspects.joinToString("; "),
+                    evo.fromAspects.joinToString("; ") { formatAspect(it) },
+                    cachedSpeciesName(evo.toSpecies),
                     evo.toSpecies,
-                    evo.toAspects.joinToString("; "),
-                    evo.variant,
+                    evo.toAspects.joinToString("; ") { formatAspect(it) },
+                    titleCase(evo.variant),
                     evo.requirements.joinToString("; ") { it.displayText },
+                    evo.requiredContext?.let { cachedItemName(it) } ?: "",
                     evo.requiredContext ?: "",
                     if (evo.consumeHeldItem) "Yes" else "No"
                 ))
@@ -251,7 +280,7 @@ object SpreadsheetExporter {
         if (!hasDrops) return null
 
         val rows = mutableListOf<List<String>>()
-        rows.add(listOf("Pokemon", "Dex #", "Item ID", "Drop Chance %", "Quantity"))
+        rows.add(listOf("Pokemon", "Dex #", "Item", "Item ID", "Drop Chance %", "Quantity"))
 
         val sorted = speciesInfo.entries
             .filter { it.value.drops?.isNotEmpty() == true }
@@ -260,8 +289,9 @@ object SpreadsheetExporter {
         for ((_, info) in sorted) {
             for (drop in info.drops!!) {
                 rows.add(listOf(
-                    info.name,
+                    cachedSpeciesName(info.name),
                     if (info.nationalDexNumber > 0) info.nationalDexNumber.toString() else "",
+                    cachedItemName(drop.itemId),
                     drop.itemId,
                     drop.percentage.toString(),
                     drop.quantityRange ?: drop.quantity.toString()
@@ -284,7 +314,7 @@ object SpreadsheetExporter {
         val rows = mutableListOf<List<String>>()
         rows.add(listOf(
             "Pokemon", "Dex #", "Learn Method", "Level",
-            "Move Name", "Type", "Category", "Power", "Accuracy", "PP"
+            "Move", "Type", "Category", "Power", "Accuracy", "PP"
         ))
 
         val sorted = speciesInfo.entries.sortedWith(
@@ -305,10 +335,12 @@ object SpreadsheetExporter {
 
     private fun moveRow(info: EvolutionDataLoader.SpeciesBasicInfo, method: String, level: String, move: MoveDetail): List<String> {
         return listOf(
-            info.name,
+            cachedSpeciesName(info.name),
             if (info.nationalDexNumber > 0) info.nationalDexNumber.toString() else "",
             method, level,
-            move.name, move.type, move.category,
+            move.name,
+            formatTypeName(move.type),
+            titleCase(move.category),
             if (move.power > 0) move.power.toString() else "—",
             if (move.accuracy > 0) move.accuracy.toString() else "—",
             move.pp.toString()
@@ -323,7 +355,7 @@ object SpreadsheetExporter {
         val rows = mutableListOf<List<String>>()
         rows.add(listOf(
             "Pokemon", "Dex #", "Level",
-            "Move Name", "Type", "Category", "Power", "Accuracy", "PP"
+            "Move", "Type", "Category", "Power", "Accuracy", "PP"
         ))
 
         val sorted = speciesInfo.entries
@@ -334,10 +366,12 @@ object SpreadsheetExporter {
             for (lum in (info.levelUpMoves ?: continue).sortedBy { it.level }) {
                 for (move in lum.moves) {
                     rows.add(listOf(
-                        info.name,
+                        cachedSpeciesName(info.name),
                         if (info.nationalDexNumber > 0) info.nationalDexNumber.toString() else "",
                         lum.level.toString(),
-                        move.name, move.type, move.category,
+                        move.name,
+                        formatTypeName(move.type),
+                        titleCase(move.category),
                         if (move.power > 0) move.power.toString() else "—",
                         if (move.accuracy > 0) move.accuracy.toString() else "—",
                         move.pp.toString()
@@ -355,19 +389,32 @@ object SpreadsheetExporter {
 
         val rows = mutableListOf<List<String>>()
         rows.add(listOf(
-            "Pokemon", "Form", "Method", "Description",
-            "Required Items", "Block", "Structure", "Dimension",
+            "Pokemon", "Pokemon ID", "Form", "Method", "Description",
+            "Required Items", "Item IDs",
+            "Block", "Block ID",
+            "Structure", "Structure ID",
+            "Dimension", "Dimension ID",
             "Notes", "Source"
         ))
 
         for ((_, obtainList) in obtainment.entries.sortedBy { it.key }) {
             for (info in obtainList) {
                 rows.add(listOf(
-                    info.pokemon, info.formAspects,
-                    info.method, info.description,
+                    cachedSpeciesName(info.pokemon),
+                    info.pokemon,
+                    if (info.formAspects.isNotBlank()) SpawnDisplayHelper.formatFormAspects(info.formAspects) else "",
+                    titleCase(info.method),
+                    info.description,
+                    info.items.joinToString("; ") { cachedItemName(it) },
                     info.items.joinToString("; "),
-                    info.block ?: "", info.structure ?: "", info.dimension ?: "",
-                    info.notes.joinToString("; "), info.source
+                    info.block?.let { formatBlockName(it) } ?: "",
+                    info.block ?: "",
+                    info.structure?.let { formatStructureName(it) } ?: "",
+                    info.structure ?: "",
+                    info.dimension?.let { SpawnDisplayHelper.formatDimension(it) } ?: "",
+                    info.dimension ?: "",
+                    info.notes.joinToString("; "),
+                    titleCase(info.source)
                 ))
             }
         }
@@ -380,12 +427,14 @@ object SpreadsheetExporter {
         if (fossils.isEmpty()) return null
 
         val rows = mutableListOf<List<String>>()
-        rows.add(listOf("Pokemon", "Fossil Items", "Extra Tags"))
+        rows.add(listOf("Pokemon", "Pokemon ID", "Fossil Items", "Fossil Item IDs", "Extra Tags"))
 
         for ((_, fossilList) in fossils.entries.sortedBy { it.key }) {
             for (fossil in fossilList) {
                 rows.add(listOf(
+                    cachedSpeciesName(fossil.resultSpecies),
                     fossil.resultSpecies,
+                    fossil.fossilItems.joinToString("; ") { cachedItemName(it) },
                     fossil.fossilItems.joinToString("; "),
                     fossil.extraTags ?: ""
                 ))
@@ -410,12 +459,13 @@ object SpreadsheetExporter {
         for ((_, info) in sorted) {
             val abilities = info.abilities ?: emptyList()
             rows.add(listOf(
-                info.name,
+                cachedSpeciesName(info.name),
                 if (info.nationalDexNumber > 0) info.nationalDexNumber.toString() else "",
-                info.primaryType, info.secondaryType ?: "",
-                abilities.getOrElse(0) { "" },
-                abilities.getOrElse(1) { "" },
-                info.hiddenAbility ?: ""
+                formatTypeName(info.primaryType),
+                info.secondaryType?.let { formatTypeName(it) } ?: "",
+                abilities.getOrElse(0) { "" }.let { if (it.isNotEmpty()) formatAbilityName(it) else "" },
+                abilities.getOrElse(1) { "" }.let { if (it.isNotEmpty()) formatAbilityName(it) else "" },
+                info.hiddenAbility?.let { formatAbilityName(it) } ?: ""
             ))
         }
 
@@ -466,12 +516,10 @@ object SpreadsheetExporter {
     }
 
     // ══════════════════════════════════════════════════════════════════
-    //  Minimal XLSX writer — no external dependencies
-    //  XLSX = ZIP of XML files (OOXML SpreadsheetML)
+    //  XLSX writer — OOXML SpreadsheetML with formatting
     // ══════════════════════════════════════════════════════════════════
 
     private fun writeXlsx(path: Path, sheets: List<SheetData>) {
-        // Collect all unique strings across all sheets into a shared string table
         val stringPool = LinkedHashMap<String, Int>()
         for (sheet in sheets) {
             for (row in sheet.rows) {
@@ -528,6 +576,14 @@ object SpreadsheetExporter {
         .replace(">", "&gt;")
         .replace("\"", "&quot;")
 
+    private fun autoColumnWidths(sheet: SheetData): List<Double> {
+        val numCols = sheet.rows.maxOfOrNull { it.size } ?: return emptyList()
+        return (0 until numCols).map { col ->
+            val maxLen = sheet.rows.maxOf { row -> row.getOrElse(col) { "" }.length }
+            (maxLen * 1.1 + 3).coerceIn(8.0, 55.0)
+        }
+    }
+
     // ── XML templates ────────────────────────────────────────────────
 
     private fun buildContentTypes(sheetCount: Int): String {
@@ -576,23 +632,27 @@ $rels
 </Relationships>"""
     }
 
+    // Style 0 = default body, Style 1 = bold, Style 2 = bold white on blue (header)
     private val STYLES_XML = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<fonts count="2">
+<fonts count="3">
 <font><sz val="11"/><name val="Calibri"/></font>
 <font><b/><sz val="11"/><name val="Calibri"/></font>
+<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
 </fonts>
-<fills count="2">
+<fills count="3">
 <fill><patternFill patternType="none"/></fill>
 <fill><patternFill patternType="gray125"/></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FF4472C4"/></patternFill></fill>
 </fills>
 <borders count="1">
 <border><left/><right/><top/><bottom/><diagonal/></border>
 </borders>
 <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-<cellXfs count="2">
+<cellXfs count="3">
 <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
 <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>
+<xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>
 </cellXfs>
 </styleSheet>"""
 
@@ -609,36 +669,61 @@ $rels
 
     private fun buildSheetXml(sheet: SheetData, stringPool: Map<String, Int>): String {
         val sb = StringBuilder()
+        val numCols = sheet.rows.maxOfOrNull { it.size } ?: 0
+        val widths = autoColumnWidths(sheet)
+
         sb.append("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>""")
         sb.append("""<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">""")
+
+        // Freeze header row
+        sb.append("<sheetViews><sheetView workbookViewId=\"0\">")
+        sb.append("""<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>""")
+        sb.append("</sheetView></sheetViews>")
+
+        // Auto-calculated column widths
+        if (widths.isNotEmpty()) {
+            sb.append("<cols>")
+            for ((i, w) in widths.withIndex()) {
+                val colNum = i + 1
+                sb.append("""<col min="$colNum" max="$colNum" width="${"%.2f".format(w)}" customWidth="1"/>""")
+            }
+            sb.append("</cols>")
+        }
+
         sb.append("<sheetData>")
 
         for ((rowIdx, row) in sheet.rows.withIndex()) {
             val rowNum = rowIdx + 1
-            sb.append("""<row r="$rowNum">""")
+            if (rowIdx == 0) {
+                sb.append("""<row r="$rowNum" ht="20" customHeight="1">""")
+            } else {
+                sb.append("""<row r="$rowNum">""")
+            }
             for ((colIdx, cell) in row.withIndex()) {
                 val ref = "${colLetter(colIdx)}$rowNum"
                 if (cell.isEmpty()) continue
 
+                val style = if (rowIdx == 0) " s=\"2\"" else ""
+
                 if (isNumeric(cell)) {
-                    if (rowIdx == 0) {
-                        sb.append("""<c r="$ref" s="1"><v>$cell</v></c>""")
-                    } else {
-                        sb.append("""<c r="$ref"><v>$cell</v></c>""")
-                    }
+                    sb.append("""<c r="$ref"$style><v>$cell</v></c>""")
                 } else {
                     val ssi = stringPool[cell] ?: continue
-                    if (rowIdx == 0) {
-                        sb.append("""<c r="$ref" t="s" s="1"><v>$ssi</v></c>""")
-                    } else {
-                        sb.append("""<c r="$ref" t="s"><v>$ssi</v></c>""")
-                    }
+                    sb.append("""<c r="$ref" t="s"$style><v>$ssi</v></c>""")
                 }
             }
             sb.append("</row>")
         }
 
-        sb.append("</sheetData></worksheet>")
+        sb.append("</sheetData>")
+
+        // Auto-filter dropdowns on header row
+        if (numCols > 0 && sheet.rows.size > 1) {
+            val lastCol = colLetter(numCols - 1)
+            sb.append("""<autoFilter ref="A1:${lastCol}${sheet.rows.size}"/>""")
+        }
+
+        sb.append("</worksheet>")
         return sb.toString()
     }
 }

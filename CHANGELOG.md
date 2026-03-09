@@ -2,6 +2,17 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.47.1] - 2026-03-09
+
+### Improved
+- **Spreadsheet export: human-readable names** — all columns now show properly formatted display names instead of raw IDs ("Bulbasaur" not "bulbasaur", "Plains" not "minecraft:plains", "Thunder Stone" not "cobblemon:thunder_stone")
+- **Raw IDs preserved** — dedicated ID columns alongside display names for species, biomes, dimensions, structures, blocks, items, and fossils
+- **Styled headers** — bold white text on blue background with auto-calculated column widths
+- **Frozen header row** — headers stay visible when scrolling through large datasets
+- **Auto-filter dropdowns** — every sheet gets filter/sort controls on the header row
+- **Proper capitalization** — types, abilities, egg groups, EXP groups, evolution methods, spawn contexts, bucket names, labels all use Title Case
+- **Formatted values** — heights/weights show units, time ranges use 24h clock format, "Can See Sky" shows Yes/No instead of true/false
+
 ## [1.47.0] - 2026-03-09
 
 ### Added
