@@ -1,6 +1,8 @@
 package com.cobbledex
 
 import com.mojang.blaze3d.pipeline.TextureTarget
+import com.mojang.blaze3d.platform.GlStateManager
+import com.mojang.blaze3d.platform.Lighting
 import com.mojang.blaze3d.platform.NativeImage
 import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.client.Minecraft
@@ -44,6 +46,11 @@ object IconCapture {
         val mc = Minecraft.getInstance()
         if (mc.window == null) return null
 
+        if (!RenderSystem.isOnRenderThread()) {
+            DebugLog.warn("Icon capture called off render thread — cannot use GL")
+            return null
+        }
+
         return try {
             val target = ensureFbo()
             val prevTarget = mc.mainRenderTarget
@@ -52,17 +59,26 @@ object IconCapture {
             target.bindWrite(true)
             target.clear(Minecraft.ON_OSX)
 
+            // Explicit viewport so GL renders into the 32x32 FBO
+            GlStateManager._viewport(0, 0, ICON_SIZE, ICON_SIZE)
+
             // Orthographic projection: map 16 GUI units → 32 pixels (2x scale)
             val projMatrix = Matrix4f().setOrtho(0f, 16f, 16f, 0f, -150f, 150f)
             RenderSystem.setProjectionMatrix(projMatrix, com.mojang.blaze3d.vertex.VertexSorting.ORTHOGRAPHIC_Z)
 
-            // Use GuiGraphics to render the item
+            // Set up render state — renderItem() assumes 3D lighting is active
+            RenderSystem.enableBlend()
+            RenderSystem.defaultBlendFunc()
+            RenderSystem.enableDepthTest()
+            Lighting.setupFor3DItems()
+
+            // Render the item
             val bufferSource = mc.renderBuffers().bufferSource()
             val graphics = GuiGraphics(mc, bufferSource)
             graphics.renderItem(stack, 0, 0)
             bufferSource.endBatch()
 
-            // Restore previous render target
+            // Restore previous render target (restores viewport automatically)
             prevTarget.bindWrite(true)
 
             readFboToPng(target)

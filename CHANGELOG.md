@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.48.3] - 2026-03-09
+
+### Fixed
+- **Icons now actually render in exported XLSX** — added missing GL state setup (lighting, blend, depth test, viewport) that caused the offscreen FBO capture to produce blank images
+- Added diagnostic logging for icon capture success/failure counts
+
 ## [1.48.2] - 2026-03-09
 
 ### Added

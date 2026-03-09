@@ -114,6 +114,7 @@ object SpreadsheetExporter {
         val pngByKey = mutableMapOf<String, ByteArray>()
         var idx = 0
         val mediaIndex = mutableMapOf<String, Int>()
+        var failures = 0
 
         for (key in keysNeeded.sorted()) {
             val png = captureIcon(key)
@@ -121,14 +122,16 @@ object SpreadsheetExporter {
                 idx++
                 pngByKey[key] = png
                 mediaIndex[key] = idx
+            } else {
+                failures++
             }
         }
 
+        DebugLog.info("Icon capture: ${pngByKey.size} succeeded, $failures failed out of ${keysNeeded.size} unique keys")
         return IconRegistry(pngByKey, mediaIndex)
     }
 
     private fun captureIcon(cacheKey: String): ByteArray? {
-        // cacheKey is either "species:bulbasaur" or "item:minecraft:bone"
         val stack: ItemStack? = when {
             cacheKey.startsWith("species:") -> {
                 val species = cacheKey.removePrefix("species:")
@@ -140,7 +143,11 @@ object SpreadsheetExporter {
             }
             else -> null
         }
-        return stack?.let { IconCapture.captureItemToPng(it) }
+        if (stack == null) {
+            DebugLog.warn("Icon resolve failed — no ItemStack for key: $cacheKey")
+            return null
+        }
+        return IconCapture.captureItemToPng(stack)
     }
 
     // ══════════════════════════════════════════════════════════════════
