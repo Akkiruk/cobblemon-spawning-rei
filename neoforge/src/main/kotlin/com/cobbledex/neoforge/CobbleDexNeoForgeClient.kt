@@ -3,6 +3,7 @@ package com.cobbledex.neoforge
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DiagnosticService
 import com.cobbledex.SpawnDataIndex
+import com.cobbledex.SpreadsheetExporter
 import com.cobbledex.TmTooltipHandler
 import com.cobbledex.network.ChunkAssembler
 import net.minecraft.client.Minecraft
@@ -66,6 +67,13 @@ object CobbleDexNeoForgeClient {
                 .then(Commands.literal("reload")
                     .executes { ctx ->
                         DiagnosticService.reloadData { msg ->
+                            ctx.source.sendSuccess({ Component.literal(msg) }, false)
+                        }
+                    }
+                )
+                .then(Commands.literal("export")
+                    .executes { ctx ->
+                        SpreadsheetExporter.export { msg ->
                             ctx.source.sendSuccess({ Component.literal(msg) }, false)
                         }
                     }

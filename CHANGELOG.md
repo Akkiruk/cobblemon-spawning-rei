@@ -2,6 +2,24 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.47.0] - 2026-03-09
+
+### Added
+- **Spreadsheet export command** — `/spawningrei export` generates 10 CSV files covering all mod data:
+  1. Species Overview (stats, types, abilities, catch rate, EVs, egg groups)
+  2. Spawn Data (biomes, levels, time, weather, blocks, weight multipliers)
+  3. Evolutions (methods, requirements, items)
+  4. Item Drops (item, chance %, quantity)
+  5. Complete Movesets (level-up, egg, tutor, TM per Pokémon)
+  6. Level-Up Moves (focused: what's learned at each level)
+  7. Special Obtainment (legendaries, altars, events)
+  8. Fossils (which items create which Pokémon)
+  9. Abilities (standard + hidden per species)
+  10. Type Chart (18×18 effectiveness matrix)
+- CSVs import directly into Google Sheets, Excel, or LibreOffice
+- Each export is timestamped in `cobbledex-export/` — re-run after updates for fresh data
+- Includes a README.md with file descriptions and import instructions
+
 ## [1.46.0] - 2026-03-08
 
 ### Added

@@ -4,6 +4,7 @@ import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.DiagnosticService
 import com.cobbledex.SpawnDataIndex
+import com.cobbledex.SpreadsheetExporter
 import com.cobbledex.TmTooltipHandler
 import com.cobbledex.network.ChunkAssembler
 import com.cobbledex.network.ChunkedSpawnSyncPayload
@@ -106,6 +107,13 @@ class CobbleDexFabricClient : ClientModInitializer {
                     .then(ClientCommandManager.literal("reload")
                         .executes { ctx ->
                             DiagnosticService.reloadData { msg ->
+                                ctx.source.sendFeedback(Component.literal(msg))
+                            }
+                        }
+                    )
+                    .then(ClientCommandManager.literal("export")
+                        .executes { ctx ->
+                            SpreadsheetExporter.export { msg ->
                                 ctx.source.sendFeedback(Component.literal(msg))
                             }
                         }
