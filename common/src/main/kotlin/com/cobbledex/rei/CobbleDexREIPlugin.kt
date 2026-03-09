@@ -107,12 +107,15 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         if (emiActive) return
         ensureEntryTypeAvailable()
         SpawnDataIndex.ensureLoaded()
+        val config = CobbleDexConfig.get()
 
         var registered = 0
+        var formCount = 0
         var hidden = 0
         for (species in SpawnDataIndex.allSpeciesNames) {
             val info = SpawnDataIndex.getSpeciesInfo(species)
-          if (info == null || info.isForm) continue
+            if (info == null) continue
+            if (info.isForm && !config.registerFormEntries) continue
             if (!PokemonItemCache.canRender(species)) {
                 DebugLog.trackMissingModel(species)
                 hidden++
@@ -121,13 +124,13 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             try {
                 val stack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(species))
                 registry.addEntry(stack)
-                registered++
+                if (info.isForm) formCount++ else registered++
             } catch (e: Exception) {
                 DebugLog.once("entry-fail-$species") { "Entry registration failed for $species: ${e.message}" }
                 hidden++
             }
         }
-        DebugLog.info("Registered $registered Pokémon entries ($hidden hidden — no model)")
+        DebugLog.info("Registered $registered Pokémon entries + $formCount forms ($hidden hidden — no model)")
         DebugLog.printSummary()
     }
 

@@ -433,6 +433,11 @@ object SpawnDisplayHelper {
         }
         val info = SpawnDataIndex.getSpeciesInfo(speciesName)
         if (info != null) {
+            // Show base species for forms
+            if (info.isForm && info.baseSpeciesName != null) {
+                lines.add(Component.literal("§8" + tr("cobbledex-rei-emi-jei.tooltip.form_of", formatSpeciesName(info.baseSpeciesName))))
+            }
+
             val typeStr = buildString {
                 append("§e")
                 append(formatTypeName(info.primaryType))

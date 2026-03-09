@@ -70,13 +70,19 @@ open class CobbleDexJEIPlugin : IModPlugin {
             // Re-register Pokémon ingredients so search index includes job names
             if (SpawnDataIndex.hasJobRules()) {
                 try {
+                    val config = CobbleDexConfig.get()
                     val ingredientManager = rt.ingredientManager
                     val existing = ingredientManager.getAllIngredients(PokemonIngredientType).toList()
                     if (existing.isNotEmpty()) {
                         ingredientManager.removeIngredientsAtRuntime(PokemonIngredientType, existing)
                     }
                     val updated = SpawnDataIndex.allSpeciesNames
-                        .filter { SpawnDataIndex.getSpeciesInfo(it)?.baseSpeciesName == null }
+                        .filter { name ->
+                            val info = SpawnDataIndex.getSpeciesInfo(name)
+                            if (info == null) false
+                            else if (info.isForm) config.registerFormEntries
+                            else info.baseSpeciesName == null
+                        }
                         .filter { PokemonItemCache.canRender(it) }
                         .map { PokemonIngredient(it) }
                     ingredientManager.addIngredientsAtRuntime(PokemonIngredientType, updated)
@@ -95,8 +101,14 @@ open class CobbleDexJEIPlugin : IModPlugin {
 
     override fun registerIngredients(registration: IModIngredientRegistration) {
         SpawnDataIndex.ensureLoaded()
+        val config = CobbleDexConfig.get()
         val allPokemon = SpawnDataIndex.allSpeciesNames
-            .filter { SpawnDataIndex.getSpeciesInfo(it)?.isForm == false }
+            .filter { name ->
+                val info = SpawnDataIndex.getSpeciesInfo(name)
+                if (info == null) false
+                else if (info.isForm) config.registerFormEntries
+                else true
+            }
             .filter { PokemonItemCache.canRender(it) }
             .map { PokemonIngredient(it) }
 
@@ -106,7 +118,8 @@ open class CobbleDexJEIPlugin : IModPlugin {
             PokemonIngredientHelper(),
             PokemonIngredientRenderer()
         )
-        DebugLog.info("JEI: Registered ${allPokemon.size} Pokémon ingredients")
+        val formCount = allPokemon.count { SpawnDataIndex.isForm(it.species) }
+        DebugLog.info("JEI: Registered ${allPokemon.size - formCount} Pokémon + $formCount form ingredients")
     }
 
     override fun registerCategories(registration: IRecipeCategoryRegistration) {
@@ -178,11 +191,30 @@ open class CobbleDexJEIPlugin : IModPlugin {
             val handle = recipe.handle
             val slots = handle.slots
 
+            // Track which Pokémon are already in each role so we can add invisible
+            // counterparts — this lets both R (recipe/output) and U (usage/input) find every entry.
+            val inputPokemon = mutableListOf<PokemonIngredient>()
+            val outputPokemon = mutableListOf<PokemonIngredient>()
+
             for (slot in slots.pokemon) {
+                val ingredient = PokemonIngredient(slot.species, slot.aspects)
                 val role = if (slot.role == SlotRole.INPUT) RecipeIngredientRole.INPUT else RecipeIngredientRole.OUTPUT
                 builder.addSlot(role, slot.x, slot.y)
                     .setSlotName(slot.species)
-                    .addIngredient(PokemonIngredientType, PokemonIngredient(slot.species, slot.aspects))
+                    .addIngredient(PokemonIngredientType, ingredient)
+                if (slot.role == SlotRole.INPUT) inputPokemon.add(ingredient)
+                else outputPokemon.add(ingredient)
+            }
+
+            // Add invisible OUTPUT for INPUT-only Pokémon (enables R-key lookup)
+            if (inputPokemon.isNotEmpty() && outputPokemon.isEmpty()) {
+                val inv = builder.addInvisibleIngredients(RecipeIngredientRole.OUTPUT)
+                for (p in inputPokemon) inv.addIngredient(PokemonIngredientType, p)
+            }
+            // Add invisible INPUT for OUTPUT-only Pokémon (enables U-key lookup)
+            if (outputPokemon.isNotEmpty() && inputPokemon.isEmpty()) {
+                val inv = builder.addInvisibleIngredients(RecipeIngredientRole.INPUT)
+                for (p in outputPokemon) inv.addIngredient(PokemonIngredientType, p)
             }
 
             for (slot in slots.items) {

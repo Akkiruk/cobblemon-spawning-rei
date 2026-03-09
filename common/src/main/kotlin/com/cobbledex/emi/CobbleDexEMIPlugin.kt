@@ -56,24 +56,33 @@ open class CobbleDexEMIPlugin : EmiPlugin {
 
         // Register Pokémon entries
         var registered = 0
+        var formCount = 0
         for (species in SpawnDataIndex.allSpeciesNames) {
             val speciesInfo = SpawnDataIndex.getSpeciesInfo(species)
-            if (speciesInfo == null || speciesInfo.isForm) continue
+            if (speciesInfo == null) continue
+            if (speciesInfo.isForm && !config.registerFormEntries) continue
             val item = PokemonItemCache.getItem(species) ?: continue
             if (item.isEmpty) continue
-            // Add job names as invisible lore for EMI search indexing (black text = invisible on tooltip)
+            // Add search metadata as invisible lore for EMI search indexing (black text = invisible on tooltip)
+            val loreLines = mutableListOf<Component>()
             val jobs = SpawnDataIndex.getJobsFor(species)
             if (jobs.isNotEmpty()) {
                 val searchText = jobs.joinToString(" ") { "job:${it.rule.id} ${it.rule.displayName}" }
-                val loreLine = Component.literal(searchText).withStyle(Style.EMPTY.withColor(0x100010))
-                item.set(DataComponents.LORE, ItemLore(listOf(loreLine)))
+                loreLines.add(Component.literal(searchText).withStyle(Style.EMPTY.withColor(0x100010)))
+            }
+            if (speciesInfo.isForm && speciesInfo.baseSpeciesName != null) {
+                val baseName = com.cobbledex.formatSpeciesName(speciesInfo.baseSpeciesName)
+                loreLines.add(Component.literal(baseName).withStyle(Style.EMPTY.withColor(0x100010)))
+            }
+            if (loreLines.isNotEmpty()) {
+                item.set(DataComponents.LORE, ItemLore(loreLines))
             }
             val stack = EmiStack.of(item)
             registry.addEmiStack(stack)
             registry.setDefaultComparison(stack) { _ ->
                 dev.emi.emi.api.stack.Comparison.compareComponents()
             }
-            registered++
+            if (speciesInfo.isForm) formCount++ else registered++
         }
 
         // Register categories, workstations, and recipes
@@ -91,7 +100,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             registeredCats.add(def.id)
         }
 
-        DebugLog.info("EMI: Registered $registered Pokémon, categories: ${registeredCats.joinToString(" + ")}")
+        DebugLog.info("EMI: Registered $registered Pokémon + $formCount forms, categories: ${registeredCats.joinToString(" + ")}")
     }
 
     // ----- Generic EMI Recipe wrapping RecipeHandle -----

@@ -97,6 +97,10 @@ class PokemonEntryDefinition : EntryDefinition<PokemonEntry> {
         if (info != null) {
             val types = listOfNotNull(info.primaryType, info.secondaryType).joinToString(" ") { formatTypeName(it) }
             parts.add(types)
+            // Include base species name so forms are findable by base name
+            if (info.isForm && info.baseSpeciesName != null) {
+                parts.add(com.cobbledex.formatSpeciesName(info.baseSpeciesName))
+            }
         }
         val jobs = SpawnDataIndex.getJobsFor(value.species)
         if (jobs.isNotEmpty()) {

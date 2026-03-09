@@ -270,10 +270,37 @@ object EvolutionChainBuilder {
         val chains = mutableMapOf<String, ChainNode>()
         val mapping = mutableMapOf<String, String>()
 
+        // First pass: build chains from base species
         for (species in SpawnDataIndex.allSpeciesNames) {
             val normalized = SpeciesNameNormalizer.normalize(species)
             if (normalized in processed) continue
-            if (SpawnDataIndex.getSpeciesInfo(species)?.baseSpeciesName != null) continue // skip form entries (O4)
+            if (SpawnDataIndex.getSpeciesInfo(species)?.baseSpeciesName != null) continue
+
+            val hasEvosFrom = SpawnDataIndex.getEvolutionsFrom(species).isNotEmpty()
+            val hasEvosTo = SpawnDataIndex.getEvolutionsTo(species).isNotEmpty()
+            if (!hasEvosFrom && !hasEvosTo) continue
+
+            val base = findBase(species)
+            val normalizedBase = SpeciesNameNormalizer.normalize(base)
+            if (normalizedBase in processed) continue
+
+            val chain = buildChain(base)
+            val allInChain = collectAllSpecies(chain)
+            for (s in allInChain) {
+                val norm = SpeciesNameNormalizer.normalize(s)
+                processed.add(norm)
+                mapping[norm] = normalizedBase
+            }
+            chains[normalizedBase] = chain
+        }
+
+        // Second pass: form entries with their own evolutions not yet in any chain
+        // (covers fakemon adding new forms with custom evolution lines)
+        for (species in SpawnDataIndex.allSpeciesNames) {
+            val normalized = SpeciesNameNormalizer.normalize(species)
+            if (normalized in processed) continue
+            val info = SpawnDataIndex.getSpeciesInfo(species) ?: continue
+            if (!info.isForm) continue
 
             val hasEvosFrom = SpawnDataIndex.getEvolutionsFrom(species).isNotEmpty()
             val hasEvosTo = SpawnDataIndex.getEvolutionsTo(species).isNotEmpty()

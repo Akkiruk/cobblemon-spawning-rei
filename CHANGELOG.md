@@ -2,6 +2,17 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.46.0] - 2026-03-08
+
+### Added
+- **JEI: R-key (recipe) lookup now works** — pressing R on a Pokémon shows all its info (spawns, stats, evolutions, etc.), not just U (usage). Both keys now show the same data.
+- **Form/variant entries are now searchable** — alternate forms (Alolan, Galarian, Mega, regional variants, fakemon forms) are registered as separate browsable entries in REI, JEI, and EMI
+- **Form-specific lookups** — clicking R or U on a form entry shows stats, moves, evolutions, type chart, and other data specific to that form
+- **Form search indexing** — forms are searchable by their own name AND their base species name (e.g., searching "Vulpix" also finds "Alolan Vulpix")
+- **Form tooltip** — form entries show "Form of [Base Species]" in the tooltip
+- New config option `registerFormEntries` (default: true) to toggle form entry registration
+- Evolution chain builder now picks up fakemon forms with custom evolution lines
+
 ## [1.45.3] - 2026-03-06
 
 ### Fixed
