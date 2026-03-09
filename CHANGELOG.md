@@ -2,6 +2,20 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.48.0] - 2026-03-09
+
+### Added
+- **Embedded Pokémon icons** — every applicable sheet now has 32×32 item icons rendered via offscreen FBO capture, embedded as OOXML drawings in the XLSX file
+- **Dex # as column A** — Species Overview, Item Drops, All Moves, Level-Up Moves, and Abilities sheets now lead with national Dex number
+
+### Changed
+- **Command renamed** — `/spawningrei export` → `/cobbledex export`
+- **Removed all raw ID columns** — sheets show only human-readable names, no more duplicate ID columns
+- **% symbol on percentages** — drop chances and ratios now display as "15%" instead of "15.0"
+- **Consistent quantity formatting** — Item Drops uses en-dash for ranges ("1–3") and plain text to avoid alignment issues
+- **Larger font** — bumped from 11pt to 13pt Calibri across all sheets
+- **Icon-aware row heights** — 30px rows on sheets with icons, 24px headers
+
 ## [1.47.1] - 2026-03-09
 
 ### Improved

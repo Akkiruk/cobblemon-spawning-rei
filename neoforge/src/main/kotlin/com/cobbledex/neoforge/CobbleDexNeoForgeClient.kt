@@ -42,7 +42,7 @@ object CobbleDexNeoForgeClient {
 
     private fun onRegisterCommands(event: RegisterClientCommandsEvent) {
         event.dispatcher.register(
-            Commands.literal("spawningrei")
+            Commands.literal("cobbledex")
                 .then(Commands.literal("dump")
                     .executes { ctx ->
                         DiagnosticService.dumpDiagnostics { msg ->

@@ -82,7 +82,7 @@ class CobbleDexFabricClient : ClientModInitializer {
 
         ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
             dispatcher.register(
-                ClientCommandManager.literal("spawningrei")
+                ClientCommandManager.literal("cobbledex")
                     .then(ClientCommandManager.literal("dump")
                         .executes { ctx ->
                             DiagnosticService.dumpDiagnostics { msg ->
