@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.48.4] - 2026-03-09
+
+### Added
+- **Item icons in Item Drops sheet** — each drop row now shows the dropped item's icon alongside the Pokémon icon
+- Multi-column icon support in XLSX layout engine (iconColumns set per sheet)
+
 ## [1.48.3] - 2026-03-09
 
 ### Fixed

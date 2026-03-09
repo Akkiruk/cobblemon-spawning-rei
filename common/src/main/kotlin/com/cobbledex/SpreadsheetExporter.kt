@@ -160,7 +160,8 @@ object SpreadsheetExporter {
         val name: String,
         val rows: List<List<String>>,
         val icons: List<CellIcon> = emptyList(),
-        val hasIcons: Boolean = icons.isNotEmpty()
+        val hasIcons: Boolean = icons.isNotEmpty(),
+        val iconColumns: Set<Int> = if (icons.isNotEmpty()) setOf(0) else emptySet()
     )
 
     // ══════════════════════════════════════════════════════════════════
@@ -363,7 +364,7 @@ object SpreadsheetExporter {
         val icons = mutableListOf<CellIcon>()
 
         rows.add(listOf(
-            "", "Dex #", "Pokemon", "Item", "Drop Chance", "Quantity"
+            "", "Dex #", "Pokemon", "", "Item", "Drop Chance", "Quantity"
         ))
 
         val sorted = speciesInfo.entries
@@ -374,6 +375,7 @@ object SpreadsheetExporter {
             for (drop in info.drops!!) {
                 val rowIdx = rows.size
                 icons.add(CellIcon("species:${info.name}", rowIdx, 0))
+                icons.add(CellIcon("item:${drop.itemId}", rowIdx, 3))
 
                 // Normalize quantity: always use "min–max" format for ranges, plain number otherwise
                 val qty = if (drop.quantityRange != null) {
@@ -383,9 +385,10 @@ object SpreadsheetExporter {
                 }
 
                 rows.add(listOf(
-                    "", // icon
+                    "", // species icon
                     if (info.nationalDexNumber > 0) info.nationalDexNumber.toString() else "",
                     pokemon(info.name),
+                    "", // item icon
                     item(drop.itemId),
                     pct(drop.percentage),
                     qty
@@ -393,7 +396,7 @@ object SpreadsheetExporter {
             }
         }
 
-        return SheetData("Item Drops", rows, icons)
+        return SheetData("Item Drops", rows, icons, iconColumns = setOf(0, 3))
     }
 
     private fun buildMovesets(index: SpawnDataIndex): SheetData? {
@@ -722,7 +725,7 @@ object SpreadsheetExporter {
     private fun autoColumnWidths(sheet: SheetData): List<Double> {
         val numCols = sheet.rows.maxOfOrNull { it.size } ?: return emptyList()
         return (0 until numCols).map { col ->
-            if (col == 0 && sheet.hasIcons) {
+            if (col in sheet.iconColumns) {
                 ICON_COL_WIDTH
             } else {
                 val maxLen = sheet.rows.maxOf { row -> row.getOrElse(col) { "" }.length }
