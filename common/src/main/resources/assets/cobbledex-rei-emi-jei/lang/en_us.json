@@ -364,7 +364,7 @@
   "cobbledex-rei-emi-jei.cmd.report_failed": "\u00a7cFailed to write report: %s",
 
   "cobbledex-rei-emi-jei.cmd.export_start": "\u00a76Exporting spreadsheets...",
-  "cobbledex-rei-emi-jei.cmd.export_done": "\u00a7aExported %1$d spreadsheets covering %2$d species to:",
+  "cobbledex-rei-emi-jei.cmd.export_done": "\u00a7aExported %1$d sheets (%2$d species) to:",
   "cobbledex-rei-emi-jei.cmd.export_failed": "\u00a7cFailed to export spreadsheets: %s",
 
   "cobbledex-rei-emi-jei.bundled.articuno": "Use Glacier Feather on Articuno Altar",
