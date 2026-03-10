@@ -521,15 +521,14 @@ object RidingDex : DexCategory {
         RecipeBuilder.buildAllRidingRecipes().map(::toHandle)
 
     override fun buildRecipesFor(species: String): List<RecipeHandle> {
-        val r = RecipeBuilder.buildRidingFor(species) ?: return emptyList()
-        return listOf(toHandle(r))
+        return RecipeBuilder.buildRidingFor(species).map(::toHandle)
     }
 
     private fun toHandle(d: RidingRecipeData) = RecipeHandle(
-        recipeIdPath = "riding/${sanitizePath(d.speciesName)}",
+        recipeIdPath = "riding/${sanitizePath(d.speciesName)}/${d.mount.mountType.lowercase()}",
         inputSpecies = listOf(d.speciesName),
         outputSpecies = emptyList(),
-        layoutFactory = { SpawnDisplayHelper.buildRidingLayout(d.speciesName, d.riding) },
+        layoutFactory = { SpawnDisplayHelper.buildRidingLayout(d.speciesName, d) },
         _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
     )
 }

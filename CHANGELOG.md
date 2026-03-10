@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.1] - 2026-03-09
+
+### Fixed
+- Each mount type now gets its own page in the Riding Data category (e.g. Charizard shows separate AIR and LAND pages)
+- Riding data now included in the spreadsheet exporter (`/cobbledex export`)
+
 ## [1.50.0] - 2026-03-09
 
 ### Added

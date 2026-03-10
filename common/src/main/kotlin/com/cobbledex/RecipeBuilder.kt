@@ -382,13 +382,17 @@ object RecipeBuilder {
     // --- Riding recipes ---
 
     fun buildAllRidingRecipes(): List<RidingRecipeData> {
-        return SpawnDataIndex.ridingBySpecies.map { (species, info) ->
-            RidingRecipeData(species, info)
+        return SpawnDataIndex.ridingBySpecies.flatMap { (species, info) ->
+            info.mounts.mapIndexed { idx, mount ->
+                RidingRecipeData(species, mount, idx, info.mounts.size, info.seats, info.allMountTypes)
+            }
         }
     }
 
-    fun buildRidingFor(speciesName: String): RidingRecipeData? {
-        val info = SpawnDataIndex.getRidingFor(speciesName) ?: return null
-        return RidingRecipeData(speciesName, info)
+    fun buildRidingFor(speciesName: String): List<RidingRecipeData> {
+        val info = SpawnDataIndex.getRidingFor(speciesName) ?: return emptyList()
+        return info.mounts.mapIndexed { idx, mount ->
+            RidingRecipeData(speciesName, mount, idx, info.mounts.size, info.seats, info.allMountTypes)
+        }
     }
 }

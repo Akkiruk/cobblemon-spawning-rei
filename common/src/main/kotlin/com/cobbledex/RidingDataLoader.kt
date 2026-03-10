@@ -1,59 +1,53 @@
 package com.cobbledex
 
+import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
+import com.cobblemon.mod.common.api.riding.stats.RidingStat
+
 object RidingDataLoader {
 
-    fun loadFromClasspath(): Map<String, RidingInfo> {
-        val stream = RidingDataLoader::class.java.getResourceAsStream("/data/cobbledex-rei-emi-jei/riding_data.csv")
-            ?: run {
-                DebugLog.warn("riding_data.csv not found on classpath")
-                return emptyMap()
-            }
-
-        val lines = stream.bufferedReader().use { it.readLines() }
-        if (lines.size < 2) return emptyMap()
-
-        // Group CSV rows by pokemon name, then assemble RidingInfo per species
-        val rowsBySpecies = mutableMapOf<String, MutableList<List<String>>>()
-        for (line in lines.drop(1)) {
-            val cols = parseCsvLine(line)
-            if (cols.size < 16) continue
-            val pokemon = cols[0].lowercase().trim()
-            if (pokemon.isBlank()) continue
-            rowsBySpecies.getOrPut(pokemon) { mutableListOf() }.add(cols)
+    fun loadFromRuntime(): Map<String, RidingInfo> {
+        val implemented = try {
+            PokemonSpecies.implemented.toList()
+        } catch (e: Exception) {
+            DebugLog.warnOnce("riding-species-load") { "Failed to access PokemonSpecies.implemented: ${e.message}" }
+            return emptyMap()
         }
+        if (implemented.isEmpty()) return emptyMap()
 
         val result = mutableMapOf<String, RidingInfo>()
-        for ((pokemon, rows) in rowsBySpecies) {
-            val first = rows.first()
-            val allMountTypes = first[1].split(",").map { it.trim() }.filter { it.isNotBlank() }
-            val ridingStyles = first[2].split(",").map { it.trim() }.filter { it.isNotBlank() }
-            val seats = first[3].trim().toIntOrNull() ?: 1
 
-            val mounts = rows.mapNotNull { cols ->
-                try {
-                    RidingMount(
-                        mountType = cols[4].trim(),
-                        ridingStyle = cols[5].trim(),
-                        speedMin = cols[6].trim().toInt(),
-                        speedMax = cols[7].trim().toInt(),
-                        accelMin = cols[8].trim().toInt(),
-                        accelMax = cols[9].trim().toInt(),
-                        skillMin = cols[10].trim().toInt(),
-                        skillMax = cols[11].trim().toInt(),
-                        jumpMin = cols[12].trim().toInt(),
-                        jumpMax = cols[13].trim().toInt(),
-                        staminaMin = cols[14].trim().toInt(),
-                        staminaMax = cols[15].trim().toInt(),
-                    )
-                } catch (e: NumberFormatException) {
-                    DebugLog.once("riding-parse-$pokemon") { "Bad number in riding data for $pokemon: ${e.message}" }
-                    null
-                }
+        for (species in implemented) {
+            val baseName = SpeciesNameNormalizer.normalize(species.name)
+
+            val riding = try { species.standardForm.riding } catch (_: Exception) { continue }
+            val behaviours = riding.behaviours ?: continue
+            if (behaviours.isEmpty()) continue
+
+            val seats = riding.seats.size.coerceAtLeast(1)
+            val allMountTypes = behaviours.keys.map { it.name }
+            val ridingStyles = behaviours.values.mapNotNull { extractStyleName(it.key.path) }.distinct()
+
+            val mounts = behaviours.map { (style, behaviour) ->
+                val stats = behaviour.stats
+                RidingMount(
+                    mountType = style.name,
+                    ridingStyle = extractStyleName(behaviour.key.path) ?: style.name.lowercase(),
+                    speedMin = stats[RidingStat.SPEED]?.first ?: 0,
+                    speedMax = stats[RidingStat.SPEED]?.last ?: 0,
+                    accelMin = stats[RidingStat.ACCELERATION]?.first ?: 0,
+                    accelMax = stats[RidingStat.ACCELERATION]?.last ?: 0,
+                    skillMin = stats[RidingStat.SKILL]?.first ?: 0,
+                    skillMax = stats[RidingStat.SKILL]?.last ?: 0,
+                    jumpMin = stats[RidingStat.JUMP]?.first ?: 0,
+                    jumpMax = stats[RidingStat.JUMP]?.last ?: 0,
+                    staminaMin = stats[RidingStat.STAMINA]?.first ?: 0,
+                    staminaMax = stats[RidingStat.STAMINA]?.last ?: 0,
+                )
             }
 
             if (mounts.isNotEmpty()) {
-                result[SpeciesNameNormalizer.normalize(pokemon)] = RidingInfo(
-                    pokemon = pokemon,
+                result[baseName] = RidingInfo(
+                    pokemon = baseName,
                     allMountTypes = allMountTypes,
                     ridingStyles = ridingStyles,
                     seats = seats,
@@ -66,33 +60,9 @@ object RidingDataLoader {
         return result
     }
 
-    /** Simple CSV parser that handles quoted fields with commas */
-    private fun parseCsvLine(line: String): List<String> {
-        val result = mutableListOf<String>()
-        var i = 0
-        val sb = StringBuilder()
-        var inQuotes = false
-        while (i < line.length) {
-            val c = line[i]
-            when {
-                c == '"' && !inQuotes -> inQuotes = true
-                c == '"' && inQuotes -> {
-                    if (i + 1 < line.length && line[i + 1] == '"') {
-                        sb.append('"')
-                        i++
-                    } else {
-                        inQuotes = false
-                    }
-                }
-                c == ',' && !inQuotes -> {
-                    result.add(sb.toString())
-                    sb.clear()
-                }
-                else -> sb.append(c)
-            }
-            i++
-        }
-        result.add(sb.toString())
-        return result
+    /** Extracts riding style name from behaviour key path like "air/bird" -> "bird" */
+    private fun extractStyleName(path: String): String? {
+        val afterSlash = path.substringAfterLast('/', "")
+        return afterSlash.ifBlank { null }
     }
 }

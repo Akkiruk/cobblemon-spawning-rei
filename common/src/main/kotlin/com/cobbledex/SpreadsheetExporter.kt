@@ -85,6 +85,7 @@ object SpreadsheetExporter {
         buildObtainmentData(index)?.let { sheets.add(it) }
         buildFossilData(index)?.let { sheets.add(it) }
         buildAbilities(index)?.let { sheets.add(it) }
+        buildRidingData(index)?.let { sheets.add(it) }
         buildTypeChart()?.let { sheets.add(it) }
 
         // Capture all needed icons
@@ -568,6 +569,50 @@ object SpreadsheetExporter {
         }
 
         return SheetData("Abilities", rows, icons)
+    }
+
+    private fun buildRidingData(index: SpawnDataIndex): SheetData? {
+        val riding = index.ridingBySpecies
+        if (riding.isEmpty()) return null
+
+        val rows = mutableListOf<List<String>>()
+        val icons = mutableListOf<CellIcon>()
+
+        rows.add(listOf(
+            "", "Pokemon", "Mount Types", "Seats",
+            "Mount Type", "Riding Style",
+            "Speed Min", "Speed Max",
+            "Accel Min", "Accel Max",
+            "Skill Min", "Skill Max",
+            "Jump Min", "Jump Max",
+            "Stamina Min", "Stamina Max"
+        ))
+
+        for ((species, info) in riding.entries.sortedBy { it.key }) {
+            for (mount in info.mounts) {
+                icons.add(CellIcon(species, rows.size, 0))
+                rows.add(listOf(
+                    "",
+                    pokemon(species),
+                    info.allMountTypes.joinToString(", "),
+                    info.seats.toString(),
+                    mount.mountType,
+                    mount.ridingStyle,
+                    mount.speedMin.toString(),
+                    mount.speedMax.toString(),
+                    mount.accelMin.toString(),
+                    mount.accelMax.toString(),
+                    mount.skillMin.toString(),
+                    mount.skillMax.toString(),
+                    mount.jumpMin.toString(),
+                    mount.jumpMax.toString(),
+                    mount.staminaMin.toString(),
+                    mount.staminaMax.toString()
+                ))
+            }
+        }
+
+        return SheetData("Riding Data", rows, icons)
     }
 
     private fun buildTypeChart(): SheetData {

@@ -25,5 +25,9 @@ data class RidingInfo(
 
 data class RidingRecipeData(
     val speciesName: String,
-    val riding: RidingInfo,
+    val mount: RidingMount,
+    val mountIndex: Int,
+    val mountTotal: Int,
+    val seats: Int,
+    val allMountTypes: List<String>,
 )

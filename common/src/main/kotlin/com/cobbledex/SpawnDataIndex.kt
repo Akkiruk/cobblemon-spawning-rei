@@ -253,9 +253,9 @@ object SpawnDataIndex {
         // Enrich speciesInfo with JAR-cached moves when runtime API returned null
         enrichWithJarMoves()
 
-        // Load riding data from bundled CSV
+        // Load riding data from Cobblemon runtime API
         try {
-            ridingBySpecies = RidingDataLoader.loadFromClasspath()
+            ridingBySpecies = RidingDataLoader.loadFromRuntime()
         } catch (e: Exception) {
             DebugLog.warn("Riding data load failed: ${e.message}")
             ridingBySpecies = emptyMap()
