@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.49.1] - 2026-03-09
+
+### Improved
+- **Smarter recipe viewer reload after server sync** — replaced blind staggered retries with verification-based system that tracks whether EMI/JEI actually registered the latest data, only reloads viewers that are stale, and uses exponential backoff (#30)
+
 ## [1.48.7] - 2026-03-09
 
 ### Fixed

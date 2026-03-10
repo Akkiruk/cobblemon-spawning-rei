@@ -5,6 +5,7 @@ import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
 import com.cobbledex.PokemonItemCache
 import com.cobbledex.RecipeHandle
+import com.cobbledex.RecipeViewerReloader
 import com.cobbledex.SlotRole
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpawnDisplayHelper
@@ -105,6 +106,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             registeredCats.add("${def.id}(${recipes.size})")
         }
 
+        RecipeViewerReloader.emiLastRegisteredVersion = SpawnDataIndex.dataVersion
         DebugLog.info("EMI: Registered $registered Pokémon + $formCount forms, categories: ${registeredCats.joinToString(" + ")} (dataVersion=${SpawnDataIndex.dataVersion})")
     }
 

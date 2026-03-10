@@ -1,108 +1,109 @@
 package com.cobbledex
 
 /**
- * Triggers EMI/JEI to re-register recipes after server sync data arrives.
+ * Ensures EMI and JEI have current CobbleDex data after server sync.
  *
- * REI uses DynamicDisplayGenerator so it reads fresh data on every lookup.
- * EMI and JEI register all recipes statically during plugin init, which
- * runs before the server sync packet arrives. After sync, those static
- * recipes are stale (typically empty). This utility schedules multiple
- * recipe viewer reload attempts with staggered delays to handle the race
- * between server sync packets and EMI/JEI's own initialization reload.
+ * REI uses DynamicDisplayGenerator — always reads live data, no reload needed.
+ *
+ * EMI and JEI register recipes statically. When server sync arrives after their
+ * initial registration, recipes are stale. This reloader:
+ *  1. Tracks the dataVersion each viewer last registered with
+ *  2. On each tick, checks if any viewer is stale (version mismatch)
+ *  3. Reloads only stale viewers
+ *  4. Verifies success — stops once both are current
+ *  5. Uses exponential backoff if a reload doesn't take effect immediately
  */
 object RecipeViewerReloader {
 
-    /** Tick delays for each retry attempt after server sync */
-    private val RELOAD_DELAYS = intArrayOf(0, 20, 60, 200)
-
+    /** Set by CobbleDexEMIPlugin.register() after it runs with data */
     @Volatile
-    private var pendingRetryIndex = -1
+    var emiLastRegisteredVersion = -1L
 
+    /** Set by CobbleDexJEIPlugin.registerRecipes() and reloadRecipes() */
     @Volatile
-    private var retryTicksRemaining = 0
+    var jeiLastRegisteredVersion = -1L
 
-    /** The data version when we started the reload sequence; used to detect stale retries */
-    @Volatile
-    private var reloadDataVersion = -1L
+    private const val MAX_ATTEMPTS = 6
+
+    @Volatile private var active = false
+    @Volatile private var targetDataVersion = -1L
+    @Volatile private var attempts = 0
+    @Volatile private var ticksUntilCheck = 0
 
     fun scheduleReload() {
-        val currentVersion = SpawnDataIndex.dataVersion
-        if (reloadDataVersion == currentVersion && pendingRetryIndex >= 0) {
-            // Already reloading for this data version
-            return
-        }
-        reloadDataVersion = currentVersion
-        pendingRetryIndex = 0
-        retryTicksRemaining = RELOAD_DELAYS[0]
-        DebugLog.info("Scheduled recipe viewer reload (dataVersion=$currentVersion, ${RELOAD_DELAYS.size} attempts)")
+        val version = SpawnDataIndex.dataVersion
+        if (active && targetDataVersion == version) return
+        targetDataVersion = version
+        active = true
+        attempts = 0
+        ticksUntilCheck = 0
+        DebugLog.info("Scheduled recipe viewer verification (dataVersion=$version)")
     }
 
-    /** The data version that EMI last successfully reloaded with (set after first reload fires) */
-    @Volatile
-    private var emiReloadedAtVersion = -1L
-
     fun tick() {
-        if (pendingRetryIndex < 0) return
+        if (!active) return
 
-        // Data changed since we started? Restart the sequence
-        if (SpawnDataIndex.dataVersion != reloadDataVersion) {
-            reloadDataVersion = SpawnDataIndex.dataVersion
-            pendingRetryIndex = 0
-            retryTicksRemaining = RELOAD_DELAYS[0]
+        // If data changed since we started, restart the sequence
+        val currentVersion = SpawnDataIndex.dataVersion
+        if (currentVersion != targetDataVersion) {
+            targetDataVersion = currentVersion
+            attempts = 0
+            ticksUntilCheck = 0
         }
 
-        if (retryTicksRemaining > 0) {
-            retryTicksRemaining--
+        if (ticksUntilCheck > 0) {
+            ticksUntilCheck--
             return
         }
 
-        // After the first reload, check if EMI finished loading — if so, it picked
-        // up our data and we can stop retrying
-        if (pendingRetryIndex > 0 && isEmiLoaded() && emiReloadedAtVersion == reloadDataVersion) {
-            DebugLog.info("EMI reports loaded after reload — skipping remaining ${RELOAD_DELAYS.size - pendingRetryIndex} retry attempts")
-            pendingRetryIndex = -1
+        val emiStale = emiLastRegisteredVersion != targetDataVersion
+        val jeiStale = jeiLastRegisteredVersion != targetDataVersion
+
+        if (!emiStale && !jeiStale) {
+            active = false
+            DebugLog.info("Recipe viewers verified current (dataVersion=$targetDataVersion)")
             return
         }
 
-        val attempt = pendingRetryIndex + 1
-        DebugLog.info("Recipe viewer reload attempt $attempt/${RELOAD_DELAYS.size} " +
-            "(spawns=${SpawnDataIndex.spawnsBySpecies.size}, species=${SpawnDataIndex.allSpeciesNames.size})")
-
-        reloadEMI()
-        reloadJEI()
-        emiReloadedAtVersion = reloadDataVersion
-
-        pendingRetryIndex++
-        if (pendingRetryIndex < RELOAD_DELAYS.size) {
-            retryTicksRemaining = RELOAD_DELAYS[pendingRetryIndex]
-        } else {
-            pendingRetryIndex = -1
+        attempts++
+        if (attempts > MAX_ATTEMPTS) {
+            active = false
+            val emiStatus = if (emiStale) "stale(v${emiLastRegisteredVersion})" else "ok"
+            val jeiStatus = if (jeiStale) "stale(v${jeiLastRegisteredVersion})" else "ok"
+            CobbleDexMod.LOGGER.warn("[CobbleDex] Recipe viewer reload gave up after $MAX_ATTEMPTS attempts " +
+                "(target=v$targetDataVersion, EMI=$emiStatus, JEI=$jeiStatus, spawns=${SpawnDataIndex.spawnsBySpecies.size})")
+            return
         }
+
+        val emiLabel = if (emiStale) "stale" else "current"
+        val jeiLabel = if (jeiStale) "stale" else "current"
+        DebugLog.info("Reload attempt $attempts/$MAX_ATTEMPTS — EMI=$emiLabel, JEI=$jeiLabel " +
+            "(target=v$targetDataVersion, spawns=${SpawnDataIndex.spawnsBySpecies.size})")
+
+        if (emiStale) reloadEMI()
+        if (jeiStale) reloadJEI()
+
+        // Exponential backoff: 20, 40, 80, 160, 320 ticks (1s, 2s, 4s, 8s, 16s)
+        ticksUntilCheck = 20 * (1 shl (attempts - 1))
     }
 
     fun reset() {
-        pendingRetryIndex = -1
-        retryTicksRemaining = 0
-        reloadDataVersion = -1L
-        emiReloadedAtVersion = -1L
-    }
-
-    private fun isEmiLoaded(): Boolean {
-        return try {
-            val cls = Class.forName("dev.emi.emi.runtime.EmiReloadManager")
-            cls.getMethod("isLoaded").invoke(null) as Boolean
-        } catch (_: Exception) {
-            false
-        }
+        active = false
+        attempts = 0
+        ticksUntilCheck = 0
+        targetDataVersion = -1L
+        emiLastRegisteredVersion = -1L
+        jeiLastRegisteredVersion = -1L
     }
 
     private fun reloadEMI() {
         try {
             val cls = Class.forName("dev.emi.emi.runtime.EmiReloadManager")
-            val method = cls.getMethod("reload")
-            method.invoke(null)
-            DebugLog.info("Triggered EMI recipe reload")
+            cls.getMethod("reload").invoke(null)
+            DebugLog.info("Triggered EMI reload")
         } catch (_: ClassNotFoundException) {
+            // EMI not installed — mark as always current
+            emiLastRegisteredVersion = targetDataVersion
         } catch (e: Exception) {
             DebugLog.warn("EMI reload failed: ${e.message}")
         }
@@ -113,8 +114,10 @@ object RecipeViewerReloader {
             val cls = Class.forName("com.cobbledex.jei.CobbleDexJEIPlugin")
             cls.getMethod("reloadRecipes").invoke(null)
         } catch (_: ClassNotFoundException) {
+            jeiLastRegisteredVersion = targetDataVersion
         } catch (_: NoClassDefFoundError) {
-            // JEI not installed — loading our plugin class fails because its superclass (IModPlugin) is absent
+            // JEI not installed
+            jeiLastRegisteredVersion = targetDataVersion
         } catch (e: Exception) {
             DebugLog.warn("JEI reload failed: ${e.message}")
         }

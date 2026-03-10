@@ -5,6 +5,7 @@ import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
 import com.cobbledex.PokemonItemCache
 import com.cobbledex.RecipeHandle
+import com.cobbledex.RecipeViewerReloader
 import com.cobbledex.SlotRole
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpawnDisplayHelper
@@ -92,7 +93,8 @@ open class CobbleDexJEIPlugin : IModPlugin {
                 }
             }
 
-            DebugLog.info("JEI: Reloaded recipes after server sync")
+            RecipeViewerReloader.jeiLastRegisteredVersion = SpawnDataIndex.dataVersion
+            DebugLog.info("JEI: Reloaded recipes (dataVersion=${SpawnDataIndex.dataVersion})")
         }
     }
 
@@ -147,7 +149,8 @@ open class CobbleDexJEIPlugin : IModPlugin {
             }
             addedRecipes[def.id] = recipes
         }
-        DebugLog.info("JEI: All recipes registered")
+        RecipeViewerReloader.jeiLastRegisteredVersion = SpawnDataIndex.dataVersion
+        DebugLog.info("JEI: All recipes registered (dataVersion=${SpawnDataIndex.dataVersion})")
     }
 
     override fun onRuntimeAvailable(jeiRuntime: IJeiRuntime) {
