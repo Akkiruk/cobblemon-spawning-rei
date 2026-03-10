@@ -44,14 +44,24 @@ object IconCapture {
             }
 
             val image = resource.open().use { NativeImage.read(it) }
-            val w = image.getWidth()
-            val h = image.getHeight()
-            if (w <= 0 || h <= 0) { image.close(); return null }
+            val fileW = image.getWidth()
+            val fileH = image.getHeight()
+            if (fileW <= 0 || fileH <= 0) { image.close(); return null }
 
-            // Read pixels from NativeImage
-            val raw = BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
-            for (y in 0 until h) {
-                for (x in 0 until w) {
+            // For animated textures, frames are stacked vertically — use only the first frame
+            val frameW = fileW
+            val frameH = if (fileH > fileW) fileW else fileH
+
+            // Skip model UV sheets (too large to be an item icon)
+            if (frameW > 64 || frameH > 64) {
+                DebugLog.warn("Skipping oversized texture (${frameW}x${frameH}): $textureLoc")
+                image.close()
+                return null
+            }
+
+            val raw = BufferedImage(frameW, frameH, BufferedImage.TYPE_INT_ARGB)
+            for (y in 0 until frameH) {
+                for (x in 0 until frameW) {
                     val pixel = image.getPixelRGBA(x, y)
                     // NativeImage "RGBA" is actually ABGR in memory order
                     val r = pixel and 0xFF
@@ -64,7 +74,7 @@ object IconCapture {
             image.close()
 
             // Scale to ICON_SIZE with nearest-neighbor (preserves pixel art)
-            val scaled = if (w == ICON_SIZE && h == ICON_SIZE) raw else {
+            val scaled = if (frameW == ICON_SIZE && frameH == ICON_SIZE) raw else {
                 val img = BufferedImage(ICON_SIZE, ICON_SIZE, BufferedImage.TYPE_INT_ARGB)
                 val g2d = img.createGraphics()
                 g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR)

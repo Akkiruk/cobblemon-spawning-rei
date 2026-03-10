@@ -157,7 +157,7 @@ object SpreadsheetExporter {
         val rows: List<List<String>>,
         val icons: List<CellIcon> = emptyList(),
         val hasIcons: Boolean = icons.isNotEmpty(),
-        val iconColumns: Set<Int> = if (icons.isNotEmpty()) setOf(0) else emptySet()
+        val iconColumns: Set<Int> = icons.map { it.col }.toSet()
     )
 
     // ══════════════════════════════════════════════════════════════════
@@ -344,7 +344,7 @@ object SpreadsheetExporter {
         val icons = mutableListOf<CellIcon>()
 
         rows.add(listOf(
-            "", "Dex #", "Pokemon", "Item", "Drop Chance", "Quantity"
+            "Dex #", "Pokemon", "", "Item", "Drop Chance", "Quantity"
         ))
 
         val sorted = speciesInfo.entries
@@ -354,7 +354,7 @@ object SpreadsheetExporter {
         for ((_, info) in sorted) {
             for (drop in info.drops!!) {
                 val rowIdx = rows.size
-                icons.add(CellIcon("item:${drop.itemId}", rowIdx, 0))
+                icons.add(CellIcon("item:${drop.itemId}", rowIdx, 2))
 
                 // Normalize quantity: always use "min–max" format for ranges, plain number otherwise
                 val qty = if (drop.quantityRange != null) {
@@ -364,9 +364,9 @@ object SpreadsheetExporter {
                 }
 
                 rows.add(listOf(
-                    "", // item icon
                     if (info.nationalDexNumber > 0) info.nationalDexNumber.toString() else "",
                     pokemon(info.name),
+                    "", // item icon
                     item(drop.itemId),
                     pct(drop.percentage),
                     qty
