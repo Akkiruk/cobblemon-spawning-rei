@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.49.2] - 2026-03-09
+
+### Fixed
+- **Species icons now fill the cell** — increased render scale from 13 to 50 and auto-crop to content bounds before downscaling
+- **Alternate form icons** — Gigantamax, Mega, regional, and other forms now render with correct model/texture via form aspects
+
 ## [1.49.1] - 2026-03-09
 
 ### Improved

@@ -102,11 +102,10 @@ object IconCapture {
 
     // ── Species icons: render 3D model via Cobblemon's API into FBO ──
 
-    fun captureSpeciesToPng(speciesName: String): ByteArray? {
-        // Cobblemon species IDs are fully stripped: "Mr. Mime" → "mrmime", "Brute Bonnet" → "brutebonnet"
-        val id = speciesName.lowercase().replace(Regex("[^a-z0-9]"), "")
+    fun captureSpeciesToPng(speciesId: String, aspects: Set<String> = emptySet()): ByteArray? {
+        val id = speciesId.lowercase().replace(Regex("[^a-z0-9]"), "")
         val species = PokemonSpecies.getByName(id) ?: return null
-        val renderable = RenderablePokemon(species, emptySet())
+        val renderable = RenderablePokemon(species, aspects)
         val state = FloatingState()
         val target = fbo ?: return null
         val mc = Minecraft.getInstance()
@@ -141,7 +140,7 @@ object IconCapture {
                 rotation = rotation,
                 state = state,
                 partialTicks = 0f,
-                scale = 13f,
+                scale = 50f,
             )
 
             poseStack.popPose()
@@ -155,7 +154,8 @@ object IconCapture {
             mainTarget.bindWrite(true)
 
             val raw = BufferedImage(RENDER_SIZE, RENDER_SIZE, BufferedImage.TYPE_INT_ARGB)
-            var hasContent = false
+            var minX = RENDER_SIZE; var minY = RENDER_SIZE
+            var maxX = -1; var maxY = -1
             for (y in 0 until RENDER_SIZE) {
                 for (x in 0 until RENDER_SIZE) {
                     val pixel = nativeImage.getPixelRGBA(x, y)
@@ -163,29 +163,41 @@ object IconCapture {
                     val g = (pixel shr 8) and 0xFF
                     val b = (pixel shr 16) and 0xFF
                     val a = (pixel shr 24) and 0xFF
-                    if (a > 0) hasContent = true
+                    if (a > 0) {
+                        if (x < minX) minX = x
+                        if (x > maxX) maxX = x
+                        if (y < minY) minY = y
+                        if (y > maxY) maxY = y
+                    }
                     raw.setRGB(x, y, (a shl 24) or (r shl 16) or (g shl 8) or b)
                 }
             }
             nativeImage.close()
 
-            if (!hasContent) {
-                DebugLog.warn("Species icon blank: $speciesName")
+            if (maxX < 0) {
+                DebugLog.warn("Species icon blank: $speciesId")
                 return null
             }
 
-            // Bilinear for 3D renders
+            // Auto-crop to content bounds with 1px padding, then downscale
+            val pad = 1
+            val cx0 = (minX - pad).coerceAtLeast(0)
+            val cy0 = (minY - pad).coerceAtLeast(0)
+            val cx1 = (maxX + pad).coerceAtMost(RENDER_SIZE - 1)
+            val cy1 = (maxY + pad).coerceAtMost(RENDER_SIZE - 1)
+            val cropped = raw.getSubimage(cx0, cy0, cx1 - cx0 + 1, cy1 - cy0 + 1)
+
             val scaled = BufferedImage(ICON_SIZE, ICON_SIZE, BufferedImage.TYPE_INT_ARGB)
             val g2d = scaled.createGraphics()
             g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
-            g2d.drawImage(raw, 0, 0, ICON_SIZE, ICON_SIZE, null)
+            g2d.drawImage(cropped, 0, 0, ICON_SIZE, ICON_SIZE, null)
             g2d.dispose()
 
             val out = ByteArrayOutputStream()
             ImageIO.write(scaled, "PNG", out)
             out.toByteArray()
         } catch (e: Exception) {
-            DebugLog.warn("Species icon failed for $speciesName: ${e.message}")
+            DebugLog.warn("Species icon failed for $speciesId: ${e.message}")
             null
         }
     }

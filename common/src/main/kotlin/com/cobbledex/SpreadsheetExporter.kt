@@ -142,7 +142,11 @@ object SpreadsheetExporter {
             }
             return IconCapture.captureItemToPng(stack)
         }
-        return IconCapture.captureSpeciesToPng(cacheKey)
+        // Resolve form info from index so alternate forms get correct model + aspects
+        val info = SpawnDataIndex.speciesInfo[cacheKey]
+        val speciesId = info?.baseSpeciesName ?: cacheKey
+        val aspects = info?.formAspects ?: emptySet()
+        return IconCapture.captureSpeciesToPng(speciesId, aspects)
     }
 
     // ══════════════════════════════════════════════════════════════════
