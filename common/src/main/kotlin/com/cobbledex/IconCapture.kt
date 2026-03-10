@@ -103,7 +103,8 @@ object IconCapture {
     // ── Species icons: render 3D model via Cobblemon's API into FBO ──
 
     fun captureSpeciesToPng(speciesName: String): ByteArray? {
-        val species = PokemonSpecies.getByName(speciesName) ?: return null
+        val id = speciesName.lowercase().replace(" ", "_")
+        val species = PokemonSpecies.getByName(id) ?: return null
         val renderable = RenderablePokemon(species, emptySet())
         val state = FloatingState()
         val target = fbo ?: return null

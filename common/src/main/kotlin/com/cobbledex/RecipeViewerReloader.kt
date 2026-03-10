@@ -37,6 +37,10 @@ object RecipeViewerReloader {
         DebugLog.info("Scheduled recipe viewer reload (dataVersion=$currentVersion, ${RELOAD_DELAYS.size} attempts)")
     }
 
+    /** The data version that EMI last successfully reloaded with (set after first reload fires) */
+    @Volatile
+    private var emiReloadedAtVersion = -1L
+
     fun tick() {
         if (pendingRetryIndex < 0) return
 
@@ -52,12 +56,21 @@ object RecipeViewerReloader {
             return
         }
 
+        // After the first reload, check if EMI finished loading — if so, it picked
+        // up our data and we can stop retrying
+        if (pendingRetryIndex > 0 && isEmiLoaded() && emiReloadedAtVersion == reloadDataVersion) {
+            DebugLog.info("EMI reports loaded after reload — skipping remaining ${RELOAD_DELAYS.size - pendingRetryIndex} retry attempts")
+            pendingRetryIndex = -1
+            return
+        }
+
         val attempt = pendingRetryIndex + 1
         DebugLog.info("Recipe viewer reload attempt $attempt/${RELOAD_DELAYS.size} " +
             "(spawns=${SpawnDataIndex.spawnsBySpecies.size}, species=${SpawnDataIndex.allSpeciesNames.size})")
 
         reloadEMI()
         reloadJEI()
+        emiReloadedAtVersion = reloadDataVersion
 
         pendingRetryIndex++
         if (pendingRetryIndex < RELOAD_DELAYS.size) {
@@ -71,6 +84,16 @@ object RecipeViewerReloader {
         pendingRetryIndex = -1
         retryTicksRemaining = 0
         reloadDataVersion = -1L
+        emiReloadedAtVersion = -1L
+    }
+
+    private fun isEmiLoaded(): Boolean {
+        return try {
+            val cls = Class.forName("dev.emi.emi.runtime.EmiReloadManager")
+            cls.getMethod("isLoaded").invoke(null) as Boolean
+        } catch (_: Exception) {
+            false
+        }
     }
 
     private fun reloadEMI() {
