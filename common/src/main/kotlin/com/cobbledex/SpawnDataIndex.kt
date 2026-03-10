@@ -296,6 +296,7 @@ object SpawnDataIndex {
     fun onDisconnect() {
         cancelPendingLoad()
         PokemonItemCache.reset()
+        RecipeViewerReloader.reset()
         emptyEvoRetries = 0
         hasServerSync = false
         jobRules = emptyList()
@@ -329,8 +330,12 @@ object SpawnDataIndex {
             }
         }
         val jobMsg = if (jobRules.isNotEmpty()) ", ${jobRules.size} job rules" else ""
+        val totalSpawnEntries = syncedSpawns.values.sumOf { it.size }
+        CobbleDexMod.LOGGER.info("[CobbleDex] Server sync received: ${syncedSpawns.size} species ($totalSpawnEntries spawn entries), " +
+            "${syncedEvolutions.size} evolutions, ${syncedSpeciesInfo.size} species info$jobMsg — scheduling recipe viewer reload")
         DebugLog.info("Applied server sync: ${syncedSpawns.size} species with spawns, " +
-            "${syncedEvolutions.size} with evolutions, ${syncedSpeciesInfo.size} with info$jobMsg")
+            "${syncedEvolutions.size} with evolutions, ${syncedSpeciesInfo.size} with info$jobMsg " +
+            "(loadState=${loadState.name}, dataVersion=$dataVersion)")
 
         RecipeViewerReloader.scheduleReload()
 

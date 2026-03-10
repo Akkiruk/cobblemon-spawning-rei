@@ -98,14 +98,15 @@ class CobbleDexNeoForge(modBus: IEventBus) {
                     speciesInfo = EvolutionDataLoader.loadSpeciesBasicInfoFromRuntime(),
                     fossils = FossilDataLoader.loadFromRuntime(),
                 )
+                val totalSpawnEntries = bundle.spawns.values.sumOf { it.size }
                 val compressed = SpawnSyncSerializer.serialize(bundle)
                 val chunks = ChunkedSpawnSyncPayload.split(compressed)
                 for (chunk in chunks) {
                     PacketDistributor.sendToPlayer(player, chunk)
                 }
-                DebugLog.info("Sent chunked sync to ${player.name.string}: ${bundle.spawns.size} spawns, ${bundle.evolutions.size} evolutions, ${bundle.speciesInfo.size} species info, ${compressed.size} bytes in ${chunks.size} chunks")
+                CobbleDexMod.LOGGER.info("[CobbleDex] Sent sync to ${player.name.string}: ${bundle.spawns.size} species ($totalSpawnEntries spawn entries), ${bundle.evolutions.size} evolutions, ${bundle.speciesInfo.size} species info, ${compressed.size} bytes in ${chunks.size} chunks")
             } catch (e: Exception) {
-                DebugLog.info("Client ${player.name.string} doesn't support sync or send failed: ${e.message}")
+                CobbleDexMod.LOGGER.info("[CobbleDex] Client ${player.name.string} doesn't support sync or send failed: ${e.message}")
             }
         }
     }

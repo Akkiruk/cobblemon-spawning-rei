@@ -53,6 +53,11 @@ open class CobbleDexEMIPlugin : EmiPlugin {
     override fun register(registry: EmiRegistry) {
         SpawnDataIndex.ensureLoaded()
         val config = CobbleDexConfig.get()
+        val hasSync = SpawnDataIndex.loadState == SpawnDataIndex.LoadState.FULLY_LOADED
+        val spawnCount = SpawnDataIndex.spawnsBySpecies.size
+
+        DebugLog.info("EMI register() called (loadState=${SpawnDataIndex.loadState.name}, " +
+            "dataVersion=${SpawnDataIndex.dataVersion}, spawns=$spawnCount species)")
 
         // Register Pokémon entries
         var registered = 0
@@ -97,10 +102,10 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             for (handle in recipes) {
                 registry.addRecipe(GenericEmiRecipe(handle, cat, def))
             }
-            registeredCats.add(def.id)
+            registeredCats.add("${def.id}(${recipes.size})")
         }
 
-        DebugLog.info("EMI: Registered $registered Pokémon + $formCount forms, categories: ${registeredCats.joinToString(" + ")}")
+        DebugLog.info("EMI: Registered $registered Pokémon + $formCount forms, categories: ${registeredCats.joinToString(" + ")} (dataVersion=${SpawnDataIndex.dataVersion})")
     }
 
     // ----- Generic EMI Recipe wrapping RecipeHandle -----

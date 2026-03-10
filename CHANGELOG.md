@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.48.7] - 2026-03-09
+
+### Fixed
+- **Server datapack spawns not showing in EMI/JEI** — the recipe viewer reload after server sync now retries multiple times with staggered delays (immediate, 1s, 3s, 10s) to handle race conditions with EMI's own initialization reload (#30)
+- Improved server-side sync logging to help diagnose cases where the sync packet isn't received
+
 ## [1.48.5] - 2026-03-09
 
 ### Changed
