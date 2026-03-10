@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.2] - 2026-03-10
+
+### Fixed
+- Attack, Defense, EV Atk, and EV Def columns were blank in spreadsheet export (wrong stat key names)
+
 ## [1.50.1] - 2026-03-09
 
 ### Fixed
