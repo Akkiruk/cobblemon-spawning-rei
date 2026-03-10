@@ -130,7 +130,7 @@ object IconCapture {
 
             val poseStack = PoseStack()
             poseStack.pushPose()
-            poseStack.translate(RENDER_SIZE / 2.0, RENDER_SIZE * 0.65, -11000.0)
+            poseStack.translate(RENDER_SIZE / 2.0, RENDER_SIZE * 0.1, -11000.0)
 
             val rotation = Quaternionf().rotationXYZ(
                 Math.toRadians(13.0).toFloat(),
@@ -144,7 +144,7 @@ object IconCapture {
                 rotation = rotation,
                 state = state,
                 partialTicks = 0f,
-                scale = 70f,
+                scale = 210f,
             )
 
             poseStack.popPose()

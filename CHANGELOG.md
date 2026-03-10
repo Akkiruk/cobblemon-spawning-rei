@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.3] - 2026-03-10
+
+### Fixed
+- Adjusted icon capture scale and vertical offset for better sprite rendering in exports
+
 ## [1.50.2] - 2026-03-10
 
 ### Fixed
