@@ -2,6 +2,14 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.0] - 2026-03-09
+
+### Added
+- **Riding Data tab** — new category showing mount types, riding styles, seats, and stat ranges (speed, acceleration, skill, jump, stamina) for 250+ rideable Pokémon
+- Riding data loaded from bundled CSV with support for multi-mount Pokémon (e.g. land + air)
+- Stat bars with min/max ranges per mount type
+- `showRiding` config toggle
+
 ## [1.49.2] - 2026-03-09
 
 ### Fixed

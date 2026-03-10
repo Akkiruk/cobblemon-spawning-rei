@@ -1760,5 +1760,94 @@ object SpawnDisplayHelper {
         return FormLayoutResult(layout, pokemonSlots)
     }
 
+    // --- Riding layout builder ---
+
+    private val MOUNT_TYPE_COLORS = mapOf(
+        "LAND" to 0xFF8B6914.toInt(),
+        "AIR" to 0xFF5599DD.toInt(),
+        "LIQUID" to 0xFF3388AA.toInt(),
+    )
+
+    private val RIDING_STAT_COLORS = mapOf(
+        "SPEED" to 0xFFFF6655.toInt(),
+        "ACCEL" to 0xFFFFAA33.toInt(),
+        "SKILL" to 0xFF55CC55.toInt(),
+        "JUMP" to 0xFF5599FF.toInt(),
+        "STAMINA" to 0xFFCC66DD.toInt(),
+    )
+
+    fun buildRidingLayout(speciesName: String, riding: RidingInfo): PanelLayout {
+        val layout = PanelLayout(200)
+        val font = layout.font
+        val padding = PanelLayout.PADDING
+        val right = layout.right
+
+        layout.textAt(padding + 22, 6, formatSpeciesName(speciesName), 0xFFFFFF)
+        val headerText = tr("category.cobbledex-rei-emi-jei.riding")
+        layout.textRightAt(6, headerText, 0xDDCC99)
+        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+
+        // Mount types + seats summary
+        layout.skipTo(26)
+        val typesStr = riding.allMountTypes.joinToString(" / ")
+        layout.text(padding, typesStr, 0xFFAAAA88.toInt())
+        val seatsText = if (riding.seats == 1) "1 seat" else "${riding.seats} seats"
+        layout.textRight(seatsText, 0xFFBBBBBB.toInt())
+        layout.line()
+        layout.gap(4)
+
+        // Each mount entry
+        for ((idx, mount) in riding.mounts.withIndex()) {
+            if (idx > 0) {
+                layout.gap(2)
+                layout.separator(0x30FFFFFF)
+                layout.gap(4)
+            }
+
+            val typeColor = MOUNT_TYPE_COLORS[mount.mountType.uppercase()] ?: 0xFFBBBBBB.toInt()
+            val styleStr = mount.ridingStyle.replaceFirstChar { it.uppercase() }
+            layout.text(padding, "${mount.mountType} — $styleStr", typeColor)
+            layout.line()
+            layout.gap(4)
+
+            val stats = listOf(
+                "SPEED" to (mount.speedMin to mount.speedMax),
+                "ACCEL" to (mount.accelMin to mount.accelMax),
+                "SKILL" to (mount.skillMin to mount.skillMax),
+                "JUMP" to (mount.jumpMin to mount.jumpMax),
+                "STAMINA" to (mount.staminaMin to mount.staminaMax),
+            )
+
+            val maxLabelWidth = stats.maxOf { font.width(it.first) }
+            val barX = padding + maxLabelWidth + 4
+            val valueSpace = 42
+            val barMaxWidth = right - barX - valueSpace
+            val maxStatValue = 220
+
+            for ((statName, range) in stats) {
+                val (min, max) = range
+                val color = RIDING_STAT_COLORS[statName] ?: 0xFFAAAAAA.toInt()
+
+                layout.text(padding, statName, 0xBBBBBB)
+
+                // Background bar
+                layout.fill(barX, layout.y + 1, barX + barMaxWidth, layout.y + 9, 0x30FFFFFF)
+                // Min bar (darker)
+                val minBarW = ((min.toFloat() / maxStatValue) * barMaxWidth).toInt().coerceAtLeast(0)
+                layout.fill(barX, layout.y + 1, barX + minBarW, layout.y + 9, color)
+                // Max bar (lighter overlay)
+                val maxBarW = ((max.toFloat() / maxStatValue) * barMaxWidth).toInt().coerceAtLeast(0)
+                val lighterColor = (color and 0x00FFFFFF) or 0x60000000
+                layout.fill(barX + minBarW, layout.y + 1, barX + maxBarW, layout.y + 9, lighterColor)
+
+                layout.textRight("$min-$max", 0xFFFFFF)
+                layout.gap(13)
+            }
+        }
+
+        layout.gap(padding)
+        return layout
+    }
+
 }
 

@@ -378,4 +378,17 @@ object RecipeBuilder {
         baseStatTotal = info.baseStatTotal,
         formAspects = info.formAspects
     )
+
+    // --- Riding recipes ---
+
+    fun buildAllRidingRecipes(): List<RidingRecipeData> {
+        return SpawnDataIndex.ridingBySpecies.map { (species, info) ->
+            RidingRecipeData(species, info)
+        }
+    }
+
+    fun buildRidingFor(speciesName: String): RidingRecipeData? {
+        val info = SpawnDataIndex.getRidingFor(speciesName) ?: return null
+        return RidingRecipeData(speciesName, info)
+    }
 }

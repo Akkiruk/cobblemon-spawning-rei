@@ -19,6 +19,7 @@ data class CobbleDexConfig(
     val showNatures: Boolean = true,
     val showJobs: Boolean = true,
     val showAlternateForms: Boolean = true,
+    val showRiding: Boolean = true,
     val registerFormEntries: Boolean = true,
     val debugMode: Boolean = false
 ) {

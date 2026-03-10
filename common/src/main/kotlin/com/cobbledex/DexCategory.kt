@@ -78,7 +78,7 @@ interface DexCategory {
         val ALL: List<DexCategory> = listOf(
             SpawnDex, EvolutionDex, ObtainmentDex, DropDex,
             StatsDex, MovesDex, PokedexInfoDex, PokemonDescriptionDex, FossilDex,
-            TypeChartDex, NatureDex, JobsDex, FormsDex
+            TypeChartDex, NatureDex, JobsDex, FormsDex, RidingDex
         )
     }
 }
@@ -505,4 +505,31 @@ object FormsDex : DexCategory {
             },
         )
     }
+}
+
+// ----- Riding Data -----
+
+object RidingDex : DexCategory {
+    override val id = "riding"
+    override val titleKey = "category.cobbledex-rei-emi-jei.riding"
+    override val icon: Item = Items.SADDLE
+    override val maxSize: () -> CategorySizer.PanelSize = { CategorySizer.getBounds(this) }
+    override val supportsRecipeTree = true
+    override fun isEnabled(config: CobbleDexConfig) = config.showRiding
+
+    override fun buildAllRecipes() =
+        RecipeBuilder.buildAllRidingRecipes().map(::toHandle)
+
+    override fun buildRecipesFor(species: String): List<RecipeHandle> {
+        val r = RecipeBuilder.buildRidingFor(species) ?: return emptyList()
+        return listOf(toHandle(r))
+    }
+
+    private fun toHandle(d: RidingRecipeData) = RecipeHandle(
+        recipeIdPath = "riding/${sanitizePath(d.speciesName)}",
+        inputSpecies = listOf(d.speciesName),
+        outputSpecies = emptyList(),
+        layoutFactory = { SpawnDisplayHelper.buildRidingLayout(d.speciesName, d.riding) },
+        _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
+    )
 }

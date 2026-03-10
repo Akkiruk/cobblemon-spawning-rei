@@ -1,0 +1,421 @@
+Pokemon,AllMountTypes,RidingStyles,Seats,MountType,RidingStyle,SPEED_Min,SPEED_Max,ACCELERATION_Min,ACCELERATION_Max,SKILL_Min,SKILL_Max,JUMP_Min,JUMP_Max,STAMINA_Min,STAMINA_Max,Source,Path
+absol,LAND,horse,1,LAND,horse,30,55,30,55,40,70,25,45,30,60,JourneyMounts,data/cobblemon/species_additions/generation3/absol.json
+aerodactyl,"AIR, LAND","bird, horse",1,AIR,bird,90,115,85,110,70,95,45,75,80,110,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/aerodactyl.json
+aerodactyl,"AIR, LAND","bird, horse",1,LAND,horse,10,25,35,55,15,45,25,35,20,45,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/aerodactyl.json
+aggron,LAND,horse,1,LAND,horse,40,80,30,60,20,50,30,65,60,120,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/aggron.json
+alakazam,LAND,horse,1,LAND,horse,60,85,65,85,75,95,25,45,45,65,JourneyMounts,data/cobblemon/species_additions/generation1/alakazam.json
+altaria,"AIR, LAND","bird, horse",1,AIR,bird,105,125,60,85,85,110,25,45,70,90,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/altaria.json
+altaria,"AIR, LAND","bird, horse",1,LAND,horse,30,50,40,60,80,100,10,40,10,40,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/altaria.json
+annihilape,LAND,horse,1,LAND,horse,45,70,40,65,45,75,25,40,50,85,JourneyMounts,data/cobblemon/species_additions/generation9/annihilape.json
+appletun,LAND,horse,1,LAND,horse,25,40,25,40,20,35,10,20,50,70,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/appletun.json
+arbok,LAND,horse,1,LAND,horse,25,45,65,80,0,30,0,5,35,55,JourneyMounts,data/cobblemon/species_additions/generation1/arbok.json
+arcanine,LAND,horse,1,LAND,horse,90,130,85,95,70,95,65,85,35,80,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/arcanine.json
+arceus,"AIR, LAND","bird, horse",1,AIR,bird,150,180,100,130,80,90,60,90,80,160,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/arceus.json
+arceus,"AIR, LAND","bird, horse",1,LAND,horse,80,110,70,100,70,80,70,100,30,65,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/arceus.json
+archaludon,LAND,horse,1,LAND,horse,25,40,25,40,25,40,15,30,60,80,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/archaludon.json
+archeops,"AIR, LAND","bird, horse",1,AIR,bird,35,65,35,60,45,75,35,60,30,55,JourneyMounts,data/cobblemon/species_additions/generation5/archeops.json
+archeops,"AIR, LAND","bird, horse",1,LAND,horse,25,45,20,40,30,55,20,35,35,65,JourneyMounts,data/cobblemon/species_additions/generation5/archeops.json
+arctozolt,LAND,horse,1,LAND,horse,30,50,30,55,30,55,15,30,45,75,JourneyMounts,data/cobblemon/species_additions/generation8/arctozolt.json
+ariados,LAND,horse,1,LAND,horse,30,45,55,85,45,65,25,45,15,30,Cobblemon-Fabric,data/cobblemon/species/generation2/ariados.json
+armaldo,"LAND, LIQUID","horse, dolphin",1,LIQUID,dolphin,25,50,20,45,30,60,20,40,45,75,JourneyMounts,data/cobblemon/species_additions/generation3/armaldo.json
+armaldo,"LAND, LIQUID","horse, dolphin",1,LAND,horse,15,35,15,35,30,55,15,30,40,70,JourneyMounts,data/cobblemon/species_additions/generation3/armaldo.json
+armarouge,LAND,horse,1,LAND,horse,35,55,40,65,50,80,20,35,35,60,JourneyMounts,data/cobblemon/species_additions/generation9/armarouge.json
+articuno,"AIR, LAND","bird, horse",1,AIR,bird,120,150,65,90,70,100,50,80,70,90,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/articuno.json
+articuno,"AIR, LAND","bird, horse",1,LAND,horse,10,20,70,90,30,60,25,50,40,80,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/articuno.json
+aurorus,LAND,horse,1,LAND,horse,20,40,30,55,25,45,15,30,50,80,JourneyMounts,data/cobblemon/species_additions/generation6/aurorus.json
+avalugg,LAND,horse,1,LAND,horse,10,25,15,30,40,70,5,15,60,90,JourneyMounts,data/cobblemon/species_additions/generation6/avalugg.json
+basculegion,LIQUID,dolphin,1,LIQUID,dolphin,45,75,40,65,35,60,25,45,30,65,JourneyMounts,data/cobblemon/species_additions/generation8a/basculegion.json
+basculin,LIQUID,dolphin,1,LIQUID,dolphin,35,65,35,65,40,70,20,40,35,70,JourneyMounts,data/cobblemon/species_additions/generation5/basculin.json
+bastiodon,LAND,horse,2,LAND,horse,65,85,30,50,20,40,15,30,50,90,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/bastiodon.json
+beartic,LAND,horse,1,LAND,horse,20,45,20,45,30,55,20,35,50,85,JourneyMounts,data/cobblemon/species_additions/generation5/beartic.json
+bellibolt,"AIR, LAND","jet, horse",1,AIR,jet,55,90,45,75,50,80,45,80,35,65,JourneyMounts,data/cobblemon/species_additions/generation9/bellibolt.json
+bellibolt,"AIR, LAND","jet, horse",1,LAND,horse,20,40,30,55,35,60,20,40,25,50,JourneyMounts,data/cobblemon/species_additions/generation9/bellibolt.json
+bewear,LAND,horse,1,LAND,horse,35,55,40,65,25,45,20,30,55,85,JourneyMounts,data/cobblemon/species_additions/generation7/bewear.json
+blastoise,"AIR, LAND, LIQUID","rocket, horse, submarine",2,LIQUID,submarine,75,95,50,75,60,85,30,50,35,70,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/blastoise.json
+blastoise,"AIR, LAND, LIQUID","rocket, horse, submarine",2,AIR,rocket,75,95,20,50,40,60,10,20,2,20,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/blastoise.json
+blastoise,"AIR, LAND, LIQUID","rocket, horse, submarine",2,LAND,horse,40,70,20,40,30,50,20,35,15,35,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/blastoise.json
+blaziken,LAND,horse,1,LAND,horse,35,65,40,70,40,70,40,70,30,55,JourneyMounts,data/cobblemon/species_additions/generation3/blaziken.json
+blissey,LAND,horse,1,LAND,horse,10,25,5,20,10,25,5,15,70,100,JourneyMounts,data/cobblemon/species_additions/generation2/blissey.json
+boltund,LAND,horse,1,LAND,horse,60,85,55,80,35,55,30,50,35,55,JourneyMounts,data/cobblemon/species_additions/generation8/boltund.json
+bouffalant,LAND,horse,1,LAND,horse,60,70,35,65,35,55,15,20,55,70,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/bouffalant.json
+braviary,"AIR, LAND","bird, horse",1,AIR,bird,95,120,65,85,45,65,35,55,55,85,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/braviary.json
+braviary,"AIR, LAND","bird, horse",1,LAND,horse,30,50,40,60,25,45,10,20,15,30,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/braviary.json
+bronzong,AIR,hover,2,AIR,hover,55,75,25,45,50,70,40,60,10,20,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/bronzong.json
+camerupt,LAND,horse,6,LAND,horse,50,70,30,50,20,40,15,20,50,80,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/camerupt.json
+carracosta,"LAND, LIQUID","horse, dolphin",1,LIQUID,dolphin,25,50,20,40,40,70,20,35,55,90,JourneyMounts,data/cobblemon/species_additions/generation5/carracosta.json
+carracosta,"LAND, LIQUID","horse, dolphin",1,LAND,horse,15,35,15,35,30,55,10,25,45,80,JourneyMounts,data/cobblemon/species_additions/generation5/carracosta.json
+centiskorch,LAND,horse,1,LAND,horse,35,65,35,60,35,60,20,35,50,85,JourneyMounts,data/cobblemon/species_additions/generation8/centiskorch.json
+ceruledge,LAND,horse,1,LAND,horse,35,60,45,70,60,85,25,40,30,55,JourneyMounts,data/cobblemon/species_additions/generation9/ceruledge.json
+cetitan,LAND,horse,1,LAND,horse,20,40,20,45,30,55,10,25,45,80,JourneyMounts,data/cobblemon/species_additions/generation9/cetitan.json
+chandelure,AIR,bird,1,AIR,bird,20,40,25,45,45,70,20,35,35,65,JourneyMounts,data/cobblemon/species_additions/generation5/chandelure.json
+chansey,LAND,horse,1,LAND,horse,5,20,0,15,0,20,5,15,50,80,JourneyMounts,data/cobblemon/species_additions/generation1/chansey.json
+charizard,"AIR, LAND","bird, horse",1,AIR,bird,95,115,80,100,75,95,30,65,45,75,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/charizard.json
+charizard,"AIR, LAND","bird, horse",1,LAND,horse,45,65,50,75,50,70,15,25,20,30,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/charizard.json
+chesnaught,LAND,horse,1,LAND,horse,25,45,30,55,35,60,20,35,55,85,JourneyMounts,data/cobblemon/species_additions/generation6/chesnaught.json
+chienpao,LAND,horse,1,LAND,horse,130,150,45,80,50,85,60,90,50,70,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/chienpao.json
+cinderace,LAND,horse,1,LAND,horse,55,85,55,85,45,70,30,50,35,55,JourneyMounts,data/cobblemon/species_additions/generation8/cinderace.json
+clawitzer,LIQUID,dolphin,1,LIQUID,dolphin,45,75,45,70,55,80,25,45,30,55,JourneyMounts,data/cobblemon/species_additions/generation6/clawitzer.json
+claydol,AIR,hover,1,AIR,hover,10,20,65,85,50,70,35,70,5,10,Cobblemon-Fabric,data/cobblemon/species/generation3/claydol.json
+clefable,LAND,horse,1,LAND,horse,30,45,35,55,35,55,20,35,55,80,JourneyMounts,data/cobblemon/species_additions/generation1/clefable.json
+clodsire,LAND,horse,1,LAND,horse,5,20,10,25,20,40,0,10,60,90,JourneyMounts,data/cobblemon/species_additions/generation9/clodsire.json
+cloyster,"LAND, LIQUID","horse, submarine",2,LIQUID,submarine,35,65,45,65,50,75,30,50,35,70,JourneyMounts,data/cobblemon/species_additions/generation1/cloyster.json
+cloyster,"LAND, LIQUID","horse, submarine",2,LAND,horse,30,65,30,50,10,35,15,30,15,35,JourneyMounts,data/cobblemon/species_additions/generation1/cloyster.json
+cobalion,LAND,horse,1,LAND,horse,95,105,45,60,35,55,30,45,70,95,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/cobalion.json
+cofagrigus,LAND,horse,1,LAND,horse,15,35,15,35,30,55,15,30,40,70,JourneyMounts,data/cobblemon/species_additions/generation5/cofagrigus.json
+conkeldurr,LAND,horse,1,LAND,horse,10,25,10,25,30,55,10,25,60,95,JourneyMounts,data/cobblemon/species_additions/generation5/conkeldurr.json
+copperajah,LAND,horse,1,LAND,horse,15,30,20,35,25,45,5,15,70,100,JourneyMounts,data/cobblemon/species_additions/generation8/copperajah.json
+corviknight,"AIR, LAND","bird, horse",2,AIR,bird,85,110,45,65,40,60,30,50,80,100,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/corviknight.json
+corviknight,"AIR, LAND","bird, horse",2,LAND,horse,35,50,60,80,30,50,30,45,60,80,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/corviknight.json
+crabominable,LAND,horse,1,LAND,horse,15,30,15,30,25,45,5,15,45,80,JourneyMounts,data/cobblemon/species_additions/generation7/crabominable.json
+crawdaunt,"LAND, LIQUID","horse, dolphin",1,LIQUID,dolphin,30,55,30,50,40,70,25,45,40,75,JourneyMounts,data/cobblemon/species_additions/generation3/crawdaunt.json
+crawdaunt,"LAND, LIQUID","horse, dolphin",1,LAND,horse,10,25,15,35,25,45,15,30,25,50,JourneyMounts,data/cobblemon/species_additions/generation3/crawdaunt.json
+cresselia,"AIR, LAND","bird, horse",1,AIR,bird,80,100,60,85,110,130,45,75,20,50,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/cresselia.json
+cresselia,"AIR, LAND","bird, horse",1,LAND,horse,20,35,15,30,80,100,25,35,20,45,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/cresselia.json
+crobat,AIR,bird,1,AIR,bird,55,85,45,70,45,70,45,70,35,65,JourneyMounts,data/cobblemon/species_additions/generation2/crobat.json
+crustle,LAND,horse,4,LAND,horse,1,5,15,45,25,35,0,5,60,85,Cobblemon-Fabric,data/cobblemon/species/generation5/crustle.json
+cyclizar,LAND,horse,1,LAND,horse,90,115,80,100,60,80,35,45,30,60,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/cyclizar.json
+darmanitan,LAND,horse,1,LAND,horse,40,50,45,65,15,25,35,45,35,60,Cobblemon-Fabric,data/cobblemon/species/generation5/darmanitan.json
+decidueye,"AIR, LAND","bird, horse",1,AIR,bird,30,55,35,60,60,85,35,60,35,65,JourneyMounts,data/cobblemon/species_additions/generation7/decidueye.json
+decidueye,"AIR, LAND","bird, horse",1,LAND,horse,20,40,25,45,40,60,15,30,30,55,JourneyMounts,data/cobblemon/species_additions/generation7/decidueye.json
+delphox,LAND,horse,1,LAND,horse,30,55,35,60,50,75,20,35,35,60,JourneyMounts,data/cobblemon/species_additions/generation6/delphox.json
+dewgong,"LAND, LIQUID","horse, dolphin",2,LIQUID,dolphin,25,45,50,75,30,65,25,50,25,50,Cobblemon-Fabric,data/cobblemon/species/generation1/dewgong.json
+dewgong,"LAND, LIQUID","horse, dolphin",2,LAND,horse,10,40,10,40,80,100,10,40,10,40,Cobblemon-Fabric,data/cobblemon/species/generation1/dewgong.json
+dhelmise,"LAND, LIQUID","horse, submarine",1,LAND,horse,10,40,10,40,80,100,10,40,10,40,Cobblemon-Fabric,data/cobblemon/species/generation7/dhelmise.json
+dhelmise,"LAND, LIQUID","horse, submarine",1,LIQUID,submarine,15,30,40,55,20,30,70,100,45,65,Cobblemon-Fabric,data/cobblemon/species/generation7/dhelmise.json
+dialga,"AIR, LAND","bird, horse",1,AIR,bird,110,140,50,80,40,60,30,65,45,77,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/dialga.json
+dialga,"AIR, LAND","bird, horse",1,LAND,horse,50,80,55,65,20,55,20,80,55,99,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/dialga.json
+dodrio,LAND,horse,1,LAND,horse,65,95,60,85,50,75,25,45,50,80,JourneyMounts,data/cobblemon/species_additions/generation1/dodrio.json
+dondozo,"LAND, LIQUID","horse, submarine",7,LIQUID,submarine,65,85,50,70,40,60,10,25,60,75,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/dondozo.json
+dondozo,"LAND, LIQUID","horse, submarine",7,LAND,horse,5,15,10,20,10,20,0,0,10,20,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/dondozo.json
+donphan,LAND,horse,1,LAND,horse,30,50,30,45,25,40,20,35,60,90,JourneyMounts,data/cobblemon/species_additions/generation2/donphan.json
+dracovish,"LAND, LIQUID","horse, submarine",1,LIQUID,submarine,40,65,35,60,40,70,30,55,50,85,JourneyMounts,data/cobblemon/species_additions/generation8/dracovish.json
+dracovish,"LAND, LIQUID","horse, submarine",1,LAND,horse,25,45,25,45,30,55,10,25,45,75,JourneyMounts,data/cobblemon/species_additions/generation8/dracovish.json
+dracozolt,LAND,horse,1,LAND,horse,35,55,35,60,30,55,20,35,40,70,JourneyMounts,data/cobblemon/species_additions/generation8/dracozolt.json
+dragapult,"AIR, LAND, LIQUID","jet, horse, dolphin",1,AIR,jet,55,90,60,85,55,70,45,80,25,35,Cobblemon-Fabric,data/cobblemon/species/generation8/dragapult.json
+dragapult,"AIR, LAND, LIQUID","jet, horse, dolphin",1,LIQUID,dolphin,50,65,60,85,55,70,40,55,25,35,Cobblemon-Fabric,data/cobblemon/species/generation8/dragapult.json
+dragapult,"AIR, LAND, LIQUID","jet, horse, dolphin",1,LAND,horse,10,40,10,40,80,100,10,40,10,40,Cobblemon-Fabric,data/cobblemon/species/generation8/dragapult.json
+dragonite,"AIR, LAND, LIQUID","jet, horse, dolphin",2,AIR,jet,40,60,35,50,50,85,50,70,50,85,Cobblemon-Fabric,data/cobblemon/species/generation1/dragonite.json
+dragonite,"AIR, LAND, LIQUID","jet, horse, dolphin",2,LIQUID,dolphin,30,50,30,65,35,50,55,85,60,90,Cobblemon-Fabric,data/cobblemon/species/generation1/dragonite.json
+dragonite,"AIR, LAND, LIQUID","jet, horse, dolphin",2,LAND,horse,10,40,10,40,80,100,10,40,10,40,Cobblemon-Fabric,data/cobblemon/species/generation1/dragonite.json
+drampa,"AIR, LAND","bird, horse",1,AIR,bird,40,80,50,80,60,90,30,70,35,75,JourneyMounts,data/cobblemon/species_additions/generation7/drampa.json
+drampa,"AIR, LAND","bird, horse",1,LAND,horse,20,40,15,35,30,55,5,15,60,90,JourneyMounts,data/cobblemon/species_additions/generation7/drampa.json
+drapion,LAND,horse,1,LAND,horse,40,50,30,40,35,60,15,30,40,70,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/drapion.json
+drednaw,"LAND, LIQUID","horse, dolphin",1,LIQUID,dolphin,40,65,35,55,35,60,20,35,45,80,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/drednaw.json
+drednaw,"LAND, LIQUID","horse, dolphin",1,LAND,horse,30,45,25,30,30,50,20,40,45,80,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/drednaw.json
+drifblim,AIR,hover,1,AIR,hover,45,65,20,40,20,40,60,100,40,80,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/drifblim.json
+druddigon,LAND,horse,1,LAND,horse,20,45,20,45,35,65,20,35,45,75,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/druddigon.json
+dubwool,LAND,horse,1,LAND,horse,45,70,40,65,30,55,25,45,40,70,JourneyMounts,data/cobblemon/species_additions/generation8/dubwool.json
+dudunsparce,LAND,horse,2,LAND,horse,5,25,30,50,30,40,20,45,30,75,Cobblemon-Fabric,data/cobblemon/species/generation9/dudunsparce.json
+dusknoir,AIR,hover,1,AIR,hover,55,80,50,70,60,80,45,80,45,75,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/dusknoir.json
+electivire,LAND,horse,1,LAND,horse,30,60,30,55,40,70,25,40,40,75,JourneyMounts,data/cobblemon/species_additions/generation4/electivire.json
+emboar,LAND,horse,1,LAND,horse,25,45,25,45,35,60,20,35,45,80,JourneyMounts,data/cobblemon/species_additions/generation5/emboar.json
+empoleon,"LAND, LIQUID","horse, dolphin",1,LIQUID,dolphin,30,60,30,60,45,75,25,45,40,80,JourneyMounts,data/cobblemon/species_additions/generation4/empoleon.json
+empoleon,"LAND, LIQUID","horse, dolphin",1,LAND,horse,15,35,15,35,30,55,15,30,30,60,JourneyMounts,data/cobblemon/species_additions/generation4/empoleon.json
+entei,LAND,horse,1,LAND,horse,20,40,30,60,20,50,30,65,60,120,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/entei.json
+espathra,LAND,horse,1,LAND,horse,85,105,70,95,50,75,40,55,45,75,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/espathra.json
+espeon,LAND,horse,1,LAND,horse,45,75,35,60,45,70,20,35,25,45,JourneyMounts,data/cobblemon/species_additions/generation2/espeon.json
+exeggutor,LAND,horse,1,LAND,horse,20,35,20,40,15,35,5,20,40,70,JourneyMounts,data/cobblemon/species_additions/generation1/exeggutor.json
+exploud,LAND,horse,1,LAND,horse,15,35,20,40,25,45,15,30,30,55,JourneyMounts,data/cobblemon/species_additions/generation3/exploud.json
+farigiraf,LAND,horse,1,LAND,horse,65,80,50,70,50,65,45,55,50,70,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/farigiraf.json
+fearow,"AIR, LAND","bird, horse",1,AIR,bird,75,90,60,85,70,90,30,70,35,75,JourneyMounts,data/cobblemon/species_additions/generation1/fearow.json
+fearow,"AIR, LAND","bird, horse",1,LAND,horse,35,55,45,65,30,50,20,35,25,40,JourneyMounts,data/cobblemon/species_additions/generation1/fearow.json
+feraligatr,"LAND, LIQUID","horse, dolphin",1,LIQUID,dolphin,35,60,40,65,40,70,30,55,45,80,JourneyMounts,data/cobblemon/species_additions/generation2/feraligatr.json
+feraligatr,"LAND, LIQUID","horse, dolphin",1,LAND,horse,30,50,30,55,25,45,25,40,45,70,JourneyMounts,data/cobblemon/species_additions/generation2/feraligatr.json
+ferrothorn,LAND,horse,1,LAND,horse,5,20,5,20,45,70,5,15,50,80,JourneyMounts,data/cobblemon/species_additions/generation5/ferrothorn.json
+flareon,LAND,horse,1,LAND,horse,25,45,25,45,30,55,25,40,35,65,JourneyMounts,data/cobblemon/species_additions/generation1/flareon.json
+fluttermane,AIR,hover,1,AIR,hover,50,60,40,60,80,100,10,20,15,30,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/fluttermane.json
+flygon,"AIR, LAND","bird, horse",1,AIR,bird,70,95,50,70,90,115,45,60,45,65,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/flygon.json
+flygon,"AIR, LAND","bird, horse",1,LAND,horse,45,60,40,60,50,70,30,45,25,40,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/flygon.json
+forretress,AIR,hover,1,AIR,hover,15,25,20,40,25,45,5,10,0,5,Cobblemon-Fabric,data/cobblemon/species/generation2/forretress.json
+furfrou,LAND,horse,1,LAND,horse,45,70,40,65,30,55,25,40,35,60,JourneyMounts,data/cobblemon/species_additions/generation6/furfrou.json
+galvantula,LAND,horse,1,LAND,horse,30,55,30,45,20,40,10,20,45,80,JourneyMounts,data/cobblemon/species_additions/generation5/galvantula.json
+garchomp,"AIR, LAND, LIQUID","jet, horse, boat",1,AIR,jet,70,80,50,70,50,60,20,70,30,50,Cobblemon-Fabric,data/cobblemon/species/generation4/garchomp.json
+garchomp,"AIR, LAND, LIQUID","jet, horse, boat",1,LIQUID,boat,35,60,75,85,10,25,40,80,5,10,Cobblemon-Fabric,data/cobblemon/species/generation4/garchomp.json
+garchomp,"AIR, LAND, LIQUID","jet, horse, boat",1,LAND,horse,40,55,65,75,40,70,30,50,30,45,Cobblemon-Fabric,data/cobblemon/species/generation4/garchomp.json
+garganacl,LAND,horse,1,LAND,horse,10,30,10,25,30,55,10,20,55,85,JourneyMounts,data/cobblemon/species_additions/generation9/garganacl.json
+gastrodon,LAND,horse,1,LAND,horse,5,10,70,90,0,15,0,10,10,20,Cobblemon-Fabric,data/cobblemon/species/generation4/gastrodon.json
+gengar,"AIR, LAND","hover, horse",1,LAND,horse,25,40,35,55,45,65,20,35,30,55,JourneyMounts,data/cobblemon/species_additions/generation1/gengar.json
+gengar,"AIR, LAND","hover, horse",1,AIR,hover,30,45,25,45,55,80,25,45,30,60,JourneyMounts,data/cobblemon/species_additions/generation1/gengar.json
+girafarig,LAND,horse,1,LAND,horse,70,85,60,80,50,70,30,45,30,50,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/girafarig.json
+giratina,"AIR, LAND","jet, horse",1,AIR,jet,120,150,20,40,45,70,10,20,70,100,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/giratina.json
+giratina,"AIR, LAND","jet, horse",1,LAND,horse,10,50,10,50,80,100,25,50,10,50,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/giratina.json
+glaceon,LAND,horse,1,LAND,horse,20,45,20,45,35,60,20,35,25,50,JourneyMounts,data/cobblemon/species_additions/generation4/glaceon.json
+glalie,AIR,hover,1,AIR,hover,20,40,20,40,40,70,20,35,30,60,JourneyMounts,data/cobblemon/species/generation3/glalie.json
+glastrier,LAND,horse,1,LAND,horse,90,110,40,60,40,80,30,65,60,120,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/glastrier.json
+gliscor,"AIR, LAND","bird, horse",1,AIR,bird,30,65,45,75,55,85,30,65,30,65,JourneyMounts,data/cobblemon/species_additions/generation4/gliscor.json
+gliscor,"AIR, LAND","bird, horse",1,LAND,horse,25,40,55,65,10,25,15,25,20,30,JourneyMounts,data/cobblemon/species_additions/generation4/gliscor.json
+gogoat,LAND,horse,1,LAND,horse,45,65,65,75,40,60,40,60,45,65,Cobblemon-Fabric,data/cobblemon/species/generation6/gogoat.json
+golem,LAND,horse,1,LAND,horse,18,28,20,35,25,40,10,20,65,95,JourneyMounts,data/cobblemon/species_additions/generation1/golem.json
+golisopod,"LAND, LIQUID","horse, dolphin",1,LIQUID,dolphin,35,65,35,60,40,65,25,45,45,80,JourneyMounts,data/cobblemon/species_additions/generation7/golisopod.json
+golisopod,"LAND, LIQUID","horse, dolphin",1,LAND,horse,25,40,20,40,45,70,15,30,40,70,JourneyMounts,data/cobblemon/species_additions/generation7/golisopod.json
+golurk,"AIR, LAND","rocket, horse",3,AIR,rocket,45,75,10,35,15,30,25,40,30,50,Cobblemon-Fabric,data/cobblemon/species/generation5/golurk.json
+golurk,"AIR, LAND","rocket, horse",3,LAND,horse,35,50,65,80,40,65,40,60,60,85,Cobblemon-Fabric,data/cobblemon/species/generation5/golurk.json
+goodra,LAND,horse,1,LAND,horse,20,40,30,55,40,70,15,30,45,75,JourneyMounts,data/cobblemon/species_additions/generation6/goodra.json
+gougingfire,LAND,horse,1,LAND,horse,50,70,50,70,45,55,35,55,90,110,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/gougingfire.json
+granbull,LAND,horse,1,LAND,horse,25,45,35,55,20,40,20,35,35,65,JourneyMounts,data/cobblemon/species_additions/generation2/granbull.json
+greninja,"LAND, LIQUID","horse, dolphin",1,LIQUID,dolphin,50,80,60,85,60,85,35,65,40,65,JourneyMounts,data/cobblemon/species_additions/generation6/greninja.json
+greninja,"LAND, LIQUID","horse, dolphin",1,LAND,horse,45,75,55,80,50,75,35,55,35,55,JourneyMounts,data/cobblemon/species_additions/generation6/greninja.json
+grimmsnarl,LAND,horse,1,LAND,horse,25,45,35,60,40,70,20,40,40,75,JourneyMounts,data/cobblemon/species_additions/generation8/grimmsnarl.json
+groudon,LAND,horse,1,LAND,horse,35,65,40,70,30,55,30,65,80,135,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/groudon.json
+gyarados,"AIR, LAND, LIQUID","jet, horse, dolphin",1,LIQUID,dolphin,100,120,70,95,60,80,60,80,45,75,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/gyarados.json
+gyarados,"AIR, LAND, LIQUID","jet, horse, dolphin",1,AIR,jet,80,100,50,75,55,75,20,45,45,75,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/gyarados.json
+gyarados,"AIR, LAND, LIQUID","jet, horse, dolphin",1,LAND,horse,20,30,10,20,10,20,5,15,10,40,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/gyarados.json
+hariyama,LAND,horse,1,LAND,horse,15,35,15,35,30,55,10,25,45,80,JourneyMounts,data/cobblemon/species_additions/generation3/hariyama.json
+hatterene,LAND,horse,1,LAND,horse,25,45,20,40,45,75,10,25,30,55,JourneyMounts,data/cobblemon/species_additions/generation8/hatterene.json
+haxorus,LAND,horse,1,LAND,horse,30,55,30,55,35,65,25,45,45,80,JourneyMounts,data/cobblemon/species_additions/generation5/haxorus.json
+heatmor,LAND,horse,1,LAND,horse,15,35,15,35,30,55,15,30,40,70,JourneyMounts,data/cobblemon/species_additions/generation5/heatmor.json
+heracross,"AIR, LAND","bird, horse",1,AIR,bird,35,50,40,65,55,85,0,5,35,55,Cobblemon-Fabric,data/cobblemon/species/generation2/heracross.json
+heracross,"AIR, LAND","bird, horse",1,LAND,horse,15,30,55,70,40,65,35,50,35,50,Cobblemon-Fabric,data/cobblemon/species/generation2/heracross.json
+hippowdon,LAND,horse,1,LAND,horse,20,40,15,35,25,45,15,30,60,90,JourneyMounts,data/cobblemon/species_additions/generation4/hippowdon.json
+ho-oh,"AIR, LAND","bird, horse",1,AIR,bird,130,160,20,100,50,100,25,50,30,70,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/hooh.json
+ho-oh,"AIR, LAND","bird, horse",1,LAND,horse,10,20,90,100,15,30,10,20,15,30,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/hooh.json
+honchkrow,"AIR, LAND","bird, horse",1,LAND,horse,25,40,55,65,10,25,15,25,20,30,Cobblemon-Fabric,data/cobblemon/species/generation4/honchkrow.json
+honchkrow,"AIR, LAND","bird, horse",1,AIR,bird,20,35,20,40,30,50,50,70,55,75,Cobblemon-Fabric,data/cobblemon/species/generation4/honchkrow.json
+houndoom,LAND,horse,1,LAND,horse,40,65,55,80,30,60,25,45,25,55,JourneyMounts,data/cobblemon/species_additions/generation2/houndoom.json
+hydrapple,LAND,horse,1,LAND,horse,20,35,20,40,45,65,15,35,50,65,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/hydrapple.json
+hydreigon,"AIR, LAND","bird, horse",2,AIR,bird,80,95,50,75,75,95,5,10,75,100,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/hydreigon.json
+hydreigon,"AIR, LAND","bird, horse",2,LAND,horse,15,35,10,40,80,100,10,40,10,40,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/hydreigon.json
+incineroar,LAND,horse,1,LAND,horse,35,60,40,70,45,70,25,40,45,80,JourneyMounts,data/cobblemon/species_additions/generation7/incineroar.json
+infernape,LAND,horse,1,LAND,horse,30,55,30,55,35,65,25,45,30,60,JourneyMounts,data/cobblemon/species_additions/generation4/infernape.json
+inteleon,"LAND, LIQUID","horse, dolphin",1,LAND,horse,55,80,45,70,45,75,25,45,25,45,JourneyMounts,data/cobblemon/species_additions/generation8/inteleon.json
+inteleon,"LAND, LIQUID","horse, dolphin",1,LIQUID,dolphin,45,70,40,65,45,75,35,55,30,55,JourneyMounts,data/cobblemon/species_additions/generation8/inteleon.json
+ironcrown,LAND,horse,1,LAND,horse,45,65,50,70,60,80,25,45,80,100,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/ironcrown.json
+ironleaves,LAND,horse,1,LAND,horse,55,85,55,80,45,70,25,45,35,60,JourneyMounts,data/cobblemon/species_additions/generation9/ironleaves.json
+jellicent,LIQUID,dolphin,1,LIQUID,dolphin,25,50,25,50,35,65,20,35,45,80,JourneyMounts,data/cobblemon/species_additions/generation5/jellicent.json
+jolteon,LAND,horse,1,LAND,horse,40,70,45,75,35,60,25,45,20,40,JourneyMounts,data/cobblemon/species_additions/generation1/jolteon.json
+kangaskhan,LAND,horse,1,LAND,horse,45,65,50,75,30,50,25,45,55,80,JourneyMounts,data/cobblemon/species_additions/generation1/kangaskhan.json
+keldeo,LAND,horse,1,LAND,horse,40,50,30,60,20,50,30,65,100,145,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/keldeo.json
+kilowattrel,"AIR, LAND","bird, horse",1,AIR,bird,110,130,95,115,70,95,50,70,40,65,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/kilowattrel.json
+kilowattrel,"AIR, LAND","bird, horse",1,LAND,horse,10,40,10,40,80,100,10,40,10,40,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/kilowattrel.json
+kingdra,LIQUID,dolphin,1,LIQUID,dolphin,40,70,45,70,45,75,20,40,35,70,JourneyMounts,data/cobblemon/species_additions/generation2/kingdra.json
+kingler,"LAND, LIQUID","horse, submarine",1,LIQUID,submarine,30,55,35,60,45,70,15,35,40,75,JourneyMounts,data/cobblemon/species_additions/generation1/kingler.json
+kingler,"LAND, LIQUID","horse, submarine",1,LAND,horse,20,40,25,50,20,40,10,25,30,55,JourneyMounts,data/cobblemon/species_additions/generation1/kingler.json
+klawf,LAND,horse,1,LAND,horse,20,40,20,35,35,55,10,25,45,75,JourneyMounts,data/cobblemon/species_additions/generation9/klawf.json
+klinklang,AIR,hover,1,AIR,hover,30,40,40,60,40,60,15,25,5,10,Cobblemon-Fabric,data/cobblemon/species/generation5/klinklang.json
+kommoo,LAND,horse,1,LAND,horse,35,55,40,60,45,70,20,35,50,80,JourneyMounts,data/cobblemon/species_additions/generation7/kommoo.json
+koraidon,"AIR, LAND, LIQUID","bird, horse, boat",1,AIR,bird,100,130,90,120,80,90,60,90,30,65,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/koraidon.json
+koraidon,"AIR, LAND, LIQUID","bird, horse, boat",1,LAND,horse,120,150,100,130,80,90,85,110,30,60,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/koraidon.json
+koraidon,"AIR, LAND, LIQUID","bird, horse, boat",1,LIQUID,boat,50,80,40,70,50,75,40,60,30,60,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/koraidon.json
+krookodile,LAND,horse,1,LAND,horse,30,55,25,50,40,70,20,40,45,80,JourneyMounts,data/cobblemon/species_additions/generation5/krookodile.json
+kyogre,LIQUID,dolphin,1,LIQUID,dolphin,120,150,90,120,85,95,60,90,80,135,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/kyogre.json
+kyurem,LAND,horse,1,LAND,horse,40,65,30,60,20,50,30,65,30,65,COBBLEVERSE-DP-v28,data/cobblemon/species/generation5/kyurem.json
+lanturn,LIQUID,dolphin,1,LIQUID,dolphin,30,55,35,60,45,75,25,45,40,80,JourneyMounts,data/cobblemon/species_additions/generation2/lanturn.json
+lapras,"LAND, LIQUID","horse, boat",1,LIQUID,boat,80,105,60,85,60,85,20,30,45,75,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/lapras.json
+lapras,"LAND, LIQUID","horse, boat",1,LAND,horse,10,25,10,35,20,40,0,5,10,40,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/lapras.json
+latias,"AIR, LAND, LIQUID","jet, horse, dolphin",1,AIR,jet,170,205,75,95,95,115,85,100,85,100,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/latias.json
+latias,"AIR, LAND, LIQUID","jet, horse, dolphin",1,LIQUID,dolphin,75,95,65,85,80,100,40,60,60,90,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/latias.json
+latias,"AIR, LAND, LIQUID","jet, horse, dolphin",1,LAND,horse,30,70,20,40,80,90,10,40,10,40,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/latias.json
+latios,"AIR, LAND, LIQUID","jet, horse, dolphin",1,AIR,jet,170,205,110,140,80,90,85,100,85,100,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/latios.json
+latios,"AIR, LAND, LIQUID","jet, horse, dolphin",1,LIQUID,dolphin,75,95,65,85,80,100,40,60,60,90,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/latios.json
+latios,"AIR, LAND, LIQUID","jet, horse, dolphin",1,LAND,horse,30,70,10,40,80,90,10,40,10,40,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/latios.json
+leafeon,LAND,horse,1,LAND,horse,20,45,20,45,35,60,20,35,25,50,JourneyMounts,data/cobblemon/species_additions/generation4/leafeon.json
+lickilicky,LAND,horse,2,LAND,horse,10,25,0,15,0,5,40,60,20,40,Cobblemon-Fabric,data/cobblemon/species/generation4/lickilicky.json
+lickitung,LAND,horse,1,LAND,horse,10,25,5,20,5,20,10,25,25,45,JourneyMounts,data/cobblemon/species_additions/generation1/lickitung.json
+liepard,LAND,horse,1,LAND,horse,30,55,30,55,35,60,20,35,30,55,JourneyMounts,data/cobblemon/species_additions/generation5/liepard.json
+lopunny,LAND,horse,1,LAND,horse,20,40,20,40,45,70,20,40,25,55,JourneyMounts,data/cobblemon/species_additions/generation4/lopunny.json
+ludicolo,"LAND, LIQUID","horse, dolphin",1,LIQUID,dolphin,30,55,30,55,40,70,20,35,35,65,JourneyMounts,data/cobblemon/species_additions/generation3/ludicolo.json
+ludicolo,"LAND, LIQUID","horse, dolphin",1,LAND,horse,20,40,20,40,25,45,15,30,30,55,JourneyMounts,data/cobblemon/species_additions/generation3/ludicolo.json
+lugia,"AIR, LAND, LIQUID","bird, horse, dolphin",1,AIR,bird,110,130,40,70,70,90,25,50,130,150,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/lugia.json
+lugia,"AIR, LAND, LIQUID","bird, horse, dolphin",1,LIQUID,dolphin,90,110,70,90,60,80,30,65,80,135,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/lugia.json
+lugia,"AIR, LAND, LIQUID","bird, horse, dolphin",1,LAND,horse,10,20,90,100,15,30,10,20,15,30,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/lugia.json
+lumineon,LIQUID,dolphin,1,LIQUID,dolphin,30,55,25,50,40,70,25,45,35,65,JourneyMounts,data/cobblemon/species_additions/generation4/lumineon.json
+lunala,"AIR, LAND","bird, horse",1,AIR,bird,110,125,90,110,65,95,45,75,20,50,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/lunala.json
+lunala,"AIR, LAND","bird, horse",1,LAND,horse,30,50,20,40,15,45,25,35,20,45,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/lunala.json
+luxray,LAND,horse,1,LAND,horse,25,50,25,50,40,70,20,40,35,65,JourneyMounts,data/cobblemon/species_additions/generation4/luxray.json
+mabosstiff,LAND,horse,1,LAND,horse,35,60,35,55,30,50,20,35,40,70,JourneyMounts,data/cobblemon/species_additions/generation9/mabosstiff.json
+machamp,LAND,horse,1,LAND,horse,45,65,50,70,70,90,55,75,80,100,JourneyMounts,data/cobblemon/species_additions/generation1/machamp.json
+magcargo,LAND,horse,1,LAND,horse,1,10,0,15,25,45,0,5,70,100,JourneyMounts,data/cobblemon/species_additions/generation2/magcargo.json
+magmortar,LAND,horse,1,LAND,horse,15,40,20,45,30,55,15,30,35,65,JourneyMounts,data/cobblemon/species_additions/generation4/magmortar.json
+magnezone,AIR,hover,1,AIR,hover,65,85,70,95,50,70,45,65,5,15,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/magnezone.json
+mamoswine,LAND,horse,3,LAND,horse,55,75,50,70,30,50,10,25,60,90,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/mamoswine.json
+manectric,LAND,horse,1,LAND,horse,35,65,35,65,30,55,20,40,25,45,JourneyMounts,data/cobblemon/species_additions/generation3/manectric.json
+mantine,"AIR, LAND, LIQUID","bird, horse, dolphin",1,AIR,bird,20,40,75,100,30,50,25,45,0,0,Cobblemon-Fabric,data/cobblemon/species/generation2/mantine.json
+mantine,"AIR, LAND, LIQUID","bird, horse, dolphin",1,LIQUID,dolphin,20,40,30,55,45,75,40,80,20,40,Cobblemon-Fabric,data/cobblemon/species/generation2/mantine.json
+mantine,"AIR, LAND, LIQUID","bird, horse, dolphin",1,LAND,horse,10,40,10,40,80,100,10,40,10,40,Cobblemon-Fabric,data/cobblemon/species/generation2/mantine.json
+meganium,LAND,horse,1,LAND,horse,25,45,35,60,20,45,30,55,50,80,JourneyMounts,data/cobblemon/species_additions/generation2/meganium.json
+meowscarada,LAND,horse,1,LAND,horse,55,80,55,80,55,85,35,60,35,60,JourneyMounts,data/cobblemon/species_additions/generation9/meowscarada.json
+metagross,"AIR, LAND","hover, horse",4,AIR,hover,85,115,70,90,50,70,25,45,10,25,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/metagross.json
+metagross,"AIR, LAND","hover, horse",4,LAND,horse,50,70,60,80,40,60,30,45,55,70,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/metagross.json
+mightyena,LAND,horse,1,LAND,horse,30,55,25,50,30,55,20,40,25,45,JourneyMounts,data/cobblemon/species_additions/generation3/mightyena.json
+milotic,LIQUID,dolphin,1,LIQUID,dolphin,40,70,35,65,55,80,25,45,45,85,JourneyMounts,data/cobblemon/species_additions/generation3/milotic.json
+miltank,LAND,horse,1,LAND,horse,35,60,30,55,25,45,20,35,50,80,JourneyMounts,data/cobblemon/species_additions/generation2/miltank.json
+miraidon,"AIR, LAND, LIQUID","bird, horse, boat",1,AIR,bird,100,130,90,120,80,90,40,70,30,65,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/miraidon.json
+miraidon,"AIR, LAND, LIQUID","bird, horse, boat",1,LAND,horse,120,150,100,130,70,95,40,60,30,60,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/miraidon.json
+miraidon,"AIR, LAND, LIQUID","bird, horse, boat",1,LIQUID,boat,50,80,40,70,50,75,35,45,30,60,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/miraidon.json
+misdreavus,AIR,hover,1,AIR,hover,20,35,30,50,50,75,10,20,15,30,JourneyMounts,data/cobblemon/species_additions/generation2/misdreavus.json
+moltres,"AIR, LAND","bird, horse",1,AIR,bird,130,160,65,90,70,100,50,80,80,100,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/moltres.json
+moltres,"AIR, LAND","bird, horse",1,LAND,horse,10,20,70,90,30,60,25,50,40,80,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/moltres.json
+mr. mime,LAND,horse,1,LAND,horse,25,45,20,40,15,45,15,35,35,60,Cobblemon-Fabric,data/cobblemon/species/generation1/mrmime.json
+mrmime,LAND,horse,1,LAND,horse,65,85,50,75,20,65,40,60,35,60,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/mrmime.json
+mudsdale,LAND,horse,1,LAND,horse,45,60,55,75,45,65,30,45,70,100,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/mudsdale.json
+muk,LAND,horse,1,LAND,horse,25,45,20,40,20,40,10,25,70,95,JourneyMounts,data/cobblemon/species_additions/generation1/muk.json
+naganadel,"AIR, LAND","bird, horse",1,AIR,bird,60,90,55,85,60,90,45,75,35,65,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/naganadel.json
+naganadel,"AIR, LAND","bird, horse",1,LAND,horse,50,70,55,85,20,40,15,35,35,65,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/naganadel.json
+nidoking,LAND,horse,1,LAND,horse,40,55,65,75,40,70,30,50,30,45,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/nidoking.json
+nidoqueen,LAND,horse,1,LAND,horse,40,55,65,75,40,70,30,50,30,45,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/nidoqueen.json
+ninetales,LAND,horse,1,LAND,horse,45,70,65,85,40,75,40,60,30,60,JourneyMounts,data/cobblemon/species_additions/generation1/ninetales.json
+noctowl,"AIR, LAND","bird, horse",1,AIR,bird,25,55,30,55,45,75,30,55,30,60,JourneyMounts,data/cobblemon/species_additions/generation2/noctowl.json
+noctowl,"AIR, LAND","bird, horse",1,LAND,horse,20,35,35,55,15,30,10,25,20,35,JourneyMounts,data/cobblemon/species_additions/generation2/noctowl.json
+noivern,"AIR, LAND","bird, horse",1,AIR,bird,105,125,75,95,70,95,55,85,30,45,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/noivern.json
+noivern,"AIR, LAND","bird, horse",1,LAND,horse,35,50,65,85,30,50,30,45,10,20,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/noivern.json
+obstagoon,LAND,horse,1,LAND,horse,30,55,40,65,40,70,20,40,40,75,JourneyMounts,data/cobblemon/species_additions/generation8/obstagoon.json
+oinkologne,LAND,horse,1,LAND,horse,25,45,20,40,20,40,15,30,40,70,JourneyMounts,data/cobblemon/species_additions/generation9/oinkologne.json
+onix,LAND,horse,1,LAND,horse,15,25,45,70,0,30,0,5,35,55,JourneyMounts,data/cobblemon/species_additions/generation1/onix.json
+orthworm,LAND,horse,1,LAND,horse,30,40,15,25,0,15,0,5,25,75,Cobblemon-Fabric,data/cobblemon/species/generation9/orthworm.json
+palafin,LIQUID,dolphin,1,LIQUID,dolphin,45,75,45,70,50,80,35,60,40,70,JourneyMounts,data/cobblemon/species_additions/generation9/palafin.json
+palkia,"AIR, LAND","bird, horse",1,AIR,bird,115,140,45,75,55,85,30,65,45,77,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/palkia.json
+palkia,"AIR, LAND","bird, horse",1,LAND,horse,50,75,55,65,20,55,20,80,55,99,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/palkia.json
+parasect,LAND,horse,1,LAND,horse,15,30,50,70,45,65,0,15,15,30,Cobblemon-Fabric,data/cobblemon/species/generation1/parasect.json
+pelipper,"AIR, LAND","bird, horse",1,AIR,bird,35,65,40,70,45,75,30,55,25,50,JourneyMounts,data/cobblemon/species_additions/generation3/pelipper.json
+pelipper,"AIR, LAND","bird, horse",1,LAND,horse,15,30,15,35,25,40,15,30,20,40,JourneyMounts,data/cobblemon/species_additions/generation3/pelipper.json
+persian,LAND,horse,1,LAND,horse,60,80,60,80,70,90,35,55,40,60,JourneyMounts,data/cobblemon/species_additions/generation1/persian.json
+pidgeot,"AIR, LAND","bird, horse",1,AIR,bird,70,95,55,75,55,85,30,65,30,65,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/pidgeot.json
+pidgeot,"AIR, LAND","bird, horse",1,LAND,horse,25,40,45,55,10,25,15,25,20,30,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/pidgeot.json
+piloswine,LAND,horse,1,LAND,horse,10,25,30,50,30,45,5,10,35,70,Cobblemon-Fabric,data/cobblemon/species/generation2/piloswine.json
+pinsir,"AIR, LAND","hover, horse",1,AIR,hover,35,65,35,65,50,80,30,55,30,60,JourneyMounts,data/cobblemon/species/generation1/pinsir.json
+pinsir,"AIR, LAND","hover, horse",1,LAND,horse,35,60,40,65,45,70,25,50,30,55,JourneyMounts,data/cobblemon/species/generation1/pinsir.json
+poliwrath,LAND,horse,1,LAND,horse,30,50,35,55,50,70,35,55,80,100,JourneyMounts,data/cobblemon/species_additions/generation1/poliwrath.json
+porygon2,AIR,hover,1,AIR,hover,25,45,20,40,40,60,10,25,30,55,JourneyMounts,data/cobblemon/species_additions/generation2/porygon2.json
+primarina,"LAND, LIQUID","horse, dolphin",1,LIQUID,dolphin,30,55,35,60,50,80,25,45,40,75,JourneyMounts,data/cobblemon/species_additions/generation7/primarina.json
+primarina,"LAND, LIQUID","horse, dolphin",1,LAND,horse,10,25,10,30,30,55,5,15,25,45,JourneyMounts,data/cobblemon/species_additions/generation7/primarina.json
+primeape,LAND,horse,1,LAND,horse,55,75,65,85,60,80,35,55,45,65,JourneyMounts,data/cobblemon/species_additions/generation1/primeape.json
+probopass,"AIR, LAND","bird, horse",1,AIR,bird,40,60,50,65,35,60,35,60,55,90,JourneyMounts,data/cobblemon/species_additions/generation4/probopass.json
+probopass,"AIR, LAND","bird, horse",1,LAND,horse,30,50,30,55,40,70,25,40,40,75,JourneyMounts,data/cobblemon/species_additions/generation4/probopass.json
+pyroar,LAND,horse,1,LAND,horse,60,80,80,90,35,45,15,30,50,80,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/pyroar.json
+quagsire,"LAND, LIQUID","horse, boat",1,LIQUID,boat,25,40,30,50,30,50,10,25,45,70,JourneyMounts,data/cobblemon/species_additions/generation2/quagsire.json
+quagsire,"LAND, LIQUID","horse, boat",1,LAND,horse,20,35,20,35,20,40,10,25,35,60,JourneyMounts,data/cobblemon/species_additions/generation2/quagsire.json
+quaquaval,"LAND, LIQUID","horse, dolphin",1,LIQUID,dolphin,45,75,50,75,60,85,30,55,40,70,JourneyMounts,data/cobblemon/species_additions/generation9/quaquaval.json
+quaquaval,"LAND, LIQUID","horse, dolphin",1,LAND,horse,40,65,45,70,55,80,25,45,35,60,JourneyMounts,data/cobblemon/species_additions/generation9/quaquaval.json
+ragingbolt,LAND,horse,1,LAND,horse,35,55,40,60,35,55,15,35,90,110,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/ragingbolt.json
+raikou,LAND,horse,1,LAND,horse,100,130,90,120,30,50,40,65,60,120,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/raikou.json
+rampardos,LAND,horse,1,LAND,horse,15,35,20,45,35,60,20,35,40,75,JourneyMounts,data/cobblemon/species_additions/generation4/rampardos.json
+rapidash,LAND,horse,1,LAND,horse,60,85,55,80,35,55,30,50,35,55,JourneyMounts,data/cobblemon/species/generation1/rapidash.json
+rayquaza,"AIR, LAND, LIQUID","jet, horse, boat",1,AIR,jet,160,200,80,110,80,90,40,60,162,220,COBBLEVERSE-DP-v28,data/cobblemon/species/generation3/rayquaza.json
+rayquaza,"AIR, LAND, LIQUID","jet, horse, boat",1,LAND,horse,20,40,40,60,21,40,41,60,61,80,COBBLEVERSE-DP-v28,data/cobblemon/species/generation3/rayquaza.json
+rayquaza,"AIR, LAND, LIQUID","jet, horse, boat",1,LIQUID,boat,40,60,20,40,21,40,41,60,40,60,COBBLEVERSE-DP-v28,data/cobblemon/species/generation3/rayquaza.json
+regice,LAND,horse,1,LAND,horse,15,30,10,30,35,60,10,25,40,80,JourneyMounts,data/cobblemon/species_additions/generation3/regice.json
+regidrago,LAND,horse,1,LAND,horse,35,55,25,45,35,60,25,45,45,80,JourneyMounts,data/cobblemon/species_additions/generation8/regidrago.json
+regieleki,"AIR, LAND, LIQUID","jet, horse, boat",1,AIR,jet,70,80,50,70,50,60,20,70,30,50,JourneyMounts,data/cobblemon/species_additions/generation8/regieleki.json
+regieleki,"AIR, LAND, LIQUID","jet, horse, boat",1,LIQUID,boat,35,60,75,85,10,25,40,80,5,10,JourneyMounts,data/cobblemon/species_additions/generation8/regieleki.json
+regieleki,"AIR, LAND, LIQUID","jet, horse, boat",1,LAND,horse,40,55,65,75,40,70,30,50,30,45,JourneyMounts,data/cobblemon/species_additions/generation8/regieleki.json
+regigigas,LAND,horse,1,LAND,horse,18,32,10,25,60,85,10,22,70,100,JourneyMounts,data/cobblemon/species_additions/generation4/regigigas.json
+regirock,LAND,horse,1,LAND,horse,15,30,10,30,35,60,10,25,40,80,JourneyMounts,data/cobblemon/species_additions/generation3/regirock.json
+registeel,LAND,horse,1,LAND,horse,15,30,10,30,35,60,10,25,40,80,JourneyMounts,data/cobblemon/species_additions/generation3/registeel.json
+relicanth,LIQUID,submarine,1,LIQUID,submarine,15,35,25,40,40,80,50,75,50,90,Cobblemon-Fabric,data/cobblemon/species/generation3/relicanth.json
+reshiram,"AIR, LAND","jet, horse",1,AIR,jet,145,175,95,125,90,115,41,60,41,60,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/reshiram.json
+reshiram,"AIR, LAND","jet, horse",1,LAND,horse,35,55,40,65,40,60,41,60,41,60,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/reshiram.json
+revavroom,LAND,horse,2,LAND,horse,70,85,0,5,25,40,15,20,20,40,Cobblemon-Fabric,data/cobblemon/species/generation9/revavroom.json
+rhydon,LAND,horse,1,LAND,horse,55,75,55,75,30,50,20,35,55,90,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/rhydon.json
+rhyhorn,LAND,horse,1,LAND,horse,25,60,5,20,5,25,5,15,40,80,Cobblemon-Fabric,data/cobblemon/species/generation1/rhyhorn.json
+rhyperior,LAND,horse,1,LAND,horse,45,75,35,55,25,55,10,25,75,100,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/rhyperior.json
+rillaboom,LAND,horse,1,LAND,horse,30,50,30,55,40,65,20,35,55,85,JourneyMounts,data/cobblemon/species_additions/generation8/rillaboom.json
+salamence,"AIR, LAND","bird, horse",2,AIR,bird,90,120,90,115,60,80,60,85,65,85,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/salamence.json
+salamence,"AIR, LAND","bird, horse",2,LAND,horse,35,50,65,85,40,60,15,25,35,70,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/salamence.json
+salazzle,LAND,horse,1,LAND,horse,45,70,40,65,40,65,25,45,35,60,JourneyMounts,data/cobblemon/species_additions/generation7/salazzle.json
+samurott,"LAND, LIQUID","horse, dolphin",1,LIQUID,dolphin,30,55,30,55,45,75,25,45,50,85,JourneyMounts,data/cobblemon/species_additions/generation5/samurott.json
+samurott,"LAND, LIQUID","horse, dolphin",1,LAND,horse,20,40,20,40,30,55,15,30,40,70,JourneyMounts,data/cobblemon/species_additions/generation5/samurott.json
+sandaconda,LAND,horse,1,LAND,horse,20,40,15,35,30,55,5,20,55,85,JourneyMounts,data/cobblemon/species_additions/generation8/sandaconda.json
+sawsbuck,LAND,horse,1,LAND,horse,25,50,25,50,35,60,25,45,35,65,JourneyMounts,data/cobblemon/species_additions/generation5/sawsbuck.json
+sceptile,LAND,horse,1,LAND,horse,40,70,40,70,45,75,35,60,30,55,JourneyMounts,data/cobblemon/species_additions/generation3/sceptile.json
+scizor,"AIR, LAND","bird, horse",1,LAND,horse,40,65,55,75,45,70,15,30,30,50,JourneyMounts,data/cobblemon/species_additions/generation2/scizor.json
+scizor,"AIR, LAND","bird, horse",1,AIR,bird,35,55,40,60,50,75,25,45,25,45,JourneyMounts,data/cobblemon/species_additions/generation2/scizor.json
+scolipede,LAND,horse,1,LAND,horse,45,75,20,25,25,35,25,35,50,70,Cobblemon-Fabric,data/cobblemon/species/generation5/scolipede.json
+screamtail,LAND,horse,1,LAND,horse,25,45,40,60,25,45,20,40,70,90,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/screamtail.json
+seaking,LIQUID,submarine,1,LIQUID,submarine,55,75,45,75,40,65,15,35,20,40,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/seaking.json
+serperior,LAND,horse,1,LAND,horse,25,45,65,80,0,30,0,5,35,55,Cobblemon-Fabric,data/cobblemon/species/generation5/serperior.json
+sharpedo,LIQUID,dolphin,1,LIQUID,dolphin,95,120,80,100,60,85,45,75,20,45,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/sharpedo.json
+skarmory,"AIR, LAND","bird, horse",1,AIR,bird,35,65,40,70,55,80,35,60,30,55,JourneyMounts,data/cobblemon/species_additions/generation2/skarmory.json
+skarmory,"AIR, LAND","bird, horse",1,LAND,horse,20,35,20,35,20,35,10,25,25,40,JourneyMounts,data/cobblemon/species_additions/generation2/skarmory.json
+skeledirge,LAND,horse,1,LAND,horse,25,45,20,40,45,75,20,35,45,80,JourneyMounts,data/cobblemon/species_additions/generation9/skeledirge.json
+skiddo,LAND,horse,1,LAND,horse,30,45,40,65,20,40,30,40,30,45,Cobblemon-Fabric,data/cobblemon/species/generation6/skiddo.json
+slaking,LAND,horse,1,LAND,horse,25,65,0,20,0,20,25,40,60,100,Cobblemon-Fabric,data/cobblemon/species/generation3/slaking.json
+slowbro,"LAND, LIQUID","horse, dolphin",1,LIQUID,dolphin,30,60,40,65,45,75,25,55,40,80,JourneyMounts,data/cobblemon/species_additions/generation1/slowbro.json
+slowbro,"LAND, LIQUID","horse, dolphin",1,LAND,horse,18,30,20,35,20,35,10,20,65,95,JourneyMounts,data/cobblemon/species_additions/generation1/slowbro.json
+slowking,LAND,horse,1,LAND,horse,20,40,15,35,40,60,10,20,55,85,JourneyMounts,data/cobblemon/species_additions/generation2/slowking.json
+sneasler,LAND,horse,1,LAND,horse,35,45,75,90,65,85,30,40,10,20,Cobblemon-Fabric,data/cobblemon/species/generation8a/sneasler.json
+snorlax,LAND,horse,1,LAND,horse,15,35,0,20,0,25,10,25,70,100,JourneyMounts,data/cobblemon/species_additions/generation1/snorlax.json
+solgaleo,"AIR, LAND","bird, horse",1,AIR,bird,100,120,90,110,65,95,45,75,20,50,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/solgaleo.json
+solgaleo,"AIR, LAND","bird, horse",1,LAND,horse,90,105,80,95,45,65,25,35,20,45,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/solgaleo.json
+spectrier,LAND,horse,1,LAND,horse,90,110,50,70,40,80,30,65,60,120,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/spectrier.json
+stakataka,LAND,horse,1,LAND,horse,15,25,15,25,20,30,5,15,90,120,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/stakataka.json
+stantler,LAND,horse,1,LAND,horse,50,75,40,65,30,55,25,45,40,70,JourneyMounts,data/cobblemon/species_additions/generation2/stantler.json
+staraptor,"AIR, LAND","bird, horse",1,AIR,bird,95,115,100,120,85,110,45,65,45,70,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/staraptor.json
+staraptor,"AIR, LAND","bird, horse",1,LAND,horse,20,45,20,40,70,90,10,40,10,40,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/staraptor.json
+steelix,LAND,horse,1,LAND,horse,10,30,15,35,35,60,0,10,60,100,JourneyMounts,data/cobblemon/species_additions/generation2/steelix.json
+stonjourner,LAND,horse,1,LAND,horse,15,30,20,35,20,40,5,15,60,90,JourneyMounts,data/cobblemon/species_additions/generation8/stonjourner.json
+stoutland,LAND,horse,1,LAND,horse,25,50,25,45,35,60,20,35,50,80,JourneyMounts,data/cobblemon/species_additions/generation5/stoutland.json
+suicune,LAND,horse,1,LAND,horse,80,100,70,90,20,50,30,65,60,120,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/suicune.json
+swampert,"LAND, LIQUID","horse, dolphin",1,LIQUID,dolphin,35,65,35,65,45,75,25,45,45,80,JourneyMounts,data/cobblemon/species_additions/generation3/swampert.json
+swampert,"LAND, LIQUID","horse, dolphin",1,LAND,horse,35,65,35,65,40,70,30,55,40,75,JourneyMounts,data/cobblemon/species_additions/generation3/swampert.json
+swanna,"AIR, LAND, LIQUID","bird, horse, dolphin",1,LIQUID,dolphin,25,50,25,50,40,70,30,55,35,70,JourneyMounts,data/cobblemon/species_additions/generation5/swanna.json
+swanna,"AIR, LAND, LIQUID","bird, horse, dolphin",1,AIR,bird,30,55,30,55,40,70,35,60,35,65,JourneyMounts,data/cobblemon/species_additions/generation5/swanna.json
+swanna,"AIR, LAND, LIQUID","bird, horse, dolphin",1,LAND,horse,30,55,30,55,40,70,35,60,35,65,JourneyMounts,data/cobblemon/species_additions/generation5/swanna.json
+swellow,"AIR, LAND","bird, horse",1,AIR,bird,35,65,40,70,45,75,30,55,25,50,JourneyMounts,data/cobblemon/species_additions/generation3/swellow.json
+swellow,"AIR, LAND","bird, horse",1,LAND,horse,15,30,15,35,25,40,15,30,20,40,JourneyMounts,data/cobblemon/species_additions/generation3/swellow.json
+swoobat,"AIR, LAND","bird, horse",1,AIR,bird,35,60,35,60,45,70,35,60,35,65,JourneyMounts,data/cobblemon/species_additions/generation5/swoobat.json
+swoobat,"AIR, LAND","bird, horse",1,LAND,horse,20,40,20,40,25,45,20,35,25,45,JourneyMounts,data/cobblemon/species_additions/generation5/swoobat.json
+talonflame,"AIR, LAND","bird, horse",1,AIR,bird,45,85,50,80,55,85,35,65,35,65,JourneyMounts,data/cobblemon/species_additions/generation6/talonflame.json
+talonflame,"AIR, LAND","bird, horse",1,LAND,horse,25,45,35,55,20,40,15,30,20,35,JourneyMounts,data/cobblemon/species_additions/generation6/talonflame.json
+tangrowth,LAND,horse,1,LAND,horse,15,30,15,30,35,60,10,25,45,80,JourneyMounts,data/cobblemon/species_additions/generation4/tangrowth.json
+tauros,LAND,horse,1,LAND,horse,55,75,15,50,15,30,25,35,35,55,Cobblemon-Fabric,data/cobblemon/species/generation1/tauros.json
+tentacruel,"LAND, LIQUID","horse, dolphin",1,LIQUID,dolphin,30,60,40,65,45,75,25,55,40,80,JourneyMounts,data/cobblemon/species_additions/generation1/tentacruel.json
+tentacruel,"LAND, LIQUID","horse, dolphin",1,LAND,horse,5,20,5,20,20,40,0,5,30,60,JourneyMounts,data/cobblemon/species_additions/generation1/tentacruel.json
+terrakion,LAND,horse,1,LAND,horse,85,100,35,50,35,55,30,45,70,95,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/terrakion.json
+thievul,LAND,horse,1,LAND,horse,40,60,35,55,45,70,20,35,30,55,JourneyMounts,data/cobblemon/species_additions/generation8/thievul.json
+tinglu,LAND,horse,1,LAND,horse,60,85,55,80,35,55,30,50,35,55,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/tinglu.json
+toedscruel,LAND,horse,1,LAND,horse,30,55,20,40,30,60,15,30,35,65,JourneyMounts,data/cobblemon/species_additions/generation9/toedscruel.json
+togekiss,"AIR, LAND","jet, horse",1,AIR,jet,80,95,60,80,90,115,10,20,70,100,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/togekiss.json
+togekiss,"AIR, LAND","jet, horse",1,LAND,horse,10,25,10,30,80,100,10,40,10,40,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/togekiss.json
+torkoal,LAND,horse,1,LAND,horse,10,25,10,25,30,55,10,20,50,90,JourneyMounts,data/cobblemon/species_additions/generation3/torkoal.json
+torterra,LAND,horse,1,LAND,horse,15,35,15,35,35,60,15,30,55,90,JourneyMounts,data/cobblemon/species_additions/generation4/torterra.json
+toucannon,"AIR, LAND","bird, horse",1,AIR,bird,30,55,35,60,45,70,30,55,25,55,JourneyMounts,data/cobblemon/species_additions/generation7/toucannon.json
+toucannon,"AIR, LAND","bird, horse",1,LAND,horse,20,35,20,40,10,25,10,25,20,35,JourneyMounts,data/cobblemon/species_additions/generation7/toucannon.json
+toxapex,LIQUID,submarine,1,LIQUID,submarine,10,25,20,35,45,70,10,20,50,90,JourneyMounts,data/cobblemon/species_additions/generation7/toxapex.json
+trevenant,LAND,horse,1,LAND,horse,20,35,25,45,45,75,10,25,40,70,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/trevenant.json
+tropius,"AIR, LAND","bird, horse",2,AIR,bird,20,45,20,45,20,40,70,90,55,80,Cobblemon-Fabric,data/cobblemon/species/generation3/tropius.json
+tropius,"AIR, LAND","bird, horse",2,LAND,horse,15,25,30,50,30,50,10,20,55,85,Cobblemon-Fabric,data/cobblemon/species/generation3/tropius.json
+turtonator,LAND,horse,1,LAND,horse,15,30,20,40,25,45,5,15,55,85,JourneyMounts,data/cobblemon/species_additions/generation7/turtonator.json
+typhlosion,LAND,horse,1,LAND,horse,40,60,45,70,25,45,25,40,35,60,JourneyMounts,data/cobblemon/species_additions/generation2/typhlosion.json
+tyranitar,LAND,horse,1,LAND,horse,20,35,30,55,40,60,15,30,70,100,JourneyMounts,data/cobblemon/species_additions/generation2/tyranitar.json
+tyrantrum,LAND,horse,2,LAND,horse,20,30,50,70,40,60,40,55,70,100,Cobblemon-Fabric,data/cobblemon/species/generation6/tyrantrum.json
+umbreon,LAND,horse,1,LAND,horse,25,50,25,45,40,65,15,25,45,70,JourneyMounts,data/cobblemon/species_additions/generation2/umbreon.json
+unfezant,"AIR, LAND","bird, horse",1,AIR,bird,35,60,35,60,45,70,35,60,35,65,JourneyMounts,data/cobblemon/species_additions/generation5/unfezant.json
+unfezant,"AIR, LAND","bird, horse",1,LAND,horse,20,40,20,40,25,45,20,35,25,45,JourneyMounts,data/cobblemon/species_additions/generation5/unfezant.json
+ursaluna,LAND,horse,2,LAND,horse,40,65,30,40,10,25,25,35,65,85,Cobblemon-Fabric,data/cobblemon/species/generation8a/ursaluna.json
+ursaring,LAND,horse,1,LAND,horse,30,40,45,80,20,45,25,40,30,65,Cobblemon-Fabric,data/cobblemon/species/generation2/ursaring.json
+vaporeon,"LAND, LIQUID","horse, dolphin",1,LIQUID,dolphin,30,60,30,55,40,70,20,40,35,65,JourneyMounts,data/cobblemon/species_additions/generation1/vaporeon.json
+vaporeon,"LAND, LIQUID","horse, dolphin",1,LAND,horse,20,45,25,50,35,60,20,35,30,60,JourneyMounts,data/cobblemon/species_additions/generation1/vaporeon.json
+veluza,LIQUID,dolphin,1,LIQUID,dolphin,45,75,50,80,40,70,20,40,35,70,JourneyMounts,data/cobblemon/species_additions/generation9/veluza.json
+venusaur,LAND,horse,1,LAND,horse,30,55,40,75,10,40,40,60,45,85,Cobblemon-Fabric,data/cobblemon/species/generation1/venusaur.json
+victreebel,LAND,horse,1,LAND,horse,20,32,25,40,30,45,10,20,55,85,JourneyMounts,data/cobblemon/species_additions/generation1/victreebel.json
+vileplume,LAND,horse,1,LAND,horse,30,50,45,70,30,55,30,45,45,75,JourneyMounts,data/cobblemon/species_additions/generation1/vileplume.json
+virizion,LAND,horse,1,LAND,horse,95,105,55,80,45,70,25,45,35,60,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/virizion.json
+volcanion,LAND,horse,1,LAND,horse,20,40,30,60,20,50,30,65,60,105,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/volcanion.json
+volcarona,"AIR, LAND","bird, horse",1,AIR,bird,30,50,45,65,55,75,25,35,65,90,Cobblemon-Fabric,data/cobblemon/species/generation5/volcarona.json
+volcarona,"AIR, LAND","bird, horse",1,LAND,horse,10,40,10,40,80,100,10,40,10,40,Cobblemon-Fabric,data/cobblemon/species/generation5/volcarona.json
+wailmer,"LAND, LIQUID","horse, submarine",1,LIQUID,submarine,30,50,30,55,30,55,25,40,40,85,Cobblemon-Fabric,data/cobblemon/species/generation3/wailmer.json
+wailmer,"LAND, LIQUID","horse, submarine",1,LAND,horse,10,40,10,40,80,100,10,40,10,40,Cobblemon-Fabric,data/cobblemon/species/generation3/wailmer.json
+wailord,"LAND, LIQUID","horse, submarine",19,LIQUID,submarine,20,40,20,45,30,55,40,55,65,100,Cobblemon-Fabric,data/cobblemon/species/generation3/wailord.json
+wailord,"LAND, LIQUID","horse, submarine",19,LAND,horse,10,40,10,40,80,100,10,40,10,40,Cobblemon-Fabric,data/cobblemon/species/generation3/wailord.json
+walkingwake,"LAND, LIQUID","horse, dolphin",1,LIQUID,dolphin,45,75,40,70,35,60,30,55,45,75,JourneyMounts,data/cobblemon/species_additions/generation9/walkingwake.json
+walkingwake,"LAND, LIQUID","horse, dolphin",1,LAND,horse,35,60,35,60,25,45,25,45,40,70,JourneyMounts,data/cobblemon/species_additions/generation9/walkingwake.json
+walrein,"LAND, LIQUID","horse, dolphin",1,LIQUID,dolphin,30,60,30,55,45,75,25,40,50,90,JourneyMounts,data/cobblemon/species_additions/generation3/walrein.json
+walrein,"LAND, LIQUID","horse, dolphin",1,LAND,horse,10,25,15,35,30,55,10,20,40,80,JourneyMounts,data/cobblemon/species_additions/generation3/walrein.json
+whiscash,LIQUID,dolphin,1,LIQUID,dolphin,25,55,25,50,35,65,20,40,40,75,JourneyMounts,data/cobblemon/species_additions/generation3/whiscash.json
+wigglytuff,LAND,horse,1,LAND,horse,10,25,0,15,0,5,40,60,20,40,JourneyMounts,data/cobblemon/species_additions/generation1/wigglytuff.json
+wobbuffet,LAND,horse,1,LAND,horse,5,25,5,25,20,35,0,10,45,75,JourneyMounts,data/cobblemon/species_additions/generation2/wobbuffet.json
+wyrdeer,LAND,horse,1,LAND,horse,45,65,60,80,40,60,45,55,55,70,Cobblemon-Fabric,data/cobblemon/species/generation8a/wyrdeer.json
+xatu,"AIR, LAND","bird, horse",1,AIR,bird,25,50,25,45,45,70,30,55,35,65,JourneyMounts,data/cobblemon/species_additions/generation2/xatu.json
+xatu,"AIR, LAND","bird, horse",1,LAND,horse,10,25,10,30,30,50,10,25,25,45,JourneyMounts,data/cobblemon/species_additions/generation2/xatu.json
+xerneas,LAND,horse,1,LAND,horse,80,100,70,90,20,50,30,65,60,120,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/xerneas.json
+yanmega,"AIR, LAND","bird, horse",1,AIR,bird,35,70,45,75,55,80,30,55,35,65,JourneyMounts,data/cobblemon/species_additions/generation4/yanmega.json
+yanmega,"AIR, LAND","bird, horse",1,LAND,horse,12,30,20,40,25,45,15,30,20,40,JourneyMounts,data/cobblemon/species_additions/generation4/yanmega.json
+yveltal,"AIR, LAND","bird, horse",1,AIR,bird,55,80,67,82,55,85,50,80,30,92,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/yveltal.json
+yveltal,"AIR, LAND","bird, horse",1,LAND,horse,25,40,55,65,10,25,15,25,20,30,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/yveltal.json
+zapdos,"AIR, LAND","bird, horse",1,AIR,bird,150,170,85,100,90,100,50,80,65,85,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/zapdos.json
+zapdos,"AIR, LAND","bird, horse",1,LAND,horse,10,20,70,90,30,60,25,50,40,80,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/zapdos.json
+zarude,LAND,horse,1,LAND,horse,60,85,55,80,45,65,30,50,40,65,JourneyMounts,data/cobblemon/species_additions/generation8/zarude.json
+zebstrika,LAND,horse,1,LAND,horse,35,75,65,85,45,65,35,45,25,45,Cobblemon-Fabric,data/cobblemon/species/generation5/zebstrika.json
+zekrom,"AIR, LAND","jet, horse",1,AIR,jet,140,160,70,100,100,130,41,60,41,60,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/zekrom.json
+zekrom,"AIR, LAND","jet, horse",1,LAND,horse,35,55,40,65,40,60,41,60,41,60,COBBLEVERSE-DP-v28,data/cobblemon/species_additions/zekrom.json
+zoroark,LAND,horse,1,LAND,horse,30,55,30,55,40,65,20,35,35,65,JourneyMounts,data/cobblemon/species_additions/generation5/zoroark.json

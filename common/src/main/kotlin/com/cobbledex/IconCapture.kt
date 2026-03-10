@@ -22,10 +22,12 @@ import javax.imageio.ImageIO
 object IconCapture {
 
     const val ICON_SIZE = 32
-    private const val RENDER_SIZE = 128
+    private const val RENDER_SIZE = 512
     private var fbo: TextureTarget? = null
+    private var debugDumped = false
 
     fun init() {
+        debugDumped = false
         fbo = TextureTarget(RENDER_SIZE, RENDER_SIZE, true, false)
     }
 
@@ -113,6 +115,8 @@ object IconCapture {
         return try {
             val mainTarget = mc.mainRenderTarget
 
+            // Explicit transparent clear — default clear color may not be (0,0,0,0)
+            RenderSystem.clearColor(0f, 0f, 0f, 0f)
             target.clear(false)
             target.bindWrite(true)
             RenderSystem.viewport(0, 0, RENDER_SIZE, RENDER_SIZE)
@@ -140,7 +144,7 @@ object IconCapture {
                 rotation = rotation,
                 state = state,
                 partialTicks = 0f,
-                scale = 50f,
+                scale = 70f,
             )
 
             poseStack.popPose()
@@ -149,27 +153,27 @@ object IconCapture {
             target.unbindWrite()
             val nativeImage = NativeImage(RENDER_SIZE, RENDER_SIZE, false)
             RenderSystem.bindTexture(target.getColorTextureId())
-            nativeImage.downloadTexture(0, true)
+            // false = don't flip; ortho projection already maps Y for screen coords
+            nativeImage.downloadTexture(0, false)
 
             mainTarget.bindWrite(true)
 
+            // Read pixels with vertical flip and find content bounds
             val raw = BufferedImage(RENDER_SIZE, RENDER_SIZE, BufferedImage.TYPE_INT_ARGB)
-            var minX = RENDER_SIZE; var minY = RENDER_SIZE
-            var maxX = -1; var maxY = -1
+            var minX = RENDER_SIZE; var minY = RENDER_SIZE; var maxX = -1; var maxY = -1
             for (y in 0 until RENDER_SIZE) {
+                val flippedY = RENDER_SIZE - 1 - y
                 for (x in 0 until RENDER_SIZE) {
                     val pixel = nativeImage.getPixelRGBA(x, y)
                     val r = pixel and 0xFF
                     val g = (pixel shr 8) and 0xFF
                     val b = (pixel shr 16) and 0xFF
                     val a = (pixel shr 24) and 0xFF
-                    if (a > 0) {
-                        if (x < minX) minX = x
-                        if (x > maxX) maxX = x
-                        if (y < minY) minY = y
-                        if (y > maxY) maxY = y
+                    if (a > 10) {
+                        if (x < minX) minX = x; if (x > maxX) maxX = x
+                        if (flippedY < minY) minY = flippedY; if (flippedY > maxY) maxY = flippedY
                     }
-                    raw.setRGB(x, y, (a shl 24) or (r shl 16) or (g shl 8) or b)
+                    raw.setRGB(x, flippedY, (a shl 24) or (r shl 16) or (g shl 8) or b)
                 }
             }
             nativeImage.close()
@@ -179,13 +183,30 @@ object IconCapture {
                 return null
             }
 
-            // Auto-crop to content bounds with 1px padding, then downscale
-            val pad = 1
-            val cx0 = (minX - pad).coerceAtLeast(0)
-            val cy0 = (minY - pad).coerceAtLeast(0)
-            val cx1 = (maxX + pad).coerceAtMost(RENDER_SIZE - 1)
-            val cy1 = (maxY + pad).coerceAtMost(RENDER_SIZE - 1)
-            val cropped = raw.getSubimage(cx0, cy0, cx1 - cx0 + 1, cy1 - cy0 + 1)
+            // Square crop centered on content
+            val side = maxOf(maxX - minX + 1, maxY - minY + 1) + 4
+            val cx = (minX + maxX) / 2
+            val cy = (minY + maxY) / 2
+            val cropSide = side.coerceAtMost(RENDER_SIZE)
+            val cx0 = (cx - cropSide / 2).coerceIn(0, RENDER_SIZE - cropSide)
+            val cy0 = (cy - cropSide / 2).coerceIn(0, RENDER_SIZE - cropSide)
+            val cropped = raw.getSubimage(cx0, cy0, cropSide, cropSide)
+
+            // Debug: dump first species to verify rendering pipeline
+            if (!debugDumped) {
+                debugDumped = true
+                try {
+                    val gameDir = com.cobbledex.platform.PlatformHelper.getGameDir()
+                    val debugDir = gameDir.resolve("cobbledex-export").also { java.nio.file.Files.createDirectories(it) }
+                    ImageIO.write(raw, "PNG", debugDir.resolve("debug_fbo_raw.png").toFile())
+                    val croppedCopy = BufferedImage(cropSide, cropSide, BufferedImage.TYPE_INT_ARGB)
+                    croppedCopy.createGraphics().apply { drawImage(cropped, 0, 0, null); dispose() }
+                    ImageIO.write(croppedCopy, "PNG", debugDir.resolve("debug_fbo_cropped.png").toFile())
+                    DebugLog.info("Icon debug [$speciesId]: bounds=($minX,$minY)-($maxX,$maxY) crop=($cx0,$cy0)+$cropSide → saved to $debugDir")
+                } catch (e: Exception) {
+                    DebugLog.warn("Debug dump failed: ${e.message}")
+                }
+            }
 
             val scaled = BufferedImage(ICON_SIZE, ICON_SIZE, BufferedImage.TYPE_INT_ARGB)
             val g2d = scaled.createGraphics()

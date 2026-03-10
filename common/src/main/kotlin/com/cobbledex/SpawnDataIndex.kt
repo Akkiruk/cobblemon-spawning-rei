@@ -60,6 +60,10 @@ object SpawnDataIndex {
         private set
 
     @Volatile
+    var ridingBySpecies: Map<String, RidingInfo> = emptyMap()
+        private set
+
+    @Volatile
     var allSpeciesNames: List<String> = emptyList()
         private set
 
@@ -249,6 +253,14 @@ object SpawnDataIndex {
         // Enrich speciesInfo with JAR-cached moves when runtime API returned null
         enrichWithJarMoves()
 
+        // Load riding data from bundled CSV
+        try {
+            ridingBySpecies = RidingDataLoader.loadFromClasspath()
+        } catch (e: Exception) {
+            DebugLog.warn("Riding data load failed: ${e.message}")
+            ridingBySpecies = emptyMap()
+        }
+
         rebuildDerivedData()
 
         val hasEvolutions = evolutionsBySpecies.isNotEmpty()
@@ -395,6 +407,7 @@ object SpawnDataIndex {
         allNames.addAll(speciesInfo.keys)
         allNames.addAll(obtainmentBySpecies.keys)
         allNames.addAll(fossilsBySpecies.keys)
+        allNames.addAll(ridingBySpecies.keys)
 
         val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
         if (runtimeCount > 0) {
@@ -556,4 +569,6 @@ object SpawnDataIndex {
 
     fun getSpeciesWithTmMove(moveName: String): List<String> =
         speciesByTmMove[moveName.lowercase()] ?: emptyList()
+
+    fun getRidingFor(species: String): RidingInfo? = ridingBySpecies[SpeciesNameNormalizer.normalize(species)]
 }
