@@ -2,6 +2,13 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.48.5] - 2026-03-09
+
+### Changed
+- **Switched icon engine from FBO rendering to texture atlas sprite extraction** — reads item pixels directly from the baked model sprite, no more blank transparent PNGs
+- **Paused Pokémon species icons** — removed icon column from all sheets except Item Drops
+- **Item Drops sheet** now shows the dropped item’s icon in column A
+
 ## [1.48.4] - 2026-03-09
 
 ### Added

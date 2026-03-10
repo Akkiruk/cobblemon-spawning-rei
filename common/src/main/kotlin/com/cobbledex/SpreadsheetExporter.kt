@@ -133,15 +133,11 @@ object SpreadsheetExporter {
 
     private fun captureIcon(cacheKey: String): ByteArray? {
         val stack: ItemStack? = when {
-            cacheKey.startsWith("species:") -> {
-                val species = cacheKey.removePrefix("species:")
-                PokemonItemCache.getItem(species)
-            }
             cacheKey.startsWith("item:") -> {
                 val itemId = cacheKey.removePrefix("item:")
                 SpawnDisplayHelper.resolveItemStack(itemId).let { if (it.isEmpty) null else it }
             }
-            else -> null
+            else -> null // species icons paused for now
         }
         if (stack == null) {
             DebugLog.warn("Icon resolve failed — no ItemStack for key: $cacheKey")
@@ -173,11 +169,9 @@ object SpreadsheetExporter {
         if (species.isEmpty()) return null
 
         val rows = mutableListOf<List<String>>()
-        val icons = mutableListOf<CellIcon>()
-        val iconCol = 0
 
         rows.add(listOf(
-            "", "Dex #", "Name", "Form", "Base Species",
+            "Dex #", "Name", "Form", "Base Species",
             "Type 1", "Type 2",
             "HP", "Attack", "Defense", "Sp. Atk", "Sp. Def", "Speed", "BST",
             "Catch Rate", "Height (m)", "Weight (kg)",
@@ -195,16 +189,12 @@ object SpreadsheetExporter {
         )
 
         for ((key, info) in sorted) {
-            val rowIdx = rows.size
             val stats = info.baseStats
             val evs = info.evYield
             val abilities = info.abilities ?: emptyList()
             val eggGroups = info.eggGroups ?: emptyList()
 
-            icons.add(CellIcon("species:${info.name}", rowIdx, iconCol))
-
             rows.add(listOf(
-                "", // icon column
                 if (info.nationalDexNumber > 0) info.nationalDexNumber.toString() else "",
                 pokemon(info.name),
                 info.formName?.let { titleCase(it) } ?: "",
@@ -245,7 +235,7 @@ object SpreadsheetExporter {
             ))
         }
 
-        return SheetData("Species Overview", rows, icons)
+        return SheetData("Species Overview", rows)
     }
 
     private fun buildSpawnData(index: SpawnDataIndex): SheetData? {
@@ -253,10 +243,9 @@ object SpreadsheetExporter {
         if (spawns.isEmpty()) return null
 
         val rows = mutableListOf<List<String>>()
-        val icons = mutableListOf<CellIcon>()
 
         rows.add(listOf(
-            "", "Pokemon", "Form", "Bucket", "Spawn Weight",
+            "Pokemon", "Form", "Bucket", "Spawn Weight",
             "Level Range", "Context",
             "Biomes", "Time", "Weather",
             "Dimensions", "Structures",
@@ -270,9 +259,6 @@ object SpreadsheetExporter {
 
         for ((_, spawnList) in spawns.entries.sortedBy { it.key }) {
             for (spawn in spawnList) {
-                val rowIdx = rows.size
-                icons.add(CellIcon("species:${spawn.pokemon}", rowIdx, 0))
-
                 val weatherText = buildString {
                     spawn.weather.isRaining?.let { append(if (it) "Rain" else "No Rain") }
                     spawn.weather.isThundering?.let {
@@ -286,7 +272,6 @@ object SpreadsheetExporter {
                 }
 
                 rows.add(listOf(
-                    "", // icon
                     pokemon(spawn.pokemon),
                     if (spawn.formAspects.isNotBlank()) SpawnDisplayHelper.formatFormAspects(spawn.formAspects) else "",
                     titleCase(spawn.bucket),
@@ -316,7 +301,7 @@ object SpreadsheetExporter {
             }
         }
 
-        return SheetData("Spawn Data", rows, icons)
+        return SheetData("Spawn Data", rows)
     }
 
     private fun buildEvolutionData(index: SpawnDataIndex): SheetData? {
@@ -324,10 +309,9 @@ object SpreadsheetExporter {
         if (evolutions.isEmpty()) return null
 
         val rows = mutableListOf<List<String>>()
-        val icons = mutableListOf<CellIcon>()
 
         rows.add(listOf(
-            "", "From", "From Form",
+            "From", "From Form",
             "To", "To Form",
             "Method", "Requirements",
             "Required Item", "Consumes Held Item"
@@ -335,11 +319,7 @@ object SpreadsheetExporter {
 
         for ((_, evoList) in evolutions.entries.sortedBy { it.key }) {
             for (evo in evoList) {
-                val rowIdx = rows.size
-                icons.add(CellIcon("species:${evo.fromSpecies}", rowIdx, 0))
-
                 rows.add(listOf(
-                    "", // icon
                     pokemon(evo.fromSpecies),
                     evo.fromAspects.joinToString("; ") { formatAspect(it) },
                     pokemon(evo.toSpecies),
@@ -352,7 +332,7 @@ object SpreadsheetExporter {
             }
         }
 
-        return SheetData("Evolutions", rows, icons)
+        return SheetData("Evolutions", rows)
     }
 
     private fun buildItemDrops(index: SpawnDataIndex): SheetData? {
@@ -364,7 +344,7 @@ object SpreadsheetExporter {
         val icons = mutableListOf<CellIcon>()
 
         rows.add(listOf(
-            "", "Dex #", "Pokemon", "", "Item", "Drop Chance", "Quantity"
+            "", "Dex #", "Pokemon", "Item", "Drop Chance", "Quantity"
         ))
 
         val sorted = speciesInfo.entries
@@ -374,8 +354,7 @@ object SpreadsheetExporter {
         for ((_, info) in sorted) {
             for (drop in info.drops!!) {
                 val rowIdx = rows.size
-                icons.add(CellIcon("species:${info.name}", rowIdx, 0))
-                icons.add(CellIcon("item:${drop.itemId}", rowIdx, 3))
+                icons.add(CellIcon("item:${drop.itemId}", rowIdx, 0))
 
                 // Normalize quantity: always use "min–max" format for ranges, plain number otherwise
                 val qty = if (drop.quantityRange != null) {
@@ -385,10 +364,9 @@ object SpreadsheetExporter {
                 }
 
                 rows.add(listOf(
-                    "", // species icon
+                    "", // item icon
                     if (info.nationalDexNumber > 0) info.nationalDexNumber.toString() else "",
                     pokemon(info.name),
-                    "", // item icon
                     item(drop.itemId),
                     pct(drop.percentage),
                     qty
@@ -396,7 +374,7 @@ object SpreadsheetExporter {
             }
         }
 
-        return SheetData("Item Drops", rows, icons, iconColumns = setOf(0, 3))
+        return SheetData("Item Drops", rows, icons)
     }
 
     private fun buildMovesets(index: SpawnDataIndex): SheetData? {
@@ -409,10 +387,9 @@ object SpreadsheetExporter {
         if (!hasMoves) return null
 
         val rows = mutableListOf<List<String>>()
-        val icons = mutableListOf<CellIcon>()
 
         rows.add(listOf(
-            "", "Dex #", "Pokemon", "Learn Method", "Level",
+            "Dex #", "Pokemon", "Learn Method", "Level",
             "Move", "Type", "Category", "Power", "Accuracy", "PP"
         ))
 
@@ -423,9 +400,7 @@ object SpreadsheetExporter {
         for ((_, info) in sorted) {
             fun addMove(method: String, level: String, move: MoveDetail) {
                 val rowIdx = rows.size
-                icons.add(CellIcon("species:${info.name}", rowIdx, 0))
                 rows.add(listOf(
-                    "", // icon
                     if (info.nationalDexNumber > 0) info.nationalDexNumber.toString() else "",
                     pokemon(info.name),
                     method, level,
@@ -446,7 +421,7 @@ object SpreadsheetExporter {
             info.tmMoves?.forEach { move -> addMove("TM", "", move) }
         }
 
-        return SheetData("All Moves", rows, icons)
+        return SheetData("All Moves", rows)
     }
 
     private fun buildLevelUpMoves(index: SpawnDataIndex): SheetData? {
@@ -455,10 +430,9 @@ object SpreadsheetExporter {
         if (!hasLevelUp) return null
 
         val rows = mutableListOf<List<String>>()
-        val icons = mutableListOf<CellIcon>()
 
         rows.add(listOf(
-            "", "Dex #", "Pokemon", "Level",
+            "Dex #", "Pokemon", "Level",
             "Move", "Type", "Category", "Power", "Accuracy", "PP"
         ))
 
@@ -470,9 +444,7 @@ object SpreadsheetExporter {
             for (lum in (info.levelUpMoves ?: continue).sortedBy { it.level }) {
                 for (move in lum.moves) {
                     val rowIdx = rows.size
-                    icons.add(CellIcon("species:${info.name}", rowIdx, 0))
                     rows.add(listOf(
-                        "", // icon
                         if (info.nationalDexNumber > 0) info.nationalDexNumber.toString() else "",
                         pokemon(info.name),
                         lum.level.toString(),
@@ -487,7 +459,7 @@ object SpreadsheetExporter {
             }
         }
 
-        return SheetData("Level-Up Moves", rows, icons)
+        return SheetData("Level-Up Moves", rows)
     }
 
     private fun buildObtainmentData(index: SpawnDataIndex): SheetData? {
@@ -495,21 +467,16 @@ object SpreadsheetExporter {
         if (obtainment.isEmpty()) return null
 
         val rows = mutableListOf<List<String>>()
-        val icons = mutableListOf<CellIcon>()
 
         rows.add(listOf(
-            "", "Pokemon", "Form", "Method", "Description",
+            "Pokemon", "Form", "Method", "Description",
             "Required Items", "Block", "Structure", "Dimension",
             "Notes", "Source"
         ))
 
         for ((_, obtainList) in obtainment.entries.sortedBy { it.key }) {
             for (info in obtainList) {
-                val rowIdx = rows.size
-                icons.add(CellIcon("species:${info.pokemon}", rowIdx, 0))
-
                 rows.add(listOf(
-                    "", // icon
                     pokemon(info.pokemon),
                     if (info.formAspects.isNotBlank()) SpawnDisplayHelper.formatFormAspects(info.formAspects) else "",
                     titleCase(info.method),
@@ -524,7 +491,7 @@ object SpreadsheetExporter {
             }
         }
 
-        return SheetData("Special Obtainment", rows, icons)
+        return SheetData("Special Obtainment", rows)
     }
 
     private fun buildFossilData(index: SpawnDataIndex): SheetData? {
@@ -532,17 +499,12 @@ object SpreadsheetExporter {
         if (fossils.isEmpty()) return null
 
         val rows = mutableListOf<List<String>>()
-        val icons = mutableListOf<CellIcon>()
 
-        rows.add(listOf("", "Pokemon", "Fossil Items", "Extra Tags"))
+        rows.add(listOf("Pokemon", "Fossil Items", "Extra Tags"))
 
         for ((_, fossilList) in fossils.entries.sortedBy { it.key }) {
             for (fossil in fossilList) {
-                val rowIdx = rows.size
-                icons.add(CellIcon("species:${fossil.resultSpecies}", rowIdx, 0))
-
                 rows.add(listOf(
-                    "", // icon
                     pokemon(fossil.resultSpecies),
                     fossil.fossilItems.joinToString("; ") { item(it) },
                     fossil.extraTags ?: ""
@@ -550,7 +512,7 @@ object SpreadsheetExporter {
             }
         }
 
-        return SheetData("Fossils", rows, icons)
+        return SheetData("Fossils", rows)
     }
 
     private fun buildAbilities(index: SpawnDataIndex): SheetData? {
@@ -559,21 +521,16 @@ object SpreadsheetExporter {
         if (!hasAbilities) return null
 
         val rows = mutableListOf<List<String>>()
-        val icons = mutableListOf<CellIcon>()
 
-        rows.add(listOf("", "Dex #", "Pokemon", "Type 1", "Type 2", "Ability 1", "Ability 2", "Hidden Ability"))
+        rows.add(listOf("Dex #", "Pokemon", "Type 1", "Type 2", "Ability 1", "Ability 2", "Hidden Ability"))
 
         val sorted = speciesInfo.entries
             .filter { it.value.abilities?.isNotEmpty() == true || it.value.hiddenAbility != null }
             .sortedWith(compareBy({ it.value.nationalDexNumber.let { d -> if (d > 0) d else Int.MAX_VALUE } }, { it.key }))
 
         for ((_, info) in sorted) {
-            val rowIdx = rows.size
-            icons.add(CellIcon("species:${info.name}", rowIdx, 0))
-
             val abilities = info.abilities ?: emptyList()
             rows.add(listOf(
-                "", // icon
                 if (info.nationalDexNumber > 0) info.nationalDexNumber.toString() else "",
                 pokemon(info.name),
                 formatTypeName(info.primaryType),
@@ -584,7 +541,7 @@ object SpreadsheetExporter {
             ))
         }
 
-        return SheetData("Abilities", rows, icons)
+        return SheetData("Abilities", rows)
     }
 
     private fun buildTypeChart(): SheetData {

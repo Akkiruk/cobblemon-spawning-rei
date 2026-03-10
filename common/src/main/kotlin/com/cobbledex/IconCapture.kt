@@ -1,122 +1,84 @@
 package com.cobbledex
 
-import com.mojang.blaze3d.pipeline.TextureTarget
-import com.mojang.blaze3d.platform.GlStateManager
-import com.mojang.blaze3d.platform.Lighting
 import com.mojang.blaze3d.platform.NativeImage
-import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.ItemStack
-import org.joml.Matrix4f
+import java.awt.RenderingHints
+import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
 import javax.imageio.ImageIO
-import java.awt.image.BufferedImage
 
 /**
- * Captures ItemStack renders to PNG byte arrays via offscreen framebuffer.
- * Used by SpreadsheetExporter to embed Pokémon/item icons in XLSX files.
- * All methods must be called from the render thread (client main thread).
+ * Extracts item texture PNGs from the resource pack system.
+ * No FBO, no GL — reads the source PNG file directly via ResourceManager.
  */
 object IconCapture {
 
     const val ICON_SIZE = 32
 
-    private var fbo: TextureTarget? = null
-
-    private fun ensureFbo(): TextureTarget {
-        fbo?.let { return it }
-        val target = TextureTarget(ICON_SIZE, ICON_SIZE, true, Minecraft.ON_OSX)
-        target.setClearColor(0f, 0f, 0f, 0f)
-        fbo = target
-        return target
-    }
-
-    fun cleanup() {
-        fbo?.destroyBuffers()
-        fbo = null
-    }
+    fun cleanup() { /* nothing to clean up */ }
 
     /**
-     * Render an ItemStack to a 32x32 PNG with transparent background.
-     * Returns null if rendering fails.
+     * Read an item's texture from resources and scale to ICON_SIZE x ICON_SIZE PNG.
+     * Returns null if the texture can't be found.
      */
     fun captureItemToPng(stack: ItemStack): ByteArray? {
         if (stack.isEmpty) return null
         val mc = Minecraft.getInstance()
-        if (mc.window == null) return null
-
-        if (!RenderSystem.isOnRenderThread()) {
-            DebugLog.warn("Icon capture called off render thread — cannot use GL")
-            return null
-        }
 
         return try {
-            val target = ensureFbo()
-            val prevTarget = mc.mainRenderTarget
+            val model = mc.itemRenderer.getModel(stack, null, null, 0)
+            val sprite = model.particleIcon ?: return null
+            val spriteId = sprite.contents().name() // e.g. minecraft:item/bone
 
-            // Bind our FBO and clear it
-            target.bindWrite(true)
-            target.clear(Minecraft.ON_OSX)
+            // Build resource path: textures/<path>.png
+            val textureLoc = ResourceLocation.fromNamespaceAndPath(
+                spriteId.namespace,
+                "textures/${spriteId.path}.png"
+            )
 
-            // Explicit viewport so GL renders into the 32x32 FBO
-            GlStateManager._viewport(0, 0, ICON_SIZE, ICON_SIZE)
+            val resource = mc.resourceManager.getResource(textureLoc).orElse(null) ?: run {
+                DebugLog.warn("No texture resource for: $textureLoc")
+                return null
+            }
 
-            // Orthographic projection: map 16 GUI units → 32 pixels (2x scale)
-            val projMatrix = Matrix4f().setOrtho(0f, 16f, 16f, 0f, -150f, 150f)
-            RenderSystem.setProjectionMatrix(projMatrix, com.mojang.blaze3d.vertex.VertexSorting.ORTHOGRAPHIC_Z)
+            val image = resource.open().use { NativeImage.read(it) }
+            val w = image.getWidth()
+            val h = image.getHeight()
+            if (w <= 0 || h <= 0) { image.close(); return null }
 
-            // Set up render state — renderItem() assumes 3D lighting is active
-            RenderSystem.enableBlend()
-            RenderSystem.defaultBlendFunc()
-            RenderSystem.enableDepthTest()
-            Lighting.setupFor3DItems()
-
-            // Render the item
-            val bufferSource = mc.renderBuffers().bufferSource()
-            val graphics = GuiGraphics(mc, bufferSource)
-            graphics.renderItem(stack, 0, 0)
-            bufferSource.endBatch()
-
-            // Restore previous render target (restores viewport automatically)
-            prevTarget.bindWrite(true)
-
-            readFboToPng(target)
-        } catch (e: Exception) {
-            DebugLog.warn("Icon capture failed for ${stack.item}: ${e.message}")
-            null
-        }
-    }
-
-    private fun readFboToPng(target: TextureTarget): ByteArray? {
-        val image = NativeImage(ICON_SIZE, ICON_SIZE, false)
-        try {
-            RenderSystem.bindTexture(target.colorTextureId)
-            image.downloadTexture(0, false)
-
-            // NativeImage has (0,0) at top-left which matches what we want
-            // but the FBO may be Y-flipped, so flip vertically
-            val buffered = BufferedImage(ICON_SIZE, ICON_SIZE, BufferedImage.TYPE_INT_ARGB)
-            for (y in 0 until ICON_SIZE) {
-                for (x in 0 until ICON_SIZE) {
+            // Read pixels from NativeImage
+            val raw = BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
+            for (y in 0 until h) {
+                for (x in 0 until w) {
                     val pixel = image.getPixelRGBA(x, y)
-                    // NativeImage stores ABGR, convert to ARGB
-                    val a = (pixel shr 24) and 0xFF
-                    val b = (pixel shr 16) and 0xFF
-                    val g = (pixel shr 8) and 0xFF
+                    // NativeImage "RGBA" is actually ABGR in memory order
                     val r = pixel and 0xFF
-                    buffered.setRGB(x, ICON_SIZE - 1 - y, (a shl 24) or (r shl 16) or (g shl 8) or b)
+                    val g = (pixel shr 8) and 0xFF
+                    val b = (pixel shr 16) and 0xFF
+                    val a = (pixel shr 24) and 0xFF
+                    raw.setRGB(x, y, (a shl 24) or (r shl 16) or (g shl 8) or b)
                 }
+            }
+            image.close()
+
+            // Scale to ICON_SIZE with nearest-neighbor (preserves pixel art)
+            val scaled = if (w == ICON_SIZE && h == ICON_SIZE) raw else {
+                val img = BufferedImage(ICON_SIZE, ICON_SIZE, BufferedImage.TYPE_INT_ARGB)
+                val g2d = img.createGraphics()
+                g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR)
+                g2d.drawImage(raw, 0, 0, ICON_SIZE, ICON_SIZE, null)
+                g2d.dispose()
+                img
             }
 
             val out = ByteArrayOutputStream()
-            ImageIO.write(buffered, "PNG", out)
-            return out.toByteArray()
+            ImageIO.write(scaled, "PNG", out)
+            out.toByteArray()
         } catch (e: Exception) {
-            DebugLog.warn("FBO pixel readback failed: ${e.message}")
-            return null
-        } finally {
-            image.close()
+            DebugLog.warn("Sprite capture failed for ${stack.item}: ${e.message}")
+            null
         }
     }
 }
