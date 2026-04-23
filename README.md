@@ -10,41 +10,64 @@
 [![Cobblemon](https://img.shields.io/badge/Cobblemon-1.7.1%2B-blue.svg)](https://cobblemon.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Your complete **Cobblemon Pokédex** inside **REI**, **JEI**, or **EMI**. Browse spawn locations, evolution chains, base stats, item drops, Pokédex info, and special obtainment methods for every Pokémon — all from your recipe viewer.
+Your full **Cobblemon in-game reference guide** inside **REI**, **JEI**, or **EMI**. CobbleDex turns your recipe viewer into a searchable Pokédex, spawn guide, evolution browser, loot table viewer, move database, form navigator, fossil guide, riding reference, and export tool for your entire Cobblemon modpack.
 
-> **✨ Multi-Viewer Support:** This mod works with [REI (Roughly Enough Items)](https://github.com/shedaniel/RoughlyEnoughItems), [JEI (Just Enough Items)](https://github.com/mezz/JustEnoughItems), AND [EMI (Enough Mod Items)](https://github.com/emilyploszaj/emi)! Install any one of them and the mod will automatically integrate.
+> **Multi-Viewer Support:** CobbleDex has native integrations for [REI (Roughly Enough Items)](https://github.com/shedaniel/RoughlyEnoughItems), [JEI (Just Enough Items)](https://github.com/mezz/JustEnoughItems), and [EMI (Enough Mod Items)](https://github.com/emilyploszaj/emi). Install any one of them and CobbleDex automatically hooks into that viewer.
 
 ## Features
 
-### Spawn Locations
-- Browse spawn conditions for every Pokémon in your modpack
-- Biomes, time of day, weather, light level, Y-level, structures, and more
-- Rarity tiers with color coding (Common / Uncommon / Rare / Ultra Rare)
-- Weight multipliers and anti-conditions displayed
-- Supports spawns from Cobblemon, datapacks, and other mods
+### One mod, many Pokédex tabs
+CobbleDex adds dedicated viewer pages for:
 
-### Evolution Chains
-- Full evolution requirements pulled from Cobblemon's runtime API
-- Level-up, item use, trade, friendship, time of day, biome, held item, and dozens more
-- Form-specific evolutions (regional variants, gender-based, etc.)
-- Branching evolutions shown with branch indicators
+- **Spawn Data** - where a Pokemon can appear, including biome tags, resolved biome names, time, weather, light, height, structures, nearby blocks, bucket, context, rarity, and weight multipliers
+- **Evolution Chains** - full family trees with branching lines, item icons, form changes, and detailed requirements
+- **Special Obtainment** - altar summons, shrine methods, special encounters, legendary acquisition methods, and LumyMon-specific obtainment when that mod is present
+- **Item Drops** - what each Pokemon drops, with drop chance and quantity ranges
+- **Stats** - base stats, total stats, typing, and EV yields
+- **Moves** - level-up moves, egg moves, tutor moves, TM compatibility, and TM reverse lookups
+- **Pokedex Info** - abilities, hidden abilities, egg groups, gender ratio, catch rate, height, weight, and related species data
+- **Pokedex Descriptions** - flavor text entries directly in the viewer
+- **Fossils** - which fossil items create each Pokemon, plus reverse lookup from the fossil item itself
+- **Type Chart** - offensive and defensive matchup data for each species
+- **Natures** - full nature table with stat modifiers
+- **CobbleCrew Jobs** - which jobs a Pokemon qualifies for when CobbleCrew is installed
+- **Forms** - alternate forms, regional variants, Mega forms, Gigantamax, Primal, Ultra Burst, and modded form families
+- **Riding Data** - mount type, riding style, seats, and riding stat ranges for rideable Pokemon
 
-### Base Stats & Pokédex Info
-- Type matchups, abilities, egg groups, gender ratios
-- Height, weight, catch rate, EV yields
-- Breeding info and training data
+### Spawn data that is actually useful in play
+- See the information players actually care about while hunting: biome, dimension, time window, weather, sky access, moon phase, light level, Y range, structures, and block conditions
+- View anti-conditions and exclusions, not just positive requirements
+- Biome tags resolve into real biome names, with hover details for raw IDs when you need datapack-level precision
+- Weight multipliers and their triggers are shown so rare boosted spawns are understandable instead of hidden in JSON
+- Includes data from Cobblemon itself, addon mods, server data, and datapacks, including ZIP datapacks
 
-### Item Drops & Special Obtainment
-- View what items each Pokémon drops
-- Legendary/mythical obtainment via altars, shrines, and special methods
-- LumyMon summoning altar and resurrection machine support
+### Evolution pages built around full family trees
+- Full chain view instead of isolated A to B fragments
+- Branching families are easier to read, with inline requirements and item icons
+- Regional forms and major form-change lines are included in the chain where relevant
+- Alternate-form species pages can have their own stats, moves, type chart, evolution data, and other form-specific info
 
-### Universal Recipe Viewer Integration
-- **Works with REI, JEI, or EMI** — no need to choose, install your favorite!
-- Pokémon rendered as 3D models using Cobblemon's `PokemonItem`
-- Searchable by species name in your recipe viewer's search bar
-- Click any Pokémon to view any of its data displays
-- Native plugin for each viewer (not using compatibility layers)
+### Better search and navigation
+- Search by species name directly from your recipe viewer sidebar
+- Form entries can be searched by both their own name and their base species name
+- Click Pokemon, forms, fossils, drop items, and TM-related entries to jump through related pages
+- JEI, REI, and EMI all expose the same core information instead of one viewer being a second-class port
+
+### Multiplayer-friendly client-side design
+- Pure client-side mod: no server install required
+- Works in singleplayer, LAN, and dedicated servers
+- Uses synced data and local fallbacks so spawn, evolution, fossil, and related data still appear even when the server does not have CobbleDex installed
+- Viewer reload handling keeps JEI and EMI up to date after server sync instead of leaving categories empty
+
+### Export for spreadsheets and modpack planning
+- Includes `/cobbledex export`, which generates a multi-sheet `.xlsx` workbook in `cobbledex-export/`
+- Export includes species overview, spawn data, evolutions, drops, movesets, level-up moves, special obtainment, fossils, abilities, type chart, and riding data
+- Useful for pack documentation, balancing, guide writing, and theorycrafting outside the game
+
+### Extra quality-of-life details
+- Pokemon are rendered as actual Cobblemon model items instead of plain text placeholders
+- REI and JEI cheat mode can give a real Pokemon through `/pokegive` instead of just a cosmetic item stack
+- Categories can be toggled in config if you only want part of the data set
 
 ## Compatibility
 

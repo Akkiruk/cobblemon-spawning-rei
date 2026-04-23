@@ -2,6 +2,21 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.4] - 2026-04-22
+
+### Fixed
+- **Overflowing and malformed page layouts** across multiple Pokemon info pages - long headers, labels, requirements, and summary rows now clip or wrap cleanly instead of overlapping boxes or running off the panel
+- Tightened layout handling for Stats, Pokedex Info, Moves, Fossils, Type Chart, Pokedex Description, CobbleCrew Jobs, TM Learner, Alternate Forms, and Riding Data pages
+- **Recipe viewer reload safety** - EMI and JEI reload tracking now skips viewers that are not installed, avoiding stale reload state and unnecessary reload attempts in mixed-viewer setups
+
+### Improved
+- Added reusable split-row and clipped-text layout helpers so page headers and right-aligned summary values size consistently across REI, JEI, and EMI panels
+- Added platform-level mod-loaded checks on Fabric and NeoForge to support safer runtime viewer reload decisions
+
+### Documentation
+- Expanded the README feature overview to better reflect the current scope of CobbleDex
+- Added a full Modrinth description document covering supported pages, multiplayer behavior, export support, and installation requirements
+
 ## [1.50.3] - 2026-03-10
 
 ### Fixed

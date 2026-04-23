@@ -2,6 +2,7 @@ package com.cobbledex
 
 import com.cobbledex.config.CobbleDexConfig
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.core.registries.Registries
@@ -290,6 +291,74 @@ object SpawnDisplayHelper {
         }
         if (current.isNotEmpty()) lines.add(current)
         return if (lines.isEmpty()) listOf(text) else lines
+    }
+
+    private fun computePanelWidth(vararg candidates: Int): Int {
+        return (candidates.maxOrNull() ?: PanelLayout.MIN_WIDTH)
+            .coerceIn(PanelLayout.MIN_WIDTH, PanelLayout.MAX_WIDTH)
+    }
+
+    private fun measureHeaderWidth(
+        font: Font,
+        leftText: String,
+        rightText: String,
+        leftX: Int = PanelLayout.PADDING + 22,
+        gap: Int = 8
+    ): Int {
+        return leftX + font.width(leftText) + gap + font.width(rightText) + PanelLayout.PADDING
+    }
+
+    private fun drawSplitRow(
+        layout: PanelLayout,
+        leftX: Int,
+        leftText: String,
+        rightText: String,
+        leftColor: Int,
+        rightColor: Int,
+        yPos: Int = layout.y,
+        gap: Int = 8,
+        minLeftWidth: Int = 52,
+        minRightWidth: Int = 28
+    ) {
+        val rightEdge = layout.right
+        if (rightText.isBlank()) {
+            layout.clippedAt(leftX, yPos, leftText, (rightEdge - leftX).coerceAtLeast(1), leftColor)
+            return
+        }
+
+        val maxRightWidth = (rightEdge - leftX - gap - minLeftWidth).coerceAtLeast(minRightWidth)
+        val clippedRight = clipToWidth(layout.font, rightText, maxRightWidth)
+        val rightWidth = layout.font.width(clippedRight)
+        val leftMaxWidth = (rightEdge - leftX - gap - rightWidth).coerceAtLeast(1)
+
+        layout.clippedAt(leftX, yPos, leftText, leftMaxWidth, leftColor)
+        layout.clippedRightAt(yPos, rightText, maxRightWidth, rightColor)
+    }
+
+    private fun drawHeader(
+        layout: PanelLayout,
+        leftText: String,
+        rightText: String,
+        rightColor: Int,
+        dividerY: Int,
+        leftX: Int = PanelLayout.PADDING + 22,
+        yPos: Int = 6,
+        leftColor: Int = 0xFFFFFF,
+        gap: Int = 8
+    ) {
+        drawSplitRow(
+            layout = layout,
+            leftX = leftX,
+            leftText = leftText,
+            rightText = rightText,
+            leftColor = leftColor,
+            rightColor = rightColor,
+            yPos = yPos,
+            gap = gap,
+            minLeftWidth = 56,
+            minRightWidth = 36
+        )
+        layout.fill(PanelLayout.PADDING, dividerY, layout.right, dividerY + 1, 0x50FFFFFF)
     }
 
     // --- Sorted spawn builder (shared across REI/JEI/EMI) ---
@@ -1001,31 +1070,33 @@ object SpawnDisplayHelper {
         secondaryType: String?,
         evYield: Map<String, Int>? = null
     ): PanelLayout {
-        val layout = PanelLayout(200)
+        val speciesDisplay = formatSpeciesName(speciesName)
+        val headerText = tr("category.cobbledex-rei-emi-jei.stats")
+        val bstText = tr("cobbledex-rei-emi-jei.stats.bst", bst)
+        val width = computePanelWidth(
+            measureHeaderWidth(Minecraft.getInstance().font, speciesDisplay, headerText),
+            210
+        )
+        val layout = PanelLayout(width)
         val font = layout.font
         val padding = PanelLayout.PADDING
         val right = layout.right
         val lineHeight = 13
 
-        layout.textAt(padding + 22, 6, formatSpeciesName(speciesName), 0xFFFFFF)
-        val headerText = tr("category.cobbledex-rei-emi-jei.stats")
-        layout.textRightAt(6, headerText, 0xDDCC99)
-        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        drawHeader(layout, speciesDisplay, headerText, 0xDDCC99, dividerY = 20)
 
         val typeStr = buildString {
             append(formatTypeName(primaryType))
             secondaryType?.let { append(" / ${formatTypeName(it)}") }
         }
-        layout.textAt(padding, 25, typeStr, typeColor(primaryType))
 
-        val bstText = tr("cobbledex-rei-emi-jei.stats.bst", bst)
         val bstColor = when {
             bst >= 600 -> 0xFFFF5555.toInt()
             bst >= 500 -> 0xFFFFCC33.toInt()
             bst >= 400 -> 0xFF77CC55.toInt()
             else -> 0xFFBBBBBB.toInt()
         }
-        layout.textRightAt(25, bstText, bstColor)
+        drawSplitRow(layout, padding, typeStr, bstText, typeColor(primaryType), bstColor, yPos = 25)
 
         layout.skipTo(40)
         val maxLabelWidth = STAT_NAMES.maxOf { font.width(statLabel(it)) }
@@ -1053,8 +1124,7 @@ object SpawnDisplayHelper {
             layout.gap(2)
             val evParts = evYield.entries.map { "${it.value} ${statLabel(it.key)}" }
             val evText = tr("cobbledex-rei-emi-jei.stats.ev_yield", evParts.joinToString(", "))
-            layout.text(padding, evText, 0xFF88CCFF.toInt())
-            layout.gap(font.lineHeight)
+            layout.wrapped(padding, evText, right - padding, 0xFF88CCFF.toInt())
         }
 
         return layout
@@ -1065,18 +1135,20 @@ object SpawnDisplayHelper {
     // --- Pokédex Info layout builder ---
 
     fun buildPokedexInfoLayout(data: PokedexInfoRecipeData): PanelLayout {
-        val layout = PanelLayout(200)
-        val font = layout.font
+        val speciesDisplay = formatSpeciesName(data.speciesName)
+        val headerText = tr("category.cobbledex-rei-emi-jei.pokedex_info")
+        val width = computePanelWidth(
+            measureHeaderWidth(Minecraft.getInstance().font, speciesDisplay, headerText),
+            220
+        )
+        val layout = PanelLayout(width)
         val padding = PanelLayout.PADDING
         val right = layout.right
         val lineHeight = PanelLayout.LINE_HEIGHT
         val indentX = padding + 4
         val indentWidth = right - indentX
 
-        layout.textAt(padding + 22, 6, formatSpeciesName(data.speciesName), 0xFFFFFF)
-        val headerText = tr("category.cobbledex-rei-emi-jei.pokedex_info")
-        layout.textRightAt(6, headerText, 0xDDCC99)
-        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        drawHeader(layout, speciesDisplay, headerText, 0xDDCC99, dividerY = 20)
         layout.skipTo(26)
 
         if (data.abilities.isNotEmpty() || data.hiddenAbility != null) {
@@ -1084,20 +1156,20 @@ object SpawnDisplayHelper {
             layout.line()
             for (ability in data.abilities) {
                 val abilityY = layout.y
-                layout.text(indentX, "\u2022 ${formatAbilityName(ability)}", 0xFF88CCFF.toInt())
-                layout.line()
+                val abilityText = "\u2022 ${formatAbilityName(ability)}"
+                val lineCount = layout.wrapped(indentX, abilityText, indentWidth, 0xFF88CCFF.toInt())
                 val tooltip = buildAbilityTooltip(ability)
                 if (tooltip.isNotEmpty()) {
-                    layout.addTooltipZone(indentX, abilityY, right - indentX, lineHeight, tooltip)
+                    layout.addTooltipZone(indentX, abilityY, right - indentX, lineHeight * lineCount, tooltip)
                 }
             }
             data.hiddenAbility?.let { ha ->
                 val haY = layout.y
-                layout.text(indentX, "\u2022 ${formatAbilityName(ha)} ${tr("cobbledex-rei-emi-jei.info.hidden_ability")}", 0xFF66AADD.toInt())
-                layout.line()
+                val haText = "\u2022 ${formatAbilityName(ha)} ${tr("cobbledex-rei-emi-jei.info.hidden_ability")}"
+                val lineCount = layout.wrapped(indentX, haText, indentWidth, 0xFF66AADD.toInt())
                 val tooltip = buildAbilityTooltip(ha, hidden = true)
                 if (tooltip.isNotEmpty()) {
-                    layout.addTooltipZone(indentX, haY, right - indentX, lineHeight, tooltip)
+                    layout.addTooltipZone(indentX, haY, right - indentX, lineHeight * lineCount, tooltip)
                 }
             }
             layout.gap(3)
@@ -1115,11 +1187,9 @@ object SpawnDisplayHelper {
         layout.line()
         val heightText = "%.1fm".format(data.height / 10f)
         val weightText = "%.1fkg".format(data.weight / 10f)
-        layout.text(indentX, tr("cobbledex-rei-emi-jei.info.height_weight", heightText, weightText), 0xBBBBBB)
-        layout.line()
+        layout.wrapped(indentX, tr("cobbledex-rei-emi-jei.info.height_weight", heightText, weightText), indentWidth, 0xBBBBBB)
 
-        layout.text(indentX, tr("cobbledex-rei-emi-jei.info.catch_rate", data.catchRate), 0xBBBBBB)
-        layout.line()
+        layout.wrapped(indentX, tr("cobbledex-rei-emi-jei.info.catch_rate", data.catchRate), indentWidth, 0xBBBBBB)
 
         data.maleRatio?.let { ratio ->
             val genderText = when {
@@ -1128,20 +1198,17 @@ object SpawnDisplayHelper {
                 ratio == 0f -> tr("cobbledex-rei-emi-jei.info.female_only")
                 else -> tr("cobbledex-rei-emi-jei.info.gender_ratio", "%.0f".format(ratio * 100), "%.0f".format((1 - ratio) * 100))
             }
-            layout.text(indentX, genderText, 0xBBBBBB)
-            layout.line()
+            layout.wrapped(indentX, genderText, indentWidth, 0xBBBBBB)
         }
 
         if (data.shoulderMountable) {
-            layout.text(indentX, tr("cobbledex-rei-emi-jei.info.shoulder"), 0xFF88DDAA.toInt())
-            layout.line()
+            layout.wrapped(indentX, tr("cobbledex-rei-emi-jei.info.shoulder"), indentWidth, 0xFF88DDAA.toInt())
         }
         layout.gap(3)
 
         data.source?.let { ns ->
             if (ns != "cobblemon") {
-                layout.text(padding, tr("cobbledex-rei-emi-jei.info.added_by", titleCase(ns)), 0xFF888888.toInt(), shadow = false)
-                layout.line()
+                layout.wrapped(padding, tr("cobbledex-rei-emi-jei.info.added_by", titleCase(ns)), right - padding, 0xFF888888.toInt(), shadow = false)
                 layout.gap(3)
             }
         }
@@ -1149,8 +1216,7 @@ object SpawnDisplayHelper {
         data.eggCycles?.let { cycles ->
             layout.text(padding, tr("cobbledex-rei-emi-jei.info.breeding"), 0xEEEEEE)
             layout.line()
-            layout.text(indentX, tr("cobbledex-rei-emi-jei.info.egg_cycles", cycles, cycles * 257), 0xBBBBBB)
-            layout.line()
+            layout.wrapped(indentX, tr("cobbledex-rei-emi-jei.info.egg_cycles", cycles, cycles * 257), indentWidth, 0xBBBBBB)
         }
 
         if (data.experienceGroup != null || data.baseExperienceYield != null || data.baseFriendship != null) {
@@ -1158,16 +1224,13 @@ object SpawnDisplayHelper {
             layout.text(padding, tr("cobbledex-rei-emi-jei.info.training"), 0xEEEEEE)
             layout.line()
             data.experienceGroup?.let { group ->
-                layout.text(indentX, tr("cobbledex-rei-emi-jei.info.exp_group", formatExpGroup(group)), 0xBBBBBB)
-                layout.line()
+                layout.wrapped(indentX, tr("cobbledex-rei-emi-jei.info.exp_group", formatExpGroup(group)), indentWidth, 0xBBBBBB)
             }
             data.baseExperienceYield?.let { exp ->
-                layout.text(indentX, tr("cobbledex-rei-emi-jei.info.base_exp", exp), 0xBBBBBB)
-                layout.line()
+                layout.wrapped(indentX, tr("cobbledex-rei-emi-jei.info.base_exp", exp), indentWidth, 0xBBBBBB)
             }
             data.baseFriendship?.let { friendship ->
-                layout.text(indentX, tr("cobbledex-rei-emi-jei.info.base_friendship", friendship), 0xBBBBBB)
-                layout.line()
+                layout.wrapped(indentX, tr("cobbledex-rei-emi-jei.info.base_friendship", friendship), indentWidth, 0xBBBBBB)
             }
         }
 
@@ -1218,19 +1281,21 @@ object SpawnDisplayHelper {
     }
 
     fun buildMovesLayout(data: MovesRecipeData): PanelLayout {
-        val layout = PanelLayout(200)
-        val padding = PanelLayout.PADDING
-        val right = layout.right
-
-        layout.textAt(padding + 22, 6, formatSpeciesName(data.speciesName), 0xFFFFFF)
         val headerText = if (data.pageTotal > 1)
             tr("category.cobbledex-rei-emi-jei.moves") + " (" + tr("cobbledex-rei-emi-jei.moves.page", data.pageIndex, data.pageTotal) + ")"
         else
             tr("category.cobbledex-rei-emi-jei.moves")
-        layout.textRightAt(6, headerText, 0xDDCC99)
-        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        val width = computePanelWidth(
+            measureHeaderWidth(Minecraft.getInstance().font, formatSpeciesName(data.speciesName), headerText),
+            220
+        )
+        val layout = PanelLayout(width)
+        val padding = PanelLayout.PADDING
+        val right = layout.right
+
+        drawHeader(layout, formatSpeciesName(data.speciesName), headerText, 0xDDCC99, dividerY = 20)
         val colHeader = tr("cobbledex-rei-emi-jei.moves.pow_acc")
-        layout.textRightAt(22, colHeader, 0xFF888888.toInt())
+        layout.clippedRightAt(22, colHeader, right - padding - 60, 0xFF888888.toInt())
         layout.skipTo(33)
 
         if (data.levelUpMoves.isNotEmpty()) {
@@ -1278,16 +1343,17 @@ object SpawnDisplayHelper {
     // --- Fossil layout builder ---
 
     fun buildFossilLayout(data: FossilRecipeData): PanelLayout {
-        val layout = PanelLayout(200)
-        val font = layout.font
         val padding = PanelLayout.PADDING
+        val headerText = tr("category.cobbledex-rei-emi-jei.fossils")
+        val width = computePanelWidth(
+            measureHeaderWidth(Minecraft.getInstance().font, formatSpeciesName(data.speciesName), headerText),
+            200
+        )
+        val layout = PanelLayout(width)
         val right = layout.right
         val lineHeight = PanelLayout.LINE_HEIGHT
 
-        layout.textAt(padding + 22, 6, formatSpeciesName(data.speciesName), 0xFFFFFF)
-        val headerText = tr("category.cobbledex-rei-emi-jei.fossils")
-        layout.textRightAt(6, headerText, 0xDDCC99)
-        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        drawHeader(layout, formatSpeciesName(data.speciesName), headerText, 0xDDCC99, dividerY = 20)
         layout.skipTo(26)
 
         layout.text(padding, tr("cobbledex-rei-emi-jei.fossils.required"), 0xEEEEEE)
@@ -1320,21 +1386,22 @@ object SpawnDisplayHelper {
     // --- Type chart layout builder ---
 
     fun buildTypeChartLayout(data: TypeChartRecipeData): PanelLayout {
-        val layout = PanelLayout(200)
+        val headerText = tr("category.cobbledex-rei-emi-jei.type_chart")
+        val width = computePanelWidth(
+            measureHeaderWidth(Minecraft.getInstance().font, formatSpeciesName(data.speciesName), headerText),
+            200
+        )
+        val layout = PanelLayout(width)
         val padding = PanelLayout.PADDING
         val right = layout.right
-        val lineHeight = PanelLayout.LINE_HEIGHT
 
-        layout.textAt(padding + 22, 6, formatSpeciesName(data.speciesName), 0xFFFFFF)
-        val headerText = tr("category.cobbledex-rei-emi-jei.type_chart")
-        layout.textRightAt(6, headerText, 0xDDCC99)
-        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        drawHeader(layout, formatSpeciesName(data.speciesName), headerText, 0xDDCC99, dividerY = 20)
 
         val typeStr = buildString {
             append(formatTypeName(data.primaryType))
             data.secondaryType?.let { append(" / ${formatTypeName(it)}") }
         }
-        layout.textAt(padding, 25, typeStr, typeColor(data.primaryType))
+        layout.clippedAt(padding, 25, typeStr, right - padding, typeColor(data.primaryType))
         layout.skipTo(40)
 
         if (data.weaknesses.isNotEmpty()) {
@@ -1343,8 +1410,7 @@ object SpawnDisplayHelper {
             for ((type, mult) in data.weaknesses) {
                 val multText = if (mult == 4f) "\u00D74" else "\u00D72"
                 val color = if (mult == 4f) 0xFFFF4444.toInt() else 0xFFFF8866.toInt()
-                layout.text(padding + 4, "\u2022 ${formatTypeName(type)}", typeColor(type))
-                layout.textRight(multText, color)
+                drawSplitRow(layout, padding + 4, "\u2022 ${formatTypeName(type)}", multText, typeColor(type), color)
                 layout.line()
             }
             layout.gap(PanelLayout.SECTION_GAP)
@@ -1356,8 +1422,7 @@ object SpawnDisplayHelper {
             for ((type, mult) in data.resistances) {
                 val multText = if (mult == 0.25f) "\u00D7\u00BC" else "\u00D7\u00BD"
                 val color = if (mult == 0.25f) 0xFF44AA44.toInt() else 0xFF88CC88.toInt()
-                layout.text(padding + 4, "\u2022 ${formatTypeName(type)}", typeColor(type))
-                layout.textRight(multText, color)
+                drawSplitRow(layout, padding + 4, "\u2022 ${formatTypeName(type)}", multText, typeColor(type), color)
                 layout.line()
             }
             layout.gap(PanelLayout.SECTION_GAP)
@@ -1367,8 +1432,7 @@ object SpawnDisplayHelper {
             layout.text(padding, tr("cobbledex-rei-emi-jei.typechart.immune"), 0xFF9999FF.toInt())
             layout.line()
             for (type in data.immunities) {
-                layout.text(padding + 4, "\u2022 ${formatTypeName(type)}", typeColor(type))
-                layout.textRight("\u00D70", 0xFF9999FF.toInt())
+                drawSplitRow(layout, padding + 4, "\u2022 ${formatTypeName(type)}", "\u00D70", typeColor(type), 0xFF9999FF.toInt())
                 layout.line()
             }
         }
@@ -1439,14 +1503,16 @@ object SpawnDisplayHelper {
     // --- Pokemon description layout builder ---
 
     fun buildPokemonDescriptionLayout(data: PokemonDescriptionRecipeData): PanelLayout {
-        val layout = PanelLayout(200)
+        val headerText = tr("category.cobbledex-rei-emi-jei.pokemon_description")
+        val width = computePanelWidth(
+            measureHeaderWidth(Minecraft.getInstance().font, formatSpeciesName(data.speciesName), headerText),
+            200
+        )
+        val layout = PanelLayout(width)
         val padding = PanelLayout.PADDING
         val right = layout.right
 
-        layout.textAt(padding + 22, 6, formatSpeciesName(data.speciesName), 0xFFFFFF)
-        val headerText = tr("category.cobbledex-rei-emi-jei.pokemon_description")
-        layout.textRightAt(6, headerText, 0xDDCC99)
-        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        drawHeader(layout, formatSpeciesName(data.speciesName), headerText, 0xDDCC99, dividerY = 20)
         layout.skipTo(26)
 
         val descText = tr(data.description)
@@ -1509,16 +1575,19 @@ object SpawnDisplayHelper {
     )
 
     fun buildJobLayout(speciesName: String, match: JobMatch): PanelLayout {
-        val layout = PanelLayout(200)
+        val speciesDisplay = formatSpeciesName(speciesName)
+        val width = computePanelWidth(
+            measureHeaderWidth(Minecraft.getInstance().font, speciesDisplay, match.rule.displayName),
+            220
+        )
+        val layout = PanelLayout(width)
         val padding = PanelLayout.PADDING
         val right = layout.right
         val rule = match.rule
         val jobColor = JOB_ICON_COLORS[rule.id] ?: 0xFFAAAAFF.toInt()
+        val contentWidth = right - (padding + 8)
 
-        // Header: species name + job name
-        layout.textAt(padding + 22, 6, formatSpeciesName(speciesName), 0xFFFFFF)
-        layout.textRightAt(6, rule.displayName, jobColor)
-        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        drawHeader(layout, speciesDisplay, rule.displayName, jobColor, dividerY = 20)
         layout.skipTo(26)
 
         // Job description
@@ -1535,45 +1604,38 @@ object SpawnDisplayHelper {
         var hasReqs = false
 
         if (rule.requiredType != null && rule.requiredType != "NONE") {
-            layout.text(padding + 8, "\u2022 ${rule.requiredType.lowercase().replaceFirstChar { it.uppercase() }} type", 0xFFBBBBBB.toInt())
-            layout.line()
+            layout.wrapped(padding + 8, "\u2022 ${rule.requiredType.lowercase().replaceFirstChar { it.uppercase() }} type", contentWidth, 0xFFBBBBBB.toInt())
             hasReqs = true
         }
 
         if (rule.requiredMoves.isNotEmpty()) {
             val isCombo = rule.priority.equals("COMBO", ignoreCase = true)
             val label = if (isCombo) "Must know all moves:" else "Must know move:"
-            layout.text(padding + 8, "\u2022 $label", 0xFFBBBBBB.toInt())
-            layout.line()
+            layout.wrapped(padding + 8, "\u2022 $label", contentWidth, 0xFFBBBBBB.toInt())
             for (move in rule.requiredMoves) {
-                layout.text(padding + 16, "- ${move.replaceFirstChar { it.uppercase() }}", 0xFFAAAA88.toInt())
-                layout.line()
+                layout.wrapped(padding + 16, "- ${move.replaceFirstChar { it.uppercase() }}", right - (padding + 16), 0xFFAAAA88.toInt())
             }
             hasReqs = true
         }
 
         if (rule.requiredAbility != null) {
-            layout.text(padding + 8, "\u2022 Ability: ${rule.requiredAbility.replaceFirstChar { it.uppercase() }}", 0xFFBBBBBB.toInt())
-            layout.line()
+            layout.wrapped(padding + 8, "\u2022 Ability: ${rule.requiredAbility.replaceFirstChar { it.uppercase() }}", contentWidth, 0xFFBBBBBB.toInt())
             hasReqs = true
         }
 
         if (rule.designatedSpecies.isNotEmpty()) {
-            layout.text(padding + 8, "\u2022 Designated species list", 0xFFBBBBBB.toInt())
-            layout.line()
+            layout.wrapped(padding + 8, "\u2022 Designated species list", contentWidth, 0xFFBBBBBB.toInt())
             hasReqs = true
         }
 
         if (rule.hardcodedSpeciesEnabled && rule.hardcodedSpecies.isNotEmpty()) {
             val names = rule.hardcodedSpecies.joinToString(", ") { it.replaceFirstChar { c -> c.uppercase() } }
-            layout.text(padding + 8, "\u2022 Special: $names", 0xFFBBBBBB.toInt())
-            layout.line()
+            layout.wrapped(padding + 8, "\u2022 Special: $names", contentWidth, 0xFFBBBBBB.toInt())
             hasReqs = true
         }
 
         if (!hasReqs) {
-            layout.text(padding + 8, "\u2022 No specific requirements", 0xFF999999.toInt())
-            layout.line()
+            layout.wrapped(padding + 8, "\u2022 No specific requirements", contentWidth, 0xFF999999.toInt())
         }
 
         layout.gap(4)
@@ -1581,13 +1643,11 @@ object SpawnDisplayHelper {
         layout.gap(4)
 
         // Qualifications
-        layout.text(padding, "Why ${formatSpeciesName(speciesName)} Qualifies", 0xFF77BB77.toInt())
-        layout.line()
+        layout.wrapped(padding, "Why ${formatSpeciesName(speciesName)} Qualifies", right - padding, 0xFF77BB77.toInt())
         layout.gap(2)
 
         for (reason in match.reasons) {
-            layout.text(padding + 8, "\u2713 $reason", 0xFF88DD88.toInt())
-            layout.line()
+            layout.wrapped(padding + 8, "\u2713 $reason", contentWidth, 0xFF88DD88.toInt())
         }
 
         layout.gap(padding)
@@ -1597,14 +1657,16 @@ object SpawnDisplayHelper {
     // --- TM learner layout builder ---
 
     fun buildTmLearnerLayout(data: TmLearnerRecipeData): PanelLayout {
-        val layout = PanelLayout(200)
+        val pageText = if (data.pageTotal > 1) "${data.pageIndex}/${data.pageTotal}" else ""
+        val width = computePanelWidth(
+            measureHeaderWidth(Minecraft.getInstance().font, formatSpeciesName(data.speciesName), pageText),
+            200
+        )
+        val layout = PanelLayout(width)
         val padding = PanelLayout.PADDING
         val right = layout.right
 
-        layout.textAt(padding + 22, 6, formatSpeciesName(data.speciesName), 0xFFFFFF)
-        val pageText = if (data.pageTotal > 1) "${data.pageIndex}/${data.pageTotal}" else ""
-        if (pageText.isNotEmpty()) layout.textRightAt(6, pageText, 0xFF888888.toInt())
-        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        drawHeader(layout, formatSpeciesName(data.speciesName), pageText, 0xFF888888.toInt(), dividerY = 20)
         layout.skipTo(24)
 
         // Move info
@@ -1612,18 +1674,16 @@ object SpawnDisplayHelper {
         val displayName = tr(moveKey).let { if (it == moveKey) titleCase(data.moveName) else it }
         val detail = data.moveDetail
         if (detail != null) {
-            layout.text(padding, displayName, typeColor(detail.type))
             val suffix = formatMoveSuffix(detail)
             val suffixColor = CATEGORY_ICONS[detail.category]?.second ?: 0xFFBBBBBB.toInt()
-            layout.textRight(suffix, suffixColor)
+            drawSplitRow(layout, padding, displayName, suffix, typeColor(detail.type), suffixColor)
             layout.line()
 
             val ppText = "PP: ${detail.pp}"
             layout.text(padding + 4, ppText, 0xFFAAAAAA.toInt())
             layout.line()
         } else {
-            layout.text(padding, displayName, 0xFFFFFF)
-            layout.line()
+            layout.wrapped(padding, displayName, right - padding, 0xFFFFFF)
         }
 
         layout.gap(3)
@@ -1636,13 +1696,11 @@ object SpawnDisplayHelper {
 
         for (method in data.learnMethods) {
             val label = if (method.detail != null) "${method.label} (${method.detail})" else method.label
-            layout.text(padding + 6, "\u2726 $label", 0xFF88DD88.toInt())
-            layout.line()
+            layout.wrapped(padding + 6, "\u2726 $label", right - (padding + 6), 0xFF88DD88.toInt())
         }
 
         if (data.learnMethods.isEmpty()) {
-            layout.text(padding + 6, "\u2726 TM", 0xFF88DD88.toInt())
-            layout.line()
+            layout.wrapped(padding + 6, "\u2726 TM", right - (padding + 6), 0xFF88DD88.toInt())
         }
 
         layout.gap(padding)
@@ -1659,22 +1717,19 @@ object SpawnDisplayHelper {
     fun buildFormLayout(data: FormRecipeData): FormLayoutResult {
         val font = Minecraft.getInstance().font
         val padding = PanelLayout.PADDING
+        val baseDisplay = formatSpeciesName(data.baseSpeciesName)
         val headerTag = tr("category.cobbledex-rei-emi-jei.forms")
         val iconSize = 20
         val afterIcon = iconSize + 2
         val lineHeight = 13
 
-        val width = 200
+        val width = computePanelWidth(measureHeaderWidth(font, baseDisplay, headerTag), 200)
         val layout = PanelLayout(width)
         val right = layout.right
         val pokemonSlots = mutableListOf<PokemonSlotDef>()
 
-        // Header: base species name + "Forms" tag
-        val baseDisplay = formatSpeciesName(data.baseSpeciesName)
         pokemonSlots.add(PokemonSlotDef(data.baseSpeciesName, emptySet(), padding, 2, SlotRole.INPUT))
-        layout.textAt(padding + 22, 6, baseDisplay, 0xFFFFFF)
-        layout.textRightAt(6, headerTag, 0xDDCC99)
-        layout.fill(padding, 24, right, 25, 0x50FFFFFF)
+        drawHeader(layout, baseDisplay, headerTag, 0xDDCC99, dividerY = 24)
         layout.skipTo(30)
 
         val formCount = tr("cobbledex-rei-emi-jei.forms.count", data.forms.size)
@@ -1701,7 +1756,7 @@ object SpawnDisplayHelper {
                 append(formatTypeName(form.primaryType))
                 form.secondaryType?.let { append(" / ${formatTypeName(it)}") }
             }
-            layout.text(padding + 6, typeStr, typeColor(form.primaryType))
+            layout.clipped(padding + 6, typeStr, right - padding - 6, typeColor(form.primaryType))
             layout.gap(lineHeight)
 
             // Abilities (compact)
@@ -1777,23 +1832,25 @@ object SpawnDisplayHelper {
     )
 
     fun buildRidingLayout(speciesName: String, data: RidingRecipeData): PanelLayout {
-        val layout = PanelLayout(200)
+        val speciesDisplay = formatSpeciesName(speciesName)
+        val headerText = tr("category.cobbledex-rei-emi-jei.riding")
+        val width = computePanelWidth(
+            measureHeaderWidth(Minecraft.getInstance().font, speciesDisplay, headerText),
+            220
+        )
+        val layout = PanelLayout(width)
         val font = layout.font
         val padding = PanelLayout.PADDING
         val right = layout.right
         val mount = data.mount
 
-        layout.textAt(padding + 22, 6, formatSpeciesName(speciesName), 0xFFFFFF)
-        val headerText = tr("category.cobbledex-rei-emi-jei.riding")
-        layout.textRightAt(6, headerText, 0xDDCC99)
-        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        drawHeader(layout, speciesDisplay, headerText, 0xDDCC99, dividerY = 20)
 
         // Mount types + seats summary
         layout.skipTo(26)
         val typesStr = data.allMountTypes.joinToString(" / ")
-        layout.text(padding, typesStr, 0xFFAAAA88.toInt())
         val seatsText = if (data.seats == 1) "1 seat" else "${data.seats} seats"
-        layout.textRight(seatsText, 0xFFBBBBBB.toInt())
+        drawSplitRow(layout, padding, typesStr, seatsText, 0xFFAAAA88.toInt(), 0xFFBBBBBB.toInt())
         layout.line()
         layout.gap(4)
 
@@ -1808,8 +1865,7 @@ object SpawnDisplayHelper {
         // Single mount entry
         val typeColor = MOUNT_TYPE_COLORS[mount.mountType.uppercase()] ?: 0xFFBBBBBB.toInt()
         val styleStr = mount.ridingStyle.replaceFirstChar { it.uppercase() }
-        layout.text(padding, "${mount.mountType} — $styleStr", typeColor)
-        layout.line()
+        layout.wrapped(padding, "${mount.mountType} - $styleStr", right - padding, typeColor)
         layout.gap(4)
 
         val stats = listOf(

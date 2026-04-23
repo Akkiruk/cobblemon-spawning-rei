@@ -16,4 +16,10 @@ object PlatformHelper {
     fun getGameDir(): Path {
         throw AssertionError("Expected platform implementation")
     }
+
+    @JvmStatic
+    @ExpectPlatform
+    fun isModLoaded(modId: String): Boolean {
+        throw AssertionError("Expected platform implementation")
+    }
 }

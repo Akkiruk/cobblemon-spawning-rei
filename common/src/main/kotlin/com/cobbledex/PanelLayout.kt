@@ -36,6 +36,16 @@ class PanelLayout(val width: Int) {
         return this
     }
 
+    fun clippedAt(x: Int, yPos: Int, text: String, maxWidth: Int, color: Int, shadow: Boolean = true): PanelLayout {
+        val clippedText = SpawnDisplayHelper.clipToWidth(font, text, maxWidth)
+        elements.add(Element.Text(x, yPos, clippedText, color, shadow))
+        if (clippedText != text) {
+            addTooltipZone(x, yPos, font.width(clippedText), LINE_HEIGHT,
+                listOf(Component.literal(text).withStyle { s -> s.withColor(0xDDDDDD) }))
+        }
+        return this
+    }
+
     fun textRight(text: String, color: Int, shadow: Boolean = true): PanelLayout {
         elements.add(Element.Text(right - font.width(text), y, text, color, shadow))
         return this
@@ -43,6 +53,17 @@ class PanelLayout(val width: Int) {
 
     fun textRightAt(yPos: Int, text: String, color: Int, shadow: Boolean = true): PanelLayout {
         elements.add(Element.Text(right - font.width(text), yPos, text, color, shadow))
+        return this
+    }
+
+    fun clippedRightAt(yPos: Int, text: String, maxWidth: Int, color: Int, shadow: Boolean = true): PanelLayout {
+        val clippedText = SpawnDisplayHelper.clipToWidth(font, text, maxWidth)
+        val x = right - font.width(clippedText)
+        elements.add(Element.Text(x, yPos, clippedText, color, shadow))
+        if (clippedText != text) {
+            addTooltipZone(x, yPos, font.width(clippedText), LINE_HEIGHT,
+                listOf(Component.literal(text).withStyle { s -> s.withColor(0xDDDDDD) }))
+        }
         return this
     }
 
@@ -55,6 +76,17 @@ class PanelLayout(val width: Int) {
 
     fun clipped(x: Int, text: String, maxWidth: Int, color: Int, shadow: Boolean = true): PanelLayout {
         val clippedText = SpawnDisplayHelper.clipToWidth(font, text, maxWidth)
+        elements.add(Element.Text(x, y, clippedText, color, shadow))
+        if (clippedText != text) {
+            addTooltipZone(x, y, font.width(clippedText), LINE_HEIGHT,
+                listOf(Component.literal(text).withStyle { s -> s.withColor(0xDDDDDD) }))
+        }
+        return this
+    }
+
+    fun clippedRight(text: String, maxWidth: Int, color: Int, shadow: Boolean = true): PanelLayout {
+        val clippedText = SpawnDisplayHelper.clipToWidth(font, text, maxWidth)
+        val x = right - font.width(clippedText)
         elements.add(Element.Text(x, y, clippedText, color, shadow))
         if (clippedText != text) {
             addTooltipZone(x, y, font.width(clippedText), LINE_HEIGHT,

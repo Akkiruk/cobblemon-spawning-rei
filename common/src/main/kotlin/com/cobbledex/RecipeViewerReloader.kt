@@ -1,5 +1,7 @@
 package com.cobbledex
 
+import com.cobbledex.platform.PlatformHelper
+
 /**
  * Ensures EMI and JEI have current CobbleDex data after server sync.
  *
@@ -14,6 +16,9 @@ package com.cobbledex
  *  5. Uses exponential backoff if a reload doesn't take effect immediately
  */
 object RecipeViewerReloader {
+
+    private const val EMI_MOD_ID = "emi"
+    private const val JEI_MOD_ID = "jei"
 
     /** Set by CobbleDexEMIPlugin.register() after it runs with data */
     @Volatile
@@ -56,8 +61,14 @@ object RecipeViewerReloader {
             return
         }
 
-        val emiStale = emiLastRegisteredVersion != targetDataVersion
-        val jeiStale = jeiLastRegisteredVersion != targetDataVersion
+        val emiInstalled = PlatformHelper.isModLoaded(EMI_MOD_ID)
+        val jeiInstalled = PlatformHelper.isModLoaded(JEI_MOD_ID)
+
+        if (!emiInstalled) emiLastRegisteredVersion = targetDataVersion
+        if (!jeiInstalled) jeiLastRegisteredVersion = targetDataVersion
+
+        val emiStale = emiInstalled && emiLastRegisteredVersion != targetDataVersion
+        val jeiStale = jeiInstalled && jeiLastRegisteredVersion != targetDataVersion
 
         if (!emiStale && !jeiStale) {
             active = false
@@ -97,6 +108,11 @@ object RecipeViewerReloader {
     }
 
     private fun reloadEMI() {
+        if (!PlatformHelper.isModLoaded(EMI_MOD_ID)) {
+            emiLastRegisteredVersion = targetDataVersion
+            return
+        }
+
         try {
             val cls = Class.forName("dev.emi.emi.runtime.EmiReloadManager")
             cls.getMethod("reload").invoke(null)
@@ -110,6 +126,11 @@ object RecipeViewerReloader {
     }
 
     private fun reloadJEI() {
+        if (!PlatformHelper.isModLoaded(JEI_MOD_ID)) {
+            jeiLastRegisteredVersion = targetDataVersion
+            return
+        }
+
         try {
             val cls = Class.forName("com.cobbledex.jei.CobbleDexJEIPlugin")
             cls.getMethod("reloadRecipes").invoke(null)
