@@ -25,6 +25,7 @@ object CobbleDexNeoForgeClient {
     }
 
     private fun onClientTick(event: ClientTickEvent.Post) {
+        SpreadsheetExporter.tick()
         if (Minecraft.getInstance().player != null) {
             CobbleDexMod.tickReloadCheck()
         }

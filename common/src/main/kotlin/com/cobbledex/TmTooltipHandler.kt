@@ -7,13 +7,11 @@ import net.minecraft.network.chat.Style
 import net.minecraft.world.item.ItemStack
 
 /**
- * Appends Cobbleworkers job info to TMCraft item tooltips.
+ * Appends Cobbleworkers job info to TM-style item tooltips.
  * Builds a reverse move→jobs index from the synced job rules
  * stored in SpawnDataIndex.
  */
 object TmTooltipHandler {
-
-    private val TM_PREFIXES = listOf("tmcraft:tm_", "tmcraft:tutor_", "tmcraft:egg_", "tmcraft:star_")
 
     private var moveIndex: Map<String, List<MoveJobEntry>> = emptyMap()
     private var lastDataVersion = -1L
@@ -55,7 +53,7 @@ object TmTooltipHandler {
      */
     fun appendTooltip(stack: ItemStack, lines: MutableList<Component>) {
         val itemId = BuiltInRegistries.ITEM.getKey(stack.item).toString()
-        val move = extractMove(itemId) ?: return
+        val move = TmItemUtils.extractMove(itemId) ?: return
 
         rebuildIfNeeded()
         val jobs = moveIndex[move] ?: return
@@ -76,13 +74,6 @@ object TmTooltipHandler {
             lines.add(noItalic(" \u2726 ${combo.displayName}", ChatFormatting.GOLD))
             lines.add(noItalic("   also needs: $others", ChatFormatting.GRAY))
         }
-    }
-
-    private fun extractMove(itemId: String): String? {
-        for (prefix in TM_PREFIXES) {
-            if (itemId.startsWith(prefix)) return itemId.removePrefix(prefix)
-        }
-        return null
     }
 
     private fun noItalic(text: String, color: ChatFormatting): Component =

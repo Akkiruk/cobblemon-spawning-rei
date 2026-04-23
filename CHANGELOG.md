@@ -2,6 +2,15 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.6] - 2026-04-22
+
+### Added
+- **SimpleTMs TM learner lookup support** - right-clicking `simpletms` TMs in REI/JEI/EMI now opens the reverse move lookup page, showing which Pokemon can learn the move and whether they learn it by TM, level-up, egg, or tutor methods
+
+### Improved
+- **`/cobbledex export` no longer hard-freezes the client while rendering icons** - export icon capture now runs gradually across client ticks and the final workbook write runs in the background, so the command takes longer overall but avoids a single massive frame hitch
+- Bundled TM item detection through the shared CobbleDex TM utility so compatible TM mods resolve through one path across REI, JEI, and EMI instead of viewer-specific handling
+
 ## [1.50.5] - 2026-04-22
 
 ### Fixed

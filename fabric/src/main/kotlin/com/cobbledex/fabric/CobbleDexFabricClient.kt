@@ -65,6 +65,7 @@ class CobbleDexFabricClient : ClientModInitializer {
         }
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
+            SpreadsheetExporter.tick()
             if (client.player != null) {
                 CobbleDexMod.tickReloadCheck()
             }

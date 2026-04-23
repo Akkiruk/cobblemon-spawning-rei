@@ -8,6 +8,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import kotlin.concurrent.thread
 
 /**
  * Exports all CobbleDex data as a single .xlsx workbook with:
@@ -21,8 +22,37 @@ object SpreadsheetExporter {
 
     data class ExportResult(val filePath: Path, val sheetNames: List<String>, val speciesCount: Int)
 
+    private data class PreparedExport(
+        val filePath: Path,
+        val sheets: List<SheetData>,
+        val speciesCount: Int,
+        val iconKeys: List<String>
+    )
+
+    private data class ActiveExport(
+        val sender: DiagnosticService.MessageSender,
+        val filePath: Path,
+        val sheets: List<SheetData>,
+        val speciesCount: Int,
+        val iconKeys: List<String>,
+        val pngByKey: MutableMap<String, ByteArray> = linkedMapOf(),
+        val mediaIndex: MutableMap<String, Int> = linkedMapOf(),
+        var currentIconIndex: Int = 0,
+        var nextMediaIndex: Int = 1,
+        var failures: Int = 0,
+        var writingStarted: Boolean = false,
+        @Volatile var writeResult: ExportResult? = null,
+        @Volatile var writeFailure: Throwable? = null
+    )
+
+    private const val ICONS_PER_TICK = 1
+    private const val ICON_PROGRESS_INTERVAL = 25
+
     private val speciesNameCache = mutableMapOf<String, String>()
     private val itemNameCache = mutableMapOf<String, String>()
+
+    @Volatile
+    private var activeExport: ActiveExport? = null
 
     private fun pokemon(raw: String): String =
         speciesNameCache.getOrPut(raw) { formatSpeciesName(raw) }
@@ -36,6 +66,11 @@ object SpreadsheetExporter {
     }
 
     fun export(sender: DiagnosticService.MessageSender): Int {
+        if (activeExport != null) {
+            sender.send("§eCobbleDex export is already running.")
+            return 0
+        }
+
         val index = SpawnDataIndex
 
         if (!index.hasData()) {
@@ -45,23 +80,88 @@ object SpreadsheetExporter {
 
         try {
             sender.send(tr("cobbledex-rei-emi-jei.cmd.export_start"))
-            val result = doExport(index, sender)
-            sender.send(tr("cobbledex-rei-emi-jei.cmd.export_done", result.sheetNames.size, result.speciesCount))
-            sender.send("§7${result.filePath.toAbsolutePath()}")
-            for (name in result.sheetNames) sender.send("§7  • $name")
+            sender.send("§7Preparing workbook data...")
+
+            val prepared = prepareExport(index)
+            val export = ActiveExport(
+                sender = sender,
+                filePath = prepared.filePath,
+                sheets = prepared.sheets,
+                speciesCount = prepared.speciesCount,
+                iconKeys = prepared.iconKeys
+            )
+
+            activeExport = export
+
+            if (export.iconKeys.isEmpty()) {
+                sender.send("§7No icons needed. Writing workbook in background...")
+                startBackgroundWrite(export)
+            } else {
+                sender.send("§7Rendering icons gradually to reduce lag...")
+                sender.send("§7Icons: 0/${export.iconKeys.size}")
+                IconCapture.init()
+            }
         } catch (e: Exception) {
             sender.send(tr("cobbledex-rei-emi-jei.cmd.export_failed", e.message ?: "unknown"))
             DebugLog.warn("Spreadsheet export failed: ${e.message}")
             e.printStackTrace()
+            activeExport = null
             return 0
-        } finally {
-            IconCapture.cleanup()
         }
 
         return 1
     }
 
-    private fun doExport(index: SpawnDataIndex, sender: DiagnosticService.MessageSender): ExportResult {
+    fun tick() {
+        val export = activeExport ?: return
+
+        export.writeFailure?.let {
+            finishFailure(export, it)
+            return
+        }
+
+        export.writeResult?.let {
+            finishSuccess(export, it)
+            return
+        }
+
+        if (export.writingStarted) {
+            return
+        }
+
+        try {
+            repeat(ICONS_PER_TICK) {
+                if (export.currentIconIndex >= export.iconKeys.size) {
+                    startBackgroundWrite(export)
+                    return@repeat
+                }
+
+                val key = export.iconKeys[export.currentIconIndex]
+                val png = captureIcon(key)
+                if (png != null) {
+                    export.pngByKey[key] = png
+                    export.mediaIndex[key] = export.nextMediaIndex++
+                } else {
+                    export.failures++
+                }
+                export.currentIconIndex++
+
+                val completed = export.currentIconIndex
+                if (completed == export.iconKeys.size || completed % ICON_PROGRESS_INTERVAL == 0) {
+                    export.sender.send("§7Icons: $completed/${export.iconKeys.size}")
+                }
+
+                if (export.currentIconIndex >= export.iconKeys.size) {
+                    startBackgroundWrite(export)
+                    return@repeat
+                }
+            }
+        } catch (e: Exception) {
+            finishFailure(export, e)
+        }
+    }
+
+    private fun prepareExport(index: SpawnDataIndex): PreparedExport {
         speciesNameCache.clear()
         itemNameCache.clear()
 
@@ -88,12 +188,56 @@ object SpreadsheetExporter {
         buildRidingData(index)?.let { sheets.add(it) }
         buildTypeChart()?.let { sheets.add(it) }
 
-        // Capture all needed icons
-        sender.send("§7Rendering icons...")
-        val iconRegistry = captureAllIcons(sheets)
+        val iconKeys = sheets
+            .asSequence()
+            .flatMap { sheet -> sheet.icons.asSequence().map { icon -> icon.cacheKey } }
+            .distinct()
+            .sorted()
+            .toList()
 
-        writeXlsx(filePath, sheets, iconRegistry)
-        return ExportResult(filePath, sheets.map { it.name }, index.allSpeciesNames.size)
+        return PreparedExport(filePath, sheets, index.allSpeciesNames.size, iconKeys)
+    }
+
+    private fun startBackgroundWrite(export: ActiveExport) {
+        if (export.writingStarted) return
+
+        export.writingStarted = true
+        IconCapture.cleanup()
+        export.sender.send("§7Writing workbook in background...")
+
+        val iconRegistry = IconRegistry(
+            pngByKey = export.pngByKey.toMap(),
+            mediaIndex = export.mediaIndex.toMap()
+        )
+
+        thread(name = "CobbleDex Spreadsheet Export", isDaemon = true) {
+            try {
+                writeXlsx(export.filePath, export.sheets, iconRegistry)
+                DebugLog.info(
+                    "Icon capture complete: ${iconRegistry.pngByKey.size} succeeded, " +
+                        "${export.failures} failed out of ${export.iconKeys.size} unique keys"
+                )
+                export.writeResult = ExportResult(export.filePath, export.sheets.map { it.name }, export.speciesCount)
+            } catch (t: Throwable) {
+                export.writeFailure = t
+            }
+        }
+    }
+
+    private fun finishSuccess(export: ActiveExport, result: ExportResult) {
+        activeExport = null
+        IconCapture.cleanup()
+        export.sender.send(tr("cobbledex-rei-emi-jei.cmd.export_done", result.sheetNames.size, result.speciesCount))
+        export.sender.send("§7${result.filePath.toAbsolutePath()}")
+        for (name in result.sheetNames) export.sender.send("§7  • $name")
+    }
+
+    private fun finishFailure(export: ActiveExport, error: Throwable) {
+        activeExport = null
+        IconCapture.cleanup()
+        export.sender.send(tr("cobbledex-rei-emi-jei.cmd.export_failed", error.message ?: "unknown"))
+        DebugLog.warn("Spreadsheet export failed: ${error.message}")
+        error.printStackTrace()
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -105,33 +249,6 @@ object SpreadsheetExporter {
         val pngByKey: Map<String, ByteArray>,
         val mediaIndex: Map<String, Int> // key → media file index (1-based)
     )
-
-    private fun captureAllIcons(sheets: List<SheetData>): IconRegistry {
-        IconCapture.init()
-        val keysNeeded = mutableSetOf<String>()
-        for (sheet in sheets) {
-            for (icon in sheet.icons) keysNeeded.add(icon.cacheKey)
-        }
-
-        val pngByKey = mutableMapOf<String, ByteArray>()
-        var idx = 0
-        val mediaIndex = mutableMapOf<String, Int>()
-        var failures = 0
-
-        for (key in keysNeeded.sorted()) {
-            val png = captureIcon(key)
-            if (png != null) {
-                idx++
-                pngByKey[key] = png
-                mediaIndex[key] = idx
-            } else {
-                failures++
-            }
-        }
-
-        DebugLog.info("Icon capture: ${pngByKey.size} succeeded, $failures failed out of ${keysNeeded.size} unique keys")
-        return IconRegistry(pngByKey, mediaIndex)
-    }
 
     private fun captureIcon(cacheKey: String): ByteArray? {
         if (cacheKey.startsWith("item:")) {

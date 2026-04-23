@@ -292,7 +292,7 @@ object MovesDex : DexCategory {
         _slots = {
             RecipeHandle.Slots(
                 pokemon = listOf(pokemonInput(d.speciesName)),
-                catalogInputIds = listOf(TmItemUtils.tmItemId(d.moveName)),
+                catalogInputIds = TmItemUtils.tmItemIds(d.moveName),
             )
         },
     )
