@@ -14,5 +14,8 @@ data class FormInfoEntry(
 
 data class FormRecipeData(
     val baseSpeciesName: String,
-    val forms: List<FormInfoEntry>
+    val forms: List<FormInfoEntry>,
+    val pageIndex: Int = 1,
+    val pageTotal: Int = 1,
+    val totalForms: Int = forms.size
 )

@@ -826,15 +826,15 @@ object SpawnDisplayHelper {
 
     // --- Drop layout builder ---
 
-    fun buildDropLayout(
-        speciesName: String,
-        drops: List<DropEntryInfo>
-    ): PanelLayout {
+    fun buildDropLayout(data: DropRecipeData): PanelLayout {
         val font = Minecraft.getInstance().font
         val padding = PanelLayout.PADDING
+        val speciesName = data.speciesName
+        val drops = data.drops
 
         val nameWidth = PanelLayout.TEXT_START_X + font.width(formatSpeciesName(speciesName)) + padding
-        val headerTag = tr("category.cobbledex-rei-emi-jei.drops")
+        val headerBase = tr("category.cobbledex-rei-emi-jei.drops")
+        val headerTag = if (data.pageTotal > 1) "$headerBase (${data.pageIndex}/${data.pageTotal})" else headerBase
         val headerWidth = nameWidth + 6 + font.width(headerTag) + padding
 
         var maxItemRowWidth = 0
@@ -849,9 +849,7 @@ object SpawnDisplayHelper {
         val layout = PanelLayout(width)
         val right = layout.right
 
-        layout.textAt(padding + 22, 6, formatSpeciesName(speciesName), 0xFFFFFF)
-        layout.textRightAt(6, headerTag, 0xDDCC99)
-        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        drawHeader(layout, formatSpeciesName(speciesName), headerTag, 0xDDCC99, dividerY = 20)
 
         val labelHeader = tr("cobbledex-rei-emi-jei.drops.header")
         layout.textAt(padding, 26, labelHeader, 0xEEEEEE)
@@ -874,7 +872,7 @@ object SpawnDisplayHelper {
         layout.gap(2)
         layout.separator(0x20FFFFFF)
         layout.gap(4)
-        val countText = tr("cobbledex-rei-emi-jei.drops.count", drops.size)
+        val countText = tr("cobbledex-rei-emi-jei.drops.count", data.totalDrops)
         layout.text(padding, countText, 0x888888)
         layout.gap(font.lineHeight + padding)
 
@@ -1718,7 +1716,8 @@ object SpawnDisplayHelper {
         val font = Minecraft.getInstance().font
         val padding = PanelLayout.PADDING
         val baseDisplay = formatSpeciesName(data.baseSpeciesName)
-        val headerTag = tr("category.cobbledex-rei-emi-jei.forms")
+        val headerBase = tr("category.cobbledex-rei-emi-jei.forms")
+        val headerTag = if (data.pageTotal > 1) "$headerBase (${data.pageIndex}/${data.pageTotal})" else headerBase
         val iconSize = 20
         val afterIcon = iconSize + 2
         val lineHeight = 13
@@ -1732,15 +1731,12 @@ object SpawnDisplayHelper {
         drawHeader(layout, baseDisplay, headerTag, 0xDDCC99, dividerY = 24)
         layout.skipTo(30)
 
-        val formCount = tr("cobbledex-rei-emi-jei.forms.count", data.forms.size)
+        val formCount = tr("cobbledex-rei-emi-jei.forms.count", data.totalForms)
         layout.text(padding, formCount, 0x888888)
         layout.line()
         layout.gap(2)
 
-        val maxForms = PanelLayout.MAX_VISIBLE_FORMS
-        val visibleForms = if (data.forms.size > maxForms) data.forms.take(maxForms) else data.forms
-
-        for (form in visibleForms) {
+        for (form in data.forms) {
             // Form sprite + name
             pokemonSlots.add(PokemonSlotDef(
                 form.formKey, form.formAspects, padding + 2, layout.y, SlotRole.INPUT,
@@ -1797,18 +1793,6 @@ object SpawnDisplayHelper {
 
             layout.separator(0x20FFFFFF)
             layout.gap(4)
-        }
-
-        if (data.forms.size > maxForms) {
-            val overflow = data.forms.size - maxForms
-            val moreText = "+$overflow more forms..."
-            val moreY = layout.y
-            layout.text(padding + 4, moreText, 0xFF999999.toInt())
-            layout.line()
-            val overflowTooltip = data.forms.drop(maxForms).map { form ->
-                Component.literal(form.formDisplayName).withStyle { s -> s.withColor(0xFFFFFF) }
-            }
-            layout.addTooltipZone(padding + 4, moreY, font.width(moreText), PanelLayout.LINE_HEIGHT, overflowTooltip)
         }
 
         layout.gap(padding)

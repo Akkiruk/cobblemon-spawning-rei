@@ -19,5 +19,8 @@ data class DropEntryInfo(
 
 data class DropRecipeData(
     val speciesName: String,
-    val drops: List<DropEntryInfo>
+    val drops: List<DropEntryInfo>,
+    val pageIndex: Int = 1,
+    val pageTotal: Int = 1,
+    val totalDrops: Int = drops.size
 )

@@ -2,6 +2,16 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.5] - 2026-04-22
+
+### Fixed
+- **Vertical page overflow in bounded recipe viewer panels** - pages that kept stacking repeated content past the visible recipe viewport can now split into additional pages instead of running off the top or bottom of the screen
+- **Alternate Forms** now use measured pagination, so species with many forms are split across multiple sibling pages instead of collapsing into one oversized form page
+- **Item Drops** now use the same measured pagination model, preventing long drop lists from extending past the visible panel bounds
+
+### Improved
+- Added a reusable measured-height pagination helper at recipe-build time, so long vertically repeated content can be chunked into bounded REI/JEI/EMI pages using actual rendered layout height instead of hardcoded row counts
+
 ## [1.50.4] - 2026-04-22
 
 ### Fixed

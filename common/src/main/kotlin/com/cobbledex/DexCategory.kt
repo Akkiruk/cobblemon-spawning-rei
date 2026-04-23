@@ -213,10 +213,10 @@ object DropDex : DexCategory {
         RecipeBuilder.buildDropRecipesForItem(itemId).map(::toHandle)
 
     private fun toHandle(d: DropRecipeData) = RecipeHandle(
-        recipeIdPath = "drops/${sanitizePath(d.speciesName)}",
+        recipeIdPath = "drops/${sanitizePath(d.speciesName)}_${d.pageIndex}",
         inputSpecies = listOf(d.speciesName),
         outputSpecies = emptyList(),
-        layoutFactory = { SpawnDisplayHelper.buildDropLayout(d.speciesName, d.drops) },
+        layoutFactory = { SpawnDisplayHelper.buildDropLayout(d) },
         _slots = { _ ->
             RecipeHandle.Slots(
                 pokemon = listOf(pokemonInput(d.speciesName)),
@@ -483,15 +483,14 @@ object FormsDex : DexCategory {
         // If species is itself a form, show its base species' form list for sibling navigation
         val info = SpawnDataIndex.getSpeciesInfo(species)
         val lookupKey = info?.baseSpeciesName ?: species
-        val data = RecipeBuilder.buildFormsFor(lookupKey) ?: return emptyList()
-        return listOf(toHandle(data))
+        return RecipeBuilder.buildFormsFor(lookupKey).map(::toHandle)
     }
 
     private fun toHandle(d: FormRecipeData): RecipeHandle {
         val allFormKeys = d.forms.map { it.formKey }
         var formResult: SpawnDisplayHelper.FormLayoutResult? = null
         return RecipeHandle(
-            recipeIdPath = "forms/${sanitizePath(d.baseSpeciesName)}",
+            recipeIdPath = "forms/${sanitizePath(d.baseSpeciesName)}_${d.pageIndex}",
             inputSpecies = listOf(d.baseSpeciesName) + allFormKeys,
             outputSpecies = emptyList(),
             layoutFactory = {

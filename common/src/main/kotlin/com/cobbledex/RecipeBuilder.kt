@@ -2,6 +2,37 @@ package com.cobbledex
 
 object RecipeBuilder {
 
+    // Recipe viewers render into a bounded viewport. If a vertically stacked page
+    // exceeds that height, the hidden rows are effectively inaccessible, so we
+    // split repeated content into multiple recipe pages before rendering.
+    private fun <T> paginateByMeasuredHeight(
+        items: List<T>,
+        maxHeight: Int = PanelLayout.MAX_HEIGHT,
+        measureHeight: (List<T>) -> Int
+    ): List<List<T>> {
+        if (items.isEmpty()) return emptyList()
+
+        val pages = mutableListOf<List<T>>()
+        var current = mutableListOf<T>()
+
+        for (item in items) {
+            val candidate = current + item
+            val candidateHeight = measureHeight(candidate)
+            if (current.isNotEmpty() && candidateHeight > maxHeight) {
+                pages.add(current.toList())
+                current = mutableListOf(item)
+            } else {
+                current = candidate.toMutableList()
+            }
+        }
+
+        if (current.isNotEmpty()) {
+            pages.add(current.toList())
+        }
+
+        return pages
+    }
+
     fun buildSpawnRecipes(species: String, spawns: List<SpawnInfo>): List<SpawnRecipeData> {
         return SpawnDisplayHelper.buildSortedSpawns(spawns).mapNotNull { entry ->
             try {
@@ -36,7 +67,7 @@ object RecipeBuilder {
         for ((species, info) in SpawnDataIndex.speciesInfo) {
             val drops = info.drops ?: continue
             if (drops.isEmpty()) continue
-            recipes.add(DropRecipeData(species, drops))
+            recipes.addAll(paginateDrops(species, drops))
         }
         return recipes
     }
@@ -45,13 +76,31 @@ object RecipeBuilder {
         val info = SpawnDataIndex.getSpeciesInfo(speciesName) ?: return emptyList()
         val drops = info.drops ?: return emptyList()
         if (drops.isEmpty()) return emptyList()
-        return listOf(DropRecipeData(speciesName, drops))
+        return paginateDrops(speciesName, drops)
     }
 
     fun buildDropRecipesForItem(itemId: String): List<DropRecipeData> {
         val species = SpawnDataIndex.getSpeciesDroppingItem(itemId)
         if (species.isEmpty()) return emptyList()
         return species.mapNotNull { buildDropsFor(it).firstOrNull() }
+    }
+
+    private fun paginateDrops(speciesName: String, drops: List<DropEntryInfo>): List<DropRecipeData> {
+        val pages = paginateByMeasuredHeight(drops) { pageDrops ->
+            SpawnDisplayHelper.buildDropLayout(
+                DropRecipeData(speciesName, pageDrops, pageIndex = 1, pageTotal = 1, totalDrops = drops.size)
+            ).height
+        }
+        val totalPages = pages.size
+        return pages.mapIndexed { index, pageDrops ->
+            DropRecipeData(
+                speciesName = speciesName,
+                drops = pageDrops,
+                pageIndex = index + 1,
+                pageTotal = totalPages,
+                totalDrops = drops.size
+            )
+        }
     }
 
     fun buildAllStatsRecipes(): List<StatsRecipeData> {
@@ -352,10 +401,12 @@ object RecipeBuilder {
             formsByBase.getOrPut(SpeciesNameNormalizer.normalize(base)) { mutableListOf() }
                 .add(toFormEntry(key, info))
         }
-        return formsByBase.map { (base, forms) -> FormRecipeData(base, forms) }
+        return formsByBase.flatMap { (base, forms) ->
+            paginateForms(base, forms)
+        }
     }
 
-    fun buildFormsFor(speciesName: String): FormRecipeData? {
+    fun buildFormsFor(speciesName: String): List<FormRecipeData> {
         val normalized = SpeciesNameNormalizer.normalize(speciesName)
         val forms = mutableListOf<FormInfoEntry>()
         for ((key, info) in SpawnDataIndex.speciesInfo) {
@@ -363,8 +414,27 @@ object RecipeBuilder {
             if (SpeciesNameNormalizer.normalize(info.baseSpeciesName) != normalized) continue
             forms.add(toFormEntry(key, info))
         }
-        if (forms.isEmpty()) return null
-        return FormRecipeData(normalized, forms)
+        if (forms.isEmpty()) return emptyList()
+        return paginateForms(normalized, forms)
+    }
+
+    private fun paginateForms(baseSpeciesName: String, forms: List<FormInfoEntry>): List<FormRecipeData> {
+        val sortedForms = forms.sortedBy { it.formDisplayName }
+        val pages = paginateByMeasuredHeight(sortedForms) { pageForms ->
+            SpawnDisplayHelper.buildFormLayout(
+                FormRecipeData(baseSpeciesName, pageForms, pageIndex = 1, pageTotal = 1, totalForms = sortedForms.size)
+            ).layout.height
+        }
+        val totalPages = pages.size
+        return pages.mapIndexed { index, pageForms ->
+            FormRecipeData(
+                baseSpeciesName = baseSpeciesName,
+                forms = pageForms,
+                pageIndex = index + 1,
+                pageTotal = totalPages,
+                totalForms = sortedForms.size
+            )
+        }
     }
 
     private fun toFormEntry(key: String, info: EvolutionDataLoader.SpeciesBasicInfo) = FormInfoEntry(
