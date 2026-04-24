@@ -1,7 +1,6 @@
 package com.cobbledex.jei
 
-import com.cobbledex.PokemonItemCache
-import com.cobbledex.SpeciesNameNormalizer
+import com.cobbledex.PokemonSpriteService
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpawnDisplayHelper
 import com.cobbledex.formatSpeciesName
@@ -14,11 +13,7 @@ import net.minecraft.world.item.TooltipFlag
 class PokemonIngredientRenderer : IIngredientRenderer<PokemonIngredient> {
 
     override fun render(graphics: GuiGraphics, ingredient: PokemonIngredient) {
-        val decomp = SpeciesNameNormalizer.decomposeFormSpecies(ingredient.species)
-        val aspects = ingredient.formAspects.ifEmpty { decomp.cobblemonAspects }
-        val itemStack = PokemonItemCache.getItem(ingredient.species, aspects) ?: return
-        if (itemStack.isEmpty) return
-        graphics.renderItem(itemStack, 0, 0)
+        PokemonSpriteService.render(graphics, ingredient.species, ingredient.formAspects, 0, 0, 16)
     }
 
     override fun getTooltip(ingredient: PokemonIngredient, tooltipFlag: TooltipFlag): List<Component> {
@@ -40,5 +35,5 @@ class PokemonIngredientRenderer : IIngredientRenderer<PokemonIngredient> {
         return lines
     }
 
-    fun canRender(species: String): Boolean = PokemonItemCache.canRender(species)
+    fun canRender(species: String): Boolean = PokemonSpriteService.canRender(species)
 }

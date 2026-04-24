@@ -76,6 +76,7 @@ object DiagnosticService {
     fun reloadData(sender: MessageSender): Int {
         sender.send(tr("cobbledex-rei-emi-jei.cmd.reloading"))
         SpawnDataIndex.loadAll()
+        RecipeViewerReloader.scheduleReload()
         sender.send(tr("cobbledex-rei-emi-jei.cmd.reload_complete", SpawnDataIndex.allSpeciesNames.size))
         return 1
     }

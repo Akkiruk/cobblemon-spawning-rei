@@ -3,7 +3,7 @@ package com.cobbledex.emi
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
-import com.cobbledex.PokemonItemCache
+import com.cobbledex.PokemonSpriteService
 import com.cobbledex.RecipeHandle
 import com.cobbledex.RecipeViewerReloader
 import com.cobbledex.SlotRole
@@ -12,16 +12,14 @@ import com.cobbledex.SpawnDisplayHelper
 import com.cobbledex.config.CobbleDexConfig
 import dev.emi.emi.api.EmiPlugin
 import dev.emi.emi.api.EmiRegistry
+import dev.emi.emi.api.stack.Comparison
 import dev.emi.emi.api.recipe.EmiRecipe
 import dev.emi.emi.api.recipe.EmiRecipeCategory
 import dev.emi.emi.api.stack.EmiIngredient
 import dev.emi.emi.api.stack.EmiStack
-import net.minecraft.core.component.DataComponents
 import net.minecraft.network.chat.Component
-import net.minecraft.network.chat.Style
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.Items
-import net.minecraft.world.item.component.ItemLore
 
 open class CobbleDexEMIPlugin : EmiPlugin {
 
@@ -67,26 +65,15 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             val speciesInfo = SpawnDataIndex.getSpeciesInfo(species)
             if (speciesInfo == null) continue
             if (speciesInfo.isForm && !config.registerFormEntries) continue
-            val item = PokemonItemCache.getItem(species) ?: continue
-            if (item.isEmpty) continue
-            // Add search metadata as invisible lore for EMI search indexing (black text = invisible on tooltip)
-            val loreLines = mutableListOf<Component>()
-            val jobs = SpawnDataIndex.getJobsFor(species)
-            if (jobs.isNotEmpty()) {
-                val searchText = jobs.joinToString(" ") { "job:${it.rule.id} ${it.rule.displayName}" }
-                loreLines.add(Component.literal(searchText).withStyle(Style.EMPTY.withColor(0x100010)))
+            if (!PokemonSpriteService.canRender(species)) continue
+            val stack = PokemonEmiStack(species)
+            registry.addEmiStack(stack)
+            registry.setDefaultComparison(stack, Comparison.DEFAULT_COMPARISON)
+            SpawnDataIndex.getJobsFor(species).forEach { job ->
+                registry.addAlias(stack, Component.literal("job:${job.rule.id} ${job.rule.displayName}"))
             }
             if (speciesInfo.isForm && speciesInfo.baseSpeciesName != null) {
-                val baseName = com.cobbledex.formatSpeciesName(speciesInfo.baseSpeciesName)
-                loreLines.add(Component.literal(baseName).withStyle(Style.EMPTY.withColor(0x100010)))
-            }
-            if (loreLines.isNotEmpty()) {
-                item.set(DataComponents.LORE, ItemLore(loreLines))
-            }
-            val stack = EmiStack.of(item)
-            registry.addEmiStack(stack)
-            registry.setDefaultComparison(stack) { _ ->
-                dev.emi.emi.api.stack.Comparison.compareComponents()
+                registry.addAlias(stack, Component.literal(com.cobbledex.formatSpeciesName(speciesInfo.baseSpeciesName)))
             }
             if (speciesInfo.isForm) formCount++ else registered++
         }
@@ -125,10 +112,9 @@ open class CobbleDexEMIPlugin : EmiPlugin {
 
         override fun getInputs(): List<EmiIngredient> {
             val pokemon = handle.slots.pokemon
-                .mapNotNull { slot ->
-                    val item = PokemonItemCache.getItem(slot.species)
-                    if (item != null && !item.isEmpty) EmiStack.of(item) else null
-                }
+                .filter { it.role == SlotRole.INPUT }
+                .map { slot -> PokemonEmiStack(slot.species, slot.aspects) }
+                .filterNot { it.isEmpty }
             val items = handle.slots.items
                 .filter { it.role == SlotRole.INPUT }
                 .mapNotNull { slot ->
@@ -144,10 +130,9 @@ open class CobbleDexEMIPlugin : EmiPlugin {
 
         override fun getOutputs(): List<EmiStack> {
             val pokemon = handle.slots.pokemon
-                .mapNotNull { slot ->
-                    val item = PokemonItemCache.getItem(slot.species)
-                    if (item != null && !item.isEmpty) EmiStack.of(item) else null
-                }
+                .filter { it.role == SlotRole.OUTPUT }
+                .map { slot -> PokemonEmiStack(slot.species, slot.aspects) }
+                .filterNot { it.isEmpty }
             val items = handle.slots.items
                 .filter { it.role == SlotRole.OUTPUT }
                 .mapNotNull { slot ->
@@ -166,9 +151,9 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             val slots = handle.slots
 
             for (slot in slots.pokemon) {
-                val item = PokemonItemCache.getItem(slot.species)
-                if (item != null && !item.isEmpty) {
-                    widgets.addSlot(EmiStack.of(item), slot.x, slot.y).recipeContext(this)
+                val stack = PokemonEmiStack(slot.species, slot.aspects)
+                if (!stack.isEmpty) {
+                    widgets.addSlot(stack, slot.x, slot.y).recipeContext(this)
                 }
             }
 

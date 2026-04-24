@@ -2,9 +2,11 @@ package com.cobbledex
 
 import com.cobblemon.mod.common.api.moves.Moves
 import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
+import java.util.concurrent.CancellationException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -22,6 +24,7 @@ object SpawnDataIndex {
         Thread(r, "CobbleDex-DataLoad").apply { isDaemon = true }
     }
     private var loadFuture: Future<*>? = null
+    private val loadGeneration = AtomicLong(0)
 
     @Volatile
     var spawnsBySpecies: Map<String, List<SpawnInfo>> = emptyMap()
@@ -82,7 +85,7 @@ object SpawnDataIndex {
 
     fun isFullyLoaded(): Boolean = loadState == LoadState.FULLY_LOADED
 
-    fun hasData(): Boolean = allSpeciesNames.isNotEmpty()
+    fun hasData(): Boolean = loadState != LoadState.NOT_LOADED && allSpeciesNames.isNotEmpty()
 
     fun ensureLoaded() {
         when (loadState) {
@@ -119,7 +122,9 @@ object SpawnDataIndex {
         }
         try {
             cancelPendingLoad()
-            doLoad()
+            doLoad(loadGeneration.incrementAndGet())
+        } catch (_: CancellationException) {
+            DebugLog.info("Data load cancelled")
         } catch (e: Exception) {
             DebugLog.warn("Data load failed: ${e.message}")
         } finally {
@@ -130,26 +135,59 @@ object SpawnDataIndex {
     private fun loadAllAsync() {
         val prev = loadFuture
         if (prev != null && !prev.isDone) return
+        val generation = loadGeneration.incrementAndGet()
         loadFuture = executor.submit {
-            dataLock.lock()
             try {
-                doLoad()
+                dataLock.lockInterruptibly()
+                doLoad(generation)
+            } catch (_: InterruptedException) {
+                DebugLog.info("Async data load interrupted before completion")
+                Thread.currentThread().interrupt()
+            } catch (_: CancellationException) {
+                DebugLog.info("Async data load superseded before completion")
             } catch (e: Exception) {
                 DebugLog.warn("Async data load failed: ${e.message}")
             } finally {
-                dataLock.unlock()
+                if (dataLock.isHeldByCurrentThread) {
+                    dataLock.unlock()
+                }
             }
         }
     }
 
     private fun cancelPendingLoad() {
+        loadGeneration.incrementAndGet()
         loadFuture?.cancel(true)
         loadFuture = null
     }
 
-    private fun doLoad() {
+    private fun ensureGenerationCurrent(generation: Long) {
+        if (generation != loadGeneration.get() || Thread.currentThread().isInterrupted) {
+            throw CancellationException("Superseded load generation $generation")
+        }
+    }
+
+    private fun clearActiveDataLocked(clearJobRules: Boolean) {
+        spawnsBySpecies = emptyMap()
+        evolutionsBySpecies = emptyMap()
+        evolutionsToSpecies = emptyMap()
+        speciesInfo = emptyMap()
+        obtainmentBySpecies = emptyMap()
+        fossilsBySpecies = emptyMap()
+        dropsByItem = emptyMap()
+        speciesByTmMove = emptyMap()
+        ridingBySpecies = emptyMap()
+        allSpeciesNames = emptyList()
+        if (clearJobRules) {
+            jobRules = emptyList()
+        }
+    }
+
+    private fun doLoad(generation: Long) {
+        ensureGenerationCurrent(generation)
         DebugLog.reset()
         PokemonItemCache.reset()
+        PokemonSpriteService.reset()
 
         if (hasServerSync) {
             // Server already sent spawns, evolutions, species info, and fossils — just load supplementary data
@@ -168,6 +206,7 @@ object SpawnDataIndex {
                 fossilsBySpecies = normalizeMapKeys(JarDataCache.getCachedFossils())
             }
 
+            ensureGenerationCurrent(generation)
             rebuildDerivedData()
             if (loadState != LoadState.FULLY_LOADED) {
                 loadState = LoadState.FULLY_LOADED
@@ -186,6 +225,7 @@ object SpawnDataIndex {
         // --- Baseline: start with JarDataCache (loaded on game launch) ---
         // Wait briefly for cache if it's still initializing
         JarDataCache.awaitReady(5_000)
+        ensureGenerationCurrent(generation)
 
         // Try Cobblemon's runtime spawn pool (populated in singleplayer or by server)
         SpawnDataLoader.invalidateCache()
@@ -198,6 +238,7 @@ object SpawnDataIndex {
         } else {
             emptyMap()
         }
+        ensureGenerationCurrent(generation)
 
         val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
 
@@ -222,6 +263,7 @@ object SpawnDataIndex {
                 DebugLog.warn("Runtime species info load failed: ${e.message}")
                 speciesInfo = emptyMap()
             }
+            ensureGenerationCurrent(generation)
         } else {
             DebugLog.warn("PokemonSpecies.implemented empty, spawn data only")
             // Still use cached evolutions even without runtime species
@@ -241,6 +283,7 @@ object SpawnDataIndex {
             DebugLog.warn("Obtainment data load failed: ${e.message}")
             obtainmentBySpecies = emptyMap()
         }
+        ensureGenerationCurrent(generation)
 
         // Cobblemon's client-side Fossils.all() has empty ingredient lists due to
         // FossilRegistrySyncPacket.decodeEntry() not syncing ItemPredicates — use JarDataCache instead
@@ -260,6 +303,7 @@ object SpawnDataIndex {
             DebugLog.warn("Riding data load failed: ${e.message}")
             ridingBySpecies = emptyMap()
         }
+        ensureGenerationCurrent(generation)
 
         rebuildDerivedData()
 
@@ -308,15 +352,17 @@ object SpawnDataIndex {
     fun onDisconnect() {
         cancelPendingLoad()
         PokemonItemCache.reset()
+        PokemonSpriteService.reset()
         RecipeViewerReloader.reset()
         emptyEvoRetries = 0
         hasServerSync = false
-        jobRules = emptyList()
 
         dataLock.withLock {
+            clearActiveDataLocked(clearJobRules = true)
             loadState = LoadState.NOT_LOADED
+            dataVersion++
         }
-        DebugLog.info("Marked data stale on disconnect (${allSpeciesNames.size} species cached)")
+        DebugLog.info("Cleared active CobbleDex session data on disconnect")
     }
 
     /** Accept all data synced from the server via networking */
@@ -325,6 +371,7 @@ object SpawnDataIndex {
                         syncedSpeciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo>,
                         syncedJobRules: List<JobRule>? = null,
                         syncedFossils: Map<String, List<FossilCombo>>? = null) {
+        cancelPendingLoad()
         dataLock.withLock {
             spawnsBySpecies = normalizeMapKeys(syncedSpawns)
             evolutionsBySpecies = normalizeMapKeys(syncedEvolutions)

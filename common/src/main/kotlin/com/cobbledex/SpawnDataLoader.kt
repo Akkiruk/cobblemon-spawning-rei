@@ -292,29 +292,68 @@ object SpawnDataLoader {
 
     private fun combineConditionData(a: ConditionData, b: ConditionData): ConditionData {
         return ConditionData(
-            biomes = combineLists(a.biomes, b.biomes),
-            timeRange = a.timeRange ?: b.timeRange,
-            isRaining = a.isRaining ?: b.isRaining,
-            isThundering = a.isThundering ?: b.isThundering,
-            dimensions = combineLists(a.dimensions, b.dimensions),
-            structures = combineLists(a.structures, b.structures),
-            canSeeSky = a.canSeeSky ?: b.canSeeSky,
-            minLight = a.minLight ?: b.minLight,
-            maxLight = a.maxLight ?: b.maxLight,
-            minSkyLight = a.minSkyLight ?: b.minSkyLight,
-            maxSkyLight = a.maxSkyLight ?: b.maxSkyLight,
-            minY = a.minY ?: b.minY,
-            maxY = a.maxY ?: b.maxY,
-            neededNearbyBlocks = combineLists(a.neededNearbyBlocks, b.neededNearbyBlocks),
-            neededBaseBlocks = combineLists(a.neededBaseBlocks, b.neededBaseBlocks),
-            moonPhase = a.moonPhase ?: b.moonPhase
+            biomes = combineRestrictedLists(a.biomes, b.biomes),
+            timeRange = combineTextRestrictions(a.timeRange, b.timeRange),
+            isRaining = combineNullableBoolean(a.isRaining, b.isRaining),
+            isThundering = combineNullableBoolean(a.isThundering, b.isThundering),
+            dimensions = combineRestrictedLists(a.dimensions, b.dimensions),
+            structures = combineRestrictedLists(a.structures, b.structures),
+            canSeeSky = combineNullableBoolean(a.canSeeSky, b.canSeeSky),
+            minLight = combineLowerBound(a.minLight, b.minLight),
+            maxLight = combineUpperBound(a.maxLight, b.maxLight),
+            minSkyLight = combineLowerBound(a.minSkyLight, b.minSkyLight),
+            maxSkyLight = combineUpperBound(a.maxSkyLight, b.maxSkyLight),
+            minY = combineLowerBound(a.minY, b.minY),
+            maxY = combineUpperBound(a.maxY, b.maxY),
+            neededNearbyBlocks = combineRequiredLists(a.neededNearbyBlocks, b.neededNearbyBlocks),
+            neededBaseBlocks = combineRequiredLists(a.neededBaseBlocks, b.neededBaseBlocks),
+            moonPhase = combineTextRestrictions(a.moonPhase, b.moonPhase)
         )
     }
 
-    private fun combineLists(a: List<String>, b: List<String>): List<String> {
+    private fun combineRestrictedLists(a: List<String>, b: List<String>): List<String> {
+        if (a.isEmpty()) return b
+        if (b.isEmpty()) return a
+        val overlap = a.intersect(b.toSet())
+        return if (overlap.isNotEmpty()) overlap.toList() else (a + b).distinct()
+    }
+
+    private fun combineRequiredLists(a: List<String>, b: List<String>): List<String> {
         if (a.isEmpty()) return b
         if (b.isEmpty()) return a
         return (a + b).distinct()
+    }
+
+    private fun combineTextRestrictions(a: String?, b: String?): String? {
+        if (a.isNullOrBlank()) return b
+        if (b.isNullOrBlank()) return a
+        if (a == b) return a
+        return listOf(a, b).distinct().joinToString(" & ")
+    }
+
+    private fun combineNullableBoolean(a: Boolean?, b: Boolean?): Boolean? {
+        return when {
+            a == null -> b
+            b == null -> a
+            a == b -> a
+            else -> null
+        }
+    }
+
+    private fun combineLowerBound(a: Int?, b: Int?): Int? {
+        return when {
+            a == null -> b
+            b == null -> a
+            else -> maxOf(a, b)
+        }
+    }
+
+    private fun combineUpperBound(a: Int?, b: Int?): Int? {
+        return when {
+            a == null -> b
+            b == null -> a
+            else -> minOf(a, b)
+        }
     }
 
     // --- Mod root paths (kept for ObtainmentDataLoader) ---

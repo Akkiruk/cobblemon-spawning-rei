@@ -3,7 +3,7 @@ package com.cobbledex.rei
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
-import com.cobbledex.PokemonItemCache
+import com.cobbledex.PokemonSpriteService
 import com.cobbledex.RecipeHandle
 import com.cobbledex.SlotRole
 import com.cobbledex.SpawnDataIndex
@@ -43,16 +43,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             categoryIds.getOrPut(def.id) { CategoryIdentifier.of(CobbleDexMod.MOD_ID, def.id) }
     }
 
-    private val emiActive: Boolean by lazy {
-        try {
-            Class.forName("dev.emi.emi.api.EmiPlugin")
-            DebugLog.info("EMI detected — skipping REI plugin (native EMI plugin handles registration)")
-            true
-        } catch (_: ClassNotFoundException) { false }
-    }
-
     override fun registerEntryTypes(registry: EntryTypeRegistry) {
-        if (emiActive) return
         try {
             registry.register(PokemonEntryType.POKEMON.id, PokemonEntryDefinition())
             DebugLog.info("Pokémon entry type registered")
@@ -74,7 +65,6 @@ open class CobbleDexREIPlugin : REIClientPlugin {
     }
 
     override fun registerCategories(registry: CategoryRegistry) {
-        if (emiActive) return
         ensureEntryTypeAvailable()
         val config = CobbleDexConfig.get()
         val registered = mutableListOf<String>()
@@ -87,7 +77,6 @@ open class CobbleDexREIPlugin : REIClientPlugin {
     }
 
     override fun registerDisplays(registry: DisplayRegistry) {
-        if (emiActive) return
         ensureEntryTypeAvailable()
         SpawnDataIndex.ensureLoaded()
         val config = CobbleDexConfig.get()
@@ -104,7 +93,6 @@ open class CobbleDexREIPlugin : REIClientPlugin {
     }
 
     override fun registerEntries(registry: EntryRegistry) {
-        if (emiActive) return
         ensureEntryTypeAvailable()
         SpawnDataIndex.ensureLoaded()
         val config = CobbleDexConfig.get()
@@ -116,7 +104,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             val info = SpawnDataIndex.getSpeciesInfo(species)
             if (info == null) continue
             if (info.isForm && !config.registerFormEntries) continue
-            if (!PokemonItemCache.canRender(species)) {
+            if (!PokemonSpriteService.canRender(species)) {
                 DebugLog.trackMissingModel(species)
                 hidden++
                 continue

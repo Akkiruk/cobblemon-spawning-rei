@@ -25,15 +25,24 @@ object IconCapture {
     private const val RENDER_SIZE = 512
     private var fbo: TextureTarget? = null
     private var debugDumped = false
+    private var activeUsers = 0
 
     fun init() {
-        debugDumped = false
-        fbo = TextureTarget(RENDER_SIZE, RENDER_SIZE, true, false)
+        activeUsers++
+        if (fbo == null) {
+            debugDumped = false
+            fbo = TextureTarget(RENDER_SIZE, RENDER_SIZE, true, false)
+        }
     }
 
     fun cleanup() {
-        fbo?.destroyBuffers()
-        fbo = null
+        if (activeUsers > 0) {
+            activeUsers--
+        }
+        if (activeUsers == 0) {
+            fbo?.destroyBuffers()
+            fbo = null
+        }
     }
 
     // ── Item icons: read texture PNG from resource packs ─────────────

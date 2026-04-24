@@ -2,6 +2,20 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.7] - 2026-04-24
+
+### Fixed
+- **Stale CobbleDex data no longer survives disconnects** - client session state now clears cleanly when you leave a world or server, so old species, forms, and synced job data do not bleed into the next session
+- **REI, JEI, and EMI reload behavior is now consistent after syncs and manual reloads** - REI no longer disables itself when EMI is installed, JEI refreshes its Pokemon index reliably, and `/cobbledex reload` now tells static viewers to rebuild
+- **Alternate forms are preserved more accurately in the shared model** - form ingestion no longer depends on the Forms tab toggle, and forms with distinct evolutions, moves, drops, labels, or other real gameplay differences are less likely to be filtered out
+- **Chunked server syncs are safer and more accurate** - chunk transfers now carry a session id so late packets cannot mix old and new syncs, and runtime spawn-condition merges now keep bounds and restrictions more faithfully instead of collapsing to whichever value appeared first
+
+### Improved
+- **Pokemon sidebar rendering now uses cached 2D sprites instead of live item/model renders** across REI, JEI, and EMI, which cuts viewer lag when many Pokemon entries are visible at once
+- Added a shared lazy sprite service with on-disk caching, per-tick generation, and seamless placeholder swapping so icon generation stays out of startup and updates live as sprites finish rendering
+- EMI now uses native custom Pokemon stacks instead of ItemStack-backed fake entries, keeping parity with the shared JEI/REI sprite path while preserving search and recipe linking
+- Server join sync now reuses a short-lived prepared payload cache instead of rebuilding the full bundle for every player join, reducing unnecessary work on busy joins while keeping the same sync contents
+
 ## [1.50.6] - 2026-04-22
 
 ### Added

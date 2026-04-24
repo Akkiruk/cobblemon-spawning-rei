@@ -3,7 +3,7 @@ package com.cobbledex.jei
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
-import com.cobbledex.PokemonItemCache
+import com.cobbledex.PokemonSpriteService
 import com.cobbledex.RecipeHandle
 import com.cobbledex.RecipeViewerReloader
 import com.cobbledex.SlotRole
@@ -38,6 +38,16 @@ open class CobbleDexJEIPlugin : IModPlugin {
         @Volatile var runtime: IJeiRuntime? = null
             private set
 
+        private fun buildIndexedPokemon(config: CobbleDexConfig = CobbleDexConfig.get()): List<PokemonIngredient> {
+            return SpawnDataIndex.allSpeciesNames
+                .filter { name ->
+                    val info = SpawnDataIndex.getSpeciesInfo(name) ?: return@filter false
+                    !info.isForm || config.registerFormEntries
+                }
+                .filter { PokemonSpriteService.canRender(it) }
+                .map { PokemonIngredient(it) }
+        }
+
         fun recipeType(def: DexCategory): RecipeType<GenericRecipe> =
             recipeTypes.getOrPut(def.id) {
                 RecipeType(
@@ -68,29 +78,17 @@ open class CobbleDexJEIPlugin : IModPlugin {
                 addedRecipes[def.id] = recipes
             }
 
-            // Re-register Pokémon ingredients so search index includes job names
-            if (SpawnDataIndex.hasJobRules()) {
-                try {
-                    val config = CobbleDexConfig.get()
-                    val ingredientManager = rt.ingredientManager
-                    val existing = ingredientManager.getAllIngredients(PokemonIngredientType).toList()
-                    if (existing.isNotEmpty()) {
-                        ingredientManager.removeIngredientsAtRuntime(PokemonIngredientType, existing)
-                    }
-                    val updated = SpawnDataIndex.allSpeciesNames
-                        .filter { name ->
-                            val info = SpawnDataIndex.getSpeciesInfo(name)
-                            if (info == null) false
-                            else if (info.isForm) config.registerFormEntries
-                            else info.baseSpeciesName == null
-                        }
-                        .filter { PokemonItemCache.canRender(it) }
-                        .map { PokemonIngredient(it) }
-                    ingredientManager.addIngredientsAtRuntime(PokemonIngredientType, updated)
-                    DebugLog.info("JEI: Re-indexed ${updated.size} Pokémon ingredients with job data")
-                } catch (e: Exception) {
-                    DebugLog.once("jei-ingredient-reload") { "JEI ingredient reload failed: ${e.message}" }
+            try {
+                val ingredientManager = rt.ingredientManager
+                val existing = ingredientManager.getAllIngredients(PokemonIngredientType).toList()
+                if (existing.isNotEmpty()) {
+                    ingredientManager.removeIngredientsAtRuntime(PokemonIngredientType, existing)
                 }
+                val updated = buildIndexedPokemon()
+                ingredientManager.addIngredientsAtRuntime(PokemonIngredientType, updated)
+                DebugLog.info("JEI: Re-indexed ${updated.size} Pokémon ingredients")
+            } catch (e: Exception) {
+                DebugLog.once("jei-ingredient-reload") { "JEI ingredient reload failed: ${e.message}" }
             }
 
             RecipeViewerReloader.jeiLastRegisteredVersion = SpawnDataIndex.dataVersion
@@ -103,16 +101,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
 
     override fun registerIngredients(registration: IModIngredientRegistration) {
         SpawnDataIndex.ensureLoaded()
-        val config = CobbleDexConfig.get()
-        val allPokemon = SpawnDataIndex.allSpeciesNames
-            .filter { name ->
-                val info = SpawnDataIndex.getSpeciesInfo(name)
-                if (info == null) false
-                else if (info.isForm) config.registerFormEntries
-                else true
-            }
-            .filter { PokemonItemCache.canRender(it) }
-            .map { PokemonIngredient(it) }
+        val allPokemon = buildIndexedPokemon()
 
         registration.register(
             PokemonIngredientType,

@@ -3,6 +3,7 @@ package com.cobbledex.fabric
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.DiagnosticService
+import com.cobbledex.PokemonSpriteService
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpreadsheetExporter
 import com.cobbledex.TmTooltipHandler
@@ -66,6 +67,7 @@ class CobbleDexFabricClient : ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             SpreadsheetExporter.tick()
+            PokemonSpriteService.tick()
             if (client.player != null) {
                 CobbleDexMod.tickReloadCheck()
             }
@@ -78,7 +80,6 @@ class CobbleDexFabricClient : ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
             SpawnDataIndex.onDisconnect()
             ChunkAssembler.reset()
-            CobbleDexMod.resetReloadTimer()
         }
 
         ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
