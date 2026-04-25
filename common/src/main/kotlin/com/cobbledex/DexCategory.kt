@@ -94,11 +94,11 @@ interface DexCategory {
     }
 }
 
-private fun pokemonInput(species: String, x: Int = 8, y: Int = 3) =
-    PokemonSlotDef(species, emptySet(), x, y, SlotRole.INPUT)
+private fun pokemonInput(species: String, aspects: Set<String> = emptySet(), x: Int = 8, y: Int = 3) =
+    PokemonSlotDef(species, aspects, x, y, SlotRole.INPUT)
 
-private fun pokemonOutput(species: String, x: Int = 8, y: Int = 3) =
-    PokemonSlotDef(species, emptySet(), x, y, SlotRole.OUTPUT)
+private fun pokemonOutput(species: String, aspects: Set<String> = emptySet(), x: Int = 8, y: Int = 3) =
+    PokemonSlotDef(species, aspects, x, y, SlotRole.OUTPUT)
 
 // ----- Spawn -----
 
@@ -196,11 +196,11 @@ object ObtainmentDex : DexCategory {
     }
 
     private fun toHandle(d: ObtainmentRecipeData) = RecipeHandle(
-        recipeIdPath = "obtainment/${sanitizePath(d.speciesName)}/${sanitizePath(d.obtainment.method)}/${d.entryIndex}",
+        recipeIdPath = "obtainment/${sanitizePath(pokemonIdentityKey(d.speciesName, d.formAspects))}/${sanitizePath(d.obtainment.method)}/${d.entryIndex}",
         inputSpecies = emptyList(),
         outputSpecies = listOf(d.speciesName),
         layoutFactory = { SpawnDisplayHelper.buildObtainmentLayout(d.speciesName, d.obtainment, d.entryIndex, d.entryTotal) },
-        _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonOutput(d.speciesName, 8, 3))) },
+        _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonOutput(d.speciesName, d.formAspects, 8, 3))) },
     )
 }
 

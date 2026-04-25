@@ -30,7 +30,7 @@ object CategorySizer {
     private fun computeBounds(category: DexCategory): PanelSize {
         val fallback = PanelLayout.error("Data unavailable")
         val recipes = try {
-            category.buildAllRecipes()
+            RecipeCatalogCache.getAllRecipes(category)
         } catch (e: Exception) {
             DebugLog.once("category-size-${category.id}") { "Category sizing failed: ${e.message}" }
             emptyList()

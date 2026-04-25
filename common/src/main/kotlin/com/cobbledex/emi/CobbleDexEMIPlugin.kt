@@ -5,6 +5,7 @@ import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
 import com.cobbledex.PokemonSpriteService
 import com.cobbledex.PokemonSearchTerms
+import com.cobbledex.RecipeCatalogCache
 import com.cobbledex.RecipeHandle
 import com.cobbledex.RecipeViewerReloader
 import com.cobbledex.SlotRole
@@ -64,8 +65,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
         var formCount = 0
         for (species in SpawnDataIndex.allSpeciesNames) {
             val speciesInfo = SpawnDataIndex.getSpeciesInfo(species)
-            if (speciesInfo == null) continue
-            if (speciesInfo.isForm && !config.registerFormEntries) continue
+            if (speciesInfo?.isForm == true && !config.registerFormEntries) continue
             if (!PokemonSpriteService.canRender(species)) continue
             val stack = PokemonEmiStack(species)
             registry.addEmiStack(stack)
@@ -73,7 +73,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             for (term in PokemonSearchTerms.buildTerms(species, includeDisplayName = false)) {
                 registry.addAlias(stack, Component.literal(term))
             }
-            if (speciesInfo.isForm) formCount++ else registered++
+            if (speciesInfo?.isForm == true) formCount++ else registered++
         }
 
         // Register categories, workstations, and recipes
@@ -84,7 +84,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             registry.addCategory(cat)
             registry.addWorkstation(cat, EmiStack.of(def.icon))
 
-            val recipes = def.buildAllRecipes()
+            val recipes = RecipeCatalogCache.getAllRecipes(def)
             for (handle in recipes) {
                 registry.addRecipe(GenericEmiRecipe(handle, cat, def))
             }

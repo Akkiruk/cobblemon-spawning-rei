@@ -47,6 +47,8 @@ object RecipeViewerReloader {
         active = true
         attempts = 0
         ticksUntilCheck = 0
+        CategorySizer.invalidateCache()
+        RecipeCatalogCache.invalidate()
         DebugLog.info("Scheduled recipe viewer verification (dataVersion=$version)")
     }
 
@@ -114,6 +116,8 @@ object RecipeViewerReloader {
         attempts = 0
         ticksUntilCheck = 0
         targetDataVersion = -1L
+        CategorySizer.invalidateCache()
+        RecipeCatalogCache.invalidate()
         reiEntriesLastRegisteredVersion = -1L
         emiLastRegisteredVersion = -1L
         jeiLastRegisteredVersion = -1L
@@ -143,13 +147,28 @@ object RecipeViewerReloader {
             return
         }
 
+        val entrypoints = listOf(
+            "dev.emi.emi.runtime.EmiReloadManager" to "reload",
+            "dev.emi.emi.EmiReloadManager" to "reload",
+            "dev.emi.emi.api.EmiApi" to "reload"
+        )
+
         try {
-            val cls = Class.forName("dev.emi.emi.runtime.EmiReloadManager")
-            cls.getMethod("reload").invoke(null)
-            DebugLog.info("Triggered EMI reload")
+            for ((className, methodName) in entrypoints) {
+                try {
+                    val cls = Class.forName(className)
+                    cls.getMethod(methodName).invoke(null)
+                    DebugLog.info("Triggered EMI reload via $className.$methodName")
+                    return
+                } catch (_: ClassNotFoundException) {
+                } catch (_: NoClassDefFoundError) {
+                }
+            }
+
+            DebugLog.warn("EMI reload entrypoint unavailable for dataVersion=$targetDataVersion")
         } catch (_: ClassNotFoundException) {
-            // EMI not installed — mark as always current
-            emiLastRegisteredVersion = targetDataVersion
+        } catch (_: NoClassDefFoundError) {
+        } catch (_: LinkageError) {
         } catch (e: Exception) {
             DebugLog.warn("EMI reload failed: ${e.message}")
         }

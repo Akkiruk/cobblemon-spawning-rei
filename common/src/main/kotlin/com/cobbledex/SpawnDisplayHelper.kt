@@ -95,13 +95,54 @@ object SpawnDisplayHelper {
             "${s.structures.sorted()}|${s.canSeeSky}|${s.minLight}|${s.maxLight}|" +
             "${s.minSkyLight}|${s.maxSkyLight}|${s.minY}|${s.maxY}|" +
             "${s.neededNearbyBlocks.sorted()}|${s.neededBaseBlocks.sorted()}|" +
-            "${s.moonPhase}|${s.presets.sorted()}|${s.fluid}"
+            "${s.moonPhase}|${s.presets.sorted()}|${s.fluid}|${serializeAntiCondition(s.anticondition)}|" +
+            "${serializeWeightMultipliers(s.weightMultipliers)}|${s.minLureLevel}|${s.conditionWarnings.sorted()}"
     }
+
+    private fun serializeAntiCondition(anticondition: SpawnAntiCondition?): String {
+        if (anticondition == null || anticondition.isEmpty) return ""
+        return listOf(
+            anticondition.biomes.sorted().joinToString(","),
+            anticondition.structures.sorted().joinToString(","),
+            anticondition.neededBaseBlocks.sorted().joinToString(","),
+            anticondition.neededNearbyBlocks.sorted().joinToString(","),
+            anticondition.minY?.toString().orEmpty(),
+            anticondition.maxY?.toString().orEmpty(),
+            anticondition.timeRange.orEmpty(),
+            anticondition.dimensions.sorted().joinToString(","),
+            anticondition.isRaining?.toString().orEmpty(),
+            anticondition.isThundering?.toString().orEmpty(),
+            anticondition.minLight?.toString().orEmpty(),
+            anticondition.maxLight?.toString().orEmpty(),
+            anticondition.moonPhase.orEmpty(),
+        ).joinToString("|")
+    }
+
+    private fun serializeWeightMultipliers(multipliers: List<WeightMultiplier>): String =
+        multipliers.joinToString(";") { multiplier ->
+            buildString {
+                append(multiplier.multiplier)
+                append(":")
+                append(multiplier.conditionSummary)
+                append(":")
+                append(multiplier.conditionParts.joinToString(",") { part ->
+                    listOf(
+                        part.type,
+                        part.text.orEmpty(),
+                        part.number?.toString().orEmpty(),
+                        part.ids.sorted().joinToString("+")
+                    ).joinToString("~")
+                })
+            }
+        }
 
     // --- Condition / location / exclusion builders ---
 
     fun buildConditions(spawn: SpawnInfo): List<String> {
         val list = mutableListOf<String>()
+        for (warning in spawn.conditionWarnings) {
+            list.add("[!] $warning")
+        }
         spawn.timeRange?.let {
             val icon = when {
                 it.contains("day", true) -> "\u2600 "

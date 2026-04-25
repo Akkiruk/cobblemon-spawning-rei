@@ -4,6 +4,8 @@ import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
 import com.cobbledex.PokemonSpriteService
+import com.cobbledex.PokemonSearchTerms
+import com.cobbledex.RecipeCatalogCache
 import com.cobbledex.RecipeHandle
 import com.cobbledex.RecipeViewerReloader
 import com.cobbledex.SlotRole
@@ -20,6 +22,7 @@ import mezz.jei.api.recipe.RecipeIngredientRole
 import mezz.jei.api.recipe.RecipeType
 import mezz.jei.api.recipe.category.IRecipeCategory
 import mezz.jei.api.registration.IModIngredientRegistration
+import mezz.jei.api.registration.IIngredientAliasRegistration
 import mezz.jei.api.registration.IRecipeCatalystRegistration
 import mezz.jei.api.registration.IRecipeCategoryRegistration
 import mezz.jei.api.registration.IRecipeRegistration
@@ -41,8 +44,8 @@ open class CobbleDexJEIPlugin : IModPlugin {
         private fun buildIndexedPokemon(config: CobbleDexConfig = CobbleDexConfig.get()): List<PokemonIngredient> {
             return SpawnDataIndex.allSpeciesNames
                 .filter { name ->
-                    val info = SpawnDataIndex.getSpeciesInfo(name) ?: return@filter false
-                    !info.isForm || config.registerFormEntries
+                    val info = SpawnDataIndex.getSpeciesInfo(name)
+                    info?.isForm != true || config.registerFormEntries
                 }
                 .filter { PokemonSpriteService.canRender(it) }
                 .map { PokemonIngredient(it) }
@@ -55,6 +58,13 @@ open class CobbleDexJEIPlugin : IModPlugin {
                     GenericRecipe::class.java
                 )
             }
+
+        private fun buildAliases(ingredient: PokemonIngredient): List<String> =
+            PokemonSearchTerms.buildTerms(
+                ingredient.species,
+                ingredient.displayName,
+                includeDisplayName = false
+            )
 
         /** Called by RecipeViewerReloader after server sync to push new recipes into JEI */
         @JvmStatic
@@ -71,7 +81,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
                     if (old.isNotEmpty()) manager.hideRecipes(type, old)
                 }
 
-                val recipes = def.buildAllRecipes().map { GenericRecipe(it) }
+                val recipes = RecipeCatalogCache.getAllRecipes(def).map { GenericRecipe(it) }
                 if (recipes.isNotEmpty()) {
                     manager.addRecipes(type, recipes)
                 }
@@ -85,6 +95,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
                     ingredientManager.removeIngredientsAtRuntime(PokemonIngredientType, existing)
                 }
                 val updated = buildIndexedPokemon()
+                JeiRuntimeAliasBridge.replacePokemonAliases(ingredientManager, updated, ::buildAliases)
                 ingredientManager.addIngredientsAtRuntime(PokemonIngredientType, updated)
                 DebugLog.info("JEI: Re-indexed ${updated.size} Pokémon ingredients")
             } catch (e: Exception) {
@@ -113,6 +124,16 @@ open class CobbleDexJEIPlugin : IModPlugin {
         DebugLog.info("JEI: Registered ${allPokemon.size - formCount} Pokémon + $formCount form ingredients")
     }
 
+    override fun registerIngredientAliases(registration: IIngredientAliasRegistration) {
+        SpawnDataIndex.ensureLoaded()
+        for (ingredient in buildIndexedPokemon()) {
+            val aliases = buildAliases(ingredient)
+            if (aliases.isNotEmpty()) {
+                registration.addAliases(PokemonIngredientType, ingredient, aliases)
+            }
+        }
+    }
+
     override fun registerCategories(registration: IRecipeCategoryRegistration) {
         val guiHelper = registration.jeiHelpers.guiHelper
         val config = CobbleDexConfig.get()
@@ -132,7 +153,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
 
         for (def in DexCategory.ALL) {
             if (!def.isEnabled(config)) continue
-            val recipes = def.buildAllRecipes().map { GenericRecipe(it) }
+            val recipes = RecipeCatalogCache.getAllRecipes(def).map { GenericRecipe(it) }
             if (recipes.isNotEmpty()) {
                 registration.addRecipes(recipeType(def), recipes)
             }

@@ -16,7 +16,8 @@ class PokemonIngredientHelper : IIngredientHelper<PokemonIngredient> {
 
     override fun getDisplayName(ingredient: PokemonIngredient): String = ingredient.displayName
 
-    override fun getUniqueId(ingredient: PokemonIngredient, context: UidContext): String = ingredient.species
+    override fun getUniqueId(ingredient: PokemonIngredient, context: UidContext): String =
+        com.cobbledex.pokemonIdentityKey(ingredient.species, ingredient.formAspects)
 
     override fun getResourceLocation(ingredient: PokemonIngredient): ResourceLocation = ingredient.identifier
 

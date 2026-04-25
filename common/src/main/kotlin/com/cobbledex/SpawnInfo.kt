@@ -27,7 +27,8 @@ data class SpawnInfo(
     val fluid: String?,
     val anticondition: SpawnAntiCondition?,
     val weightMultipliers: List<WeightMultiplier>,
-    val minLureLevel: Int?
+    val minLureLevel: Int?,
+    val conditionWarnings: List<String> = emptyList()
 ) {
     val hasFormVariant: Boolean
         get() = formAspects.isNotBlank()

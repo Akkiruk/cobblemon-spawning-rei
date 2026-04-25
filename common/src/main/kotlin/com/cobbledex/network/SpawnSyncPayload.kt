@@ -11,11 +11,11 @@ class SpawnSyncPayload(val data: ByteArray) : CustomPacketPayload {
     override fun type(): CustomPacketPayload.Type<SpawnSyncPayload> = TYPE
 
     companion object {
+        const val MAX_PAYLOAD_SIZE = 1_048_576
+
         val TYPE = CustomPacketPayload.Type<SpawnSyncPayload>(
             ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "spawn_sync")
         )
-
-        private const val MAX_PAYLOAD_SIZE = 1048576
 
         val CODEC: StreamCodec<FriendlyByteBuf, SpawnSyncPayload> = StreamCodec.of(
             { buf: FriendlyByteBuf, payload: SpawnSyncPayload -> buf.writeByteArray(payload.data) },

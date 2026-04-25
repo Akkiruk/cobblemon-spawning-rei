@@ -22,8 +22,14 @@ dependencies {
 
     // EMI API (Modrinth maven)
     modCompileOnly("maven.modrinth:emi:$emiVersion")
+
+    testImplementation(kotlin("test-junit5"))
 }
 
 tasks.processResources {
     inputs.property("version", project.version)
+}
+
+tasks.test {
+    useJUnitPlatform()
 }

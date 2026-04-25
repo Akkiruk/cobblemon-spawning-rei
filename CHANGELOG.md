@@ -2,6 +2,36 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.11] - 2026-04-24
+
+### Fixed
+- **Pokemon sidebar icons now use normalized item sprites instead of cached 3D model captures** - the shared icon pipeline scales every Pokemon icon to the same reference fill size, which keeps oversized species from overwhelming slots while removing the expensive 3D capture queue that caused lag and unreliable warmup
+
+## [1.50.10] - 2026-04-25
+
+### Fixed
+- **Pokemon sidebar icons now resolve alternate forms consistently** - REI, JEI, EMI, and spreadsheet export now derive the same base-species-plus-aspects render target, so form entries no longer fall through to blank placeholders while only the base species gets a sprite
+- **Pokemon icons no longer crop nearly edge-to-edge** - the shared capture path now leaves deliberate breathing room around the rendered model instead of trimming almost flush to visible pixels
+
+### Improved
+- Replaced the old split icon identity logic with one canonical resolver for requested species, implicit regional suffixes, indexed form metadata, capture species, normalized aspects, and cache identity, which removes the duplicated form-resolution rules that had drifted apart across the sprite cache, item fallback, capture path, and exporter
+- Shared sprite warmup now processes up to 10 queued Pokemon captures per client tick instead of 1, which cuts visible sidebar catch-up time without changing the viewer renderers themselves
+- Spreadsheet export now uses the same canonical Pokemon icon key format across overview, drops, moves, abilities, fossils, obtainment, and riding sheets instead of mixing raw species names with form-aware keys
+
+## [1.50.9] - 2026-04-25
+
+### Fixed
+- **Zipped datapack obtainment data now loads reliably** - special obtainment scanning no longer reuses an exhausted datapack stream, bundled defaults merge by entry identity instead of species-only presence, and malformed obtainment entries fail in isolation instead of aborting an entire file
+- **Form-specific evolution branches now stay distinct** - evolution-chain collapsing and target dedupe now key on normalized species plus form aspects, preventing alternate-form targets from being merged into the base species branch
+- **REI and JEI runtime indexes stay truthful after reloads** - REI initial registration now matches its reload path, JEI replaces Pokemon aliases before runtime re-addition so search terms stay current after syncs, and EMI no longer marks itself current when its reload hook was unavailable or failed
+- **Jar cache initialization can recover from failures** - failed jar scans no longer leave the shared cache stuck in a permanent loading state, and callers only observe readiness after a successful initialization
+- **Combined spawn conditions no longer invent impossible requirements** - conflicting time, weather, biome, dimension, structure, sky, light, and height constraints now degrade to warnings instead of fake merged values like impossible conjunction strings
+
+### Improved
+- Shared full-category recipe builds are now cached by data version and language across REI, JEI, EMI, and category sizing, reducing repeated full materialization during browsing and reloads
+- Normalized index map merges now dedupe colliding list values instead of concatenating duplicates into the published snapshot
+- Spreadsheet export drops handling now avoids a hard null assertion on per-species drop lists
+
 ## [1.50.8] - 2026-04-25
 
 ### Fixed

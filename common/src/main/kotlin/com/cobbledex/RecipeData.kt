@@ -10,6 +10,7 @@ data class SpawnRecipeData(
 
 data class ObtainmentRecipeData(
     val speciesName: String,
+    val formAspects: Set<String> = emptySet(),
     val obtainment: ObtainmentInfo,
     val entryIndex: Int = 1,
     val entryTotal: Int = 1

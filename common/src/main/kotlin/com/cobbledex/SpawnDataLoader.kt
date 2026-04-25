@@ -111,7 +111,8 @@ object SpawnDataLoader {
             fluid = fluid,
             anticondition = anti,
             weightMultipliers = weightMults,
-            minLureLevel = minLureLevel
+            minLureLevel = minLureLevel,
+            conditionWarnings = merged.warnings
         )
     }
 
@@ -133,7 +134,23 @@ object SpawnDataLoader {
         val maxY: Int? = null,
         val neededNearbyBlocks: List<String> = emptyList(),
         val neededBaseBlocks: List<String> = emptyList(),
-        val moonPhase: String? = null
+        val moonPhase: String? = null,
+        val warnings: List<String> = emptyList()
+    )
+
+    private data class ListMerge(
+        val values: List<String>,
+        val warning: String? = null,
+    )
+
+    private data class BooleanMerge(
+        val value: Boolean?,
+        val warning: String? = null,
+    )
+
+    private data class TextMerge(
+        val value: String?,
+        val warning: String? = null,
     )
 
     private fun mergeConditions(
@@ -291,31 +308,75 @@ object SpawnDataLoader {
     // --- Condition merge helpers ---
 
     private fun combineConditionData(a: ConditionData, b: ConditionData): ConditionData {
+        val biomeResult = combineRestrictedLists("Biome", a.biomes, b.biomes)
+        val rainResult = combineNullableBoolean("Rain", a.isRaining, b.isRaining)
+        val thunderResult = combineNullableBoolean("Thunder", a.isThundering, b.isThundering)
+        val dimensionResult = combineRestrictedLists("Dimension", a.dimensions, b.dimensions)
+        val structureResult = combineRestrictedLists("Structure", a.structures, b.structures)
+        val skyResult = combineNullableBoolean("Sky visibility", a.canSeeSky, b.canSeeSky)
+        val timeRangeResult = combineTextRestrictions("Time", a.timeRange, b.timeRange)
+        val moonPhaseResult = combineTextRestrictions("Moon phase", a.moonPhase, b.moonPhase)
+        val minLight = combineLowerBound(a.minLight, b.minLight)
+        val maxLight = combineUpperBound(a.maxLight, b.maxLight)
+        val minSkyLight = combineLowerBound(a.minSkyLight, b.minSkyLight)
+        val maxSkyLight = combineUpperBound(a.maxSkyLight, b.maxSkyLight)
+        val minY = combineLowerBound(a.minY, b.minY)
+        val maxY = combineUpperBound(a.maxY, b.maxY)
+
+        val warnings = buildSet {
+            addAll(a.warnings)
+            addAll(b.warnings)
+            listOfNotNull(
+                biomeResult.second,
+                rainResult.second,
+                thunderResult.second,
+                dimensionResult.second,
+                structureResult.second,
+                skyResult.second,
+                timeRangeResult.warning,
+                moonPhaseResult.warning,
+            ).forEach(::add)
+            if (minLight != null && maxLight != null && minLight > maxLight) {
+                add("Light level requirements conflict across combined spawn conditions.")
+            }
+            if (minSkyLight != null && maxSkyLight != null && minSkyLight > maxSkyLight) {
+                add("Sky light requirements conflict across combined spawn conditions.")
+            }
+            if (minY != null && maxY != null && minY > maxY) {
+                add("Height requirements conflict across combined spawn conditions.")
+            }
+        }.toList()
+
         return ConditionData(
-            biomes = combineRestrictedLists(a.biomes, b.biomes),
-            timeRange = combineTextRestrictions(a.timeRange, b.timeRange),
-            isRaining = combineNullableBoolean(a.isRaining, b.isRaining),
-            isThundering = combineNullableBoolean(a.isThundering, b.isThundering),
-            dimensions = combineRestrictedLists(a.dimensions, b.dimensions),
-            structures = combineRestrictedLists(a.structures, b.structures),
-            canSeeSky = combineNullableBoolean(a.canSeeSky, b.canSeeSky),
-            minLight = combineLowerBound(a.minLight, b.minLight),
-            maxLight = combineUpperBound(a.maxLight, b.maxLight),
-            minSkyLight = combineLowerBound(a.minSkyLight, b.minSkyLight),
-            maxSkyLight = combineUpperBound(a.maxSkyLight, b.maxSkyLight),
-            minY = combineLowerBound(a.minY, b.minY),
-            maxY = combineUpperBound(a.maxY, b.maxY),
+            biomes = biomeResult.first,
+            timeRange = timeRangeResult.value,
+            isRaining = rainResult.first,
+            isThundering = thunderResult.first,
+            dimensions = dimensionResult.first,
+            structures = structureResult.first,
+            canSeeSky = skyResult.first,
+            minLight = minLight,
+            maxLight = maxLight,
+            minSkyLight = minSkyLight,
+            maxSkyLight = maxSkyLight,
+            minY = minY,
+            maxY = maxY,
             neededNearbyBlocks = combineRequiredLists(a.neededNearbyBlocks, b.neededNearbyBlocks),
             neededBaseBlocks = combineRequiredLists(a.neededBaseBlocks, b.neededBaseBlocks),
-            moonPhase = combineTextRestrictions(a.moonPhase, b.moonPhase)
+            moonPhase = moonPhaseResult.value,
+            warnings = warnings
         )
     }
 
-    private fun combineRestrictedLists(a: List<String>, b: List<String>): List<String> {
-        if (a.isEmpty()) return b
-        if (b.isEmpty()) return a
+    private fun combineRestrictedLists(label: String, a: List<String>, b: List<String>): Pair<List<String>, String?> {
+        if (a.isEmpty()) return b to null
+        if (b.isEmpty()) return a to null
         val overlap = a.intersect(b.toSet())
-        return if (overlap.isNotEmpty()) overlap.toList() else (a + b).distinct()
+        return if (overlap.isNotEmpty()) {
+            overlap.toList() to null
+        } else {
+            emptyList<String>() to "$label requirements conflict across combined spawn conditions: ${a.joinToString(", ")} vs ${b.joinToString(", ")}."
+        }
     }
 
     private fun combineRequiredLists(a: List<String>, b: List<String>): List<String> {
@@ -324,19 +385,22 @@ object SpawnDataLoader {
         return (a + b).distinct()
     }
 
-    private fun combineTextRestrictions(a: String?, b: String?): String? {
-        if (a.isNullOrBlank()) return b
-        if (b.isNullOrBlank()) return a
-        if (a == b) return a
-        return listOf(a, b).distinct().joinToString(" & ")
+    private fun combineTextRestrictions(label: String, a: String?, b: String?): TextMerge {
+        if (a.isNullOrBlank()) return TextMerge(b)
+        if (b.isNullOrBlank()) return TextMerge(a)
+        if (a == b) return TextMerge(a)
+        return TextMerge(
+            value = null,
+            warning = "$label requirements conflict across combined spawn conditions: $a vs $b."
+        )
     }
 
-    private fun combineNullableBoolean(a: Boolean?, b: Boolean?): Boolean? {
+    private fun combineNullableBoolean(label: String, a: Boolean?, b: Boolean?): Pair<Boolean?, String?> {
         return when {
-            a == null -> b
-            b == null -> a
-            a == b -> a
-            else -> null
+            a == null -> b to null
+            b == null -> a to null
+            a == b -> a to null
+            else -> null to "$label requirements conflict across combined spawn conditions."
         }
     }
 

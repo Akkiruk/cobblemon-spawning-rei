@@ -44,7 +44,7 @@ class CobbleDexNeoForge(modBus: IEventBus) {
             context.enqueueWork {
                 try {
                     val bundle = SpawnSyncSerializer.deserialize(payload.data)
-                    SpawnDataIndex.applyServerSync(bundle.spawns, bundle.evolutions, bundle.speciesInfo, bundle.obtainment, bundle.riding, bundle.jobRules, bundle.fossils)
+                    SpawnDataIndex.applyServerSync(bundle.spawns, bundle.evolutions, bundle.speciesInfo, bundle.obtainment, bundle.riding, bundle.jobRules, bundle.fossils, bundle.isComplete)
                     DebugLog.info("Received sync from server: ${bundle.spawns.size} spawns, ${bundle.evolutions.size} evolutions, ${bundle.obtainment.size} obtainment, ${bundle.riding.size} riding, ${bundle.fossils?.size ?: 0} fossils")
                 } catch (e: Exception) {
                     CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process sync: ${e.message}")
@@ -59,7 +59,7 @@ class CobbleDexNeoForge(modBus: IEventBus) {
                 try {
                     val assembled = ChunkAssembler.receiveChunk(payload) ?: return@enqueueWork
                     val bundle = SpawnSyncSerializer.deserialize(assembled)
-                    SpawnDataIndex.applyServerSync(bundle.spawns, bundle.evolutions, bundle.speciesInfo, bundle.obtainment, bundle.riding, bundle.jobRules, bundle.fossils)
+                    SpawnDataIndex.applyServerSync(bundle.spawns, bundle.evolutions, bundle.speciesInfo, bundle.obtainment, bundle.riding, bundle.jobRules, bundle.fossils, bundle.isComplete)
                     DebugLog.info("Received chunked sync from server: ${bundle.spawns.size} spawns, ${bundle.evolutions.size} evolutions, ${bundle.obtainment.size} obtainment, ${bundle.riding.size} riding, ${bundle.fossils?.size ?: 0} fossils")
                 } catch (e: Exception) {
                     CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process chunked sync: ${e.message}")
@@ -102,6 +102,10 @@ class CobbleDexNeoForge(modBus: IEventBus) {
                 CobbleDexMod.LOGGER.info("[CobbleDex] Sent chunked sync to ${player.name.string}: ${prepared.speciesCount} species (${prepared.totalSpawnEntries} spawn entries), ${prepared.evolutionEntryCount} evolutions, ${prepared.speciesInfoCount} species info, ${prepared.obtainmentSpeciesCount} obtainment, ${prepared.ridingSpeciesCount} riding, ${prepared.fossilSpeciesCount} fossils, ${prepared.compressedSize} bytes in ${prepared.chunkedPayloads.size} chunks")
             } catch (_: UnsupportedOperationException) {
                 try {
+                    if (prepared.compressedSize > SpawnSyncPayload.MAX_PAYLOAD_SIZE) {
+                        CobbleDexMod.LOGGER.warn("[CobbleDex] Skipping legacy sync to ${player.name.string}: payload ${prepared.compressedSize} exceeds ${SpawnSyncPayload.MAX_PAYLOAD_SIZE} byte limit")
+                        return@execute
+                    }
                     PacketDistributor.sendToPlayer(player, prepared.legacyPayload)
                     CobbleDexMod.LOGGER.info("[CobbleDex] Sent legacy sync to ${player.name.string}: ${prepared.speciesCount} species (${prepared.totalSpawnEntries} spawn entries), ${prepared.evolutionEntryCount} evolutions, ${prepared.speciesInfoCount} species info, ${prepared.obtainmentSpeciesCount} obtainment, ${prepared.ridingSpeciesCount} riding, ${prepared.fossilSpeciesCount} fossils, ${prepared.compressedSize} bytes")
                 } catch (_: UnsupportedOperationException) {

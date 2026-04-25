@@ -60,6 +60,9 @@ object SpreadsheetExporter {
     private fun item(raw: String): String =
         itemNameCache.getOrPut(raw) { SpawnDisplayHelper.resolveItemName(raw) }
 
+    private fun pokemonIconKey(species: String, formAspects: Set<String> = emptySet()): String =
+        PokemonIconResolver.encodeCacheKey(species, formAspects)
+
     private fun pct(value: Float): String {
         val formatted = if (value == value.toLong().toFloat()) value.toLong().toString() else "%.1f".format(value)
         return "$formatted%"
@@ -260,11 +263,10 @@ object SpreadsheetExporter {
             }
             return IconCapture.captureItemToPng(stack)
         }
-        // Resolve form info from index so alternate forms get correct model + aspects
-        val info = SpawnDataIndex.speciesInfo[cacheKey]
-        val speciesId = info?.baseSpeciesName ?: cacheKey
-        val aspects = info?.formAspects ?: emptySet()
-        return IconCapture.captureSpeciesToPng(speciesId, aspects)
+        PokemonIconResolver.decodeCacheKey(cacheKey)?.let { resolved ->
+            return IconCapture.captureSpeciesToPng(resolved.captureSpecies, resolved.captureAspects)
+        }
+        return IconCapture.captureSpeciesToPng(cacheKey)
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -316,7 +318,7 @@ object SpreadsheetExporter {
             val abilities = info.abilities ?: emptyList()
             val eggGroups = info.eggGroups ?: emptyList()
 
-            icons.add(CellIcon(info.name, rows.size, 0))
+            icons.add(CellIcon(pokemonIconKey(info.name, info.formAspects), rows.size, 0))
             rows.add(listOf(
                 "",
                 if (info.nationalDexNumber > 0) info.nationalDexNumber.toString() else "",
@@ -396,7 +398,7 @@ object SpreadsheetExporter {
                     "${wm.multiplier}x ${wm.conditionSummary}".trim()
                 }
 
-                icons.add(CellIcon(spawn.pokemon, rows.size, 0))
+                icons.add(CellIcon(pokemonIconKey(spawn.pokemon, parseAspectString(spawn.formAspects)), rows.size, 0))
                 rows.add(listOf(
                     "",
                     pokemon(spawn.pokemon),
@@ -447,7 +449,7 @@ object SpreadsheetExporter {
 
         for ((_, evoList) in evolutions.entries.sortedBy { it.key }) {
             for (evo in evoList) {
-                icons.add(CellIcon(evo.fromSpecies, rows.size, 0))
+                icons.add(CellIcon(pokemonIconKey(evo.fromSpecies, evo.fromAspects), rows.size, 0))
                 rows.add(listOf(
                     "",
                     pokemon(evo.fromSpecies),
@@ -482,9 +484,10 @@ object SpreadsheetExporter {
             .sortedWith(compareBy({ it.value.nationalDexNumber.let { d -> if (d > 0) d else Int.MAX_VALUE } }, { it.key }))
 
         for ((_, info) in sorted) {
-            for (drop in info.drops!!) {
+            val drops = info.drops ?: continue
+            for (drop in drops) {
                 val rowIdx = rows.size
-                icons.add(CellIcon(info.name, rowIdx, 0))
+                icons.add(CellIcon(pokemonIconKey(info.name, info.formAspects), rowIdx, 0))
                 icons.add(CellIcon("item:${drop.itemId}", rowIdx, 3))
 
                 val qty = if (drop.quantityRange != null) {
@@ -531,7 +534,7 @@ object SpreadsheetExporter {
 
         for ((_, info) in sorted) {
             fun addMove(method: String, level: String, move: MoveDetail) {
-                icons.add(CellIcon(info.name, rows.size, 0))
+                icons.add(CellIcon(pokemonIconKey(info.name, info.formAspects), rows.size, 0))
                 rows.add(listOf(
                     "",
                     if (info.nationalDexNumber > 0) info.nationalDexNumber.toString() else "",
@@ -577,7 +580,7 @@ object SpreadsheetExporter {
         for ((_, info) in sorted) {
             for (lum in (info.levelUpMoves ?: continue).sortedBy { it.level }) {
                 for (move in lum.moves) {
-                    icons.add(CellIcon(info.name, rows.size, 0))
+                    icons.add(CellIcon(pokemonIconKey(info.name, info.formAspects), rows.size, 0))
                     rows.add(listOf(
                         "",
                         if (info.nationalDexNumber > 0) info.nationalDexNumber.toString() else "",
@@ -612,19 +615,19 @@ object SpreadsheetExporter {
 
         for ((_, obtainList) in obtainment.entries.sortedBy { it.key }) {
             for (info in obtainList) {
-                icons.add(CellIcon(info.pokemon, rows.size, 0))
+                icons.add(CellIcon(pokemonIconKey(info.pokemon, parseAspectString(info.formAspects)), rows.size, 0))
                 rows.add(listOf(
                     "",
                     pokemon(info.pokemon),
                     if (info.formAspects.isNotBlank()) SpawnDisplayHelper.formatFormAspects(info.formAspects) else "",
-                    titleCase(info.method),
-                    info.description,
-                    info.items.joinToString("; ") { item(it) },
-                    info.block?.let { formatBlockName(it) } ?: "",
-                    info.structure?.let { formatStructureName(it) } ?: "",
-                    info.dimension?.let { SpawnDisplayHelper.formatDimension(it) } ?: "",
-                    info.notes.joinToString("; "),
-                    titleCase(info.source)
+                    info.displayMethodName,
+                    info.displayDescription,
+                    info.displayItems.joinToString("; "),
+                    info.displayBlock ?: "",
+                    info.displayStructure ?: "",
+                    info.displayDimension ?: "",
+                    info.displayNotes.joinToString("; "),
+                    sourceLabel(info.source)
                 ))
             }
         }
@@ -643,7 +646,7 @@ object SpreadsheetExporter {
 
         for ((_, fossilList) in fossils.entries.sortedBy { it.key }) {
             for (fossil in fossilList) {
-                icons.add(CellIcon(fossil.resultSpecies, rows.size, 0))
+                icons.add(CellIcon(pokemonIconKey(fossil.resultSpecies), rows.size, 0))
                 rows.add(listOf(
                     "",
                     pokemon(fossil.resultSpecies),
@@ -672,7 +675,7 @@ object SpreadsheetExporter {
 
         for ((_, info) in sorted) {
             val abilities = info.abilities ?: emptyList()
-            icons.add(CellIcon(info.name, rows.size, 0))
+            icons.add(CellIcon(pokemonIconKey(info.name, info.formAspects), rows.size, 0))
             rows.add(listOf(
                 "",
                 if (info.nationalDexNumber > 0) info.nationalDexNumber.toString() else "",
@@ -707,7 +710,7 @@ object SpreadsheetExporter {
 
         for ((species, info) in riding.entries.sortedBy { it.key }) {
             for (mount in info.mounts) {
-                icons.add(CellIcon(species, rows.size, 0))
+                icons.add(CellIcon(pokemonIconKey(species), rows.size, 0))
                 rows.add(listOf(
                     "",
                     pokemon(species),

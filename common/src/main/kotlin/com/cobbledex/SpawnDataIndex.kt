@@ -78,6 +78,9 @@ object SpawnDataIndex {
     @Volatile
     private var hasServerSync = false
 
+    @Volatile
+    private var serverSyncComplete = false
+
     fun isFullyLoaded(): Boolean = loadState == LoadState.FULLY_LOADED
 
     fun hasData(): Boolean = loadState != LoadState.NOT_LOADED && allSpeciesNames.isNotEmpty()
@@ -198,9 +201,7 @@ object SpawnDataIndex {
                 ridingBySpecies = current.ridingBySpecies,
             )
             snapshot = published
-            if (loadState != LoadState.FULLY_LOADED) {
-                loadState = LoadState.FULLY_LOADED
-            }
+            loadState = if (serverSyncComplete) LoadState.FULLY_LOADED else LoadState.PARTIAL
             dataVersion++
 
             DebugLog.info(
@@ -390,6 +391,7 @@ object SpawnDataIndex {
         RecipeViewerReloader.reset()
         emptyEvoRetries = 0
         hasServerSync = false
+        serverSyncComplete = false
 
         dataLock.withLock {
             clearActiveDataLocked(clearJobRules = true)
@@ -406,7 +408,8 @@ object SpawnDataIndex {
                         syncedObtainment: Map<String, List<ObtainmentInfo>> = emptyMap(),
                         syncedRiding: Map<String, RidingInfo> = emptyMap(),
                         syncedJobRules: List<JobRule>? = null,
-                        syncedFossils: Map<String, List<FossilCombo>>? = null) {
+                        syncedFossils: Map<String, List<FossilCombo>>? = null,
+                        isComplete: Boolean = true) {
         cancelPendingLoad()
         dataLock.withLock {
             val current = snapshot
@@ -416,13 +419,14 @@ object SpawnDataIndex {
                 speciesInfo = normalizeMapKeys(syncedSpeciesInfo),
                 obtainmentBySpecies = normalizeMapKeys(syncedObtainment),
                 fossilsBySpecies = syncedFossils?.let(::normalizeMapKeys) ?: current.fossilsBySpecies,
-                jobRules = syncedJobRules ?: emptyList(),
+                jobRules = syncedJobRules ?: current.jobRules,
                 ridingBySpecies = normalizeMapKeys(syncedRiding),
             )
             hasServerSync = true
+            serverSyncComplete = isComplete
             dataVersion++
 
-            loadState = if (snapshot.spawnsBySpecies.isNotEmpty() || snapshot.evolutionsBySpecies.isNotEmpty()) {
+            loadState = if (serverSyncComplete) {
                 LoadState.FULLY_LOADED
             } else {
                 LoadState.PARTIAL
@@ -432,11 +436,11 @@ object SpawnDataIndex {
         val totalSpawnEntries = syncedSpawns.values.sumOf { it.size }
         CobbleDexMod.LOGGER.info("[CobbleDex] Server sync received: ${syncedSpawns.size} species ($totalSpawnEntries spawn entries), " +
             "${syncedEvolutions.size} evolutions, ${syncedSpeciesInfo.size} species info, " +
-            "${syncedObtainment.size} obtainment, ${syncedRiding.size} riding$jobMsg — scheduling recipe viewer reload")
+            "${syncedObtainment.size} obtainment, ${syncedRiding.size} riding$jobMsg, complete=$isComplete — scheduling recipe viewer reload")
         DebugLog.info("Applied server sync: ${syncedSpawns.size} species with spawns, " +
             "${syncedEvolutions.size} with evolutions, ${syncedSpeciesInfo.size} with info, " +
             "${syncedObtainment.size} with obtainment, ${syncedRiding.size} with riding$jobMsg " +
-            "(loadState=${loadState.name}, dataVersion=$dataVersion)")
+            "(complete=$isComplete, loadState=${loadState.name}, dataVersion=$dataVersion)")
 
         RecipeViewerReloader.scheduleReload()
 
@@ -629,7 +633,7 @@ object SpawnDataIndex {
             val existing = result[normalized]
             if (existing != null && existing is List<*> && value is List<*>) {
                 @Suppress("UNCHECKED_CAST")
-                result[normalized] = (existing + value) as T
+                result[normalized] = (existing + value).distinct() as T
             } else {
                 result[normalized] = value
             }

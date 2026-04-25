@@ -56,18 +56,12 @@ object PokemonItemCache {
     }
 
     fun getItem(name: String, explicitAspects: Set<String> = emptySet()): ItemStack? {
-        val normalized = SpeciesNameNormalizer.normalize(name)
-        val decomp = SpeciesNameNormalizer.decomposeFormSpecies(normalized)
-        val aspects = explicitAspects.ifEmpty {
-            decomp.cobblemonAspects.ifEmpty {
-                SpawnDataIndex.getSpeciesInfo(name)?.formAspects ?: emptySet()
-            }
-        }
-        val cacheKey = if (aspects.isEmpty()) normalized else "$normalized|${aspects.sorted().joinToString(",")}"
+        val resolved = PokemonIconResolver.resolve(name, explicitAspects)
+        val cacheKey = resolved.captureIdentity
         itemCache[cacheKey]?.let { return it.copy() }
-        val species = resolveSpecies(name) ?: return null
+        val species = resolveSpecies(resolved.captureSpecies) ?: return null
         val item = try {
-            if (aspects.isNotEmpty()) PokemonItem.from(species, aspects)
+            if (resolved.captureAspects.isNotEmpty()) PokemonItem.from(species, resolved.captureAspects)
             else PokemonItem.from(species)
         } catch (_: Exception) {
             try { PokemonItem.from(species) } catch (_: Exception) { null }
@@ -76,8 +70,8 @@ object PokemonItemCache {
         return item?.copy()
     }
 
-    fun canRender(name: String): Boolean {
-        val item = getItem(name)
+    fun canRender(name: String, explicitAspects: Set<String> = emptySet()): Boolean {
+        val item = getItem(name, explicitAspects)
         return item != null && !item.isEmpty
     }
 

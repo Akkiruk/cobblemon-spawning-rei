@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 object PokemonSpriteService {
 
-    private const val SPRITES_PER_TICK = 1
+    private const val SPRITES_PER_TICK = 10
     private const val PLACEHOLDER_BG = 0x7F14161A
     private const val PLACEHOLDER_BORDER = 0xAA30343A.toInt()
 
@@ -29,8 +29,7 @@ object PokemonSpriteService {
     private var knownDataVersion = -1L
 
     fun canRender(species: String, explicitAspects: Set<String> = emptySet()): Boolean {
-        val key = PokemonSpriteKey.from(species, explicitAspects)
-        return PokemonItemCache.resolveSpecies(key.species) != null
+        return PokemonItemCache.canRender(species, explicitAspects)
     }
 
     fun tick() {

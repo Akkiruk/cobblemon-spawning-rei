@@ -28,8 +28,12 @@ object PokemonCheatHandler {
     private fun buildCommand(species: String, formAspects: Set<String>): String {
         val speciesName = if (species.contains(":")) species.substringAfter(":") else species
         val parts = mutableListOf("pokegive", speciesName)
-        val formAspect = formAspects.firstOrNull { it != "male" && it != "female" }
-        if (formAspect != null) parts.add("form=$formAspect")
+        val nonGenderAspects = formAspects
+            .map { it.lowercase() }
+            .filter { it != "male" && it != "female" }
+            .sorted()
+        nonGenderAspects.firstOrNull()?.let { parts.add("form=$it") }
+        nonGenderAspects.drop(1).forEach { parts.add("aspect=$it") }
         return parts.joinToString(" ")
     }
 

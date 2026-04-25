@@ -37,6 +37,10 @@ class CobbleDexFabric : ModInitializer {
                         }
                         CobbleDexMod.LOGGER.info("[CobbleDex] Sent chunked sync to ${player.name.string}: ${prepared.speciesCount} species (${prepared.totalSpawnEntries} spawn entries), ${prepared.evolutionEntryCount} evolutions, ${prepared.speciesInfoCount} species info, ${prepared.obtainmentSpeciesCount} obtainment, ${prepared.ridingSpeciesCount} riding, ${prepared.fossilSpeciesCount} fossils, ${prepared.compressedSize} bytes in ${prepared.chunkedPayloads.size} chunks")
                     } else {
+                        if (prepared.compressedSize > SpawnSyncPayload.MAX_PAYLOAD_SIZE) {
+                            CobbleDexMod.LOGGER.warn("[CobbleDex] Skipping legacy sync to ${player.name.string}: payload ${prepared.compressedSize} exceeds ${SpawnSyncPayload.MAX_PAYLOAD_SIZE} byte limit")
+                            return@execute
+                        }
                         ServerPlayNetworking.send(player, prepared.legacyPayload)
                         CobbleDexMod.LOGGER.info("[CobbleDex] Sent legacy sync to ${player.name.string}: ${prepared.speciesCount} species (${prepared.totalSpawnEntries} spawn entries), ${prepared.evolutionEntryCount} evolutions, ${prepared.speciesInfoCount} species info, ${prepared.obtainmentSpeciesCount} obtainment, ${prepared.ridingSpeciesCount} riding, ${prepared.fossilSpeciesCount} fossils, ${prepared.compressedSize} bytes")
                     }

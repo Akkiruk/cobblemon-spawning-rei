@@ -38,7 +38,7 @@ data class ObtainmentInfo(
         get() = items.map { SpawnDisplayHelper.resolveItemName(it) }
 
     val displayBlock: String?
-        get() = block?.let { SpawnDisplayHelper.resolveItemName(it) }
+        get() = block?.let(::formatBlockName)
 
     val displayStructure: String?
         get() = structure?.let { formatId(it) }

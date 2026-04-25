@@ -634,7 +634,7 @@ object EvolutionDataLoader {
         // Regional forms reuse SpeciesNameNormalizer's pattern for dedup with spawn data (O3)
         val regionalLabel = form.labels.firstOrNull { it in REGIONAL_LABEL_TO_SUFFIX }
         if (regionalLabel != null) {
-            val suffix = REGIONAL_LABEL_TO_SUFFIX[regionalLabel]!!
+            val suffix = REGIONAL_LABEL_TO_SUFFIX[regionalLabel] ?: regionalLabel.removeSuffix("_form")
             return "${SpeciesNameNormalizer.normalize(baseName)}$suffix"
         }
         // Non-regional: underscore-separated normalized key (O12)

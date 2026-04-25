@@ -23,9 +23,24 @@ object IconCapture {
 
     const val ICON_SIZE = 32
     private const val RENDER_SIZE = 512
+    private const val CONTENT_PADDING_RATIO = 1.3f
+    private const val REFERENCE_SPECIES = "pikachu"
+    private const val DEFAULT_REFERENCE_FILL_RATIO = 0.72f
     private var fbo: TextureTarget? = null
     private var debugDumped = false
     private var activeUsers = 0
+    private val referenceFillRatio by lazy { computeReferenceFillRatio() }
+
+    private data class AlphaBounds(
+        val minX: Int,
+        val minY: Int,
+        val maxX: Int,
+        val maxY: Int,
+    ) {
+        val width: Int get() = maxX - minX + 1
+        val height: Int get() = maxY - minY + 1
+        val longestSide: Int get() = maxOf(width, height)
+    }
 
     fun init() {
         activeUsers++
@@ -49,58 +64,10 @@ object IconCapture {
 
     fun captureItemToPng(stack: ItemStack): ByteArray? {
         if (stack.isEmpty) return null
-        val mc = Minecraft.getInstance()
 
         return try {
-            val model = mc.itemRenderer.getModel(stack, null, null, 0)
-            val sprite = model.particleIcon ?: return null
-            val spriteId = sprite.contents().name()
-
-            val textureLoc = ResourceLocation.fromNamespaceAndPath(
-                spriteId.namespace,
-                "textures/${spriteId.path}.png"
-            )
-
-            val resource = mc.resourceManager.getResource(textureLoc).orElse(null) ?: run {
-                DebugLog.warn("No texture resource for: $textureLoc")
-                return null
-            }
-
-            val image = resource.open().use { NativeImage.read(it) }
-            val fileW = image.getWidth()
-            val fileH = image.getHeight()
-            if (fileW <= 0 || fileH <= 0) { image.close(); return null }
-
-            // Animated textures: frames stacked vertically — use first frame only
-            val frameW = fileW
-            val frameH = if (fileH > fileW) fileW else fileH
-
-            if (frameW > 64 || frameH > 64) {
-                image.close()
-                return null
-            }
-
-            val raw = BufferedImage(frameW, frameH, BufferedImage.TYPE_INT_ARGB)
-            for (y in 0 until frameH) {
-                for (x in 0 until frameW) {
-                    val pixel = image.getPixelRGBA(x, y)
-                    val r = pixel and 0xFF
-                    val g = (pixel shr 8) and 0xFF
-                    val b = (pixel shr 16) and 0xFF
-                    val a = (pixel shr 24) and 0xFF
-                    raw.setRGB(x, y, (a shl 24) or (r shl 16) or (g shl 8) or b)
-                }
-            }
-            image.close()
-
-            val scaled = if (frameW == ICON_SIZE && frameH == ICON_SIZE) raw else {
-                val img = BufferedImage(ICON_SIZE, ICON_SIZE, BufferedImage.TYPE_INT_ARGB)
-                val g2d = img.createGraphics()
-                g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR)
-                g2d.drawImage(raw, 0, 0, ICON_SIZE, ICON_SIZE, null)
-                g2d.dispose()
-                img
-            }
+            val raw = captureItemImage(stack) ?: return null
+            val scaled = normalizeToReference(raw, referenceFillRatio)
 
             val out = ByteArrayOutputStream()
             ImageIO.write(scaled, "PNG", out)
@@ -114,8 +81,17 @@ object IconCapture {
     // ── Species icons: render 3D model via Cobblemon's API into FBO ──
 
     fun captureSpeciesToPng(speciesId: String, aspects: Set<String> = emptySet()): ByteArray? {
-        val id = speciesId.lowercase().replace(Regex("[^a-z0-9]"), "")
-        val species = PokemonSpecies.getByName(id) ?: return null
+        val resolved = PokemonIconResolver.resolve(speciesId, aspects)
+        PokemonItemCache.getItem(resolved.captureSpecies, resolved.captureAspects)?.let { stack ->
+            captureItemToPng(stack)?.let { return it }
+        }
+        return captureSpeciesModelToPng(resolved.captureSpecies, resolved.captureAspects)
+    }
+
+    private fun captureSpeciesModelToPng(speciesId: String, aspects: Set<String> = emptySet()): ByteArray? {
+        val species = PokemonSpecies.getByName(speciesId)
+            ?: PokemonItemCache.resolveSpecies(speciesId)
+            ?: return null
         val renderable = RenderablePokemon(species, aspects)
         val state = FloatingState()
         val target = fbo ?: return null
@@ -153,7 +129,7 @@ object IconCapture {
                 rotation = rotation,
                 state = state,
                 partialTicks = 0f,
-                scale = 210f,
+                scale = 180f,
             )
 
             poseStack.popPose()
@@ -193,7 +169,8 @@ object IconCapture {
             }
 
             // Square crop centered on content
-            val side = maxOf(maxX - minX + 1, maxY - minY + 1) + 4
+            val contentSide = maxOf(maxX - minX + 1, maxY - minY + 1)
+            val side = kotlin.math.ceil(contentSide * CONTENT_PADDING_RATIO.toDouble()).toInt()
             val cx = (minX + maxX) / 2
             val cy = (minY + maxY) / 2
             val cropSide = side.coerceAtMost(RENDER_SIZE)
@@ -230,5 +207,98 @@ object IconCapture {
             DebugLog.warn("Species icon failed for $speciesId: ${e.message}")
             null
         }
+    }
+
+    private fun captureItemImage(stack: ItemStack): BufferedImage? {
+        val mc = Minecraft.getInstance()
+        val model = mc.itemRenderer.getModel(stack, null, null, 0)
+        val sprite = model.particleIcon ?: return null
+        val spriteId = sprite.contents().name()
+
+        val textureLoc = ResourceLocation.fromNamespaceAndPath(
+            spriteId.namespace,
+            "textures/${spriteId.path}.png"
+        )
+
+        val resource = mc.resourceManager.getResource(textureLoc).orElse(null) ?: run {
+            DebugLog.warn("No texture resource for: $textureLoc")
+            return null
+        }
+
+        val image = resource.open().use { NativeImage.read(it) }
+        val fileW = image.getWidth()
+        val fileH = image.getHeight()
+        if (fileW <= 0 || fileH <= 0) {
+            image.close()
+            return null
+        }
+
+        val frameW = fileW
+        val frameH = if (fileH > fileW) fileW else fileH
+        if (frameW > 64 || frameH > 64) {
+            image.close()
+            return null
+        }
+
+        val raw = BufferedImage(frameW, frameH, BufferedImage.TYPE_INT_ARGB)
+        for (y in 0 until frameH) {
+            for (x in 0 until frameW) {
+                val pixel = image.getPixelRGBA(x, y)
+                val r = pixel and 0xFF
+                val g = (pixel shr 8) and 0xFF
+                val b = (pixel shr 16) and 0xFF
+                val a = (pixel shr 24) and 0xFF
+                raw.setRGB(x, y, (a shl 24) or (r shl 16) or (g shl 8) or b)
+            }
+        }
+        image.close()
+        return raw
+    }
+
+    private fun computeReferenceFillRatio(): Float {
+        val referenceStack = PokemonItemCache.getItem(REFERENCE_SPECIES) ?: return DEFAULT_REFERENCE_FILL_RATIO
+        val raw = captureItemImage(referenceStack) ?: return DEFAULT_REFERENCE_FILL_RATIO
+        val bounds = findAlphaBounds(raw) ?: return DEFAULT_REFERENCE_FILL_RATIO
+        val frameSide = maxOf(raw.width, raw.height).coerceAtLeast(1)
+        return (bounds.longestSide.toFloat() / frameSide.toFloat())
+            .coerceIn(0.4f, 0.9f)
+    }
+
+    private fun normalizeToReference(raw: BufferedImage, fillRatio: Float): BufferedImage {
+        val target = BufferedImage(ICON_SIZE, ICON_SIZE, BufferedImage.TYPE_INT_ARGB)
+        val bounds = findAlphaBounds(raw) ?: return target
+        val cropped = raw.getSubimage(bounds.minX, bounds.minY, bounds.width, bounds.height)
+        val targetSide = (ICON_SIZE * fillRatio).toInt().coerceIn(1, ICON_SIZE)
+        val sourceSide = bounds.longestSide.coerceAtLeast(1)
+        val scale = targetSide.toDouble() / sourceSide.toDouble()
+        val scaledWidth = kotlin.math.max(1, kotlin.math.round(bounds.width * scale).toInt())
+        val scaledHeight = kotlin.math.max(1, kotlin.math.round(bounds.height * scale).toInt())
+        val drawX = (ICON_SIZE - scaledWidth) / 2
+        val drawY = (ICON_SIZE - scaledHeight) / 2
+
+        val g2d = target.createGraphics()
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
+        g2d.drawImage(cropped, drawX, drawY, scaledWidth, scaledHeight, null)
+        g2d.dispose()
+        return target
+    }
+
+    private fun findAlphaBounds(image: BufferedImage): AlphaBounds? {
+        var minX = image.width
+        var minY = image.height
+        var maxX = -1
+        var maxY = -1
+        for (y in 0 until image.height) {
+            for (x in 0 until image.width) {
+                val alpha = image.getRGB(x, y) ushr 24
+                if (alpha > 10) {
+                    if (x < minX) minX = x
+                    if (x > maxX) maxX = x
+                    if (y < minY) minY = y
+                    if (y > maxY) maxY = y
+                }
+            }
+        }
+        return if (maxX >= 0 && maxY >= 0) AlphaBounds(minX, minY, maxX, maxY) else null
     }
 }

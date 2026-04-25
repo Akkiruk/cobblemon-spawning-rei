@@ -2,6 +2,9 @@ package com.cobbledex
 
 object EvolutionChainBuilder {
 
+    private fun nodeIdentity(species: String, aspects: Set<String> = emptySet()): String =
+        pokemonIdentityKey(species, aspects)
+
     data class ChainNode(
         val species: String,
         val aspects: Set<String> = emptySet(),
@@ -107,7 +110,7 @@ object EvolutionChainBuilder {
 
         // Collapse cosmetic aspect variants — group by base target species,
         // keep only one representative per species (prefer the one with no aspects)
-        val grouped = baseEvos.groupBy { SpeciesNameNormalizer.normalize(it.toSpecies) }
+        val grouped = baseEvos.groupBy { nodeIdentity(it.toSpecies, it.toAspects) }
         val collapsed = grouped.map { (_, group) ->
             if (group.size == 1) group.first()
             else {
@@ -119,7 +122,7 @@ object EvolutionChainBuilder {
 
         val seen = mutableSetOf<String>()
         val edges = collapsed.mapNotNull { evo ->
-            val targetNorm = SpeciesNameNormalizer.normalize(evo.toSpecies)
+            val targetNorm = nodeIdentity(evo.toSpecies, evo.toAspects)
             if (!seen.add(targetNorm)) return@mapNotNull null
             ChainEdge(evo, buildNode(evo.toSpecies, visited))
         }
@@ -132,13 +135,13 @@ object EvolutionChainBuilder {
                 it.formAspects == aspects
             }
             val formKey = formInfo?.name ?: continue
-            val formKeyNorm = SpeciesNameNormalizer.normalize(formKey)
+            val formKeyNorm = nodeIdentity(formKey, aspects)
             if (formKeyNorm in seen) continue
             seen.add(formKeyNorm)
 
             // Build a sub-chain: FormSpecies → its targets
             val formTargets = formEvos.mapNotNull { evo ->
-                val targetNorm = SpeciesNameNormalizer.normalize(evo.toSpecies)
+                val targetNorm = nodeIdentity(evo.toSpecies, evo.toAspects)
                 if (targetNorm in seen) return@mapNotNull null
                 seen.add(targetNorm)
                 ChainEdge(evo, buildNode(evo.toSpecies, visited))
