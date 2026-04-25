@@ -28,25 +28,29 @@ object CategorySizer {
     }
 
     private fun computeBounds(category: DexCategory): PanelSize {
-        val recipes = try { category.buildAllRecipes() } catch (_: Exception) { emptyList() }
-        if (recipes.isEmpty()) return PanelSize(200, 100)
+        val fallback = PanelLayout.error("Data unavailable")
+        val recipes = try {
+            category.buildAllRecipes()
+        } catch (e: Exception) {
+            DebugLog.once("category-size-${category.id}") { "Category sizing failed: ${e.message}" }
+            emptyList()
+        }
+        if (recipes.isEmpty()) return PanelSize(fallback.width, fallback.height)
         var maxW = PanelLayout.MIN_WIDTH
-        var maxH = 80
-        var settled = true
-        for ((i, handle) in recipes.withIndex()) {
+        var maxH = fallback.height
+        for (handle in recipes) {
             try {
-                val w = handle.width
-                val h = handle.height
-                if (w > maxW) { maxW = w; settled = false }
-                if (h > maxH) { maxH = h; settled = false }
-                // If size hasn't grown in the last 50 recipes, the rest won't push it higher
-                if (settled && i >= 50) break
-                if (!settled && i % 50 == 49) settled = true
-            } catch (_: Exception) {}
+                maxW = maxOf(maxW, handle.width)
+                maxH = maxOf(maxH, handle.height)
+            } catch (e: Exception) {
+                DebugLog.once("category-size-${category.id}-${handle.recipeIdPath}") {
+                    "Recipe sizing failed: ${e.message}"
+                }
+            }
         }
         return PanelSize(
             maxW.coerceIn(PanelLayout.MIN_WIDTH, PanelLayout.MAX_WIDTH),
-            maxH.coerceAtMost(PanelLayout.MAX_HEIGHT)
+            maxH.coerceIn(fallback.height, PanelLayout.MAX_HEIGHT)
         )
     }
 }

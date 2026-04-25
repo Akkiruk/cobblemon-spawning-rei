@@ -14,9 +14,8 @@ import net.minecraft.tags.TagKey
 import net.minecraft.world.item.ItemStack
 import com.cobbledex.PokemonCheatHandler
 import com.cobbledex.PokemonItemCache
+import com.cobbledex.PokemonSearchTerms
 import com.cobbledex.SpawnDataIndex
-import com.cobbledex.formatTypeName
-import com.cobbledex.titleCase
 import java.util.stream.Stream
 
 class PokemonEntryDefinition : EntryDefinition<PokemonEntry> {
@@ -92,21 +91,7 @@ class PokemonEntryDefinition : EntryDefinition<PokemonEntry> {
     }
 
     override fun asFormattedText(entry: EntryStack<PokemonEntry>, value: PokemonEntry): Component {
-        val parts = mutableListOf(value.displayName)
-        val info = SpawnDataIndex.getSpeciesInfo(value.species)
-        if (info != null) {
-            val types = listOfNotNull(info.primaryType, info.secondaryType).joinToString(" ") { formatTypeName(it) }
-            parts.add(types)
-            // Include base species name so forms are findable by base name
-            if (info.isForm && info.baseSpeciesName != null) {
-                parts.add(com.cobbledex.formatSpeciesName(info.baseSpeciesName))
-            }
-        }
-        val jobs = SpawnDataIndex.getJobsFor(value.species)
-        if (jobs.isNotEmpty()) {
-            parts.addAll(jobs.map { "job:${it.rule.id} ${it.rule.displayName}" })
-        }
-        return Component.literal(parts.joinToString(" "))
+        return Component.literal(PokemonSearchTerms.buildSearchText(value.species, value.displayName))
     }
 
     override fun cheatsAs(entry: EntryStack<PokemonEntry>, value: PokemonEntry): ItemStack? {

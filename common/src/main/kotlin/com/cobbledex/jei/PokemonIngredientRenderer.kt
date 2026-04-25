@@ -1,9 +1,9 @@
 package com.cobbledex.jei
 
 import com.cobbledex.PokemonSpriteService
+import com.cobbledex.PokemonSearchTerms
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpawnDisplayHelper
-import com.cobbledex.formatSpeciesName
 import mezz.jei.api.ingredients.IIngredientRenderer
 import net.minecraft.ChatFormatting
 import net.minecraft.client.gui.GuiGraphics
@@ -18,19 +18,13 @@ class PokemonIngredientRenderer : IIngredientRenderer<PokemonIngredient> {
 
     override fun getTooltip(ingredient: PokemonIngredient, tooltipFlag: TooltipFlag): List<Component> {
         val lines = SpawnDisplayHelper.buildPokemonTooltipLines(ingredient.species, ingredient.displayName).toMutableList()
-        // Append job names as invisible text for JEI search indexing
-        val jobs = SpawnDataIndex.getJobsFor(ingredient.species)
-        val searchParts = mutableListOf<String>()
-        if (jobs.isNotEmpty()) {
-            searchParts.add(jobs.joinToString(" ") { "job:${it.rule.id} ${it.rule.displayName}" })
-        }
-        // Include base species name so forms are findable by base name
-        val info = SpawnDataIndex.getSpeciesInfo(ingredient.species)
-        if (info != null && info.isForm && info.baseSpeciesName != null) {
-            searchParts.add(formatSpeciesName(info.baseSpeciesName))
-        }
-        if (searchParts.isNotEmpty()) {
-            lines.add(Component.literal(searchParts.joinToString(" ")).withStyle(ChatFormatting.BLACK))
+        val searchText = PokemonSearchTerms.buildSearchText(
+            ingredient.species,
+            ingredient.displayName,
+            includeDisplayName = false,
+        )
+        if (searchText.isNotBlank()) {
+            lines.add(Component.literal(searchText).withStyle(ChatFormatting.BLACK))
         }
         return lines
     }

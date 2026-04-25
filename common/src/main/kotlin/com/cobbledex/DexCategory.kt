@@ -49,8 +49,18 @@ class RecipeHandle(
             PanelLayout.error("Data unavailable")
         }
     }
-    val width: Int get() = try { _width?.invoke() ?: layout.width } catch (_: Exception) { 200 }
-    val height: Int get() = try { _height?.invoke() ?: layout.height } catch (_: Exception) { 100 }
+    val width: Int get() = try {
+        _width?.invoke() ?: layout.width
+    } catch (e: Exception) {
+        DebugLog.once("width-$recipeIdPath") { "Width measurement failed: ${e.message}" }
+        PanelLayout.MIN_WIDTH
+    }
+    val height: Int get() = try {
+        _height?.invoke() ?: layout.height
+    } catch (e: Exception) {
+        DebugLog.once("height-$recipeIdPath") { "Height measurement failed: ${e.message}" }
+        PanelLayout.error("Data unavailable").height
+    }
     val slots: Slots by lazy(LazyThreadSafetyMode.NONE) {
         try {
             _slots(layout)
@@ -73,6 +83,7 @@ interface DexCategory {
     fun buildRecipesFor(species: String): List<RecipeHandle>
     fun buildUsagesFor(species: String): List<RecipeHandle> = emptyList()
     fun buildRecipesForItem(itemId: String): List<RecipeHandle> = emptyList()
+    fun buildUsagesForItem(itemId: String): List<RecipeHandle> = buildRecipesForItem(itemId)
 
     companion object {
         val ALL: List<DexCategory> = listOf(

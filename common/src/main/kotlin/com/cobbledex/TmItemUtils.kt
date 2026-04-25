@@ -10,11 +10,6 @@ object TmItemUtils {
         "simpletms:tm_",
     )
 
-    private val standardTmPrefixes = listOf(
-        "tmcraft:tm_",
-        "simpletms:tm_",
-    )
-
     fun extractMove(itemId: String): String? {
         for (prefix in movePrefixes) {
             if (itemId.startsWith(prefix)) return itemId.removePrefix(prefix)
@@ -25,5 +20,5 @@ object TmItemUtils {
     fun isTmItem(itemId: String): Boolean = movePrefixes.any { itemId.startsWith(it) }
 
     fun tmItemIds(moveName: String): List<String> =
-        standardTmPrefixes.map { prefix -> "$prefix${moveName.lowercase()}" }
+        movePrefixes.distinct().map { prefix -> "$prefix${moveName.lowercase()}" }
 }

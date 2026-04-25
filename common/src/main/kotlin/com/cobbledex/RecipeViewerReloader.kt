@@ -3,22 +3,27 @@ package com.cobbledex
 import com.cobbledex.platform.PlatformHelper
 
 /**
- * Ensures EMI and JEI have current CobbleDex data after server sync.
+ * Ensures REI, EMI, and JEI have current CobbleDex data after server sync.
  *
- * REI uses DynamicDisplayGenerator — always reads live data, no reload needed.
+ * REI recipes are dynamic, but sidebar entries still need re-indexing after sync.
  *
  * EMI and JEI register recipes statically. When server sync arrives after their
  * initial registration, recipes are stale. This reloader:
  *  1. Tracks the dataVersion each viewer last registered with
  *  2. On each tick, checks if any viewer is stale (version mismatch)
  *  3. Reloads only stale viewers
- *  4. Verifies success — stops once both are current
+ *  4. Verifies success — stops once all viewers are current
  *  5. Uses exponential backoff if a reload doesn't take effect immediately
  */
 object RecipeViewerReloader {
 
+    private const val REI_MOD_ID = "roughlyenoughitems"
     private const val EMI_MOD_ID = "emi"
     private const val JEI_MOD_ID = "jei"
+
+    /** Set by CobbleDexREIPlugin.registerEntries() and reloadEntries() */
+    @Volatile
+    var reiEntriesLastRegisteredVersion = -1L
 
     /** Set by CobbleDexEMIPlugin.register() after it runs with data */
     @Volatile
@@ -61,16 +66,19 @@ object RecipeViewerReloader {
             return
         }
 
+        val reiInstalled = PlatformHelper.isModLoaded(REI_MOD_ID)
         val emiInstalled = PlatformHelper.isModLoaded(EMI_MOD_ID)
         val jeiInstalled = PlatformHelper.isModLoaded(JEI_MOD_ID)
 
+        if (!reiInstalled) reiEntriesLastRegisteredVersion = targetDataVersion
         if (!emiInstalled) emiLastRegisteredVersion = targetDataVersion
         if (!jeiInstalled) jeiLastRegisteredVersion = targetDataVersion
 
+        val reiStale = reiInstalled && reiEntriesLastRegisteredVersion != targetDataVersion
         val emiStale = emiInstalled && emiLastRegisteredVersion != targetDataVersion
         val jeiStale = jeiInstalled && jeiLastRegisteredVersion != targetDataVersion
 
-        if (!emiStale && !jeiStale) {
+        if (!reiStale && !emiStale && !jeiStale) {
             active = false
             DebugLog.info("Recipe viewers verified current (dataVersion=$targetDataVersion)")
             return
@@ -79,18 +87,21 @@ object RecipeViewerReloader {
         attempts++
         if (attempts > MAX_ATTEMPTS) {
             active = false
+            val reiStatus = if (reiStale) "stale(v${reiEntriesLastRegisteredVersion})" else "ok"
             val emiStatus = if (emiStale) "stale(v${emiLastRegisteredVersion})" else "ok"
             val jeiStatus = if (jeiStale) "stale(v${jeiLastRegisteredVersion})" else "ok"
             CobbleDexMod.LOGGER.warn("[CobbleDex] Recipe viewer reload gave up after $MAX_ATTEMPTS attempts " +
-                "(target=v$targetDataVersion, EMI=$emiStatus, JEI=$jeiStatus, spawns=${SpawnDataIndex.spawnsBySpecies.size})")
+                "(target=v$targetDataVersion, REI=$reiStatus, EMI=$emiStatus, JEI=$jeiStatus, spawns=${SpawnDataIndex.spawnsBySpecies.size})")
             return
         }
 
+        val reiLabel = if (reiStale) "stale" else "current"
         val emiLabel = if (emiStale) "stale" else "current"
         val jeiLabel = if (jeiStale) "stale" else "current"
-        DebugLog.info("Reload attempt $attempts/$MAX_ATTEMPTS — EMI=$emiLabel, JEI=$jeiLabel " +
+        DebugLog.info("Reload attempt $attempts/$MAX_ATTEMPTS — REI=$reiLabel, EMI=$emiLabel, JEI=$jeiLabel " +
             "(target=v$targetDataVersion, spawns=${SpawnDataIndex.spawnsBySpecies.size})")
 
+        if (reiStale) reloadREIEntries()
         if (emiStale) reloadEMI()
         if (jeiStale) reloadJEI()
 
@@ -103,8 +114,27 @@ object RecipeViewerReloader {
         attempts = 0
         ticksUntilCheck = 0
         targetDataVersion = -1L
+        reiEntriesLastRegisteredVersion = -1L
         emiLastRegisteredVersion = -1L
         jeiLastRegisteredVersion = -1L
+    }
+
+    private fun reloadREIEntries() {
+        if (!PlatformHelper.isModLoaded(REI_MOD_ID)) {
+            reiEntriesLastRegisteredVersion = targetDataVersion
+            return
+        }
+
+        try {
+            val cls = Class.forName("com.cobbledex.rei.CobbleDexREIPlugin")
+            cls.getMethod("reloadEntries").invoke(null)
+        } catch (_: ClassNotFoundException) {
+            reiEntriesLastRegisteredVersion = targetDataVersion
+        } catch (_: NoClassDefFoundError) {
+            reiEntriesLastRegisteredVersion = targetDataVersion
+        } catch (e: Exception) {
+            DebugLog.warn("REI entry reload failed: ${e.message}")
+        }
     }
 
     private fun reloadEMI() {

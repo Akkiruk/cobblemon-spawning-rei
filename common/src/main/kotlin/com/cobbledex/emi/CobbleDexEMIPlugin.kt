@@ -4,6 +4,7 @@ import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
 import com.cobbledex.PokemonSpriteService
+import com.cobbledex.PokemonSearchTerms
 import com.cobbledex.RecipeHandle
 import com.cobbledex.RecipeViewerReloader
 import com.cobbledex.SlotRole
@@ -69,11 +70,8 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             val stack = PokemonEmiStack(species)
             registry.addEmiStack(stack)
             registry.setDefaultComparison(stack, Comparison.DEFAULT_COMPARISON)
-            SpawnDataIndex.getJobsFor(species).forEach { job ->
-                registry.addAlias(stack, Component.literal("job:${job.rule.id} ${job.rule.displayName}"))
-            }
-            if (speciesInfo.isForm && speciesInfo.baseSpeciesName != null) {
-                registry.addAlias(stack, Component.literal(com.cobbledex.formatSpeciesName(speciesInfo.baseSpeciesName)))
+            for (term in PokemonSearchTerms.buildTerms(species, includeDisplayName = false)) {
+                registry.addAlias(stack, Component.literal(term))
             }
             if (speciesInfo.isForm) formCount++ else registered++
         }

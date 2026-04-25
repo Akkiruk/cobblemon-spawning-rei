@@ -2,6 +2,21 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.8] - 2026-04-25
+
+### Fixed
+- **Dedicated-server sync is now authoritative across more CobbleDex pages** - obtainment and riding data now travel in the existing server sync bundle, so clients no longer mix server-synced spawns/evolutions with local-only obtainment or riding state
+- **REI, JEI, and EMI item lookup behavior is more consistent** - REI item usages now go through usage-specific category hooks instead of always reusing recipe lookups, which keeps reverse item navigation aligned with the shared category model
+- **REI sidebar entries now refresh after sync-driven data changes** - the REI plugin can rebuild its Pokemon entry list after the underlying CobbleDex index version changes, matching the runtime refresh behavior JEI and EMI already had
+- **Index publication is now coherent under reload pressure** - shared CobbleDex state is published through a single snapshot instead of a series of independently swapped maps, reducing mixed-generation reads during reloads and sync application
+
+### Improved
+- Shared Pokemon search terms now flow through REI, JEI, and EMI from one helper, keeping job aliases, type terms, and base-species aliases closer to parity instead of drifting viewer-by-viewer
+- Category sizing now measures all built recipes for a category instead of bailing out on a heuristic early-stop path, so REI and JEI bounds better track the layouts they actually render
+- TM reverse lookup now indexes all supported teaching item prefixes, not just standard TM items, so tutor, egg, and star variants stay reachable through the shared lookup model
+- Obtainment mod-presence checks now use the existing platform helper instead of a separate reflection-based loader probe
+- Diagnostic reports no longer hardcode an outdated official dex cutoff and now use the current CobbleDex naming instead of the old Cobblemon Spawning REI label
+
 ## [1.50.7] - 2026-04-24
 
 ### Fixed

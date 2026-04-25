@@ -35,10 +35,10 @@ class CobbleDexFabric : ModInitializer {
                         for (chunk in prepared.chunkedPayloads) {
                             ServerPlayNetworking.send(player, chunk)
                         }
-                        CobbleDexMod.LOGGER.info("[CobbleDex] Sent chunked sync to ${player.name.string}: ${prepared.speciesCount} species (${prepared.totalSpawnEntries} spawn entries), ${prepared.evolutionEntryCount} evolutions, ${prepared.speciesInfoCount} species info, ${prepared.fossilSpeciesCount} fossils, ${prepared.compressedSize} bytes in ${prepared.chunkedPayloads.size} chunks")
+                        CobbleDexMod.LOGGER.info("[CobbleDex] Sent chunked sync to ${player.name.string}: ${prepared.speciesCount} species (${prepared.totalSpawnEntries} spawn entries), ${prepared.evolutionEntryCount} evolutions, ${prepared.speciesInfoCount} species info, ${prepared.obtainmentSpeciesCount} obtainment, ${prepared.ridingSpeciesCount} riding, ${prepared.fossilSpeciesCount} fossils, ${prepared.compressedSize} bytes in ${prepared.chunkedPayloads.size} chunks")
                     } else {
                         ServerPlayNetworking.send(player, prepared.legacyPayload)
-                        CobbleDexMod.LOGGER.info("[CobbleDex] Sent legacy sync to ${player.name.string}: ${prepared.speciesCount} species (${prepared.totalSpawnEntries} spawn entries), ${prepared.evolutionEntryCount} evolutions, ${prepared.speciesInfoCount} species info, ${prepared.fossilSpeciesCount} fossils, ${prepared.compressedSize} bytes")
+                        CobbleDexMod.LOGGER.info("[CobbleDex] Sent legacy sync to ${player.name.string}: ${prepared.speciesCount} species (${prepared.totalSpawnEntries} spawn entries), ${prepared.evolutionEntryCount} evolutions, ${prepared.speciesInfoCount} species info, ${prepared.obtainmentSpeciesCount} obtainment, ${prepared.ridingSpeciesCount} riding, ${prepared.fossilSpeciesCount} fossils, ${prepared.compressedSize} bytes")
                     }
                 } catch (e: Exception) {
                     CobbleDexMod.LOGGER.warn("[CobbleDex] Failed to send sync payloads to ${player.name.string}: ${e.message}", e)

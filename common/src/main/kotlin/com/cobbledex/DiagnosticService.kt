@@ -52,20 +52,22 @@ object DiagnosticService {
         val withSpawns = index.spawnsBySpecies.keys
         val withObtainment = index.obtainmentBySpecies.keys
         
-        val officialMissingBoth = index.speciesInfo
-            .filter { it.value.nationalDexNumber in 1..1025 }
+        val indexedDexSpecies = index.speciesInfo
+            .filter { it.value.nationalDexNumber > 0 }
+
+        val missingBoth = indexedDexSpecies
             .filter { !withSpawns.contains(it.key) && !withObtainment.contains(it.key) }
             .keys
             .sorted()
         
         sender.send(tr("cobbledex-rei-emi-jei.cmd.missing_header"))
         
-        if (officialMissingBoth.isEmpty()) {
+        if (missingBoth.isEmpty()) {
             sender.send(tr("cobbledex-rei-emi-jei.cmd.all_have_data"))
         } else {
-            sender.send(tr("cobbledex-rei-emi-jei.cmd.missing_count", officialMissingBoth.size))
-            val preview = officialMissingBoth.take(20).joinToString(", ")
-            val suffix = if (officialMissingBoth.size > 20) tr("cobbledex-rei-emi-jei.cmd.and_more", officialMissingBoth.size - 20) else ""
+            sender.send(tr("cobbledex-rei-emi-jei.cmd.missing_count", missingBoth.size))
+            val preview = missingBoth.take(20).joinToString(", ")
+            val suffix = if (missingBoth.size > 20) tr("cobbledex-rei-emi-jei.cmd.and_more", missingBoth.size - 20) else ""
             sender.send("§7$preview$suffix")
         }
         
@@ -111,7 +113,7 @@ object DiagnosticService {
         val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
         
         sb.appendLine("=".repeat(80))
-        sb.appendLine("COBBLEMON SPAWNING REI - DIAGNOSTIC REPORT")
+        sb.appendLine("COBBLEDEX - DIAGNOSTIC REPORT")
         sb.appendLine("Generated: $timestamp")
         sb.appendLine("=".repeat(80))
         sb.appendLine()
@@ -132,29 +134,27 @@ object DiagnosticService {
         sb.appendLine("Load state: ${index.loadState.name}")
         sb.appendLine()
         
-        val officialWithDex = speciesInfo.filter { it.value.nationalDexNumber in 1..1025 }
-        val extrasWithDex = speciesInfo.filter { it.value.nationalDexNumber > 1025 }
+        val dexSpecies = speciesInfo.filter { it.value.nationalDexNumber > 0 }
         val noDex = allSpecies.filter { speciesInfo[it]?.nationalDexNumber == null || speciesInfo[it]?.nationalDexNumber == 0 }
         
         sb.appendLine("SPECIES CATEGORIES")
         sb.appendLine("-".repeat(40))
-        sb.appendLine("Official Pokémon (Dex 1-1025): ${officialWithDex.size}")
-        sb.appendLine("Extended Pokémon (Dex >1025): ${extrasWithDex.size}")
-        sb.appendLine("No National Dex # (forms/extras): ${noDex.size}")
+        sb.appendLine("Species with National Dex #: ${dexSpecies.size}")
+        sb.appendLine("Species without National Dex #: ${noDex.size}")
         sb.appendLine()
         
-        val officialNames = officialWithDex.keys
-        val officialWithSpawns = officialNames.filter { withSpawns.containsKey(it) }
-        val officialWithObtainment = officialNames.filter { withObtainment.containsKey(it) }
-        val officialMissingSpawns = officialNames.filter { !withSpawns.containsKey(it) }
-        val officialMissingBoth = officialNames.filter { !withSpawns.containsKey(it) && !withObtainment.containsKey(it) }
+        val dexSpeciesNames = dexSpecies.keys
+        val dexWithSpawns = dexSpeciesNames.filter { withSpawns.containsKey(it) }
+        val dexWithObtainment = dexSpeciesNames.filter { withObtainment.containsKey(it) }
+        val dexMissingSpawns = dexSpeciesNames.filter { !withSpawns.containsKey(it) }
+        val dexMissingBoth = dexSpeciesNames.filter { !withSpawns.containsKey(it) && !withObtainment.containsKey(it) }
         
-        sb.appendLine("OFFICIAL POKÉMON COVERAGE (Dex 1-1025)")
+        sb.appendLine("NATIONAL DEX COVERAGE")
         sb.appendLine("-".repeat(40))
-        sb.appendLine("With spawn data: ${officialWithSpawns.size}/${officialWithDex.size} (${percent(officialWithSpawns.size, officialWithDex.size)})")
-        sb.appendLine("With obtainment data: ${officialWithObtainment.size}/${officialWithDex.size} (${percent(officialWithObtainment.size, officialWithDex.size)})")
-        sb.appendLine("Missing spawns: ${officialMissingSpawns.size}")
-        sb.appendLine("Missing BOTH spawn and obtainment: ${officialMissingBoth.size}")
+        sb.appendLine("With spawn data: ${dexWithSpawns.size}/${dexSpecies.size} (${percent(dexWithSpawns.size, dexSpecies.size)})")
+        sb.appendLine("With obtainment data: ${dexWithObtainment.size}/${dexSpecies.size} (${percent(dexWithObtainment.size, dexSpecies.size)})")
+        sb.appendLine("Missing spawns: ${dexMissingSpawns.size}")
+        sb.appendLine("Missing BOTH spawn and obtainment: ${dexMissingBoth.size}")
         sb.appendLine()
         
         sb.appendLine("=".repeat(80))
@@ -162,12 +162,12 @@ object DiagnosticService {
         sb.appendLine("=".repeat(80))
         sb.appendLine()
         
-        sb.appendLine("OFFICIAL POKÉMON MISSING SPAWN DATA (${officialMissingSpawns.size})")
+        sb.appendLine("DEX-INDEXED SPECIES MISSING SPAWN DATA (${dexMissingSpawns.size})")
         sb.appendLine("-".repeat(40))
-        if (officialMissingSpawns.isEmpty()) {
+        if (dexMissingSpawns.isEmpty()) {
             sb.appendLine("(none)")
         } else {
-            val sorted = officialMissingSpawns.sortedBy { speciesInfo[it]?.nationalDexNumber ?: Int.MAX_VALUE }
+            val sorted = dexMissingSpawns.sortedBy { speciesInfo[it]?.nationalDexNumber ?: Int.MAX_VALUE }
             for (species in sorted) {
                 val dex = speciesInfo[species]?.nationalDexNumber ?: 0
                 val hasObtain = if (withObtainment.containsKey(species)) " [has obtainment]" else ""
@@ -176,28 +176,16 @@ object DiagnosticService {
         }
         sb.appendLine()
         
-        sb.appendLine("OFFICIAL POKÉMON MISSING BOTH SPAWN AND OBTAINMENT (${officialMissingBoth.size})")
+        sb.appendLine("DEX-INDEXED SPECIES MISSING BOTH SPAWN AND OBTAINMENT (${dexMissingBoth.size})")
         sb.appendLine("-".repeat(40))
-        if (officialMissingBoth.isEmpty()) {
-            sb.appendLine("(none - all official Pokémon have at least spawn or obtainment data)")
+        if (dexMissingBoth.isEmpty()) {
+            sb.appendLine("(none - all dex-indexed species have at least spawn or obtainment data)")
         } else {
-            val sorted = officialMissingBoth.sortedBy { speciesInfo[it]?.nationalDexNumber ?: Int.MAX_VALUE }
+            val sorted = dexMissingBoth.sortedBy { speciesInfo[it]?.nationalDexNumber ?: Int.MAX_VALUE }
             for (species in sorted) {
                 val dex = speciesInfo[species]?.nationalDexNumber ?: 0
                 sb.appendLine("#${dex.toString().padStart(4, '0')} $species")
             }
-        }
-        sb.appendLine()
-        
-        sb.appendLine("EXTENDED POKÉMON (Dex >1025, ${extrasWithDex.size} total)")
-        sb.appendLine("-".repeat(40))
-        val extrasSorted = extrasWithDex.entries.sortedBy { it.value.nationalDexNumber }
-        for ((species, info) in extrasSorted) {
-            val hasSpawn = if (withSpawns.containsKey(species)) "spawn" else ""
-            val hasObtain = if (withObtainment.containsKey(species)) "obtainment" else ""
-            val hasEvo = if (withEvolutions.containsKey(species)) "evolution" else ""
-            val dataTypes = listOf(hasSpawn, hasObtain, hasEvo).filter { it.isNotEmpty() }.joinToString(", ")
-            sb.appendLine("#${info.nationalDexNumber} $species: ${dataTypes.ifEmpty { "(no data)" }}")
         }
         sb.appendLine()
         

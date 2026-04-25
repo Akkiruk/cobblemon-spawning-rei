@@ -3,6 +3,7 @@ package com.cobbledex
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.cobbledex.platform.PlatformHelper
 import java.io.InputStreamReader
 import java.nio.file.Files
 import java.nio.file.Path
@@ -15,29 +16,13 @@ object ObtainmentDataLoader {
 
     private fun isModLoaded(modId: String): Boolean {
         modLoadedCache[modId]?.let { return it }
-        val loaded = checkModPresence(modId)
+        val loaded = try {
+            PlatformHelper.isModLoaded(modId)
+        } catch (_: Exception) {
+            false
+        }
         modLoadedCache[modId] = loaded
         return loaded
-    }
-
-    private fun checkModPresence(modId: String): Boolean {
-        try {
-            val fabricLoader = Class.forName("net.fabricmc.loader.api.FabricLoader")
-            val instance = fabricLoader.getMethod("getInstance").invoke(null)
-            val result = instance.javaClass.getMethod("isModLoaded", String::class.java).invoke(instance, modId)
-            return result as Boolean
-        } catch (_: ClassNotFoundException) {}
-        catch (_: Exception) {}
-
-        try {
-            val modList = Class.forName("net.neoforged.fml.ModList")
-            val list = modList.getMethod("get").invoke(null)
-            val result = list.javaClass.getMethod("isLoaded", String::class.java).invoke(list, modId)
-            return result as Boolean
-        } catch (_: ClassNotFoundException) {}
-        catch (_: Exception) {}
-
-        return false
     }
 
     fun loadFromAllSources(modRoots: List<Path>): Map<String, List<ObtainmentInfo>> {
@@ -67,7 +52,7 @@ object ObtainmentDataLoader {
         }
 
         val datapacksDir = try {
-            com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
+            PlatformHelper.getGameDir().resolve("datapacks")
         } catch (_: Exception) { null }
 
         if (datapacksDir != null && Files.exists(datapacksDir) && Files.isDirectory(datapacksDir)) {
