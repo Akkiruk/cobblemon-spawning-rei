@@ -34,7 +34,7 @@ object RecipeBuilder {
     }
 
     fun buildSpawnRecipes(species: String, spawns: List<SpawnInfo>): List<SpawnRecipeData> {
-        return SpawnDisplayHelper.buildSortedSpawns(spawns).mapNotNull { entry ->
+        return SpawnPageBuilder.sortedSpawns(spawns).mapNotNull { entry ->
             try {
                 SpawnRecipeData(species, entry.spawn, entry.formVariants, entry.bucketIndex, entry.bucketTotal)
             } catch (e: Exception) {
@@ -61,6 +61,51 @@ object RecipeBuilder {
         if (obtainments.isEmpty()) return emptyList()
         return obtainments.mapIndexed { i, info ->
             ObtainmentRecipeData(species, info, i + 1, obtainments.size)
+        }
+    }
+
+    fun buildAllUnifiedObtainmentRecipes(): List<UnifiedObtainmentRecipeData> {
+        return PageProjectionBuilder.allPokemon()
+            .flatMap { projection -> buildUnifiedObtainmentPages(projection.speciesName, projection.obtainmentRoutes) }
+    }
+
+    fun buildUnifiedObtainmentFor(speciesName: String): List<UnifiedObtainmentRecipeData> {
+        val projection = PageProjectionBuilder.pokemon(speciesName) ?: return emptyList()
+        return buildUnifiedObtainmentPages(projection.speciesName, projection.obtainmentRoutes)
+    }
+
+    fun buildUnifiedObtainmentForItem(itemId: String): List<UnifiedObtainmentRecipeData> {
+        return PageProjectionBuilder.allPokemon().flatMap { projection ->
+            val routes = projection.obtainmentRoutes.filter { route -> itemId in route.itemIds }
+            buildUnifiedObtainmentPages(projection.speciesName, routes)
+        }
+    }
+
+    private fun buildUnifiedObtainmentPages(
+        speciesName: String,
+        routes: List<ObtainmentRoute>,
+    ): List<UnifiedObtainmentRecipeData> {
+        if (routes.isEmpty()) return emptyList()
+        val pages = paginateByMeasuredHeight(routes) { pageRoutes ->
+            ObtainmentPageBuilder.buildUnified(
+                UnifiedObtainmentRecipeData(
+                    speciesName = speciesName,
+                    routes = pageRoutes,
+                    pageIndex = 1,
+                    pageTotal = 1,
+                    totalRoutes = routes.size,
+                )
+            ).height
+        }
+        val pageTotal = pages.size
+        return pages.mapIndexed { index, pageRoutes ->
+            UnifiedObtainmentRecipeData(
+                speciesName = speciesName,
+                routes = pageRoutes,
+                pageIndex = index + 1,
+                pageTotal = pageTotal,
+                totalRoutes = routes.size,
+            )
         }
     }
 
@@ -91,7 +136,7 @@ object RecipeBuilder {
 
     private fun paginateDrops(speciesName: String, drops: List<DropEntryInfo>): List<DropRecipeData> {
         val pages = paginateByMeasuredHeight(drops) { pageDrops ->
-            SpawnDisplayHelper.buildDropLayout(
+            DropPageBuilder.build(
                 DropRecipeData(speciesName, pageDrops, pageIndex = 1, pageTotal = 1, totalDrops = drops.size)
             ).height
         }
@@ -443,7 +488,7 @@ object RecipeBuilder {
     private fun paginateForms(baseSpeciesName: String, forms: List<FormInfoEntry>): List<FormRecipeData> {
         val sortedForms = forms.sortedBy { it.formDisplayName }
         val pages = paginateByMeasuredHeight(sortedForms) { pageForms ->
-            SpawnDisplayHelper.buildFormLayout(
+            PokemonInfoPageBuilder.buildForms(
                 FormRecipeData(baseSpeciesName, pageForms, pageIndex = 1, pageTotal = 1, totalForms = sortedForms.size)
             ).layout.height
         }

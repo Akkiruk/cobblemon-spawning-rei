@@ -15,6 +15,14 @@ data class ObtainmentRecipeData(
     val entryTotal: Int = 1
 )
 
+data class UnifiedObtainmentRecipeData(
+    val speciesName: String,
+    val routes: List<ObtainmentRoute>,
+    val pageIndex: Int = 1,
+    val pageTotal: Int = 1,
+    val totalRoutes: Int = routes.size,
+)
+
 data class TypeChartRecipeData(
     val speciesName: String,
     val primaryType: String,

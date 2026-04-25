@@ -141,7 +141,7 @@ object SpawnDex : DexCategory {
         recipeIdPath = "spawn/${sanitizePath(d.speciesName)}/${sanitizePath(d.spawn.bucket)}/${d.bucketIndex}",
         inputSpecies = emptyList(),
         outputSpecies = listOf(d.speciesName),
-        layoutFactory = { SpawnDisplayHelper.buildSpawnLayout(d.speciesName, d.spawn, d.mergedFormVariants, d.bucketIndex, d.bucketTotal) },
+        layoutFactory = { SpawnPageBuilder.build(d) },
         _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
     )
 }
@@ -181,12 +181,12 @@ object EvolutionDex : DexCategory {
             inputSpecies = allSpecies,
             outputSpecies = allSpecies,
             layoutFactory = {
-                val r = SpawnDisplayHelper.buildEvolutionChainLayout(chain)
+                val r = EvolutionPageBuilder.build(chain)
                 chainResult = r
                 r.layout
             },
             _slots = { _ ->
-                val r = chainResult ?: SpawnDisplayHelper.buildEvolutionChainLayout(chain).also { chainResult = it }
+                val r = chainResult ?: EvolutionPageBuilder.build(chain).also { chainResult = it }
                 RecipeHandle.Slots(pokemon = r.pokemonSlots, items = r.itemSlots)
             },
         )
@@ -200,24 +200,29 @@ object ObtainmentDex : DexCategory {
     override val titleKey = "category.cobbledex-rei-emi-jei.obtainment"
     override val icon: Item = Items.NETHER_STAR
     override val maxSize: () -> CategorySizer.PanelSize = { CategorySizer.getBounds(this) }
+    override val supportsRecipeTree = true
     override fun isEnabled(config: CobbleDexConfig) = config.showObtainment
 
     override fun buildAllRecipes() =
-        RecipeBuilder.buildAllObtainmentRecipes().map(::toHandle)
+        RecipeBuilder.buildAllUnifiedObtainmentRecipes().map(::toUnifiedHandle)
 
-    override fun buildRecipesFor(species: String): List<RecipeHandle> {
-        if (!SpawnDataIndex.shouldSurfaceSpecies(species)) return emptyList()
-        val obtainments = SpawnDataIndex.getObtainmentFor(species)
-        if (obtainments.isEmpty()) return emptyList()
-        return RecipeBuilder.buildObtainmentsFor(species, obtainments).map(::toHandle)
-    }
+    override fun buildRecipesFor(species: String): List<RecipeHandle> =
+        RecipeBuilder.buildUnifiedObtainmentFor(species).map(::toUnifiedHandle)
 
-    private fun toHandle(d: ObtainmentRecipeData) = RecipeHandle(
-        recipeIdPath = "obtainment/${sanitizePath(d.speciesName)}/${sanitizePath(d.obtainment.method)}/${d.entryIndex}",
+    override fun buildRecipesForItem(itemId: String): List<RecipeHandle> =
+        RecipeBuilder.buildUnifiedObtainmentForItem(itemId).map(::toUnifiedHandle)
+
+    private fun toUnifiedHandle(d: UnifiedObtainmentRecipeData) = RecipeHandle(
+        recipeIdPath = "obtainment/${sanitizePath(d.speciesName)}_${d.pageIndex}",
         inputSpecies = emptyList(),
         outputSpecies = listOf(d.speciesName),
-        layoutFactory = { SpawnDisplayHelper.buildObtainmentLayout(d.speciesName, d.obtainment, d.entryIndex, d.entryTotal) },
-        _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonOutput(d.speciesName, 8, 3))) },
+        layoutFactory = { ObtainmentPageBuilder.buildUnified(d) },
+        _slots = {
+            RecipeHandle.Slots(
+                pokemon = listOf(pokemonOutput(d.speciesName, 8, 3)),
+                catalogInputIds = d.routes.flatMap { it.itemIds }.distinct(),
+            )
+        },
     )
 }
 
@@ -244,7 +249,7 @@ object DropDex : DexCategory {
         recipeIdPath = "drops/${sanitizePath(d.speciesName)}_${d.pageIndex}",
         inputSpecies = listOf(d.speciesName),
         outputSpecies = emptyList(),
-        layoutFactory = { SpawnDisplayHelper.buildDropLayout(d) },
+        layoutFactory = { DropPageBuilder.build(d) },
         _slots = { _ ->
             RecipeHandle.Slots(
                 pokemon = listOf(pokemonInput(d.speciesName)),
@@ -278,7 +283,7 @@ object StatsDex : DexCategory {
         recipeIdPath = "stats/${sanitizePath(d.speciesName)}",
         inputSpecies = listOf(d.speciesName),
         outputSpecies = emptyList(),
-        layoutFactory = { SpawnDisplayHelper.buildStatsLayout(d.speciesName, d.baseStats, d.baseStatTotal, d.primaryType, d.secondaryType, evYield = d.evYield) },
+        layoutFactory = { PokemonInfoPageBuilder.buildStats(d) },
         _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
     )
 }
@@ -308,7 +313,7 @@ object MovesDex : DexCategory {
         recipeIdPath = "moves/${sanitizePath(d.speciesName)}_${d.pageIndex}",
         inputSpecies = listOf(d.speciesName),
         outputSpecies = emptyList(),
-        layoutFactory = { SpawnDisplayHelper.buildMovesLayout(d) },
+        layoutFactory = { MovePageBuilder.buildMoves(d) },
         _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
     )
 
@@ -316,7 +321,7 @@ object MovesDex : DexCategory {
         recipeIdPath = "moves/tm_${sanitizePath(d.moveName)}_${sanitizePath(d.speciesName)}",
         inputSpecies = listOf(d.speciesName),
         outputSpecies = emptyList(),
-        layoutFactory = { SpawnDisplayHelper.buildTmLearnerLayout(d) },
+        layoutFactory = { MovePageBuilder.buildTmLearner(d) },
         _slots = {
             RecipeHandle.Slots(
                 pokemon = listOf(pokemonInput(d.speciesName)),
@@ -348,7 +353,7 @@ object PokedexInfoDex : DexCategory {
         recipeIdPath = "pokedex_info/${sanitizePath(d.speciesName)}",
         inputSpecies = listOf(d.speciesName),
         outputSpecies = emptyList(),
-        layoutFactory = { SpawnDisplayHelper.buildPokedexInfoLayout(d) },
+        layoutFactory = { PokemonInfoPageBuilder.buildPokedex(d) },
         _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
     )
 }
@@ -375,7 +380,7 @@ object PokemonDescriptionDex : DexCategory {
         recipeIdPath = "pokemon_description/${sanitizePath(d.speciesName)}",
         inputSpecies = listOf(d.speciesName),
         outputSpecies = emptyList(),
-        layoutFactory = { SpawnDisplayHelper.buildPokemonDescriptionLayout(d) },
+        layoutFactory = { PokemonInfoPageBuilder.buildDescription(d) },
         _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
     )
 }
@@ -403,7 +408,7 @@ object FossilDex : DexCategory {
         recipeIdPath = "fossils/${sanitizePath(d.speciesName)}",
         inputSpecies = emptyList(),
         outputSpecies = listOf(d.speciesName),
-        layoutFactory = { SpawnDisplayHelper.buildFossilLayout(d) },
+        layoutFactory = { MechanicPageBuilder.buildFossil(d) },
         _slots = { _ ->
             RecipeHandle.Slots(
                 pokemon = listOf(pokemonOutput(d.speciesName)),
@@ -437,7 +442,7 @@ object TypeChartDex : DexCategory {
         recipeIdPath = "type_chart/${sanitizePath(d.speciesName)}",
         inputSpecies = listOf(d.speciesName),
         outputSpecies = emptyList(),
-        layoutFactory = { SpawnDisplayHelper.buildTypeChartLayout(d) },
+        layoutFactory = { PokemonInfoPageBuilder.buildTypeChart(d) },
         _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
     )
 }
@@ -460,7 +465,7 @@ object NatureDex : DexCategory {
         recipeIdPath = "natures/table_${d.pageIndex}",
         inputSpecies = emptyList(),
         outputSpecies = emptyList(),
-        layoutFactory = { SpawnDisplayHelper.buildNatureLayout(d) },
+        layoutFactory = { MechanicPageBuilder.buildNature(d) },
     )
 }
 
@@ -488,7 +493,7 @@ object JobsDex : DexCategory {
         recipeIdPath = "jobs/${sanitizePath(d.speciesName)}/${sanitizePath(d.match.rule.id)}",
         inputSpecies = listOf(d.speciesName),
         outputSpecies = emptyList(),
-        layoutFactory = { SpawnDisplayHelper.buildJobLayout(d.speciesName, d.match) },
+        layoutFactory = { MechanicPageBuilder.buildJob(d.speciesName, d.match) },
         _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
     )
 }
@@ -522,12 +527,12 @@ object FormsDex : DexCategory {
             inputSpecies = listOf(d.baseSpeciesName) + allFormKeys,
             outputSpecies = emptyList(),
             layoutFactory = {
-                val r = SpawnDisplayHelper.buildFormLayout(d)
+                val r = PokemonInfoPageBuilder.buildForms(d)
                 formResult = r
                 r.layout
             },
             _slots = { _ ->
-                val r = formResult ?: SpawnDisplayHelper.buildFormLayout(d).also { formResult = it }
+                val r = formResult ?: PokemonInfoPageBuilder.buildForms(d).also { formResult = it }
                 RecipeHandle.Slots(pokemon = r.pokemonSlots)
             },
         )
@@ -555,7 +560,7 @@ object RidingDex : DexCategory {
         recipeIdPath = "riding/${sanitizePath(d.speciesName)}/${d.mount.mountType.lowercase()}",
         inputSpecies = listOf(d.speciesName),
         outputSpecies = emptyList(),
-        layoutFactory = { SpawnDisplayHelper.buildRidingLayout(d.speciesName, d) },
+        layoutFactory = { PokemonInfoPageBuilder.buildRiding(d) },
         _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
     )
 }

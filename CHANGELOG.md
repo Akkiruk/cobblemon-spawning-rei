@@ -2,6 +2,16 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.19] - 2026-04-25
+
+### Improved
+- Added page-family builders for spawn, evolution, obtainment, drops, Pokemon info, moves, fossils, jobs, forms, and riding pages so REI, JEI, and EMI categories no longer build page layouts directly through the monolithic display helper
+- Added canonical Pokemon page projections backed by immutable CobbleDex snapshots, including structured obtainment routes across wild spawns, special obtainment, fossil restoration, and evolution access
+- Replaced the special-obtainment-only category pages with unified “How to Obtain” pages that combine spawn availability, special requirements, fossils, and evolution paths while preserving shared recipe-tree item lookup support across all three viewers
+
+### Tests
+- Added focused common-module coverage for unified obtainment route projection order and item participation
+
 ## [1.50.18] - 2026-04-25
 
 ### Improved
