@@ -4,8 +4,6 @@ import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
 import com.cobbledex.PokemonItemCache
-import com.cobbledex.PokemonSearchTerms
-import com.cobbledex.RecipeCatalogCache
 import com.cobbledex.RecipeHandle
 import com.cobbledex.RecipeViewerReloader
 import com.cobbledex.SlotRole
@@ -22,7 +20,6 @@ import mezz.jei.api.recipe.RecipeIngredientRole
 import mezz.jei.api.recipe.RecipeType
 import mezz.jei.api.recipe.category.IRecipeCategory
 import mezz.jei.api.registration.IModIngredientRegistration
-import mezz.jei.api.registration.IIngredientAliasRegistration
 import mezz.jei.api.registration.IRecipeCatalystRegistration
 import mezz.jei.api.registration.IRecipeCategoryRegistration
 import mezz.jei.api.registration.IRecipeRegistration
@@ -41,16 +38,6 @@ open class CobbleDexJEIPlugin : IModPlugin {
         @Volatile var runtime: IJeiRuntime? = null
             private set
 
-        private fun buildIndexedPokemon(config: CobbleDexConfig = CobbleDexConfig.get()): List<PokemonIngredient> {
-            return SpawnDataIndex.allSpeciesNames
-                .filter { name ->
-                    val info = SpawnDataIndex.getSpeciesInfo(name)
-                    info?.isForm != true || config.registerFormEntries
-                }
-                .filter { PokemonItemCache.canRender(it) }
-                .map { PokemonIngredient(it) }
-        }
-
         fun recipeType(def: DexCategory): RecipeType<GenericRecipe> =
             recipeTypes.getOrPut(def.id) {
                 RecipeType(
@@ -58,13 +45,6 @@ open class CobbleDexJEIPlugin : IModPlugin {
                     GenericRecipe::class.java
                 )
             }
-
-        private fun buildAliases(ingredient: PokemonIngredient): List<String> =
-            PokemonSearchTerms.buildTerms(
-                ingredient.species,
-                ingredient.displayName,
-                includeDisplayName = false
-            )
 
         /** Called by RecipeViewerReloader after server sync to push new recipes into JEI */
         @JvmStatic
@@ -81,25 +61,36 @@ open class CobbleDexJEIPlugin : IModPlugin {
                     if (old.isNotEmpty()) manager.hideRecipes(type, old)
                 }
 
-                val recipes = RecipeCatalogCache.getAllRecipes(def).map { GenericRecipe(it) }
+                val recipes = def.buildAllRecipes().map { GenericRecipe(it) }
                 if (recipes.isNotEmpty()) {
                     manager.addRecipes(type, recipes)
                 }
                 addedRecipes[def.id] = recipes
             }
 
-            try {
-                val ingredientManager = rt.ingredientManager
-                val existing = ingredientManager.getAllIngredients(PokemonIngredientType).toList()
-                if (existing.isNotEmpty()) {
-                    ingredientManager.removeIngredientsAtRuntime(PokemonIngredientType, existing)
+            // Re-register Pokémon ingredients so search index includes job names
+            if (SpawnDataIndex.hasJobRules()) {
+                try {
+                    val config = CobbleDexConfig.get()
+                    val ingredientManager = rt.ingredientManager
+                    val existing = ingredientManager.getAllIngredients(PokemonIngredientType).toList()
+                    if (existing.isNotEmpty()) {
+                        ingredientManager.removeIngredientsAtRuntime(PokemonIngredientType, existing)
+                    }
+                    val updated = SpawnDataIndex.allSpeciesNames
+                        .filter { name ->
+                            val info = SpawnDataIndex.getSpeciesInfo(name)
+                            if (info == null) false
+                            else if (info.isForm) config.registerFormEntries
+                            else info.baseSpeciesName == null
+                        }
+                        .filter { PokemonItemCache.canRender(it) }
+                        .map { PokemonIngredient(it) }
+                    ingredientManager.addIngredientsAtRuntime(PokemonIngredientType, updated)
+                    DebugLog.info("JEI: Re-indexed ${updated.size} Pokémon ingredients with job data")
+                } catch (e: Exception) {
+                    DebugLog.once("jei-ingredient-reload") { "JEI ingredient reload failed: ${e.message}" }
                 }
-                val updated = buildIndexedPokemon()
-                JeiRuntimeAliasBridge.replacePokemonAliases(ingredientManager, updated, ::buildAliases)
-                ingredientManager.addIngredientsAtRuntime(PokemonIngredientType, updated)
-                DebugLog.info("JEI: Re-indexed ${updated.size} Pokémon ingredients")
-            } catch (e: Exception) {
-                DebugLog.once("jei-ingredient-reload") { "JEI ingredient reload failed: ${e.message}" }
             }
 
             RecipeViewerReloader.jeiLastRegisteredVersion = SpawnDataIndex.dataVersion
@@ -112,7 +103,16 @@ open class CobbleDexJEIPlugin : IModPlugin {
 
     override fun registerIngredients(registration: IModIngredientRegistration) {
         SpawnDataIndex.ensureLoaded()
-        val allPokemon = buildIndexedPokemon()
+        val config = CobbleDexConfig.get()
+        val allPokemon = SpawnDataIndex.allSpeciesNames
+            .filter { name ->
+                val info = SpawnDataIndex.getSpeciesInfo(name)
+                if (info == null) false
+                else if (info.isForm) config.registerFormEntries
+                else true
+            }
+            .filter { PokemonItemCache.canRender(it) }
+            .map { PokemonIngredient(it) }
 
         registration.register(
             PokemonIngredientType,
@@ -122,16 +122,6 @@ open class CobbleDexJEIPlugin : IModPlugin {
         )
         val formCount = allPokemon.count { SpawnDataIndex.isForm(it.species) }
         DebugLog.info("JEI: Registered ${allPokemon.size - formCount} Pokémon + $formCount form ingredients")
-    }
-
-    override fun registerIngredientAliases(registration: IIngredientAliasRegistration) {
-        SpawnDataIndex.ensureLoaded()
-        for (ingredient in buildIndexedPokemon()) {
-            val aliases = buildAliases(ingredient)
-            if (aliases.isNotEmpty()) {
-                registration.addAliases(PokemonIngredientType, ingredient, aliases)
-            }
-        }
     }
 
     override fun registerCategories(registration: IRecipeCategoryRegistration) {
@@ -153,7 +143,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
 
         for (def in DexCategory.ALL) {
             if (!def.isEnabled(config)) continue
-            val recipes = RecipeCatalogCache.getAllRecipes(def).map { GenericRecipe(it) }
+            val recipes = def.buildAllRecipes().map { GenericRecipe(it) }
             if (recipes.isNotEmpty()) {
                 registration.addRecipes(recipeType(def), recipes)
             }

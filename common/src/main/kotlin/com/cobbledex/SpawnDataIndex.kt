@@ -2,11 +2,9 @@ package com.cobbledex
 
 import com.cobblemon.mod.common.api.moves.Moves
 import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
-import java.util.concurrent.CancellationException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
-import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -15,55 +13,59 @@ object SpawnDataIndex {
 
     enum class LoadState { NOT_LOADED, PARTIAL, FULLY_LOADED }
 
-    private data class DataSnapshot(
-        val spawnsBySpecies: Map<String, List<SpawnInfo>> = emptyMap(),
-        val evolutionsBySpecies: Map<String, List<EvolutionInfo>> = emptyMap(),
-        val evolutionsToSpecies: Map<String, List<EvolutionInfo>> = emptyMap(),
-        val speciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo> = emptyMap(),
-        val obtainmentBySpecies: Map<String, List<ObtainmentInfo>> = emptyMap(),
-        val fossilsBySpecies: Map<String, List<FossilCombo>> = emptyMap(),
-        val dropsByItem: Map<String, List<String>> = emptyMap(),
-        val speciesByTmMove: Map<String, List<String>> = emptyMap(),
-        val jobRules: List<JobRule> = emptyList(),
-        val ridingBySpecies: Map<String, RidingInfo> = emptyMap(),
-        val allSpeciesNames: List<String> = emptyList(),
-    )
-
     @Volatile
     var loadState = LoadState.NOT_LOADED
         private set
-
-    @Volatile
-    private var snapshot = DataSnapshot()
 
     private val dataLock = ReentrantLock()
     private val executor: ExecutorService = Executors.newSingleThreadExecutor { r ->
         Thread(r, "CobbleDex-DataLoad").apply { isDaemon = true }
     }
     private var loadFuture: Future<*>? = null
-    private val loadGeneration = AtomicLong(0)
 
-    val spawnsBySpecies: Map<String, List<SpawnInfo>> get() = snapshot.spawnsBySpecies
+    @Volatile
+    var spawnsBySpecies: Map<String, List<SpawnInfo>> = emptyMap()
+        private set
 
-    val evolutionsBySpecies: Map<String, List<EvolutionInfo>> get() = snapshot.evolutionsBySpecies
+    @Volatile
+    var evolutionsBySpecies: Map<String, List<EvolutionInfo>> = emptyMap()
+        private set
 
-    val evolutionsToSpecies: Map<String, List<EvolutionInfo>> get() = snapshot.evolutionsToSpecies
+    @Volatile
+    var evolutionsToSpecies: Map<String, List<EvolutionInfo>> = emptyMap()
+        private set
 
-    val speciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo> get() = snapshot.speciesInfo
+    @Volatile
+    var speciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo> = emptyMap()
+        private set
 
-    val obtainmentBySpecies: Map<String, List<ObtainmentInfo>> get() = snapshot.obtainmentBySpecies
+    @Volatile
+    var obtainmentBySpecies: Map<String, List<ObtainmentInfo>> = emptyMap()
+        private set
 
-    val fossilsBySpecies: Map<String, List<FossilCombo>> get() = snapshot.fossilsBySpecies
+    @Volatile
+    var fossilsBySpecies: Map<String, List<FossilCombo>> = emptyMap()
+        private set
 
-    val dropsByItem: Map<String, List<String>> get() = snapshot.dropsByItem
+    @Volatile
+    var dropsByItem: Map<String, List<String>> = emptyMap()
+        private set
 
-    val speciesByTmMove: Map<String, List<String>> get() = snapshot.speciesByTmMove
+    @Volatile
+    var speciesByTmMove: Map<String, List<String>> = emptyMap()
+        private set
 
-    val jobRules: List<JobRule> get() = snapshot.jobRules
+    @Volatile
+    var jobRules: List<JobRule> = emptyList()
+        private set
 
-    val ridingBySpecies: Map<String, RidingInfo> get() = snapshot.ridingBySpecies
+    @Volatile
+    var ridingBySpecies: Map<String, RidingInfo> = emptyMap()
+        private set
 
-    val allSpeciesNames: List<String> get() = snapshot.allSpeciesNames
+    @Volatile
+    var allSpeciesNames: List<String> = emptyList()
+        private set
 
     @Volatile
     var dataVersion: Long = 0
@@ -78,12 +80,9 @@ object SpawnDataIndex {
     @Volatile
     private var hasServerSync = false
 
-    @Volatile
-    private var serverSyncComplete = false
-
     fun isFullyLoaded(): Boolean = loadState == LoadState.FULLY_LOADED
 
-    fun hasData(): Boolean = loadState != LoadState.NOT_LOADED && allSpeciesNames.isNotEmpty()
+    fun hasData(): Boolean = allSpeciesNames.isNotEmpty()
 
     fun ensureLoaded() {
         when (loadState) {
@@ -120,9 +119,7 @@ object SpawnDataIndex {
         }
         try {
             cancelPendingLoad()
-            doLoad(loadGeneration.incrementAndGet())
-        } catch (_: CancellationException) {
-            DebugLog.info("Data load cancelled")
+            doLoad()
         } catch (e: Exception) {
             DebugLog.warn("Data load failed: ${e.message}")
         } finally {
@@ -133,81 +130,55 @@ object SpawnDataIndex {
     private fun loadAllAsync() {
         val prev = loadFuture
         if (prev != null && !prev.isDone) return
-        val generation = loadGeneration.incrementAndGet()
         loadFuture = executor.submit {
+            dataLock.lock()
             try {
-                dataLock.lockInterruptibly()
-                doLoad(generation)
-            } catch (_: InterruptedException) {
-                DebugLog.info("Async data load interrupted before completion")
-                Thread.currentThread().interrupt()
-            } catch (_: CancellationException) {
-                DebugLog.info("Async data load superseded before completion")
+                doLoad()
             } catch (e: Exception) {
                 DebugLog.warn("Async data load failed: ${e.message}")
             } finally {
-                if (dataLock.isHeldByCurrentThread) {
-                    dataLock.unlock()
-                }
+                dataLock.unlock()
             }
         }
     }
 
     private fun cancelPendingLoad() {
-        loadGeneration.incrementAndGet()
         loadFuture?.cancel(true)
         loadFuture = null
     }
 
-    private fun ensureGenerationCurrent(generation: Long) {
-        if (generation != loadGeneration.get() || Thread.currentThread().isInterrupted) {
-            throw CancellationException("Superseded load generation $generation")
-        }
-    }
-
-    private fun clearActiveDataLocked(clearJobRules: Boolean) {
-        snapshot = if (clearJobRules) {
-            DataSnapshot()
-        } else {
-            DataSnapshot(jobRules = snapshot.jobRules)
-        }
-    }
-
-    private fun doLoad(generation: Long) {
-        ensureGenerationCurrent(generation)
+    private fun doLoad() {
         DebugLog.reset()
         PokemonItemCache.reset()
 
-        val current = snapshot
-
         if (hasServerSync) {
-            // Server sync is authoritative for multiplayer-visible data.
-            // Only fall back for data the server did not provide.
-            var fossils = current.fossilsBySpecies
-            if (fossilsBySpecies.isEmpty() && JarDataCache.hasCachedFossils()) {
-                DebugLog.info("Using JarDataCache fossils (${JarDataCache.getCachedFossils().size} species)")
-                fossils = normalizeMapKeys(JarDataCache.getCachedFossils())
+            // Server already sent spawns, evolutions, species info, and fossils — just load supplementary data
+            try {
+                obtainmentBySpecies = normalizeMapKeys(ObtainmentDataLoader.loadFromAllSources(
+                    SpawnDataLoader.getModRootPaths()
+                ))
+            } catch (e: Exception) {
+                DebugLog.warn("Obtainment data load failed: ${e.message}")
+                obtainmentBySpecies = emptyMap()
             }
 
-            ensureGenerationCurrent(generation)
-            val published = buildSnapshot(
-                spawnsBySpecies = current.spawnsBySpecies,
-                evolutionsBySpecies = current.evolutionsBySpecies,
-                speciesInfo = current.speciesInfo,
-                obtainmentBySpecies = current.obtainmentBySpecies,
-                fossilsBySpecies = fossils,
-                jobRules = current.jobRules,
-                ridingBySpecies = current.ridingBySpecies,
-            )
-            snapshot = published
-            loadState = if (serverSyncComplete) LoadState.FULLY_LOADED else LoadState.PARTIAL
+            // Fossils from server sync; fall back to JarDataCache if sync had none
+            if (fossilsBySpecies.isEmpty() && JarDataCache.hasCachedFossils()) {
+                DebugLog.info("Using JarDataCache fossils (${JarDataCache.getCachedFossils().size} species)")
+                fossilsBySpecies = normalizeMapKeys(JarDataCache.getCachedFossils())
+            }
+
+            rebuildDerivedData()
+            if (loadState != LoadState.FULLY_LOADED) {
+                loadState = LoadState.FULLY_LOADED
+            }
             dataVersion++
 
             DebugLog.info(
-                "Load complete (server-synced, ${loadState.name}): ${published.allSpeciesNames.size} species " +
-                "(${published.speciesInfo.count { it.value.nationalDexNumber > 0 }} with dex, " +
-                "${published.spawnsBySpecies.size} with spawns, ${published.evolutionsBySpecies.size} with evolutions, " +
-                "${published.obtainmentBySpecies.size} with obtainment)"
+                "Load complete (server-synced, ${loadState.name}): ${allSpeciesNames.size} species " +
+                "(${speciesInfo.count { it.value.nationalDexNumber > 0 }} with dex, " +
+                "${spawnsBySpecies.size} with spawns, ${evolutionsBySpecies.size} with evolutions, " +
+                "${obtainmentBySpecies.size} with obtainment)"
             )
             return
         }
@@ -215,12 +186,11 @@ object SpawnDataIndex {
         // --- Baseline: start with JarDataCache (loaded on game launch) ---
         // Wait briefly for cache if it's still initializing
         JarDataCache.awaitReady(5_000)
-        ensureGenerationCurrent(generation)
 
         // Try Cobblemon's runtime spawn pool (populated in singleplayer or by server)
         SpawnDataLoader.invalidateCache()
         val runtimeSpawns = normalizeMapKeys(SpawnDataLoader.loadFromRuntime())
-        val spawns = if (runtimeSpawns.isNotEmpty()) {
+        spawnsBySpecies = if (runtimeSpawns.isNotEmpty()) {
             runtimeSpawns
         } else if (JarDataCache.hasCachedSpawns()) {
             DebugLog.info("Using JarDataCache spawns (${JarDataCache.getCachedSpawns().size} species)")
@@ -228,157 +198,109 @@ object SpawnDataIndex {
         } else {
             emptyMap()
         }
-        ensureGenerationCurrent(generation)
 
         val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
 
         if (runtimeCount > 0) {
             // Try runtime evolutions (works in singleplayer, empty on dedicated servers)
-            var evolutions: Map<String, List<EvolutionInfo>>
             try {
-                evolutions = normalizeMapKeys(EvolutionDataLoader.loadFromRuntime())
+                evolutionsBySpecies = normalizeMapKeys(EvolutionDataLoader.loadFromRuntime())
             } catch (e: Exception) {
                 DebugLog.warn("Runtime evolution load failed: ${e.message}")
-                evolutions = emptyMap()
+                evolutionsBySpecies = emptyMap()
             }
 
             // Fall back to JarDataCache evolutions if runtime is empty
-            if (evolutions.isEmpty() && JarDataCache.hasCachedEvolutions()) {
+            if (evolutionsBySpecies.isEmpty() && JarDataCache.hasCachedEvolutions()) {
                 DebugLog.info("Using JarDataCache evolutions (${JarDataCache.getCachedEvolutions().size} species)")
-                evolutions = normalizeMapKeys(JarDataCache.getCachedEvolutions())
+                evolutionsBySpecies = normalizeMapKeys(JarDataCache.getCachedEvolutions())
             }
 
-            var info: Map<String, EvolutionDataLoader.SpeciesBasicInfo>
             try {
-                info = normalizeMapKeys(EvolutionDataLoader.loadSpeciesBasicInfoFromRuntime())
+                speciesInfo = normalizeMapKeys(EvolutionDataLoader.loadSpeciesBasicInfoFromRuntime())
             } catch (e: Exception) {
                 DebugLog.warn("Runtime species info load failed: ${e.message}")
-                info = emptyMap()
+                speciesInfo = emptyMap()
             }
-            val obtainment = try {
-                normalizeMapKeys(ObtainmentDataLoader.loadFromAllSources(
-                    SpawnDataLoader.getModRootPaths()
-                ))
-            } catch (e: Exception) {
-                DebugLog.warn("Obtainment data load failed: ${e.message}")
-                emptyMap()
-            }
-            ensureGenerationCurrent(generation)
-            val fossils = if (JarDataCache.hasCachedFossils()) {
-                normalizeMapKeys(JarDataCache.getCachedFossils())
-            } else {
-                emptyMap()
-            }
-            val enrichedInfo = enrichWithJarMoves(info)
-            val riding = try {
-                normalizeMapKeys(RidingDataLoader.loadFromRuntime())
-            } catch (e: Exception) {
-                DebugLog.warn("Riding data load failed: ${e.message}")
-                emptyMap()
-            }
-            ensureGenerationCurrent(generation)
-
-            val published = buildSnapshot(
-                spawnsBySpecies = spawns,
-                evolutionsBySpecies = evolutions,
-                speciesInfo = enrichedInfo,
-                obtainmentBySpecies = obtainment,
-                fossilsBySpecies = fossils,
-                jobRules = current.jobRules,
-                ridingBySpecies = riding,
-            )
-            snapshot = published
-
-            val hasEvolutions = published.evolutionsBySpecies.isNotEmpty()
-            val hasSpawns = published.spawnsBySpecies.isNotEmpty()
-            loadState = when {
-                runtimeCount == 0 && !hasEvolutions && !hasSpawns -> LoadState.PARTIAL
-                runtimeCount == 0 -> {
-                    // Have cached data but no runtime species yet
-                    LoadState.PARTIAL
-                }
-                !hasEvolutions && emptyEvoRetries < MAX_EMPTY_EVO_RETRIES -> {
-                    emptyEvoRetries++
-                    DebugLog.info("Species loaded ($runtimeCount) but no evolutions found (attempt $emptyEvoRetries/$MAX_EMPTY_EVO_RETRIES) — staying PARTIAL for retry")
-                    LoadState.PARTIAL
-                }
-                !hasEvolutions -> {
-                    DebugLog.warn("Species loaded ($runtimeCount) but evolutions still empty after $MAX_EMPTY_EVO_RETRIES retries — accepting as final state")
-                    LoadState.FULLY_LOADED
-                }
-                else -> {
-                    emptyEvoRetries = 0
-                    LoadState.FULLY_LOADED
-                }
-            }
-            dataVersion++
-
-            if (published.spawnsBySpecies.isNotEmpty() && published.speciesInfo.isNotEmpty()) {
-                val orphanSpawns = published.spawnsBySpecies.keys.filter { it !in published.speciesInfo }
-                if (orphanSpawns.isNotEmpty()) {
-                    DebugLog.info("Spawn-only species (no speciesInfo): ${orphanSpawns.take(20).joinToString(", ")}${if (orphanSpawns.size > 20) " (+${orphanSpawns.size - 20} more)" else ""}")
-                }
-            }
-
-            DebugLog.info(
-                "Load complete (${loadState.name}): ${published.allSpeciesNames.size} species " +
-                "(${published.speciesInfo.count { it.value.nationalDexNumber > 0 }} with dex, " +
-                "${published.spawnsBySpecies.size} with spawns, ${published.evolutionsBySpecies.size} with evolutions, " +
-                "${published.obtainmentBySpecies.size} with obtainment)"
-            )
         } else {
             DebugLog.warn("PokemonSpecies.implemented empty, spawn data only")
-            val evolutions = if (JarDataCache.hasCachedEvolutions()) {
-                normalizeMapKeys(JarDataCache.getCachedEvolutions())
+            // Still use cached evolutions even without runtime species
+            if (JarDataCache.hasCachedEvolutions()) {
+                evolutionsBySpecies = normalizeMapKeys(JarDataCache.getCachedEvolutions())
             } else {
-                emptyMap()
+                evolutionsBySpecies = emptyMap()
             }
-            val obtainment = try {
-                normalizeMapKeys(ObtainmentDataLoader.loadFromAllSources(
-                    SpawnDataLoader.getModRootPaths()
-                ))
-            } catch (e: Exception) {
-                DebugLog.warn("Obtainment data load failed: ${e.message}")
-                emptyMap()
-            }
-            ensureGenerationCurrent(generation)
-            val fossils = if (JarDataCache.hasCachedFossils()) {
-                normalizeMapKeys(JarDataCache.getCachedFossils())
-            } else {
-                emptyMap()
-            }
-            val riding = try {
-                normalizeMapKeys(RidingDataLoader.loadFromRuntime())
-            } catch (e: Exception) {
-                DebugLog.warn("Riding data load failed: ${e.message}")
-                emptyMap()
-            }
-            ensureGenerationCurrent(generation)
-
-            val published = buildSnapshot(
-                spawnsBySpecies = spawns,
-                evolutionsBySpecies = evolutions,
-                speciesInfo = emptyMap(),
-                obtainmentBySpecies = obtainment,
-                fossilsBySpecies = fossils,
-                jobRules = current.jobRules,
-                ridingBySpecies = riding,
-            )
-            snapshot = published
-            loadState = if (published.evolutionsBySpecies.isEmpty() && published.spawnsBySpecies.isEmpty()) {
-                LoadState.PARTIAL
-            } else {
-                LoadState.PARTIAL
-            }
-            dataVersion++
-
-            DebugLog.info(
-                "Load complete (${loadState.name}): ${published.allSpeciesNames.size} species " +
-                "(${published.speciesInfo.count { it.value.nationalDexNumber > 0 }} with dex, " +
-                "${published.spawnsBySpecies.size} with spawns, ${published.evolutionsBySpecies.size} with evolutions, " +
-                "${published.obtainmentBySpecies.size} with obtainment)"
-            )
+            speciesInfo = emptyMap()
         }
+
+        try {
+            obtainmentBySpecies = normalizeMapKeys(ObtainmentDataLoader.loadFromAllSources(
+                SpawnDataLoader.getModRootPaths()
+            ))
+        } catch (e: Exception) {
+            DebugLog.warn("Obtainment data load failed: ${e.message}")
+            obtainmentBySpecies = emptyMap()
+        }
+
+        // Cobblemon's client-side Fossils.all() has empty ingredient lists due to
+        // FossilRegistrySyncPacket.decodeEntry() not syncing ItemPredicates — use JarDataCache instead
+        if (JarDataCache.hasCachedFossils()) {
+            fossilsBySpecies = normalizeMapKeys(JarDataCache.getCachedFossils())
+        } else {
+            fossilsBySpecies = emptyMap()
+        }
+
+        // Enrich speciesInfo with JAR-cached moves when runtime API returned null
+        enrichWithJarMoves()
+
+        // Load riding data from Cobblemon runtime API
+        try {
+            ridingBySpecies = RidingDataLoader.loadFromRuntime()
+        } catch (e: Exception) {
+            DebugLog.warn("Riding data load failed: ${e.message}")
+            ridingBySpecies = emptyMap()
+        }
+
+        rebuildDerivedData()
+
+        val hasEvolutions = evolutionsBySpecies.isNotEmpty()
+        val hasSpawns = spawnsBySpecies.isNotEmpty()
+        loadState = when {
+            runtimeCount == 0 && !hasEvolutions && !hasSpawns -> LoadState.PARTIAL
+            runtimeCount == 0 -> {
+                // Have cached data but no runtime species yet
+                LoadState.PARTIAL
+            }
+            !hasEvolutions && emptyEvoRetries < MAX_EMPTY_EVO_RETRIES -> {
+                emptyEvoRetries++
+                DebugLog.info("Species loaded ($runtimeCount) but no evolutions found (attempt $emptyEvoRetries/$MAX_EMPTY_EVO_RETRIES) — staying PARTIAL for retry")
+                LoadState.PARTIAL
+            }
+            !hasEvolutions -> {
+                DebugLog.warn("Species loaded ($runtimeCount) but evolutions still empty after $MAX_EMPTY_EVO_RETRIES retries — accepting as final state")
+                LoadState.FULLY_LOADED
+            }
+            else -> {
+                emptyEvoRetries = 0
+                LoadState.FULLY_LOADED
+            }
+        }
+        dataVersion++
+
+        // Diagnostic: report species with spawns but no species info entry
+        if (spawnsBySpecies.isNotEmpty() && speciesInfo.isNotEmpty()) {
+            val orphanSpawns = spawnsBySpecies.keys.filter { it !in speciesInfo }
+            if (orphanSpawns.isNotEmpty()) {
+                DebugLog.info("Spawn-only species (no speciesInfo): ${orphanSpawns.take(20).joinToString(", ")}${if (orphanSpawns.size > 20) " (+${orphanSpawns.size - 20} more)" else ""}")
+            }
+        }
+
+        DebugLog.info(
+            "Load complete (${loadState.name}): ${allSpeciesNames.size} species " +
+            "(${speciesInfo.count { it.value.nationalDexNumber > 0 }} with dex, " +
+            "${spawnsBySpecies.size} with spawns, ${evolutionsBySpecies.size} with evolutions, " +
+            "${obtainmentBySpecies.size} with obtainment)"
+        )
     }
 
     /** Mark data stale on disconnect. Cached JAR data is preserved —
@@ -389,42 +311,31 @@ object SpawnDataIndex {
         RecipeViewerReloader.reset()
         emptyEvoRetries = 0
         hasServerSync = false
-        serverSyncComplete = false
+        jobRules = emptyList()
 
         dataLock.withLock {
-            clearActiveDataLocked(clearJobRules = true)
             loadState = LoadState.NOT_LOADED
-            dataVersion++
         }
-        DebugLog.info("Cleared active CobbleDex session data on disconnect")
+        DebugLog.info("Marked data stale on disconnect (${allSpeciesNames.size} species cached)")
     }
 
     /** Accept all data synced from the server via networking */
     fun applyServerSync(syncedSpawns: Map<String, List<SpawnInfo>>,
                         syncedEvolutions: Map<String, List<EvolutionInfo>>,
                         syncedSpeciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo>,
-                        syncedObtainment: Map<String, List<ObtainmentInfo>> = emptyMap(),
-                        syncedRiding: Map<String, RidingInfo> = emptyMap(),
                         syncedJobRules: List<JobRule>? = null,
-                        syncedFossils: Map<String, List<FossilCombo>>? = null,
-                        isComplete: Boolean = true) {
-        cancelPendingLoad()
+                        syncedFossils: Map<String, List<FossilCombo>>? = null) {
         dataLock.withLock {
-            val current = snapshot
-            snapshot = buildSnapshot(
-                spawnsBySpecies = normalizeMapKeys(syncedSpawns),
-                evolutionsBySpecies = normalizeMapKeys(syncedEvolutions),
-                speciesInfo = normalizeMapKeys(syncedSpeciesInfo),
-                obtainmentBySpecies = normalizeMapKeys(syncedObtainment),
-                fossilsBySpecies = syncedFossils?.let(::normalizeMapKeys) ?: current.fossilsBySpecies,
-                jobRules = syncedJobRules ?: current.jobRules,
-                ridingBySpecies = normalizeMapKeys(syncedRiding),
-            )
+            spawnsBySpecies = normalizeMapKeys(syncedSpawns)
+            evolutionsBySpecies = normalizeMapKeys(syncedEvolutions)
+            speciesInfo = normalizeMapKeys(syncedSpeciesInfo)
+            jobRules = syncedJobRules ?: emptyList()
+            if (syncedFossils != null) fossilsBySpecies = normalizeMapKeys(syncedFossils)
             hasServerSync = true
-            serverSyncComplete = isComplete
+            rebuildDerivedData()
             dataVersion++
 
-            loadState = if (serverSyncComplete) {
+            loadState = if (spawnsBySpecies.isNotEmpty() || evolutionsBySpecies.isNotEmpty()) {
                 LoadState.FULLY_LOADED
             } else {
                 LoadState.PARTIAL
@@ -433,12 +344,10 @@ object SpawnDataIndex {
         val jobMsg = if (jobRules.isNotEmpty()) ", ${jobRules.size} job rules" else ""
         val totalSpawnEntries = syncedSpawns.values.sumOf { it.size }
         CobbleDexMod.LOGGER.info("[CobbleDex] Server sync received: ${syncedSpawns.size} species ($totalSpawnEntries spawn entries), " +
-            "${syncedEvolutions.size} evolutions, ${syncedSpeciesInfo.size} species info, " +
-            "${syncedObtainment.size} obtainment, ${syncedRiding.size} riding$jobMsg, complete=$isComplete — scheduling recipe viewer reload")
+            "${syncedEvolutions.size} evolutions, ${syncedSpeciesInfo.size} species info$jobMsg — scheduling recipe viewer reload")
         DebugLog.info("Applied server sync: ${syncedSpawns.size} species with spawns, " +
-            "${syncedEvolutions.size} with evolutions, ${syncedSpeciesInfo.size} with info, " +
-            "${syncedObtainment.size} with obtainment, ${syncedRiding.size} with riding$jobMsg " +
-            "(complete=$isComplete, loadState=${loadState.name}, dataVersion=$dataVersion)")
+            "${syncedEvolutions.size} with evolutions, ${syncedSpeciesInfo.size} with info$jobMsg " +
+            "(loadState=${loadState.name}, dataVersion=$dataVersion)")
 
         RecipeViewerReloader.scheduleReload()
 
@@ -450,22 +359,14 @@ object SpawnDataIndex {
     /** Accept job rules from Cobbleworkers' own network packet (independent of CobbleDex server sync) */
     fun applyJobRules(rules: List<JobRule>) {
         dataLock.withLock {
-            snapshot = snapshot.copy(jobRules = rules)
+            jobRules = rules
             dataVersion++
         }
         DebugLog.info("Applied ${rules.size} job rules from Cobbleworkers packet")
         RecipeViewerReloader.scheduleReload()
     }
 
-    private fun buildSnapshot(
-        spawnsBySpecies: Map<String, List<SpawnInfo>>,
-        evolutionsBySpecies: Map<String, List<EvolutionInfo>>,
-        speciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo>,
-        obtainmentBySpecies: Map<String, List<ObtainmentInfo>>,
-        fossilsBySpecies: Map<String, List<FossilCombo>>,
-        jobRules: List<JobRule>,
-        ridingBySpecies: Map<String, RidingInfo>,
-    ): DataSnapshot {
+    private fun rebuildDerivedData() {
         val reverseMap = mutableMapOf<String, MutableList<EvolutionInfo>>()
         for ((_, evolutions) in evolutionsBySpecies) {
             for (evo in evolutions) {
@@ -473,18 +374,19 @@ object SpawnDataIndex {
                 reverseMap.getOrPut(normalizedTo) { mutableListOf() }.add(evo)
             }
         }
+        evolutionsToSpecies = reverseMap
 
         // Backfill: any evolution key that doesn't have a speciesInfo entry gets a
         // thin inherited entry from its base species so it's properly marked as a form
-        val enrichedSpeciesInfo = speciesInfo.toMutableMap()
+        val enriched = speciesInfo.toMutableMap()
         var backfilled = 0
         for (key in evolutionsBySpecies.keys) {
-            if (key in enrichedSpeciesInfo) continue
+            if (key in enriched) continue
             // Try to resolve the base species from the evolution's fromSpecies
             val evos = evolutionsBySpecies[key] ?: continue
             val baseName = SpeciesNameNormalizer.normalize(evos.firstOrNull()?.fromSpecies ?: continue)
-            val baseInfo = enrichedSpeciesInfo[baseName] ?: continue
-            enrichedSpeciesInfo[key] = baseInfo.copy(
+            val baseInfo = enriched[baseName] ?: continue
+            enriched[key] = baseInfo.copy(
                 name = key,
                 baseSpeciesName = baseName,
                 formAspects = evos.firstOrNull()?.fromAspects ?: emptySet()
@@ -492,6 +394,7 @@ object SpawnDataIndex {
             backfilled++
         }
         if (backfilled > 0) {
+            speciesInfo = enriched
             DebugLog.info("Backfilled $backfilled orphan evolution keys into speciesInfo")
         }
 
@@ -518,39 +421,28 @@ object SpawnDataIndex {
         }
 
         val dropIndex = mutableMapOf<String, MutableList<String>>()
-        for ((species, info) in enrichedSpeciesInfo) {
+        for ((species, info) in speciesInfo) {
             val drops = info.drops ?: continue
             for (drop in drops) {
                 dropIndex.getOrPut(drop.itemId) { mutableListOf() }.add(species)
             }
         }
+        dropsByItem = dropIndex
 
         val tmIndex = mutableMapOf<String, MutableList<String>>()
-        for ((species, info) in enrichedSpeciesInfo) {
+        for ((species, info) in speciesInfo) {
             val tms = info.tmMoves ?: continue
             for (move in tms) {
                 tmIndex.getOrPut(move.name.lowercase()) { mutableListOf() }.add(species)
             }
         }
-        val sortedNames = allNames.sortedWith(
+        speciesByTmMove = tmIndex
+
+        allSpeciesNames = allNames.sortedWith(
             compareBy<String> {
-                val dex = enrichedSpeciesInfo[it]?.nationalDexNumber ?: 0
+                val dex = speciesInfo[it]?.nationalDexNumber ?: 0
                 if (dex == 0) Int.MAX_VALUE else dex
             }.thenBy { it }
-        )
-
-        return DataSnapshot(
-            spawnsBySpecies = spawnsBySpecies,
-            evolutionsBySpecies = evolutionsBySpecies,
-            evolutionsToSpecies = reverseMap,
-            speciesInfo = enrichedSpeciesInfo,
-            obtainmentBySpecies = obtainmentBySpecies,
-            fossilsBySpecies = fossilsBySpecies,
-            dropsByItem = dropIndex,
-            speciesByTmMove = tmIndex,
-            jobRules = jobRules,
-            ridingBySpecies = ridingBySpecies,
-            allSpeciesNames = sortedNames,
         )
     }
 
@@ -558,11 +450,9 @@ object SpawnDataIndex {
      * Fill in missing move data from JarDataCache when the runtime API
      * didn't provide egg/tutor/tm/level-up moves (common on dedicated-server clients).
      */
-    private fun enrichWithJarMoves(
-        speciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo>
-    ): Map<String, EvolutionDataLoader.SpeciesBasicInfo> {
-        if (!JarDataCache.hasCachedMoves()) return speciesInfo
-        if (speciesInfo.isEmpty()) return speciesInfo
+    private fun enrichWithJarMoves() {
+        if (!JarDataCache.hasCachedMoves()) return
+        if (speciesInfo.isEmpty()) return
         val jarMoves = JarDataCache.getCachedMoves()
 
         val enriched = speciesInfo.toMutableMap()
@@ -603,10 +493,9 @@ object SpawnDataIndex {
         }
 
         if (enrichCount > 0) {
+            speciesInfo = enriched
             DebugLog.info("Enriched $enrichCount species with JAR-cached move data")
         }
-
-        return enriched
     }
 
     private fun resolveMoveByName(name: String): MoveDetail? {
@@ -631,7 +520,7 @@ object SpawnDataIndex {
             val existing = result[normalized]
             if (existing != null && existing is List<*> && value is List<*>) {
                 @Suppress("UNCHECKED_CAST")
-                result[normalized] = (existing + value).distinct() as T
+                result[normalized] = (existing + value) as T
             } else {
                 result[normalized] = value
             }

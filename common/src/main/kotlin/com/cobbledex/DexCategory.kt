@@ -49,18 +49,8 @@ class RecipeHandle(
             PanelLayout.error("Data unavailable")
         }
     }
-    val width: Int get() = try {
-        _width?.invoke() ?: layout.width
-    } catch (e: Exception) {
-        DebugLog.once("width-$recipeIdPath") { "Width measurement failed: ${e.message}" }
-        PanelLayout.MIN_WIDTH
-    }
-    val height: Int get() = try {
-        _height?.invoke() ?: layout.height
-    } catch (e: Exception) {
-        DebugLog.once("height-$recipeIdPath") { "Height measurement failed: ${e.message}" }
-        PanelLayout.error("Data unavailable").height
-    }
+    val width: Int get() = try { _width?.invoke() ?: layout.width } catch (_: Exception) { 200 }
+    val height: Int get() = try { _height?.invoke() ?: layout.height } catch (_: Exception) { 100 }
     val slots: Slots by lazy(LazyThreadSafetyMode.NONE) {
         try {
             _slots(layout)
@@ -83,7 +73,6 @@ interface DexCategory {
     fun buildRecipesFor(species: String): List<RecipeHandle>
     fun buildUsagesFor(species: String): List<RecipeHandle> = emptyList()
     fun buildRecipesForItem(itemId: String): List<RecipeHandle> = emptyList()
-    fun buildUsagesForItem(itemId: String): List<RecipeHandle> = buildRecipesForItem(itemId)
 
     companion object {
         val ALL: List<DexCategory> = listOf(
@@ -94,11 +83,11 @@ interface DexCategory {
     }
 }
 
-private fun pokemonInput(species: String, aspects: Set<String> = emptySet(), x: Int = 8, y: Int = 3) =
-    PokemonSlotDef(species, aspects, x, y, SlotRole.INPUT)
+private fun pokemonInput(species: String, x: Int = 8, y: Int = 3) =
+    PokemonSlotDef(species, emptySet(), x, y, SlotRole.INPUT)
 
-private fun pokemonOutput(species: String, aspects: Set<String> = emptySet(), x: Int = 8, y: Int = 3) =
-    PokemonSlotDef(species, aspects, x, y, SlotRole.OUTPUT)
+private fun pokemonOutput(species: String, x: Int = 8, y: Int = 3) =
+    PokemonSlotDef(species, emptySet(), x, y, SlotRole.OUTPUT)
 
 // ----- Spawn -----
 
@@ -196,11 +185,11 @@ object ObtainmentDex : DexCategory {
     }
 
     private fun toHandle(d: ObtainmentRecipeData) = RecipeHandle(
-        recipeIdPath = "obtainment/${sanitizePath(pokemonIdentityKey(d.speciesName, d.formAspects))}/${sanitizePath(d.obtainment.method)}/${d.entryIndex}",
+        recipeIdPath = "obtainment/${sanitizePath(d.speciesName)}/${sanitizePath(d.obtainment.method)}/${d.entryIndex}",
         inputSpecies = emptyList(),
         outputSpecies = listOf(d.speciesName),
         layoutFactory = { SpawnDisplayHelper.buildObtainmentLayout(d.speciesName, d.obtainment, d.entryIndex, d.entryTotal) },
-        _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonOutput(d.speciesName, d.formAspects, 8, 3))) },
+        _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonOutput(d.speciesName, 8, 3))) },
     )
 }
 

@@ -8,6 +8,7 @@ import java.io.InputStreamReader
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.zip.ZipFile
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -39,11 +40,7 @@ object JarDataCache {
 
     private val initialized = AtomicBoolean(false)
     private val loading = AtomicBoolean(false)
-    private val stateLock = Object()
-
-    private fun logSuppressed(key: String, message: () -> String) {
-        DebugLog.once("jar-data-cache-$key", message)
-    }
+    private val latch = CountDownLatch(1)
 
     fun isInitialized(): Boolean = initialized.get()
 
@@ -63,15 +60,7 @@ object JarDataCache {
      */
     fun awaitReady(timeoutMs: Long = 30_000): Boolean {
         if (initialized.get()) return true
-        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs)
-        synchronized(stateLock) {
-            while (loading.get() && !initialized.get()) {
-                val remainingNanos = deadline - System.nanoTime()
-                if (remainingNanos <= 0L) break
-                TimeUnit.NANOSECONDS.timedWait(stateLock, remainingNanos)
-            }
-            return initialized.get()
-        }
+        return latch.await(timeoutMs, TimeUnit.MILLISECONDS)
     }
 
     /**
@@ -80,10 +69,7 @@ object JarDataCache {
      */
     fun initialize(modRoots: List<Path>) {
         if (initialized.get()) return
-        if (!loading.compareAndSet(false, true)) {
-            awaitReady()
-            return
-        }
+        if (!loading.compareAndSet(false, true)) return
 
         try {
             DebugLog.info("JarDataCache: initializing from ${modRoots.size} mod roots")
@@ -107,18 +93,9 @@ object JarDataCache {
 
             initialized.set(true)
         } catch (e: Exception) {
-            cachedSpawns = emptyMap()
-            cachedEvolutions = emptyMap()
-            cachedMoves = emptyMap()
-            cachedFossils = emptyMap()
-            DebugLog.warn("JarDataCache: initialization failed: ${e.message} " +
-                "(partial state: spawns=${cachedSpawns.size}, evolutions=${cachedEvolutions.size}, " +
-                "moves=${cachedMoves.size}, fossils=${cachedFossils.values.sumOf { it.size }})")
+            DebugLog.warn("JarDataCache: initialization failed: ${e.message}")
         } finally {
-            loading.set(false)
-            synchronized(stateLock) {
-                stateLock.notifyAll()
-            }
+            latch.countDown()
         }
     }
 
@@ -145,16 +122,12 @@ object JarDataCache {
                                         JsonParser.parseReader(reader).asJsonObject
                                     }
                                     presets[name] = obj
-                                } catch (e: Exception) {
-                                    logSuppressed("preset-file-${file.fileName}") { "Failed to read preset ${file.fileName}: ${e.message}" }
-                                }
+                                } catch (_: Exception) {}
                             }
                         }
                     }
                 }
-            } catch (e: Exception) {
-                logSuppressed("preset-root-${root.fileName}") { "Failed to scan preset root ${root.fileName}: ${e.message}" }
-            }
+            } catch (_: Exception) {}
         }
 
         // Also scan local datapacks (directories)
@@ -177,11 +150,7 @@ object JarDataCache {
                                                 JsonParser.parseReader(reader).asJsonObject
                                             }
                                             presets[name] = obj
-                                        } catch (e: Exception) {
-                                            logSuppressed("preset-datapack-${pack.fileName}-${file.fileName}") {
-                                                "Failed to read datapack preset ${file.fileName}: ${e.message}"
-                                            }
-                                        }
+                                        } catch (_: Exception) {}
                                     }
                                 }
                             }
@@ -195,9 +164,7 @@ object JarDataCache {
                     presets[name] = json
                 }
             }
-        } catch (e: Exception) {
-            logSuppressed("preset-datapacks-root") { "Failed to scan preset datapacks: ${e.message}" }
-        }
+        } catch (_: Exception) {}
 
         return presets
     }
@@ -225,9 +192,7 @@ object JarDataCache {
                         }
                     }
                 }
-            } catch (e: Exception) {
-                logSuppressed("spawn-root-${root.fileName}") { "Failed to scan spawn root ${root.fileName}: ${e.message}" }
-            }
+            } catch (_: Exception) {}
         }
 
         // Collect from local datapacks (directories)
@@ -249,9 +214,7 @@ object JarDataCache {
                     }
                 }
             }
-        } catch (e: Exception) {
-            logSuppressed("spawn-datapacks-root") { "Failed to scan spawn datapacks: ${e.message}" }
-        }
+        } catch (_: Exception) {}
 
         // Collect spawns from ZIP datapacks
         try {
@@ -270,16 +233,11 @@ object JarDataCache {
                                 result.getOrPut(species) { mutableListOf() }.add(info)
                                 spawnCount++
                             }
-                        } catch (e: Exception) {
-                            failCount++
-                            logSuppressed("spawn-zip-entry-$fileCount-$failCount") { "Failed to parse spawn entry from ZIP datapack: ${e.message}" }
-                        }
+                        } catch (_: Exception) { failCount++ }
                     }
                 }
             }
-        } catch (e: Exception) {
-            logSuppressed("spawn-zip-root") { "Failed to scan ZIP spawn datapacks: ${e.message}" }
-        }
+        } catch (_: Exception) {}
 
         for ((spawnDir, _) in sources) {
             try {
@@ -303,22 +261,12 @@ object JarDataCache {
                                         result.getOrPut(species) { mutableListOf() }.add(info)
                                         spawnCount++
                                     }
-                                } catch (e: Exception) {
-                                    failCount++
-                                    logSuppressed("spawn-entry-${file.fileName}-$failCount") {
-                                        "Failed to parse spawn entry in ${file.fileName}: ${e.message}"
-                                    }
-                                }
+                                } catch (_: Exception) { failCount++ }
                             }
-                        } catch (e: Exception) {
-                            failCount++
-                            logSuppressed("spawn-file-${file.fileName}") { "Failed to read spawn file ${file.fileName}: ${e.message}" }
-                        }
+                        } catch (_: Exception) { failCount++ }
                     }
                 }
-            } catch (e: Exception) {
-                logSuppressed("spawn-dir-${spawnDir.fileName}") { "Failed to walk spawn directory ${spawnDir.fileName}: ${e.message}" }
-            }
+            } catch (_: Exception) {}
         }
 
         DebugLog.info("JarDataCache: parsed $spawnCount spawns from $fileCount files ($failCount failed)")
@@ -596,9 +544,7 @@ object JarDataCache {
                                                         levelUp.getOrPut(level) { mutableListOf() }.add(moveName)
                                                     }
                                                 }
-                                            } catch (e: Exception) {
-                                                logSuppressed("move-entry-$name") { "Failed to parse move entry for $name: ${e.message}" }
-                                            }
+                                            } catch (_: Exception) {}
                                         }
                                         if (levelUp.isNotEmpty() || egg.isNotEmpty() || tutor.isNotEmpty() || tm.isNotEmpty()) {
                                             movesResult[name] = JarMoveData(levelUp, egg, tutor, tm)
@@ -615,9 +561,7 @@ object JarDataCache {
                                                     result.getOrPut(name) { mutableListOf() }.add(info)
                                                     baseEvoCount++
                                                 }
-                                            } catch (e: Exception) {
-                                                logSuppressed("base-evo-${name}") { "Failed to parse base evolution for $name: ${e.message}" }
-                                            }
+                                            } catch (_: Exception) {}
                                         }
                                     }
 
@@ -644,26 +588,17 @@ object JarDataCache {
                                                             }
                                                             formEvoCount++
                                                         }
-                                                    } catch (e: Exception) {
-                                                        logSuppressed("form-evo-${formKey}") { "Failed to parse form evolution for $formKey: ${e.message}" }
-                                                    }
+                                                    } catch (_: Exception) {}
                                                 }
-                                            } catch (e: Exception) {
-                                                logSuppressed("form-evo-group-${name}") { "Failed to parse form evolution group for $name: ${e.message}" }
-                                            }
+                                            } catch (_: Exception) {}
                                         }
                                     }
-                                } catch (e: Exception) {
-                                    failCount++
-                                    logSuppressed("species-file-${file.fileName}") { "Failed to parse species file ${file.fileName}: ${e.message}" }
-                                }
+                                } catch (_: Exception) { failCount++ }
                             }
                         }
                     }
                 }
-            } catch (e: Exception) {
-                logSuppressed("species-root-${root.fileName}") { "Failed to scan species root ${root.fileName}: ${e.message}" }
-            }
+            } catch (_: Exception) {}
         }
 
         DebugLog.info("JarDataCache: parsed $baseEvoCount base + $formEvoCount form evolutions from $fileCount species files ($failCount failed)")
@@ -833,16 +768,12 @@ object JarDataCache {
                                         JsonParser.parseReader(reader).asJsonObject
                                     }
                                     processFossilJson(json)
-                                } catch (e: Exception) {
-                                    logSuppressed("fossil-file-${file.fileName}") { "Failed to parse fossil file ${file.fileName}: ${e.message}" }
-                                }
+                                } catch (_: Exception) {}
                             }
                         }
                     }
                 }
-            } catch (e: Exception) {
-                logSuppressed("fossil-root-${root.fileName}") { "Failed to scan fossil root ${root.fileName}: ${e.message}" }
-            }
+            } catch (_: Exception) {}
         }
 
         // Scan local datapacks (directories)
@@ -864,11 +795,7 @@ object JarDataCache {
                                                 JsonParser.parseReader(reader).asJsonObject
                                             }
                                             processFossilJson(json)
-                                        } catch (e: Exception) {
-                                            logSuppressed("fossil-datapack-${pack.fileName}-${file.fileName}") {
-                                                "Failed to parse datapack fossil file ${file.fileName}: ${e.message}"
-                                            }
-                                        }
+                                        } catch (_: Exception) {}
                                     }
                                 }
                             }
@@ -881,9 +808,7 @@ object JarDataCache {
                     processFossilJson(json)
                 }
             }
-        } catch (e: Exception) {
-            logSuppressed("fossil-datapacks-root") { "Failed to scan fossil datapacks: ${e.message}" }
-        }
+        } catch (_: Exception) {}
 
         DebugLog.info("JarDataCache: parsed ${result.values.sumOf { it.size }} fossils for ${result.size} species")
         return result
@@ -913,21 +838,13 @@ object JarDataCache {
                                         }
                                     }
                                     handler(namespace, entry.name, json)
-                                } catch (e: Exception) {
-                                    logSuppressed("zip-entry-${zipPath.fileName}-${entry.name}") {
-                                        "Failed to parse zipped $subDir entry ${entry.name}: ${e.message}"
-                                    }
-                                }
+                                } catch (_: Exception) {}
                             }
                         }
-                    } catch (e: Exception) {
-                        logSuppressed("zip-pack-${zipPath.fileName}") { "Failed to open zipped datapack ${zipPath.fileName}: ${e.message}" }
-                    }
+                    } catch (_: Exception) {}
                 }
             }
-        } catch (e: Exception) {
-            logSuppressed("zip-root-$subDir") { "Failed to scan zipped datapacks for $subDir: ${e.message}" }
-        }
+        } catch (_: Exception) {}
     }
 
     // ==================== JSON Helper Extensions ====================

@@ -4,9 +4,7 @@ import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
 import com.cobbledex.PokemonItemCache
-import com.cobbledex.RecipeCatalogCache
 import com.cobbledex.RecipeHandle
-import com.cobbledex.RecipeViewerReloader
 import com.cobbledex.SlotRole
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpawnDisplayHelper
@@ -41,41 +39,20 @@ open class CobbleDexREIPlugin : REIClientPlugin {
     companion object {
         private val categoryIds = mutableMapOf<String, CategoryIdentifier<GenericDisplay>>()
 
-        private fun buildIndexedPokemonEntries(config: CobbleDexConfig = CobbleDexConfig.get()): List<EntryStack<PokemonEntry>> {
-            return SpawnDataIndex.allSpeciesNames.mapNotNull { species ->
-                val info = SpawnDataIndex.getSpeciesInfo(species)
-                if (info?.isForm == true && !config.registerFormEntries) return@mapNotNull null
-                if (!PokemonItemCache.canRender(species)) return@mapNotNull null
-                EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(species))
-            }
-        }
-
-        @JvmStatic
-        fun reloadEntries() {
-            val registry = EntryRegistry.getInstance()
-            try {
-                registry.removeEntryIf { entry -> entry.value is PokemonEntry }
-                val updated = buildIndexedPokemonEntries()
-                if (updated.isNotEmpty()) {
-                    registry.addEntries(updated)
-                }
-                registry.refilter()
-                RecipeViewerReloader.reiEntriesLastRegisteredVersion = SpawnDataIndex.dataVersion
-                val formCount = updated.count {
-                    val value = it.value as? PokemonEntry ?: return@count false
-                    SpawnDataIndex.isForm(value.species)
-                }
-                DebugLog.info("REI: Re-indexed ${updated.size - formCount} Pokémon + $formCount forms (dataVersion=${SpawnDataIndex.dataVersion})")
-            } catch (e: Exception) {
-                DebugLog.warn("REI entry reload failed: ${e.message}")
-            }
-        }
-
         fun categoryId(def: DexCategory): CategoryIdentifier<GenericDisplay> =
             categoryIds.getOrPut(def.id) { CategoryIdentifier.of(CobbleDexMod.MOD_ID, def.id) }
     }
 
+    private val emiActive: Boolean by lazy {
+        try {
+            Class.forName("dev.emi.emi.api.EmiPlugin")
+            DebugLog.info("EMI detected — skipping REI plugin (native EMI plugin handles registration)")
+            true
+        } catch (_: ClassNotFoundException) { false }
+    }
+
     override fun registerEntryTypes(registry: EntryTypeRegistry) {
+        if (emiActive) return
         try {
             registry.register(PokemonEntryType.POKEMON.id, PokemonEntryDefinition())
             DebugLog.info("Pokémon entry type registered")
@@ -97,6 +74,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
     }
 
     override fun registerCategories(registry: CategoryRegistry) {
+        if (emiActive) return
         ensureEntryTypeAvailable()
         val config = CobbleDexConfig.get()
         val registered = mutableListOf<String>()
@@ -109,6 +87,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
     }
 
     override fun registerDisplays(registry: DisplayRegistry) {
+        if (emiActive) return
         ensureEntryTypeAvailable()
         SpawnDataIndex.ensureLoaded()
         val config = CobbleDexConfig.get()
@@ -116,7 +95,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         for (def in DexCategory.ALL) {
             if (!def.isEnabled(config)) continue
             if (def is com.cobbledex.NatureDex) {
-                RecipeCatalogCache.getAllRecipes(def).map { GenericDisplay(it, def) }.forEach { registry.add(it) }
+                def.buildAllRecipes().map { GenericDisplay(it, def) }.forEach { registry.add(it) }
             } else {
                 registry.registerDisplayGenerator(categoryId(def), GenericDisplayGenerator(def))
             }
@@ -125,6 +104,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
     }
 
     override fun registerEntries(registry: EntryRegistry) {
+        if (emiActive) return
         ensureEntryTypeAvailable()
         SpawnDataIndex.ensureLoaded()
         val config = CobbleDexConfig.get()
@@ -132,17 +112,24 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         var registered = 0
         var formCount = 0
         var hidden = 0
-        for (stack in buildIndexedPokemonEntries(config)) {
-            val pokemon = stack.value ?: continue
+        for (species in SpawnDataIndex.allSpeciesNames) {
+            val info = SpawnDataIndex.getSpeciesInfo(species)
+            if (info == null) continue
+            if (info.isForm && !config.registerFormEntries) continue
+            if (!PokemonItemCache.canRender(species)) {
+                DebugLog.trackMissingModel(species)
+                hidden++
+                continue
+            }
             try {
+                val stack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(species))
                 registry.addEntry(stack)
-                if (SpawnDataIndex.isForm(pokemon.species)) formCount++ else registered++
+                if (info.isForm) formCount++ else registered++
             } catch (e: Exception) {
-                DebugLog.once("entry-fail-${pokemon.species}") { "Entry registration failed for ${pokemon.species}: ${e.message}" }
+                DebugLog.once("entry-fail-$species") { "Entry registration failed for $species: ${e.message}" }
                 hidden++
             }
         }
-        RecipeViewerReloader.reiEntriesLastRegisteredVersion = SpawnDataIndex.dataVersion
         DebugLog.info("Registered $registered Pokémon entries + $formCount forms ($hidden hidden — no model)")
         DebugLog.printSummary()
     }
@@ -152,11 +139,9 @@ open class CobbleDexREIPlugin : REIClientPlugin {
     class GenericDisplay(val handle: RecipeHandle, val def: DexCategory) : Display {
 
         private val cachedInputEntries: List<EntryIngredient> by lazy {
-            val pokemon = handle.slots.pokemon
-                .filter { it.role == SlotRole.INPUT }
-                .map { slot ->
-                    EntryIngredient.of(EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(slot.species, slot.aspects)))
-                }
+            val pokemon = handle.inputSpecies.map {
+                EntryIngredient.of(EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(it)))
+            }
             val catalog = handle.slots.catalogInputIds.mapNotNull { itemId ->
                 val stack = SpawnDisplayHelper.resolveItemStack(itemId)
                 if (!stack.isEmpty) EntryIngredient.of(EntryStacks.of(stack)) else null
@@ -171,11 +156,9 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         }
 
         private val cachedOutputEntries: List<EntryIngredient> by lazy {
-            val pokemonEntries = handle.slots.pokemon
-                .filter { it.role == SlotRole.OUTPUT }
-                .map { slot ->
-                    EntryIngredient.of(EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(slot.species, slot.aspects)))
-                }
+            val pokemonEntries = handle.outputSpecies.map {
+                EntryIngredient.of(EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(it)))
+            }
             val itemEntries = handle.slots.items
                 .filter { it.role == SlotRole.OUTPUT }
                 .mapNotNull { slot ->
@@ -262,6 +245,9 @@ open class CobbleDexREIPlugin : REIClientPlugin {
 
     private inner class GenericDisplayGenerator(private val def: DexCategory) : DynamicDisplayGenerator<GenericDisplay> {
 
+        @Volatile private var cachedVersion = -1L
+        @Volatile private var cachedDisplays: List<GenericDisplay>? = null
+
         override fun getRecipeFor(entry: EntryStack<*>): Optional<List<GenericDisplay>> {
             val value = entry.value ?: return Optional.empty()
             if (value is PokemonEntry) {
@@ -287,7 +273,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             }
             if (value is net.minecraft.world.item.ItemStack) {
                 val itemId = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(value.item).toString()
-                val handles = def.buildUsagesForItem(itemId)
+                val handles = def.buildRecipesForItem(itemId)
                 if (handles.isEmpty()) return Optional.empty()
                 return Optional.of(handles.map { GenericDisplay(it, def) })
             }
@@ -302,7 +288,12 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             }
 
             if (!SpawnDataIndex.hasData()) return Optional.empty()
-            val all = RecipeCatalogCache.getAllRecipes(def).map { GenericDisplay(it, def) }
+            val version = SpawnDataIndex.dataVersion
+            cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
+
+            val all = def.buildAllRecipes().map { GenericDisplay(it, def) }
+            cachedDisplays = all
+            cachedVersion = version
             return if (all.isEmpty()) Optional.empty() else Optional.of(all)
         }
     }

@@ -536,30 +536,34 @@ object EvolutionDataLoader {
             }
         }
 
-        var formCount = 0
-        for (species in implemented) {
-            val baseName = species.name.lowercase()
-            val baseForm = try { species.standardForm } catch (_: Exception) { null }
-            for (form in try { species.forms } catch (_: Exception) { emptyList() }) {
-                if (!shouldIncludeForm(species, form, baseForm)) continue
-                try {
-                    val formKey = buildFormEntryKey(baseName, form, species)
-                    val info = buildFormSpeciesInfo(formKey, species, form, baseForm)
-                    val existing = result[formKey]
-                    if (existing != null) {
-                        // Merge: form data fills in gaps (O3 regional dedup)
-                        result[formKey] = mergeFormInfo(existing, info)
-                    } else {
-                        result[formKey] = info
+        // Load alternate forms as separate entries
+        if (com.cobbledex.config.CobbleDexConfig.get().showAlternateForms) {
+            var formCount = 0
+            for (species in implemented) {
+                val baseName = species.name.lowercase()
+                val baseForm = try { species.standardForm } catch (_: Exception) { null }
+                for (form in try { species.forms } catch (_: Exception) { emptyList() }) {
+                    if (!shouldIncludeForm(species, form, baseForm)) continue
+                    try {
+                        val formKey = buildFormEntryKey(baseName, form, species)
+                        val info = buildFormSpeciesInfo(formKey, species, form, baseForm)
+                        val existing = result[formKey]
+                        if (existing != null) {
+                            // Merge: form data fills in gaps (O3 regional dedup)
+                            result[formKey] = mergeFormInfo(existing, info)
+                        } else {
+                            result[formKey] = info
+                        }
+                        formCount++
+                    } catch (e: Exception) {
+                        DebugLog.once("form-${species.name}-${form.name}") { "Failed to load form: ${e.message}" }
                     }
-                    formCount++
-                } catch (e: Exception) {
-                    DebugLog.once("form-${species.name}-${form.name}") { "Failed to load form: ${e.message}" }
                 }
             }
+            DebugLog.info("Loaded ${result.size} species from runtime API ($dropSpeciesCount with drops, $formCount alternate forms)")
+        } else {
+            DebugLog.info("Loaded ${result.size} species from runtime API ($dropSpeciesCount with drops, alternate forms disabled)")
         }
-
-        DebugLog.info("Loaded ${result.size} species from runtime API ($dropSpeciesCount with drops, $formCount alternate forms)")
 
         return result
     }
@@ -581,10 +585,8 @@ object EvolutionDataLoader {
         if (form.name.isBlank()) return false
 
         if (form.labels.any { it in SIGNIFICANT_LABELS }) return true
-        if (try { form.evolutions.isNotEmpty() } catch (_: Exception) { false }) return true
 
-        val base = baseForm ?: return true
-
+        val base = baseForm ?: return false
         val typeDiffers = form.primaryType != base.primaryType || form.secondaryType != base.secondaryType
         val statsDiffer = form.baseStats != base.baseStats && form.baseStats.isNotEmpty()
         val abilitiesDiffer = try {
@@ -592,49 +594,15 @@ object EvolutionDataLoader {
             val baseAbilityList = base.abilities.toList()
             formAbilityList != baseAbilityList && formAbilityList.isNotEmpty()
         } catch (_: Exception) { false }
-        val labelsDiffer = form.labels.isNotEmpty() && form.labels.toSet() != base.labels.toSet()
-        val aspectsDiffer = form.aspects.isNotEmpty() && form.aspects.toSet() != base.aspects.toSet()
-        val eggGroupsDiffer = try {
-            form.eggGroups.isNotEmpty() && form.eggGroups.toSet() != base.eggGroups.toSet()
-        } catch (_: Exception) { false }
-        val dropsDiffer = try {
-            form.drops.entries.isNotEmpty() && form.drops.entries != base.drops.entries
-        } catch (_: Exception) { false }
-        val levelUpMovesDiffer = try {
-            form.moves.levelUpMoves.isNotEmpty() && form.moves.levelUpMoves != base.moves.levelUpMoves
-        } catch (_: Exception) { false }
-        val eggMovesDiffer = try {
-            form.moves.eggMoves.isNotEmpty() && form.moves.eggMoves != base.moves.eggMoves
-        } catch (_: Exception) { false }
-        val tutorMovesDiffer = try {
-            form.moves.tutorMoves.isNotEmpty() && form.moves.tutorMoves != base.moves.tutorMoves
-        } catch (_: Exception) { false }
-        val tmMovesDiffer = try {
-            form.moves.tmMoves.isNotEmpty() && form.moves.tmMoves != base.moves.tmMoves
-        } catch (_: Exception) { false }
-        val catchRateDiffers = try { form.catchRate != species.catchRate } catch (_: Exception) { false }
-        val sizeDiffers = try { form.weight != species.weight || form.height != species.height } catch (_: Exception) { false }
 
-        return typeDiffers ||
-            statsDiffer ||
-            abilitiesDiffer ||
-            labelsDiffer ||
-            aspectsDiffer ||
-            eggGroupsDiffer ||
-            dropsDiffer ||
-            levelUpMovesDiffer ||
-            eggMovesDiffer ||
-            tutorMovesDiffer ||
-            tmMovesDiffer ||
-            catchRateDiffers ||
-            sizeDiffers
+        return typeDiffers || statsDiffer || abilitiesDiffer
     }
 
     private fun buildFormEntryKey(baseName: String, form: com.cobblemon.mod.common.pokemon.FormData, species: com.cobblemon.mod.common.pokemon.Species): String {
         // Regional forms reuse SpeciesNameNormalizer's pattern for dedup with spawn data (O3)
         val regionalLabel = form.labels.firstOrNull { it in REGIONAL_LABEL_TO_SUFFIX }
         if (regionalLabel != null) {
-            val suffix = REGIONAL_LABEL_TO_SUFFIX[regionalLabel] ?: regionalLabel.removeSuffix("_form")
+            val suffix = REGIONAL_LABEL_TO_SUFFIX[regionalLabel]!!
             return "${SpeciesNameNormalizer.normalize(baseName)}$suffix"
         }
         // Non-regional: underscore-separated normalized key (O12)

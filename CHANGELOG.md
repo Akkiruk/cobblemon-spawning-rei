@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.14] - 2026-04-25
+
+### Fixed
+- **Pokemon viewer handling is now back to the exact pre-2D baseline across the full viewer path** - every viewer-adjacent display system tied to Pokemon presentation was restored to the v1.50.6 behavior, including REI, JEI, EMI, icon capture, helper/search identity paths, recipe/viewer reload plumbing, and the server sync bridge that feeds those displays
+
 ## [1.50.13] - 2026-04-25
 
 ### Fixed

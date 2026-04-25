@@ -49,7 +49,7 @@ object RecipeBuilder {
         for ((species, obtainments) in SpawnDataIndex.obtainmentBySpecies) {
             if (obtainments.isEmpty()) continue
             obtainments.forEachIndexed { i, info ->
-                recipes.add(ObtainmentRecipeData(species, parseAspectString(info.formAspects), info, i + 1, obtainments.size))
+                recipes.add(ObtainmentRecipeData(species, info, i + 1, obtainments.size))
             }
         }
         return recipes
@@ -58,7 +58,7 @@ object RecipeBuilder {
     fun buildObtainmentsFor(species: String, obtainments: List<ObtainmentInfo>): List<ObtainmentRecipeData> {
         if (obtainments.isEmpty()) return emptyList()
         return obtainments.mapIndexed { i, info ->
-            ObtainmentRecipeData(species, parseAspectString(info.formAspects), info, i + 1, obtainments.size)
+            ObtainmentRecipeData(species, info, i + 1, obtainments.size)
         }
     }
 

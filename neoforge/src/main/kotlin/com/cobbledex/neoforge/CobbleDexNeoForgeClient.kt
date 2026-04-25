@@ -34,6 +34,7 @@ object CobbleDexNeoForgeClient {
     private fun onDisconnect(event: ClientPlayerNetworkEvent.LoggingOut) {
         SpawnDataIndex.onDisconnect()
         ChunkAssembler.reset()
+        CobbleDexMod.resetReloadTimer()
     }
 
     private fun onItemTooltip(event: ItemTooltipEvent) {

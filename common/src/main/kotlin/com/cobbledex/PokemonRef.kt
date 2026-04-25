@@ -17,22 +17,3 @@ interface PokemonRef {
     val displayName: String
         get() = formatSpeciesName(if (species.contains(":")) species.substringAfter(":") else species)
 }
-
-fun parseAspectString(aspects: String): Set<String> =
-    aspects.split(" ")
-        .map { it.trim().lowercase() }
-        .filter { it.isNotBlank() }
-        .toSortedSet()
-
-fun pokemonIdentityKey(species: String, formAspects: Set<String> = emptySet()): String {
-    val normalizedSpecies = SpeciesNameNormalizer.normalize(species)
-    val normalizedAspects = formAspects
-        .map { it.trim().lowercase() }
-        .filter { it.isNotBlank() }
-        .toSortedSet()
-    return if (normalizedAspects.isEmpty()) {
-        normalizedSpecies
-    } else {
-        "$normalizedSpecies|${normalizedAspects.joinToString(",")}"
-    }
-}

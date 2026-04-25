@@ -25,31 +25,21 @@ object IconCapture {
     private const val RENDER_SIZE = 512
     private var fbo: TextureTarget? = null
     private var debugDumped = false
-    private var activeUsers = 0
 
     fun init() {
-        activeUsers++
-        if (fbo == null) {
-            debugDumped = false
-            fbo = TextureTarget(RENDER_SIZE, RENDER_SIZE, true, false)
-        }
+        debugDumped = false
+        fbo = TextureTarget(RENDER_SIZE, RENDER_SIZE, true, false)
     }
 
     fun cleanup() {
-        if (activeUsers > 0) {
-            activeUsers--
-        }
-        if (activeUsers == 0) {
-            fbo?.destroyBuffers()
-            fbo = null
-        }
+        fbo?.destroyBuffers()
+        fbo = null
     }
 
     // ── Item icons: read texture PNG from resource packs ─────────────
 
     fun captureItemToPng(stack: ItemStack): ByteArray? {
         if (stack.isEmpty) return null
-
         val mc = Minecraft.getInstance()
 
         return try {
@@ -72,6 +62,7 @@ object IconCapture {
             val fileH = image.getHeight()
             if (fileW <= 0 || fileH <= 0) { image.close(); return null }
 
+            // Animated textures: frames stacked vertically — use first frame only
             val frameW = fileW
             val frameH = if (fileH > fileW) fileW else fileH
 
