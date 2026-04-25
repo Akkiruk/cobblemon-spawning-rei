@@ -68,6 +68,30 @@ object SpawnDataIndex {
         private set
 
     @Volatile
+    var spawnSourceTier: DataSourceTier = DataSourceTier.UNKNOWN
+        private set
+
+    @Volatile
+    var evolutionSourceTier: DataSourceTier = DataSourceTier.UNKNOWN
+        private set
+
+    @Volatile
+    var speciesInfoSourceTier: DataSourceTier = DataSourceTier.UNKNOWN
+        private set
+
+    @Volatile
+    var obtainmentSourceTier: DataSourceTier = DataSourceTier.UNKNOWN
+        private set
+
+    @Volatile
+    var fossilSourceTier: DataSourceTier = DataSourceTier.UNKNOWN
+        private set
+
+    @Volatile
+    var ridingSourceTier: DataSourceTier = DataSourceTier.UNKNOWN
+        private set
+
+    @Volatile
     var dataVersion: Long = 0
         private set
 
@@ -153,19 +177,29 @@ object SpawnDataIndex {
 
         if (hasServerSync) {
             // Server already sent spawns, evolutions, species info, and fossils — just load supplementary data
+            spawnSourceTier = DataSourceTier.SERVER_SYNC
+            evolutionSourceTier = DataSourceTier.SERVER_SYNC
+            speciesInfoSourceTier = DataSourceTier.SERVER_SYNC
             try {
                 obtainmentBySpecies = normalizeMapKeys(ObtainmentDataLoader.loadFromAllSources(
                     SpawnDataLoader.getModRootPaths()
                 ))
+                obtainmentSourceTier = DataSourcePolicy.preferredSource(obtainmentBySpecies.values.flatten().map { it.source })
             } catch (e: Exception) {
                 DebugLog.warn("Obtainment data load failed: ${e.message}")
                 obtainmentBySpecies = emptyMap()
+                obtainmentSourceTier = DataSourceTier.UNKNOWN
             }
 
             // Fossils from server sync; fall back to JarDataCache if sync had none
             if (fossilsBySpecies.isEmpty() && JarDataCache.hasCachedFossils()) {
                 DebugLog.info("Using JarDataCache fossils (${JarDataCache.getCachedFossils().size} species)")
                 fossilsBySpecies = normalizeMapKeys(JarDataCache.getCachedFossils())
+                fossilSourceTier = DataSourceTier.JAR_OR_DATAPACK
+            } else if (fossilsBySpecies.isNotEmpty()) {
+                fossilSourceTier = DataSourceTier.SERVER_SYNC
+            } else {
+                fossilSourceTier = DataSourceTier.UNKNOWN
             }
 
             rebuildDerivedData()
@@ -191,11 +225,14 @@ object SpawnDataIndex {
         SpawnDataLoader.invalidateCache()
         val runtimeSpawns = normalizeMapKeys(SpawnDataLoader.loadFromRuntime())
         spawnsBySpecies = if (runtimeSpawns.isNotEmpty()) {
+            spawnSourceTier = DataSourceTier.RUNTIME
             runtimeSpawns
         } else if (JarDataCache.hasCachedSpawns()) {
             DebugLog.info("Using JarDataCache spawns (${JarDataCache.getCachedSpawns().size} species)")
+            spawnSourceTier = DataSourceTier.JAR_OR_DATAPACK
             normalizeMapKeys(JarDataCache.getCachedSpawns())
         } else {
+            spawnSourceTier = DataSourceTier.UNKNOWN
             emptyMap()
         }
 
@@ -205,49 +242,61 @@ object SpawnDataIndex {
             // Try runtime evolutions (works in singleplayer, empty on dedicated servers)
             try {
                 evolutionsBySpecies = normalizeMapKeys(EvolutionDataLoader.loadFromRuntime())
+                evolutionSourceTier = if (evolutionsBySpecies.isNotEmpty()) DataSourceTier.RUNTIME else DataSourceTier.UNKNOWN
             } catch (e: Exception) {
                 DebugLog.warn("Runtime evolution load failed: ${e.message}")
                 evolutionsBySpecies = emptyMap()
+                evolutionSourceTier = DataSourceTier.UNKNOWN
             }
 
             // Fall back to JarDataCache evolutions if runtime is empty
             if (evolutionsBySpecies.isEmpty() && JarDataCache.hasCachedEvolutions()) {
                 DebugLog.info("Using JarDataCache evolutions (${JarDataCache.getCachedEvolutions().size} species)")
                 evolutionsBySpecies = normalizeMapKeys(JarDataCache.getCachedEvolutions())
+                evolutionSourceTier = DataSourceTier.JAR_OR_DATAPACK
             }
 
             try {
                 speciesInfo = normalizeMapKeys(EvolutionDataLoader.loadSpeciesBasicInfoFromRuntime())
+                speciesInfoSourceTier = if (speciesInfo.isNotEmpty()) DataSourceTier.RUNTIME else DataSourceTier.UNKNOWN
             } catch (e: Exception) {
                 DebugLog.warn("Runtime species info load failed: ${e.message}")
                 speciesInfo = emptyMap()
+                speciesInfoSourceTier = DataSourceTier.UNKNOWN
             }
         } else {
             DebugLog.warn("PokemonSpecies.implemented empty, spawn data only")
             // Still use cached evolutions even without runtime species
             if (JarDataCache.hasCachedEvolutions()) {
                 evolutionsBySpecies = normalizeMapKeys(JarDataCache.getCachedEvolutions())
+                evolutionSourceTier = DataSourceTier.JAR_OR_DATAPACK
             } else {
                 evolutionsBySpecies = emptyMap()
+                evolutionSourceTier = DataSourceTier.UNKNOWN
             }
             speciesInfo = emptyMap()
+            speciesInfoSourceTier = DataSourceTier.UNKNOWN
         }
 
         try {
             obtainmentBySpecies = normalizeMapKeys(ObtainmentDataLoader.loadFromAllSources(
                 SpawnDataLoader.getModRootPaths()
             ))
+            obtainmentSourceTier = DataSourcePolicy.preferredSource(obtainmentBySpecies.values.flatten().map { it.source })
         } catch (e: Exception) {
             DebugLog.warn("Obtainment data load failed: ${e.message}")
             obtainmentBySpecies = emptyMap()
+            obtainmentSourceTier = DataSourceTier.UNKNOWN
         }
 
         // Cobblemon's client-side Fossils.all() has empty ingredient lists due to
         // FossilRegistrySyncPacket.decodeEntry() not syncing ItemPredicates — use JarDataCache instead
         if (JarDataCache.hasCachedFossils()) {
             fossilsBySpecies = normalizeMapKeys(JarDataCache.getCachedFossils())
+            fossilSourceTier = DataSourceTier.JAR_OR_DATAPACK
         } else {
             fossilsBySpecies = emptyMap()
+            fossilSourceTier = DataSourceTier.UNKNOWN
         }
 
         // Enrich speciesInfo with JAR-cached moves when runtime API returned null
@@ -256,9 +305,11 @@ object SpawnDataIndex {
         // Load riding data from Cobblemon runtime API
         try {
             ridingBySpecies = RidingDataLoader.loadFromRuntime()
+            ridingSourceTier = if (ridingBySpecies.isNotEmpty()) DataSourceTier.RUNTIME else DataSourceTier.UNKNOWN
         } catch (e: Exception) {
             DebugLog.warn("Riding data load failed: ${e.message}")
             ridingBySpecies = emptyMap()
+            ridingSourceTier = DataSourceTier.UNKNOWN
         }
 
         rebuildDerivedData()
@@ -331,6 +382,10 @@ object SpawnDataIndex {
             speciesInfo = normalizeMapKeys(syncedSpeciesInfo)
             jobRules = syncedJobRules ?: emptyList()
             if (syncedFossils != null) fossilsBySpecies = normalizeMapKeys(syncedFossils)
+            spawnSourceTier = DataSourceTier.SERVER_SYNC
+            evolutionSourceTier = DataSourceTier.SERVER_SYNC
+            speciesInfoSourceTier = DataSourceTier.SERVER_SYNC
+            fossilSourceTier = if (syncedFossils != null) DataSourceTier.SERVER_SYNC else fossilSourceTier
             hasServerSync = true
             rebuildDerivedData()
             dataVersion++
@@ -557,10 +612,31 @@ object SpawnDataIndex {
 
     fun isForm(species: String): Boolean = getSpeciesInfo(species)?.isForm == true
 
+    fun materialFormDecision(species: String): MaterialFormPolicy.Decision? {
+        val normalized = SpeciesNameNormalizer.normalize(species)
+        val info = speciesInfo[normalized] ?: return null
+        if (!info.isForm) return null
+        return MaterialFormPolicy.decisionFor(
+            normalized,
+            speciesInfo,
+            spawnsBySpecies,
+            obtainmentBySpecies,
+            evolutionsBySpecies,
+            fossilsBySpecies,
+            ridingBySpecies
+        )
+    }
+
+    fun shouldSurfaceSpecies(species: String): Boolean {
+        val info = getSpeciesInfo(species) ?: return true
+        if (!info.isForm) return true
+        return materialFormDecision(species)?.surface == true
+    }
+
     fun getFormsOf(baseSpecies: String): List<EvolutionDataLoader.SpeciesBasicInfo> {
         val normalized = SpeciesNameNormalizer.normalize(baseSpecies)
         return speciesInfo.values.filter {
-            it.isForm && SpeciesNameNormalizer.normalize(it.baseSpeciesName!!) == normalized
+            it.isForm && SpeciesNameNormalizer.normalize(it.baseSpeciesName!!) == normalized && shouldSurfaceSpecies(it.name)
         }
     }
 

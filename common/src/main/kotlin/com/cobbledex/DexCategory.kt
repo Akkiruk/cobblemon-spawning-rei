@@ -101,6 +101,7 @@ object SpawnDex : DexCategory {
     override fun buildAllRecipes(): List<RecipeHandle> {
         val all = mutableListOf<RecipeHandle>()
         for ((species, spawns) in SpawnDataIndex.spawnsBySpecies) {
+            if (!SpawnDataIndex.shouldSurfaceSpecies(species)) continue
             if (spawns.isEmpty()) continue
             all.addAll(RecipeBuilder.buildSpawnRecipes(species, spawns).map(::toHandle))
         }
@@ -108,6 +109,7 @@ object SpawnDex : DexCategory {
     }
 
     override fun buildRecipesFor(species: String): List<RecipeHandle> {
+        if (!SpawnDataIndex.shouldSurfaceSpecies(species)) return emptyList()
         val spawns = SpawnDataIndex.getSpawnsFor(species)
         if (spawns.isEmpty()) return emptyList()
         return RecipeBuilder.buildSpawnRecipes(species, spawns).map(::toHandle)
@@ -179,6 +181,7 @@ object ObtainmentDex : DexCategory {
         RecipeBuilder.buildAllObtainmentRecipes().map(::toHandle)
 
     override fun buildRecipesFor(species: String): List<RecipeHandle> {
+        if (!SpawnDataIndex.shouldSurfaceSpecies(species)) return emptyList()
         val obtainments = SpawnDataIndex.getObtainmentFor(species)
         if (obtainments.isEmpty()) return emptyList()
         return RecipeBuilder.buildObtainmentsFor(species, obtainments).map(::toHandle)

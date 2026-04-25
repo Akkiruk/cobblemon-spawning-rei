@@ -84,6 +84,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
                             else if (info.isForm) config.registerFormEntries
                             else info.baseSpeciesName == null
                         }
+                        .filter { SpawnDataIndex.shouldSurfaceSpecies(it) }
                         .filter { PokemonItemCache.canRender(it) }
                         .map { PokemonIngredient(it) }
                     ingredientManager.addIngredientsAtRuntime(PokemonIngredientType, updated)
@@ -111,6 +112,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
                 else if (info.isForm) config.registerFormEntries
                 else true
             }
+                .filter { SpawnDataIndex.shouldSurfaceSpecies(it) }
             .filter { PokemonItemCache.canRender(it) }
             .map { PokemonIngredient(it) }
 

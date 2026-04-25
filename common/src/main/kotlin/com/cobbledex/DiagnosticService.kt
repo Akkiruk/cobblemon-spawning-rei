@@ -133,6 +133,9 @@ object DiagnosticService {
         sb.appendLine("Species with National Dex #: ${speciesInfo.count { it.value.nationalDexNumber > 0 }}")
         sb.appendLine("Load state: ${index.loadState.name}")
         sb.appendLine()
+
+        appendSourceDiagnostics(sb, index)
+        appendMaterialFormDiagnostics(sb, index)
         
         val dexSpecies = speciesInfo.filter { it.value.nationalDexNumber > 0 }
         val noDex = allSpecies.filter { speciesInfo[it]?.nationalDexNumber == null || speciesInfo[it]?.nationalDexNumber == 0 }
@@ -280,6 +283,61 @@ object DiagnosticService {
         sb.appendLine("=".repeat(80))
         
         return sb.toString()
+    }
+
+    private fun appendSourceDiagnostics(sb: StringBuilder, index: SpawnDataIndex) {
+        sb.appendLine("DATA SOURCE STATUS")
+        sb.appendLine("-".repeat(40))
+        sb.appendLine("Preferred order: ${DataSourcePolicy.describePrecedence()}")
+        sb.appendLine("Spawns: ${index.spawnSourceTier.displayName}")
+        sb.appendLine("Evolutions: ${index.evolutionSourceTier.displayName}")
+        sb.appendLine("Species info: ${index.speciesInfoSourceTier.displayName}")
+        sb.appendLine("Obtainment: ${index.obtainmentSourceTier.displayName}")
+        sb.appendLine("Fossils: ${index.fossilSourceTier.displayName}")
+        sb.appendLine("Riding: ${index.ridingSourceTier.displayName}")
+
+        val obtainmentSourceCounts = index.obtainmentBySpecies.values
+            .flatten()
+            .map { DataSourcePolicy.tierFor(it.source) }
+            .groupingBy { it }
+            .eachCount()
+        if (obtainmentSourceCounts.isNotEmpty()) {
+            sb.appendLine("Obtainment source counts:")
+            for ((tier, count) in obtainmentSourceCounts.entries.sortedBy { it.key.rank }) {
+                sb.appendLine("  ${tier.displayName}: $count")
+            }
+        }
+        sb.appendLine()
+    }
+
+    private fun appendMaterialFormDiagnostics(sb: StringBuilder, index: SpawnDataIndex) {
+        val decisions = index.speciesInfo.keys.mapNotNull { species ->
+            index.materialFormDecision(species)?.let { species to it }
+        }
+        val surfaced = decisions.filter { it.second.surface }
+        val collapsed = decisions.filter { !it.second.surface }
+
+        sb.appendLine("MATERIAL FORM STATUS")
+        sb.appendLine("-".repeat(40))
+        sb.appendLine("Total indexed forms: ${decisions.size}")
+        sb.appendLine("Surfaced material forms: ${surfaced.size}")
+        sb.appendLine("Collapsed cosmetic forms: ${collapsed.size}")
+
+        val reasonCounts = surfaced
+            .flatMap { it.second.reasons }
+            .groupingBy { it }
+            .eachCount()
+        if (reasonCounts.isNotEmpty()) {
+            sb.appendLine("Material reason counts:")
+            for ((reason, count) in reasonCounts.entries.sortedByDescending { it.value }) {
+                sb.appendLine("  $reason: $count")
+            }
+        }
+        if (collapsed.isNotEmpty()) {
+            sb.appendLine("Collapsed examples: ${collapsed.map { it.first }.sorted().take(30).joinToString(", ")}")
+            if (collapsed.size > 30) sb.appendLine("... and ${collapsed.size - 30} more")
+        }
+        sb.appendLine()
     }
     
     private fun percent(part: Int, total: Int): String {

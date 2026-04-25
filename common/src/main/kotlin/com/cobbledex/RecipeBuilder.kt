@@ -47,6 +47,7 @@ object RecipeBuilder {
     fun buildAllObtainmentRecipes(): List<ObtainmentRecipeData> {
         val recipes = mutableListOf<ObtainmentRecipeData>()
         for ((species, obtainments) in SpawnDataIndex.obtainmentBySpecies) {
+            if (!SpawnDataIndex.shouldSurfaceSpecies(species)) continue
             if (obtainments.isEmpty()) continue
             obtainments.forEachIndexed { i, info ->
                 recipes.add(ObtainmentRecipeData(species, info, i + 1, obtainments.size))
@@ -56,6 +57,7 @@ object RecipeBuilder {
     }
 
     fun buildObtainmentsFor(species: String, obtainments: List<ObtainmentInfo>): List<ObtainmentRecipeData> {
+        if (!SpawnDataIndex.shouldSurfaceSpecies(species)) return emptyList()
         if (obtainments.isEmpty()) return emptyList()
         return obtainments.mapIndexed { i, info ->
             ObtainmentRecipeData(species, info, i + 1, obtainments.size)
@@ -65,6 +67,7 @@ object RecipeBuilder {
     fun buildAllDropRecipes(): List<DropRecipeData> {
         val recipes = mutableListOf<DropRecipeData>()
         for ((species, info) in SpawnDataIndex.speciesInfo) {
+            if (!SpawnDataIndex.shouldSurfaceSpecies(species)) continue
             val drops = info.drops ?: continue
             if (drops.isEmpty()) continue
             recipes.addAll(paginateDrops(species, drops))
@@ -73,6 +76,7 @@ object RecipeBuilder {
     }
 
     fun buildDropsFor(speciesName: String): List<DropRecipeData> {
+        if (!SpawnDataIndex.shouldSurfaceSpecies(speciesName)) return emptyList()
         val info = SpawnDataIndex.getSpeciesInfo(speciesName) ?: return emptyList()
         val drops = info.drops ?: return emptyList()
         if (drops.isEmpty()) return emptyList()
@@ -106,6 +110,7 @@ object RecipeBuilder {
     fun buildAllStatsRecipes(): List<StatsRecipeData> {
         val recipes = mutableListOf<StatsRecipeData>()
         for ((species, info) in SpawnDataIndex.speciesInfo) {
+            if (!SpawnDataIndex.shouldSurfaceSpecies(species)) continue
             val stats = info.baseStats ?: continue
             val bst = info.baseStatTotal ?: continue
             if (stats.isEmpty()) continue
@@ -115,6 +120,7 @@ object RecipeBuilder {
     }
 
     fun buildStatsFor(speciesName: String): StatsRecipeData? {
+        if (!SpawnDataIndex.shouldSurfaceSpecies(speciesName)) return null
         val info = SpawnDataIndex.getSpeciesInfo(speciesName) ?: return null
         val stats = info.baseStats ?: return null
         val bst = info.baseStatTotal ?: return null
@@ -125,12 +131,14 @@ object RecipeBuilder {
     fun buildAllPokedexInfoRecipes(): List<PokedexInfoRecipeData> {
         val recipes = mutableListOf<PokedexInfoRecipeData>()
         for ((species, info) in SpawnDataIndex.speciesInfo) {
+            if (!SpawnDataIndex.shouldSurfaceSpecies(species)) continue
             recipes.add(buildPokedexInfoFrom(species, info))
         }
         return recipes
     }
 
     fun buildPokedexInfoFor(speciesName: String): PokedexInfoRecipeData? {
+        if (!SpawnDataIndex.shouldSurfaceSpecies(speciesName)) return null
         val info = SpawnDataIndex.getSpeciesInfo(speciesName) ?: return null
         return buildPokedexInfoFrom(speciesName, info)
     }
@@ -160,12 +168,14 @@ object RecipeBuilder {
     fun buildAllMovesRecipes(): List<MovesRecipeData> {
         val recipes = mutableListOf<MovesRecipeData>()
         for ((species, info) in SpawnDataIndex.speciesInfo) {
+            if (!SpawnDataIndex.shouldSurfaceSpecies(species)) continue
             recipes.addAll(buildMovesPages(species, info))
         }
         return recipes
     }
 
     fun buildMovesFor(speciesName: String): List<MovesRecipeData> {
+        if (!SpawnDataIndex.shouldSurfaceSpecies(speciesName)) return emptyList()
         val info = SpawnDataIndex.getSpeciesInfo(speciesName) ?: return emptyList()
         return buildMovesPages(speciesName, info)
     }
@@ -262,6 +272,7 @@ object RecipeBuilder {
     fun buildAllFossilRecipes(): List<FossilRecipeData> {
         val recipes = mutableListOf<FossilRecipeData>()
         for ((species, combos) in SpawnDataIndex.fossilsBySpecies) {
+            if (!SpawnDataIndex.shouldSurfaceSpecies(species)) continue
             for (combo in combos) {
                 recipes.add(FossilRecipeData(species, combo.fossilItems, combo.extraTags))
             }
@@ -270,6 +281,7 @@ object RecipeBuilder {
     }
 
     fun buildFossilsFor(speciesName: String): List<FossilRecipeData> {
+        if (!SpawnDataIndex.shouldSurfaceSpecies(speciesName)) return emptyList()
         val combos = SpawnDataIndex.getFossilsFor(speciesName)
         if (combos.isEmpty()) return emptyList()
         return combos.map { FossilRecipeData(speciesName, it.fossilItems, it.extraTags) }
@@ -277,6 +289,7 @@ object RecipeBuilder {
 
     fun buildFossilRecipesForItem(itemId: String): List<FossilRecipeData> {
         return SpawnDataIndex.fossilsBySpecies.flatMap { (species, combos) ->
+            if (!SpawnDataIndex.shouldSurfaceSpecies(species)) return@flatMap emptyList()
             combos.filter { it.fossilItems.contains(itemId) }
                 .map { FossilRecipeData(species, it.fossilItems, it.extraTags) }
         }
@@ -287,6 +300,7 @@ object RecipeBuilder {
     fun buildAllTypeChartRecipes(): List<TypeChartRecipeData> {
         val recipes = mutableListOf<TypeChartRecipeData>()
         for ((species, info) in SpawnDataIndex.speciesInfo) {
+            if (!SpawnDataIndex.shouldSurfaceSpecies(species)) continue
             val matchups = TypeChart.getMatchups(info.primaryType, info.secondaryType)
             recipes.add(TypeChartRecipeData(
                 species, info.primaryType, info.secondaryType,
@@ -297,6 +311,7 @@ object RecipeBuilder {
     }
 
     fun buildTypeChartFor(speciesName: String): TypeChartRecipeData? {
+        if (!SpawnDataIndex.shouldSurfaceSpecies(speciesName)) return null
         val info = SpawnDataIndex.getSpeciesInfo(speciesName) ?: return null
         val matchups = TypeChart.getMatchups(info.primaryType, info.secondaryType)
         return TypeChartRecipeData(
@@ -316,6 +331,7 @@ object RecipeBuilder {
     fun buildAllDescriptionRecipes(): List<PokemonDescriptionRecipeData> {
         val recipes = mutableListOf<PokemonDescriptionRecipeData>()
         for ((species, info) in SpawnDataIndex.speciesInfo) {
+            if (!SpawnDataIndex.shouldSurfaceSpecies(species)) continue
             val description = info.description ?: continue
             if (description.isBlank()) continue
             recipes.add(PokemonDescriptionRecipeData(species, description))
@@ -324,6 +340,7 @@ object RecipeBuilder {
     }
 
     fun buildDescriptionFor(speciesName: String): PokemonDescriptionRecipeData? {
+        if (!SpawnDataIndex.shouldSurfaceSpecies(speciesName)) return null
         val info = SpawnDataIndex.getSpeciesInfo(speciesName) ?: return null
         val description = info.description ?: return null
         if (description.isBlank()) return null
@@ -336,6 +353,7 @@ object RecipeBuilder {
         if (!SpawnDataIndex.hasJobRules()) return emptyList()
         val recipes = mutableListOf<JobRecipeData>()
         for ((species, _) in SpawnDataIndex.speciesInfo) {
+            if (!SpawnDataIndex.shouldSurfaceSpecies(species)) continue
             val matches = SpawnDataIndex.getJobsFor(species)
             for (match in matches) {
                 recipes.add(JobRecipeData(species, match))
@@ -345,6 +363,7 @@ object RecipeBuilder {
     }
 
     fun buildJobsFor(speciesName: String): List<JobRecipeData> {
+        if (!SpawnDataIndex.shouldSurfaceSpecies(speciesName)) return emptyList()
         val matches = SpawnDataIndex.getJobsFor(speciesName)
         return matches.map { JobRecipeData(speciesName, it) }
     }
@@ -354,6 +373,7 @@ object RecipeBuilder {
     fun buildTmLearnersForItem(itemId: String): List<TmLearnerRecipeData> {
         val moveName = TmItemUtils.extractMove(itemId) ?: return emptyList()
         val species = SpawnDataIndex.getSpeciesWithTmMove(moveName)
+            .filter { SpawnDataIndex.shouldSurfaceSpecies(it) }
         if (species.isEmpty()) return emptyList()
 
         val total = species.size
@@ -398,6 +418,7 @@ object RecipeBuilder {
         val formsByBase = mutableMapOf<String, MutableList<FormInfoEntry>>()
         for ((key, info) in SpawnDataIndex.speciesInfo) {
             val base = info.baseSpeciesName ?: continue
+            if (!SpawnDataIndex.shouldSurfaceSpecies(key)) continue
             formsByBase.getOrPut(SpeciesNameNormalizer.normalize(base)) { mutableListOf() }
                 .add(toFormEntry(key, info))
         }
@@ -412,6 +433,7 @@ object RecipeBuilder {
         for ((key, info) in SpawnDataIndex.speciesInfo) {
             if (info.baseSpeciesName == null) continue
             if (SpeciesNameNormalizer.normalize(info.baseSpeciesName) != normalized) continue
+            if (!SpawnDataIndex.shouldSurfaceSpecies(key)) continue
             forms.add(toFormEntry(key, info))
         }
         if (forms.isEmpty()) return emptyList()
@@ -453,6 +475,7 @@ object RecipeBuilder {
 
     fun buildAllRidingRecipes(): List<RidingRecipeData> {
         return SpawnDataIndex.ridingBySpecies.flatMap { (species, info) ->
+            if (!SpawnDataIndex.shouldSurfaceSpecies(species)) return@flatMap emptyList()
             info.mounts.mapIndexed { idx, mount ->
                 RidingRecipeData(species, mount, idx, info.mounts.size, info.seats, info.allMountTypes)
             }
@@ -460,6 +483,7 @@ object RecipeBuilder {
     }
 
     fun buildRidingFor(speciesName: String): List<RidingRecipeData> {
+        if (!SpawnDataIndex.shouldSurfaceSpecies(speciesName)) return emptyList()
         val info = SpawnDataIndex.getRidingFor(speciesName) ?: return emptyList()
         return info.mounts.mapIndexed { idx, mount ->
             RidingRecipeData(speciesName, mount, idx, info.mounts.size, info.seats, info.allMountTypes)

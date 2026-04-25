@@ -10,9 +10,17 @@
 [![Cobblemon](https://img.shields.io/badge/Cobblemon-1.7.1%2B-blue.svg)](https://cobblemon.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Your full **Cobblemon in-game reference guide** inside **REI**, **JEI**, or **EMI**. CobbleDex turns your recipe viewer into a searchable Pokédex, spawn guide, evolution browser, loot table viewer, move database, form navigator, fossil guide, riding reference, and export tool for your entire Cobblemon modpack.
+Your viewer-native **Cobblemon in-game reference guide** inside **REI**, **JEI**, or **EMI**. CobbleDex turns your recipe viewer into a searchable knowledge layer for spawns, evolutions, drops, moves, forms, fossils, riding data, and pack-specific Cobblemon mechanics without becoming a general QoL or HUD mod.
 
 > **Multi-Viewer Support:** CobbleDex has native integrations for [REI (Roughly Enough Items)](https://github.com/shedaniel/RoughlyEnoughItems), [JEI (Just Enough Items)](https://github.com/mezz/JustEnoughItems), and [EMI (Enough Mod Items)](https://github.com/emilyploszaj/emi). Install any one of them and CobbleDex automatically hooks into that viewer.
+
+## Product Rules
+
+- **Viewer-native reference first:** features belong in CobbleDex when they improve Cobblemon data collection, interpretation, search, or display through REI, JEI, and EMI.
+- **Parity by default:** REI, JEI, and EMI should expose the same CobbleDex knowledge unless a viewer API makes exact parity impossible.
+- **Player-truth data:** live server-synced or runtime data beats jar/datapack fallback, and bundled defaults are only a last resort.
+- **Material forms only:** alternate forms are first-class only when they differ in player-relevant data such as spawns, stats, moves, drops, evolution, obtainment, riding, typing, or abilities. Texture-only variants should stay collapsed.
+- **Export stays secondary:** `/cobbledex export` is a hidden diagnostic/planning tool, not the primary product surface.
 
 ## Features
 
@@ -21,7 +29,7 @@ CobbleDex adds dedicated viewer pages for:
 
 - **Spawn Data** - where a Pokemon can appear, including biome tags, resolved biome names, time, weather, light, height, structures, nearby blocks, bucket, context, rarity, and weight multipliers
 - **Evolution Chains** - full family trees with branching lines, item icons, form changes, and detailed requirements
-- **Special Obtainment** - altar summons, shrine methods, special encounters, legendary acquisition methods, and LumyMon-specific obtainment when that mod is present
+- **Special Obtainment** - custom per-Pokemon obtainment notes for altar summons, shrine methods, special encounters, legendary acquisition methods, and mod-gated methods such as LumyMon when that mod is present
 - **Item Drops** - what each Pokemon drops, with drop chance and quantity ranges
 - **Stats** - base stats, total stats, typing, and EV yields
 - **Moves** - level-up moves, egg moves, tutor moves, TM compatibility, and TM reverse lookups
@@ -31,7 +39,7 @@ CobbleDex adds dedicated viewer pages for:
 - **Type Chart** - offensive and defensive matchup data for each species
 - **Natures** - full nature table with stat modifiers
 - **CobbleCrew Jobs** - which jobs a Pokemon qualifies for when CobbleCrew is installed
-- **Forms** - alternate forms, regional variants, Mega forms, Gigantamax, Primal, Ultra Burst, and modded form families
+- **Forms** - alternate forms, regional variants, Mega forms, Gigantamax, Primal, Ultra Burst, and modded form families when those forms have material player-facing differences
 - **Riding Data** - mount type, riding style, seats, and riding stat ranges for rideable Pokemon
 
 ### Spawn data that is actually useful in play
@@ -59,10 +67,10 @@ CobbleDex adds dedicated viewer pages for:
 - Uses synced data and local fallbacks so spawn, evolution, fossil, and related data still appear even when the server does not have CobbleDex installed
 - Viewer reload handling keeps JEI and EMI up to date after server sync instead of leaving categories empty
 
-### Export for spreadsheets and modpack planning
+### Hidden diagnostic export
 - Includes `/cobbledex export`, which generates a multi-sheet `.xlsx` workbook in `cobbledex-export/`
 - Export includes species overview, spawn data, evolutions, drops, movesets, level-up moves, special obtainment, fossils, abilities, type chart, and riding data
-- Useful for pack documentation, balancing, guide writing, and theorycrafting outside the game
+- Useful for debugging, pack documentation, balancing, guide writing, and theorycrafting outside the game, but the in-viewer pages remain the primary CobbleDex experience
 
 ### Extra quality-of-life details
 - Pokemon are rendered as actual Cobblemon model items instead of plain text placeholders

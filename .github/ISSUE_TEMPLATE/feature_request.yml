@@ -6,14 +6,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        Have an idea to make Cobblemon Spawning for REI/JEI/EMI better? Let us know!
+        Have an idea to make CobbleDex better as a viewer-native Cobblemon reference for REI, JEI, and EMI? Let us know!
 
   - type: textarea
     id: feature-description
     attributes:
       label: Feature Description
       description: What feature would you like added?
-      placeholder: "Show shiny encounter rates in spawn displays"
+      placeholder: "Show which Pokemon can learn this TM from the TM item page"
     validations:
       required: true
 
@@ -22,9 +22,57 @@ body:
     attributes:
       label: Use Case / Problem
       description: Why would this be useful? What problem does it solve?
-      placeholder: "Players want to know which biomes have better shiny rates for specific Pokemon"
+      placeholder: "Players want to answer this Cobblemon question without leaving their recipe viewer"
     validations:
       required: true
+
+  - type: dropdown
+    id: knowledge-surface
+    attributes:
+      label: What kind of Cobblemon knowledge is this?
+      options:
+        - Pokemon page or lookup
+        - Item or TM reverse lookup
+        - Move or learner lookup
+        - Spawn, obtainment, fossil, or evolution data
+        - Form identity or material-form behavior
+        - Optional integration knowledge
+        - Diagnostics or export
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: viewers
+    attributes:
+      label: Which viewers should this work in?
+      description: CobbleDex expects REI, JEI, and EMI parity by default.
+      multiple: true
+      options:
+        - REI
+        - JEI
+        - EMI
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: data-source
+    attributes:
+      label: Data Source
+      description: Where should CobbleDex get this information? Server sync, runtime API, datapack/JAR data, bundled defaults, or an optional integration?
+      placeholder: "Runtime Cobblemon move data plus SimpleTMs item IDs"
+    validations:
+      required: false
+
+  - type: textarea
+    id: form-impact
+    attributes:
+      label: Form Impact
+      description: Does this affect alternate forms? If yes, explain the material player-facing difference.
+      placeholder: "Only forms with different stats/moves/spawns should get separate entries"
+    validations:
+      required: false
 
   - type: textarea
     id: proposed-solution

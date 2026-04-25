@@ -2,6 +2,17 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.15] - 2026-04-25
+
+### Fixed
+- **Texture-only Pokemon forms no longer surface as first-class CobbleDex entries** - REI, JEI, EMI, form pages, reverse lookups, and supporting reference pages now share one material-form policy so cosmetic variants stay collapsed unless they have real player-facing differences such as spawns, stats, moves, drops, evolution, obtainment, riding, typing, or abilities
+
+### Improved
+- Added source-tier tracking for major CobbleDex data domains so diagnostics can report whether current data came from server sync, runtime data, jar/datapack fallback, or bundled defaults
+- Expanded `/cobbledex diagnostics` output with data source status, obtainment source counts, material-form counts, material-form reasons, and collapsed-form examples
+- Added focused common-module tests for source precedence and material-form policy behavior
+- Updated README, contribution templates, and docs around the viewer-native CobbleDex operating model, REI/JEI/EMI parity, player-truth data precedence, and material-form policy
+
 ## [1.50.14] - 2026-04-25
 
 ### Fixed

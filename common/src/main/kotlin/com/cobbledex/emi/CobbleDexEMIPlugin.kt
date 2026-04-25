@@ -67,6 +67,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             val speciesInfo = SpawnDataIndex.getSpeciesInfo(species)
             if (speciesInfo == null) continue
             if (speciesInfo.isForm && !config.registerFormEntries) continue
+            if (!SpawnDataIndex.shouldSurfaceSpecies(species)) continue
             val item = PokemonItemCache.getItem(species) ?: continue
             if (item.isEmpty) continue
             // Add search metadata as invisible lore for EMI search indexing (black text = invisible on tooltip)
