@@ -61,7 +61,7 @@ object SpreadsheetExporter {
         itemNameCache.getOrPut(raw) { SpawnDisplayHelper.resolveItemName(raw) }
 
     private fun pokemonIconKey(species: String, formAspects: Set<String> = emptySet()): String =
-        PokemonIconResolver.encodeCacheKey(species, formAspects)
+        species
 
     private fun pct(value: Float): String {
         val formatted = if (value == value.toLong().toFloat()) value.toLong().toString() else "%.1f".format(value)
@@ -263,10 +263,10 @@ object SpreadsheetExporter {
             }
             return IconCapture.captureItemToPng(stack)
         }
-        PokemonIconResolver.decodeCacheKey(cacheKey)?.let { resolved ->
-            return IconCapture.captureSpeciesToPng(resolved.captureSpecies, resolved.captureAspects)
-        }
-        return IconCapture.captureSpeciesToPng(cacheKey)
+        val info = SpawnDataIndex.speciesInfo[cacheKey]
+        val speciesId = info?.baseSpeciesName ?: cacheKey
+        val aspects = info?.formAspects ?: emptySet()
+        return IconCapture.captureSpeciesToPng(speciesId, aspects)
     }
 
     // ══════════════════════════════════════════════════════════════════

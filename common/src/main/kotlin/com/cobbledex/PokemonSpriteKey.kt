@@ -14,19 +14,23 @@ data class PokemonSpriteKey(
             } else {
                 sanitizePath(formAspects.joinToString("_"))
             }
-            val hash = Integer.toHexString((SPRITE_CACHE_VERSION + "|" + species + "|" + aspectPart).hashCode())
-            return "pokemon/$SPRITE_CACHE_VERSION/${identifier.namespace}/${sanitizePath(identifier.path)}/$aspectPart-$hash"
+            val hash = Integer.toHexString((species + "|" + aspectPart).hashCode())
+            return "pokemon/${identifier.namespace}/${sanitizePath(identifier.path)}/$aspectPart-$hash"
         }
 
     val cacheFile: String
         get() = "${idPath}.png"
 
     companion object {
-        private const val SPRITE_CACHE_VERSION = "v3"
-
         fun from(species: String, explicitAspects: Set<String> = emptySet()): PokemonSpriteKey {
-            val resolved = PokemonIconResolver.resolve(species, explicitAspects)
-            return PokemonSpriteKey(resolved.captureSpecies, resolved.captureAspects)
+            val normalizedSpecies = SpeciesNameNormalizer.normalize(species)
+            val decomp = SpeciesNameNormalizer.decomposeFormSpecies(normalizedSpecies)
+            val aspects = explicitAspects.ifEmpty {
+                decomp.cobblemonAspects.ifEmpty {
+                    SpawnDataIndex.getSpeciesInfo(species)?.formAspects ?: emptySet()
+                }
+            }.map { it.lowercase() }.toSortedSet()
+            return PokemonSpriteKey(normalizedSpecies, aspects)
         }
 
         fun from(ref: PokemonRef): PokemonSpriteKey = from(ref.species, ref.formAspects)

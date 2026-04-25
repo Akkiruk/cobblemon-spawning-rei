@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.12] - 2026-04-25
+
+### Fixed
+- **Pokemon display handling is back on the pre-2D pipeline** - REI, JEI, EMI, and spreadsheet export now use the older 3D capture path and pre-normalized cache behavior again, restoring the previous framing and species-specific rendering while the newer sprite system stays out of the display path for now
+
 ## [1.50.11] - 2026-04-24
 
 ### Fixed
