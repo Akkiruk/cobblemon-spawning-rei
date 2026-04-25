@@ -8,6 +8,7 @@ import com.cobbledex.RecipeHandle
 import com.cobbledex.SlotRole
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpawnDisplayHelper
+import com.cobbledex.ViewerParityGuard
 import com.cobbledex.config.CobbleDexConfig
 import com.cobbledex.rei.entry.PokemonEntry
 import com.cobbledex.rei.entry.PokemonEntryDefinition
@@ -95,7 +96,9 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         for (def in DexCategory.ALL) {
             if (!def.isEnabled(config)) continue
             if (def is com.cobbledex.NatureDex) {
-                def.buildAllRecipes().map { GenericDisplay(it, def) }.forEach { registry.add(it) }
+                val handles = def.buildAllRecipes()
+                ViewerParityGuard.warn(def, handles, "REI")
+                handles.map { GenericDisplay(it, def) }.forEach { registry.add(it) }
             } else {
                 registry.registerDisplayGenerator(categoryId(def), GenericDisplayGenerator(def))
             }
@@ -246,12 +249,14 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             if (value is PokemonEntry) {
                 val handles = def.buildRecipesFor(value.species)
                 if (handles.isEmpty()) return Optional.empty()
+                ViewerParityGuard.warn(def, handles, "REI")
                 return Optional.of(handles.map { GenericDisplay(it, def) })
             }
             if (value is net.minecraft.world.item.ItemStack) {
                 val itemId = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(value.item).toString()
                 val handles = def.buildRecipesForItem(itemId)
                 if (handles.isEmpty()) return Optional.empty()
+                ViewerParityGuard.warn(def, handles, "REI")
                 return Optional.of(handles.map { GenericDisplay(it, def) })
             }
             return Optional.empty()
@@ -262,12 +267,14 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             if (value is PokemonEntry) {
                 val handles = def.buildUsagesFor(value.species)
                 if (handles.isEmpty()) return Optional.empty()
+                ViewerParityGuard.warn(def, handles, "REI")
                 return Optional.of(handles.map { GenericDisplay(it, def) })
             }
             if (value is net.minecraft.world.item.ItemStack) {
                 val itemId = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(value.item).toString()
                 val handles = def.buildRecipesForItem(itemId)
                 if (handles.isEmpty()) return Optional.empty()
+                ViewerParityGuard.warn(def, handles, "REI")
                 return Optional.of(handles.map { GenericDisplay(it, def) })
             }
             return Optional.empty()
@@ -284,7 +291,9 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             val version = SpawnDataIndex.dataVersion
             cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
 
-            val all = def.buildAllRecipes().map { GenericDisplay(it, def) }
+            val handles = def.buildAllRecipes()
+            ViewerParityGuard.warn(def, handles, "REI")
+            val all = handles.map { GenericDisplay(it, def) }
             cachedDisplays = all
             cachedVersion = version
             return if (all.isEmpty()) Optional.empty() else Optional.of(all)

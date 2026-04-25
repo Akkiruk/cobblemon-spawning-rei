@@ -10,6 +10,7 @@ import com.cobbledex.RecipeViewerReloader
 import com.cobbledex.SlotRole
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpawnDisplayHelper
+import com.cobbledex.ViewerParityGuard
 import com.cobbledex.config.CobbleDexConfig
 import dev.emi.emi.api.EmiPlugin
 import dev.emi.emi.api.EmiRegistry
@@ -90,6 +91,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             registry.addWorkstation(cat, EmiStack.of(def.icon))
 
             val recipes = def.buildAllRecipes()
+            ViewerParityGuard.warn(def, recipes, "EMI")
             for (handle in recipes) {
                 registry.addRecipe(GenericEmiRecipe(handle, cat, def))
             }

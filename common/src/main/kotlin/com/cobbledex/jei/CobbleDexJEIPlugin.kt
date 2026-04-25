@@ -9,6 +9,7 @@ import com.cobbledex.RecipeViewerReloader
 import com.cobbledex.SlotRole
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpawnDisplayHelper
+import com.cobbledex.ViewerParityGuard
 import com.cobbledex.config.CobbleDexConfig
 import mezz.jei.api.IModPlugin
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder
@@ -61,7 +62,9 @@ open class CobbleDexJEIPlugin : IModPlugin {
                     if (old.isNotEmpty()) manager.hideRecipes(type, old)
                 }
 
-                val recipes = def.buildAllRecipes().map { GenericRecipe(it) }
+                val handles = def.buildAllRecipes()
+                ViewerParityGuard.warn(def, handles, "JEI")
+                val recipes = handles.map { GenericRecipe(it) }
                 if (recipes.isNotEmpty()) {
                     manager.addRecipes(type, recipes)
                 }
@@ -145,7 +148,9 @@ open class CobbleDexJEIPlugin : IModPlugin {
 
         for (def in DexCategory.ALL) {
             if (!def.isEnabled(config)) continue
-            val recipes = def.buildAllRecipes().map { GenericRecipe(it) }
+            val handles = def.buildAllRecipes()
+            ViewerParityGuard.warn(def, handles, "JEI")
+            val recipes = handles.map { GenericRecipe(it) }
             if (recipes.isNotEmpty()) {
                 registration.addRecipes(recipeType(def), recipes)
             }

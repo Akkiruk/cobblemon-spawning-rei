@@ -51,6 +51,7 @@ class RecipeHandle(
     }
     val width: Int get() = try { _width?.invoke() ?: layout.width } catch (_: Exception) { 200 }
     val height: Int get() = try { _height?.invoke() ?: layout.height } catch (_: Exception) { 100 }
+    val hasExplicitSize: Boolean get() = _width != null && _height != null
     val slots: Slots by lazy(LazyThreadSafetyMode.NONE) {
         try {
             _slots(layout)
@@ -76,6 +77,10 @@ class RecipeHandle(
         .map { it.itemId }
         .filter { it.isNotBlank() }
         .distinct()
+
+    fun explicitWidthOrNull(): Int? = try { _width?.invoke() } catch (_: Exception) { null }
+
+    fun explicitHeightOrNull(): Int? = try { _height?.invoke() } catch (_: Exception) { null }
 
     private fun lookupSpecies(primary: List<String>, fallback: List<String>): List<String> =
         (if (primary.isNotEmpty()) primary else fallback)
@@ -244,6 +249,8 @@ object ObtainmentDex : DexCategory {
         inputSpecies = emptyList(),
         outputSpecies = listOf(d.speciesName),
         layoutFactory = { ObtainmentPageBuilder.buildUnified(d) },
+        _width = { ObtainmentPageBuilder.measureUnifiedWidth(d.speciesName) },
+        _height = { ObtainmentPageBuilder.measureUnifiedHeight(d) },
         _slots = {
             RecipeHandle.Slots(
                 pokemon = listOf(pokemonOutput(d.speciesName, 8, 3)),
@@ -277,6 +284,8 @@ object DropDex : DexCategory {
         inputSpecies = listOf(d.speciesName),
         outputSpecies = emptyList(),
         layoutFactory = { DropPageBuilder.build(d) },
+        _width = { DropPageBuilder.measureWidth(d) },
+        _height = { DropPageBuilder.measureHeight(d) },
         _slots = { _ ->
             RecipeHandle.Slots(
                 pokemon = listOf(pokemonInput(d.speciesName)),
@@ -558,6 +567,8 @@ object FormsDex : DexCategory {
                 formResult = r
                 r.layout
             },
+            _width = { PokemonInfoPageBuilder.measureFormsWidth(d) },
+            _height = { PokemonInfoPageBuilder.measureFormsHeight(d) },
             _slots = { _ ->
                 val r = formResult ?: PokemonInfoPageBuilder.buildForms(d).also { formResult = it }
                 RecipeHandle.Slots(pokemon = r.pokemonSlots)

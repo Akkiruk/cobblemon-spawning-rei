@@ -2,6 +2,16 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.22] - 2026-04-25
+
+### Improved
+- Added a measured pagination planner so unified obtainment, drops, and alternate-form pages split repeated content from measured item heights instead of repeatedly rendering candidate pages
+- Added explicit measured dimensions for paginated obtainment, drop, and form recipe handles so viewer sizing can use page measurements without forcing layout construction
+- Added a shared REI/JEI/EMI parity guard that validates recipe IDs, Pokemon lookup keys, and explicit viewer bounds before recipe handles are exposed
+
+### Tests
+- Added focused common-module coverage for measured pagination and shared viewer parity contract checks
+
 ## [1.50.21] - 2026-04-25
 
 ### Fixed

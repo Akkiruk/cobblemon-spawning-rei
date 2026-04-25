@@ -1,38 +1,6 @@
 package com.cobbledex
 
 object RecipeBuilder {
-
-    // Recipe viewers render into a bounded viewport. If a vertically stacked page
-    // exceeds that height, the hidden rows are effectively inaccessible, so we
-    // split repeated content into multiple recipe pages before rendering.
-    private fun <T> paginateByMeasuredHeight(
-        items: List<T>,
-        maxHeight: Int = PanelLayout.MAX_HEIGHT,
-        measureHeight: (List<T>) -> Int
-    ): List<List<T>> {
-        if (items.isEmpty()) return emptyList()
-
-        val pages = mutableListOf<List<T>>()
-        var current = mutableListOf<T>()
-
-        for (item in items) {
-            val candidate = current + item
-            val candidateHeight = measureHeight(candidate)
-            if (current.isNotEmpty() && candidateHeight > maxHeight) {
-                pages.add(current.toList())
-                current = mutableListOf(item)
-            } else {
-                current = candidate.toMutableList()
-            }
-        }
-
-        if (current.isNotEmpty()) {
-            pages.add(current.toList())
-        }
-
-        return pages
-    }
-
     fun buildAllOverviewRecipes(): List<PokemonOverviewRecipeData> =
         PageProjectionBuilder.allPokemon().map { PokemonOverviewRecipeData(it) }
 
@@ -92,17 +60,12 @@ object RecipeBuilder {
         routes: List<ObtainmentRoute>,
     ): List<UnifiedObtainmentRecipeData> {
         if (routes.isEmpty()) return emptyList()
-        val pages = paginateByMeasuredHeight(routes) { pageRoutes ->
-            ObtainmentPageBuilder.buildUnified(
-                UnifiedObtainmentRecipeData(
-                    speciesName = speciesName,
-                    routes = pageRoutes,
-                    pageIndex = 1,
-                    pageTotal = 1,
-                    totalRoutes = routes.size,
-                )
-            ).height
-        }
+        val pages = MeasuredPagePlanner.paginate(
+            items = routes,
+            fixedHeight = ObtainmentPageBuilder.measureUnifiedFixedHeight(),
+            spacingHeight = ObtainmentPageBuilder.UNIFIED_ROUTE_SPACING,
+            measureItemHeight = { route -> ObtainmentPageBuilder.measureUnifiedRouteHeight(speciesName, route) },
+        )
         val pageTotal = pages.size
         return pages.mapIndexed { index, pageRoutes ->
             UnifiedObtainmentRecipeData(
@@ -141,11 +104,11 @@ object RecipeBuilder {
     }
 
     private fun paginateDrops(speciesName: String, drops: List<DropEntryInfo>): List<DropRecipeData> {
-        val pages = paginateByMeasuredHeight(drops) { pageDrops ->
-            DropPageBuilder.build(
-                DropRecipeData(speciesName, pageDrops, pageIndex = 1, pageTotal = 1, totalDrops = drops.size)
-            ).height
-        }
+        val pages = MeasuredPagePlanner.paginate(
+            items = drops,
+            fixedHeight = DropPageBuilder.measureFixedHeight(),
+            measureItemHeight = DropPageBuilder::measureEntryHeight,
+        )
         val totalPages = pages.size
         return pages.mapIndexed { index, pageDrops ->
             DropRecipeData(
@@ -493,11 +456,11 @@ object RecipeBuilder {
 
     private fun paginateForms(baseSpeciesName: String, forms: List<FormInfoEntry>): List<FormRecipeData> {
         val sortedForms = forms.sortedBy { it.formDisplayName }
-        val pages = paginateByMeasuredHeight(sortedForms) { pageForms ->
-            PokemonInfoPageBuilder.buildForms(
-                FormRecipeData(baseSpeciesName, pageForms, pageIndex = 1, pageTotal = 1, totalForms = sortedForms.size)
-            ).layout.height
-        }
+        val pages = MeasuredPagePlanner.paginate(
+            items = sortedForms,
+            fixedHeight = PokemonInfoPageBuilder.measureFormsFixedHeight(),
+            measureItemHeight = PokemonInfoPageBuilder::measureFormEntryHeight,
+        )
         val totalPages = pages.size
         return pages.mapIndexed { index, pageForms ->
             FormRecipeData(

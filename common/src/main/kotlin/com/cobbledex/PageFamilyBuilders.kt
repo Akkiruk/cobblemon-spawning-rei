@@ -22,19 +22,48 @@ object EvolutionPageBuilder {
 }
 
 object ObtainmentPageBuilder {
+    const val UNIFIED_ROUTE_SPACING = 8
+
     fun buildSpecial(data: ObtainmentRecipeData): PanelLayout =
         SpawnDisplayHelper.buildObtainmentLayout(data.speciesName, data.obtainment, data.entryIndex, data.entryTotal)
+
+    fun measureUnifiedFixedHeight(): Int {
+        val font = Minecraft.getInstance().font
+        return 27 + 1 + 1 + 4 + font.lineHeight + PanelLayout.PADDING
+    }
+
+    fun measureUnifiedRouteHeight(speciesName: String, route: ObtainmentRoute): Int {
+        val font = Minecraft.getInstance().font
+        val detailWidth = unifiedDetailWidth(speciesName)
+        var height = PanelLayout.LINE_HEIGHT
+
+        for (line in routeLines(route)) {
+            height += SpawnDisplayHelper.wrapText(font, line, detailWidth).size.coerceAtLeast(1) * PanelLayout.LINE_HEIGHT
+        }
+
+        val items = route.itemIds.distinct()
+        if (items.isNotEmpty()) {
+            val itemNames = items.joinToString(", ") { SpawnDisplayHelper.resolveItemName(it) }
+            height += SpawnDisplayHelper.wrapText(font, "Items: $itemNames", detailWidth).size.coerceAtLeast(1) * PanelLayout.LINE_HEIGHT
+        }
+
+        return height
+    }
+
+    fun measureUnifiedWidth(speciesName: String): Int = unifiedWidth(speciesName)
+
+    fun measureUnifiedHeight(data: UnifiedObtainmentRecipeData): Int {
+        val routeHeight = data.routes.sumOf { route -> measureUnifiedRouteHeight(data.speciesName, route) }
+        val spacing = ObtainmentPageBuilder.UNIFIED_ROUTE_SPACING * (data.routes.size - 1).coerceAtLeast(0)
+        return measureUnifiedFixedHeight() + routeHeight + spacing
+    }
 
     fun buildUnified(data: UnifiedObtainmentRecipeData): PanelLayout {
         val font = Minecraft.getInstance().font
         val padding = PanelLayout.PADDING
         val headerTag = "How to Obtain"
         val speciesName = formatSpeciesName(data.speciesName)
-        val width = maxOf(
-            PanelLayout.TEXT_START_X + font.width(speciesName) + 8 + font.width(headerTag) + padding,
-            236,
-            PanelLayout.MIN_WIDTH,
-        ).coerceAtMost(PanelLayout.MAX_WIDTH)
+        val width = unifiedWidth(data.speciesName)
         val layout = PanelLayout(width)
         val right = layout.right
         val indentX = padding + 4
@@ -69,6 +98,26 @@ object ObtainmentPageBuilder {
         layout.gap(font.lineHeight + padding)
 
         return layout
+    }
+
+    private fun unifiedWidth(speciesName: String): Int {
+        val font = Minecraft.getInstance().font
+        val padding = PanelLayout.PADDING
+        val headerTag = "How to Obtain"
+        val displayName = formatSpeciesName(speciesName)
+        return maxOf(
+            PanelLayout.TEXT_START_X + font.width(displayName) + 8 + font.width(headerTag) + padding,
+            236,
+            PanelLayout.MIN_WIDTH,
+        ).coerceAtMost(PanelLayout.MAX_WIDTH)
+    }
+
+    private fun unifiedDetailWidth(speciesName: String): Int {
+        val padding = PanelLayout.PADDING
+        val width = unifiedWidth(speciesName)
+        val right = width - padding
+        val detailX = padding + 10
+        return right - detailX
     }
 
     private fun drawRoute(layout: PanelLayout, route: ObtainmentRoute, indentX: Int, detailX: Int, detailWidth: Int) {
@@ -144,10 +193,60 @@ object ObtainmentPageBuilder {
 }
 
 object DropPageBuilder {
+    private const val DROP_ROW_HEIGHT = 20
+
     fun build(data: DropRecipeData): PanelLayout = SpawnDisplayHelper.buildDropLayout(data)
+
+    fun measureFixedHeight(): Int {
+        val font = Minecraft.getInstance().font
+        return 38 + 2 + 1 + 4 + font.lineHeight + PanelLayout.PADDING
+    }
+
+    fun measureEntryHeight(drop: DropEntryInfo): Int = DROP_ROW_HEIGHT
+
+    fun measureWidth(data: DropRecipeData): Int {
+        val font = Minecraft.getInstance().font
+        val padding = PanelLayout.PADDING
+        val nameWidth = PanelLayout.TEXT_START_X + font.width(formatSpeciesName(data.speciesName)) + padding
+        val headerBase = tr("category.cobbledex-rei-emi-jei.drops")
+        val headerTag = if (data.pageTotal > 1) "$headerBase (${data.pageIndex}/${data.pageTotal})" else headerBase
+        val headerWidth = nameWidth + 6 + font.width(headerTag) + padding
+        val maxItemRowWidth = data.drops.maxOfOrNull { drop ->
+            val itemName = SpawnDisplayHelper.resolveItemName(drop.itemId)
+            val rightText = "${drop.displayPercentage} \u00D7${drop.displayQuantity}"
+            padding + 22 + font.width(itemName) + 8 + font.width(rightText) + padding
+        } ?: 0
+        return maxOf(headerWidth, maxItemRowWidth, PanelLayout.MIN_WIDTH).coerceAtMost(PanelLayout.MAX_WIDTH)
+    }
+
+    fun measureHeight(data: DropRecipeData): Int =
+        measureFixedHeight() + data.drops.sumOf(::measureEntryHeight)
 }
 
 object PokemonInfoPageBuilder {
+    fun measureFormsFixedHeight(): Int = 30 + PanelLayout.LINE_HEIGHT + 2 + PanelLayout.PADDING
+
+    fun measureFormEntryHeight(form: FormInfoEntry): Int {
+        var height = 22 + 13 + 1 + 4
+        val allAbilities = form.abilities + listOfNotNull(form.hiddenAbility)
+        if (allAbilities.isNotEmpty()) height += 13
+        if (form.baseStatTotal != null) height += 13
+        return height
+    }
+
+    fun measureFormsWidth(data: FormRecipeData): Int {
+        val font = Minecraft.getInstance().font
+        val padding = PanelLayout.PADDING
+        val baseDisplay = formatSpeciesName(data.baseSpeciesName)
+        val headerBase = tr("category.cobbledex-rei-emi-jei.forms")
+        val headerTag = if (data.pageTotal > 1) "$headerBase (${data.pageIndex}/${data.pageTotal})" else headerBase
+        val headerWidth = PanelLayout.TEXT_START_X + font.width(baseDisplay) + 8 + font.width(headerTag) + padding
+        return maxOf(headerWidth, 200, PanelLayout.MIN_WIDTH).coerceAtMost(PanelLayout.MAX_WIDTH)
+    }
+
+    fun measureFormsHeight(data: FormRecipeData): Int =
+        measureFormsFixedHeight() + data.forms.sumOf(::measureFormEntryHeight)
+
     fun buildOverview(data: PokemonOverviewRecipeData): PanelLayout {
         val projection = data.projection
         val info = projection.info
