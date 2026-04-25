@@ -47,6 +47,19 @@ class PageProjectionBuilderTest {
         assertEquals(listOf("WildSpawns", "Special", "Fossil", "Evolution"), routes.map { routeName(it) })
     }
 
+    @Test
+    fun overviewProjectionsCanEnumeratePartialSnapshots() {
+        val snapshot = CobbleDexDataSnapshot(
+            speciesInfo = mapOf("lapras" to speciesInfo("lapras", nationalDexNumber = 131)),
+            spawnsBySpecies = mapOf("lapras" to listOf(spawn("lapras"))),
+        )
+
+        val recipes = PageProjectionBuilder.allPokemon(snapshot).map { PokemonOverviewRecipeData(it) }
+
+        assertEquals(listOf("lapras"), recipes.map { it.speciesName })
+        assertTrue(recipes.single().projection.sortedSpawns.isNotEmpty())
+    }
+
     private fun spawn(species: String) = SpawnInfo(
         id = "test:$species",
         pokemon = species,

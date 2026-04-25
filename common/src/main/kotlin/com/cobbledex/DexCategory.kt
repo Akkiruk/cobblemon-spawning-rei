@@ -98,7 +98,7 @@ interface DexCategory {
 
     companion object {
         val ALL: List<DexCategory> = listOf(
-            SpawnDex, EvolutionDex, ObtainmentDex, DropDex,
+            PokemonOverviewDex, SpawnDex, EvolutionDex, ObtainmentDex, DropDex,
             StatsDex, MovesDex, PokedexInfoDex, PokemonDescriptionDex, FossilDex,
             TypeChartDex, NatureDex, JobsDex, FormsDex, RidingDex
         )
@@ -110,6 +110,33 @@ private fun pokemonInput(species: String, x: Int = 8, y: Int = 3) =
 
 private fun pokemonOutput(species: String, x: Int = 8, y: Int = 3) =
     PokemonSlotDef(species, emptySet(), x, y, SlotRole.OUTPUT)
+
+// ----- Pokemon Overview -----
+
+object PokemonOverviewDex : DexCategory {
+    override val id = "overview"
+    override val titleKey = "category.cobbledex-rei-emi-jei.overview"
+    override val icon: Item = Items.COMPASS
+    override val maxSize: () -> CategorySizer.PanelSize = { CategorySizer.getBounds(this) }
+    override val supportsRecipeTree = true
+    override fun isEnabled(config: CobbleDexConfig) = true
+
+    override fun buildAllRecipes(): List<RecipeHandle> =
+        RecipeBuilder.buildAllOverviewRecipes().map(::toHandle)
+
+    override fun buildRecipesFor(species: String): List<RecipeHandle> {
+        val recipe = RecipeBuilder.buildOverviewFor(species) ?: return emptyList()
+        return listOf(toHandle(recipe))
+    }
+
+    private fun toHandle(d: PokemonOverviewRecipeData) = RecipeHandle(
+        recipeIdPath = "overview/${sanitizePath(d.speciesName)}",
+        inputSpecies = listOf(d.speciesName),
+        outputSpecies = emptyList(),
+        layoutFactory = { PokemonInfoPageBuilder.buildOverview(d) },
+        _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
+    )
+}
 
 // ----- Spawn -----
 

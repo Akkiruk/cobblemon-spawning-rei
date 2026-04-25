@@ -1,4 +1,5 @@
 {
+  "category.cobbledex-rei-emi-jei.overview": "Pokemon Overview",
   "category.cobbledex-rei-emi-jei.spawn": "Spawn Locations",
   "category.cobbledex-rei-emi-jei.evolution": "Cobblemon Evolution",
   "category.cobbledex-rei-emi-jei.obtainment": "Special Obtainment",
@@ -10,6 +11,21 @@
   "category.cobbledex-rei-emi-jei.jobs": "Cobbleworkers Jobs",
 
   "cobbledex-rei-emi-jei.jobs.count": "%d eligible job(s)",
+
+  "cobbledex-rei-emi-jei.overview.profile": "Profile",
+  "cobbledex-rei-emi-jei.overview.knowledge": "Knowledge",
+  "cobbledex-rei-emi-jei.overview.obtainment": "Obtain",
+  "cobbledex-rei-emi-jei.overview.stats": "Stats",
+  "cobbledex-rei-emi-jei.overview.catch": "Catch",
+  "cobbledex-rei-emi-jei.overview.abilities": "Abilities",
+  "cobbledex-rei-emi-jei.overview.moves": "Moves",
+  "cobbledex-rei-emi-jei.overview.drops": "Drops",
+  "cobbledex-rei-emi-jei.overview.forms": "Forms",
+  "cobbledex-rei-emi-jei.overview.riding": "Riding",
+  "cobbledex-rei-emi-jei.overview.jobs": "Jobs",
+  "cobbledex-rei-emi-jei.overview.none": "No data",
+  "cobbledex-rei-emi-jei.overview.source": "Source: %s",
+  "cobbledex-rei-emi-jei.overview.form_note": "Form of %1$s; surfaced because of %2$s",
 
   "cobbledex-rei-emi-jei.info.abilities": "\u2605 Abilities",
   "cobbledex-rei-emi-jei.info.egg_groups": "\u2606 Egg Groups",

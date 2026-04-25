@@ -33,6 +33,12 @@ object RecipeBuilder {
         return pages
     }
 
+    fun buildAllOverviewRecipes(): List<PokemonOverviewRecipeData> =
+        PageProjectionBuilder.allPokemon().map { PokemonOverviewRecipeData(it) }
+
+    fun buildOverviewFor(speciesName: String): PokemonOverviewRecipeData? =
+        PageProjectionBuilder.pokemon(speciesName)?.let { PokemonOverviewRecipeData(it) }
+
     fun buildSpawnRecipes(species: String, spawns: List<SpawnInfo>): List<SpawnRecipeData> {
         return SpawnPageBuilder.sortedSpawns(spawns).mapNotNull { entry ->
             try {

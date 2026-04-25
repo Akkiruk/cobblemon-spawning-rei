@@ -8,6 +8,12 @@ data class SpawnRecipeData(
     val bucketTotal: Int = 1
 )
 
+data class PokemonOverviewRecipeData(
+    val projection: PokemonPageProjection,
+) {
+    val speciesName: String get() = projection.speciesName
+}
+
 data class ObtainmentRecipeData(
     val speciesName: String,
     val obtainment: ObtainmentInfo,

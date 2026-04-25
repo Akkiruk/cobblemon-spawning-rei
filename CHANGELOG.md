@@ -2,6 +2,15 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.20] - 2026-04-25
+
+### Added
+- Added a new projection-backed Pokemon Overview category as the start-here page for each Pokemon across REI, JEI, and EMI
+- The overview page summarizes typing, Pokedex description, obtainment routes, stats, catch rate, abilities, moves, drops, forms, riding support, jobs, source, and material-form reasons where available
+
+### Tests
+- Expanded projection coverage so overview pages can enumerate partial data snapshots without relying on global mutable state
+
 ## [1.50.19] - 2026-04-25
 
 ### Improved
