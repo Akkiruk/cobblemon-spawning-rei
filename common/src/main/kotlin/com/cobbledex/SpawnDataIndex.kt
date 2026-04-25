@@ -14,8 +14,11 @@ object SpawnDataIndex {
     enum class LoadState { NOT_LOADED, PARTIAL, FULLY_LOADED }
 
     @Volatile
-    var loadState = LoadState.NOT_LOADED
-        private set
+    private var snapshot: CobbleDexDataSnapshot = CobbleDexDataSnapshot()
+
+    var loadState: LoadState
+        get() = snapshot.loadState
+        private set(value) { snapshot = snapshot.copy(loadState = value) }
 
     private val dataLock = ReentrantLock()
     private val executor: ExecutorService = Executors.newSingleThreadExecutor { r ->
@@ -23,77 +26,77 @@ object SpawnDataIndex {
     }
     private var loadFuture: Future<*>? = null
 
-    @Volatile
-    var spawnsBySpecies: Map<String, List<SpawnInfo>> = emptyMap()
-        private set
+    var spawnsBySpecies: Map<String, List<SpawnInfo>>
+        get() = snapshot.spawnsBySpecies
+        private set(value) { snapshot = snapshot.copy(spawnsBySpecies = value) }
 
-    @Volatile
-    var evolutionsBySpecies: Map<String, List<EvolutionInfo>> = emptyMap()
-        private set
+    var evolutionsBySpecies: Map<String, List<EvolutionInfo>>
+        get() = snapshot.evolutionsBySpecies
+        private set(value) { snapshot = snapshot.copy(evolutionsBySpecies = value) }
 
-    @Volatile
-    var evolutionsToSpecies: Map<String, List<EvolutionInfo>> = emptyMap()
-        private set
+    var evolutionsToSpecies: Map<String, List<EvolutionInfo>>
+        get() = snapshot.evolutionsToSpecies
+        private set(value) { snapshot = snapshot.copy(evolutionsToSpecies = value) }
 
-    @Volatile
-    var speciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo> = emptyMap()
-        private set
+    var speciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo>
+        get() = snapshot.speciesInfo
+        private set(value) { snapshot = snapshot.copy(speciesInfo = value) }
 
-    @Volatile
-    var obtainmentBySpecies: Map<String, List<ObtainmentInfo>> = emptyMap()
-        private set
+    var obtainmentBySpecies: Map<String, List<ObtainmentInfo>>
+        get() = snapshot.obtainmentBySpecies
+        private set(value) { snapshot = snapshot.copy(obtainmentBySpecies = value) }
 
-    @Volatile
-    var fossilsBySpecies: Map<String, List<FossilCombo>> = emptyMap()
-        private set
+    var fossilsBySpecies: Map<String, List<FossilCombo>>
+        get() = snapshot.fossilsBySpecies
+        private set(value) { snapshot = snapshot.copy(fossilsBySpecies = value) }
 
-    @Volatile
-    var dropsByItem: Map<String, List<String>> = emptyMap()
-        private set
+    var dropsByItem: Map<String, List<String>>
+        get() = snapshot.dropsByItem
+        private set(value) { snapshot = snapshot.copy(dropsByItem = value) }
 
-    @Volatile
-    var speciesByTmMove: Map<String, List<String>> = emptyMap()
-        private set
+    var speciesByTmMove: Map<String, List<String>>
+        get() = snapshot.speciesByTmMove
+        private set(value) { snapshot = snapshot.copy(speciesByTmMove = value) }
 
-    @Volatile
-    var jobRules: List<JobRule> = emptyList()
-        private set
+    var jobRules: List<JobRule>
+        get() = snapshot.jobRules
+        private set(value) { snapshot = snapshot.copy(jobRules = value) }
 
-    @Volatile
-    var ridingBySpecies: Map<String, RidingInfo> = emptyMap()
-        private set
+    var ridingBySpecies: Map<String, RidingInfo>
+        get() = snapshot.ridingBySpecies
+        private set(value) { snapshot = snapshot.copy(ridingBySpecies = value) }
 
-    @Volatile
-    var allSpeciesNames: List<String> = emptyList()
-        private set
+    var allSpeciesNames: List<String>
+        get() = snapshot.allSpeciesNames
+        private set(value) { snapshot = snapshot.copy(allSpeciesNames = value) }
 
-    @Volatile
-    var spawnSourceTier: DataSourceTier = DataSourceTier.UNKNOWN
-        private set
+    var spawnSourceTier: DataSourceTier
+        get() = snapshot.spawnSourceTier
+        private set(value) { snapshot = snapshot.copy(spawnSourceTier = value) }
 
-    @Volatile
-    var evolutionSourceTier: DataSourceTier = DataSourceTier.UNKNOWN
-        private set
+    var evolutionSourceTier: DataSourceTier
+        get() = snapshot.evolutionSourceTier
+        private set(value) { snapshot = snapshot.copy(evolutionSourceTier = value) }
 
-    @Volatile
-    var speciesInfoSourceTier: DataSourceTier = DataSourceTier.UNKNOWN
-        private set
+    var speciesInfoSourceTier: DataSourceTier
+        get() = snapshot.speciesInfoSourceTier
+        private set(value) { snapshot = snapshot.copy(speciesInfoSourceTier = value) }
 
-    @Volatile
-    var obtainmentSourceTier: DataSourceTier = DataSourceTier.UNKNOWN
-        private set
+    var obtainmentSourceTier: DataSourceTier
+        get() = snapshot.obtainmentSourceTier
+        private set(value) { snapshot = snapshot.copy(obtainmentSourceTier = value) }
 
-    @Volatile
-    var fossilSourceTier: DataSourceTier = DataSourceTier.UNKNOWN
-        private set
+    var fossilSourceTier: DataSourceTier
+        get() = snapshot.fossilSourceTier
+        private set(value) { snapshot = snapshot.copy(fossilSourceTier = value) }
 
-    @Volatile
-    var ridingSourceTier: DataSourceTier = DataSourceTier.UNKNOWN
-        private set
+    var ridingSourceTier: DataSourceTier
+        get() = snapshot.ridingSourceTier
+        private set(value) { snapshot = snapshot.copy(ridingSourceTier = value) }
 
-    @Volatile
-    var dataVersion: Long = 0
-        private set
+    var dataVersion: Long
+        get() = snapshot.dataVersion
+        private set(value) { snapshot = snapshot.copy(dataVersion = value) }
 
     /** Tracks local load attempts where species exist but evolutions are empty */
     @Volatile
@@ -107,6 +110,10 @@ object SpawnDataIndex {
     fun isFullyLoaded(): Boolean = loadState == LoadState.FULLY_LOADED
 
     fun hasData(): Boolean = allSpeciesNames.isNotEmpty()
+
+    fun currentSnapshot(): CobbleDexDataSnapshot = snapshot
+
+    fun currentQueries(): CobbleDexDataQueries = CobbleDexDataQueries(snapshot)
 
     fun ensureLoaded() {
         when (loadState) {
@@ -422,83 +429,14 @@ object SpawnDataIndex {
     }
 
     private fun rebuildDerivedData() {
-        val reverseMap = mutableMapOf<String, MutableList<EvolutionInfo>>()
-        for ((_, evolutions) in evolutionsBySpecies) {
-            for (evo in evolutions) {
-                val normalizedTo = SpeciesNameNormalizer.normalize(evo.toSpecies)
-                reverseMap.getOrPut(normalizedTo) { mutableListOf() }.add(evo)
-            }
+        val result = DerivedDataBuilder.rebuild(snapshot)
+        snapshot = result.snapshot
+        if (result.backfilledSpeciesInfoCount > 0) {
+            DebugLog.info("Backfilled ${result.backfilledSpeciesInfoCount} orphan evolution keys into speciesInfo")
         }
-        evolutionsToSpecies = reverseMap
-
-        // Backfill: any evolution key that doesn't have a speciesInfo entry gets a
-        // thin inherited entry from its base species so it's properly marked as a form
-        val enriched = speciesInfo.toMutableMap()
-        var backfilled = 0
-        for (key in evolutionsBySpecies.keys) {
-            if (key in enriched) continue
-            // Try to resolve the base species from the evolution's fromSpecies
-            val evos = evolutionsBySpecies[key] ?: continue
-            val baseName = SpeciesNameNormalizer.normalize(evos.firstOrNull()?.fromSpecies ?: continue)
-            val baseInfo = enriched[baseName] ?: continue
-            enriched[key] = baseInfo.copy(
-                name = key,
-                baseSpeciesName = baseName,
-                formAspects = evos.firstOrNull()?.fromAspects ?: emptySet()
-            )
-            backfilled++
+        result.speciesEnumerationError?.let { message ->
+            DebugLog.warn("Species enumeration interrupted: $message")
         }
-        if (backfilled > 0) {
-            speciesInfo = enriched
-            DebugLog.info("Backfilled $backfilled orphan evolution keys into speciesInfo")
-        }
-
-        val allNames = mutableSetOf<String>()
-        allNames.addAll(spawnsBySpecies.keys)
-        allNames.addAll(evolutionsBySpecies.keys)
-        for ((_, evos) in evolutionsBySpecies) {
-            for (evo in evos) allNames.add(SpeciesNameNormalizer.normalize(evo.toSpecies))
-        }
-        allNames.addAll(speciesInfo.keys)
-        allNames.addAll(obtainmentBySpecies.keys)
-        allNames.addAll(fossilsBySpecies.keys)
-        allNames.addAll(ridingBySpecies.keys)
-
-        val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
-        if (runtimeCount > 0) {
-            try {
-                for (species in PokemonSpecies.implemented) {
-                    allNames.add(SpeciesNameNormalizer.normalize(species.name))
-                }
-            } catch (e: Exception) {
-                DebugLog.warn("Species enumeration interrupted: ${e.message}")
-            }
-        }
-
-        val dropIndex = mutableMapOf<String, MutableList<String>>()
-        for ((species, info) in speciesInfo) {
-            val drops = info.drops ?: continue
-            for (drop in drops) {
-                dropIndex.getOrPut(drop.itemId) { mutableListOf() }.add(species)
-            }
-        }
-        dropsByItem = dropIndex
-
-        val tmIndex = mutableMapOf<String, MutableList<String>>()
-        for ((species, info) in speciesInfo) {
-            val tms = info.tmMoves ?: continue
-            for (move in tms) {
-                tmIndex.getOrPut(move.name.lowercase()) { mutableListOf() }.add(species)
-            }
-        }
-        speciesByTmMove = tmIndex
-
-        allSpeciesNames = allNames.sortedWith(
-            compareBy<String> {
-                val dex = speciesInfo[it]?.nationalDexNumber ?: 0
-                if (dex == 0) Int.MAX_VALUE else dex
-            }.thenBy { it }
-        )
     }
 
     /**
@@ -583,68 +521,35 @@ object SpawnDataIndex {
         return result
     }
 
-    fun getSpawnsFor(species: String): List<SpawnInfo> = spawnsBySpecies[SpeciesNameNormalizer.normalize(species)] ?: emptyList()
+    fun getSpawnsFor(species: String): List<SpawnInfo> = currentQueries().getSpawnsFor(species)
 
-    fun getEvolutionsFrom(species: String): List<EvolutionInfo> = evolutionsBySpecies[SpeciesNameNormalizer.normalize(species)] ?: emptyList()
+    fun getEvolutionsFrom(species: String): List<EvolutionInfo> = currentQueries().getEvolutionsFrom(species)
 
-    fun getEvolutionsTo(species: String): List<EvolutionInfo> = evolutionsToSpecies[SpeciesNameNormalizer.normalize(species)] ?: emptyList()
+    fun getEvolutionsTo(species: String): List<EvolutionInfo> = currentQueries().getEvolutionsTo(species)
 
-    fun getSpeciesInfo(species: String): EvolutionDataLoader.SpeciesBasicInfo? = speciesInfo[SpeciesNameNormalizer.normalize(species)]
+    fun getSpeciesInfo(species: String): EvolutionDataLoader.SpeciesBasicInfo? = currentQueries().getSpeciesInfo(species)
 
-    fun getObtainmentFor(species: String): List<ObtainmentInfo> = obtainmentBySpecies[SpeciesNameNormalizer.normalize(species)] ?: emptyList()
+    fun getObtainmentFor(species: String): List<ObtainmentInfo> = currentQueries().getObtainmentFor(species)
 
-    fun getFossilsFor(species: String): List<FossilCombo> = fossilsBySpecies[SpeciesNameNormalizer.normalize(species)] ?: emptyList()
+    fun getFossilsFor(species: String): List<FossilCombo> = currentQueries().getFossilsFor(species)
 
-    fun getSpeciesDroppingItem(itemId: String): List<String> = dropsByItem[itemId] ?: emptyList()
+    fun getSpeciesDroppingItem(itemId: String): List<String> = currentQueries().getSpeciesDroppingItem(itemId)
 
-    fun getJobsFor(species: String): List<JobMatch> {
-        if (jobRules.isEmpty()) return emptyList()
-        val info = getSpeciesInfo(species) ?: return emptyList()
-        val allMoves = JobDataLoader.collectAllMoves(info)
-        val allAbilities = JobDataLoader.collectAllAbilities(info)
-        return JobDataLoader.evaluateJobs(
-            jobRules, info.primaryType, info.secondaryType,
-            allAbilities, allMoves, species
-        )
-    }
+    fun getJobsFor(species: String): List<JobMatch> = currentQueries().getJobsFor(species)
 
-    fun hasJobRules(): Boolean = jobRules.isNotEmpty()
+    fun hasJobRules(): Boolean = currentQueries().hasJobRules()
 
-    fun isForm(species: String): Boolean = getSpeciesInfo(species)?.isForm == true
+    fun isForm(species: String): Boolean = currentQueries().isForm(species)
 
-    fun materialFormDecision(species: String): MaterialFormPolicy.Decision? {
-        val normalized = SpeciesNameNormalizer.normalize(species)
-        val info = speciesInfo[normalized] ?: return null
-        if (!info.isForm) return null
-        return MaterialFormPolicy.decisionFor(
-            normalized,
-            speciesInfo,
-            spawnsBySpecies,
-            obtainmentBySpecies,
-            evolutionsBySpecies,
-            fossilsBySpecies,
-            ridingBySpecies
-        )
-    }
+    fun materialFormDecision(species: String): MaterialFormPolicy.Decision? = currentQueries().materialFormDecision(species)
 
-    fun shouldSurfaceSpecies(species: String): Boolean {
-        val info = getSpeciesInfo(species) ?: return true
-        if (!info.isForm) return true
-        return materialFormDecision(species)?.surface == true
-    }
+    fun shouldSurfaceSpecies(species: String): Boolean = currentQueries().shouldSurfaceSpecies(species)
 
-    fun getFormsOf(baseSpecies: String): List<EvolutionDataLoader.SpeciesBasicInfo> {
-        val normalized = SpeciesNameNormalizer.normalize(baseSpecies)
-        return speciesInfo.values.filter {
-            it.isForm && SpeciesNameNormalizer.normalize(it.baseSpeciesName!!) == normalized && shouldSurfaceSpecies(it.name)
-        }
-    }
+    fun getFormsOf(baseSpecies: String): List<EvolutionDataLoader.SpeciesBasicInfo> = currentQueries().getFormsOf(baseSpecies)
 
-    fun getBaseOf(formSpecies: String): String? =
-        getSpeciesInfo(formSpecies)?.baseSpeciesName
+    fun getBaseOf(formSpecies: String): String? = currentQueries().getBaseOf(formSpecies)
 
-    fun getSpeciesWithTmMove(moveName: String): List<String> =
-        speciesByTmMove[moveName.lowercase()] ?: emptyList()
+    fun getSpeciesWithTmMove(moveName: String): List<String> = currentQueries().getSpeciesWithTmMove(moveName)
 
-    fun getRidingFor(species: String): RidingInfo? = ridingBySpecies[SpeciesNameNormalizer.normalize(species)]
+    fun getRidingFor(species: String): RidingInfo? = currentQueries().getRidingFor(species)
 }

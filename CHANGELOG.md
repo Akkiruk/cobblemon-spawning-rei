@@ -2,6 +2,13 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.18] - 2026-04-25
+
+### Improved
+- Split the global CobbleDex data index into a snapshot-backed data platform while keeping the existing `SpawnDataIndex` API stable for REI, JEI, EMI, diagnostics, exports, and page builders
+- Moved derived index rebuilding for reverse evolutions, drop lookup, TM lookup, species sorting, and evolution-form backfills into a dedicated builder with focused unit coverage
+- Added a read-only snapshot query layer for species lookups, jobs, riding data, TM learners, fossils, material-form decisions, and surfaced-form filtering so future viewer and page rewrites can stop depending directly on mutable singleton state
+
 ## [1.50.17] - 2026-04-25
 
 ### Fixed
