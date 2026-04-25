@@ -2,7 +2,6 @@ package com.cobbledex.neoforge
 
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DiagnosticService
-import com.cobbledex.PokemonSpriteService
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpreadsheetExporter
 import com.cobbledex.TmTooltipHandler
@@ -27,7 +26,6 @@ object CobbleDexNeoForgeClient {
 
     private fun onClientTick(event: ClientTickEvent.Post) {
         SpreadsheetExporter.tick()
-        PokemonSpriteService.tick()
         if (Minecraft.getInstance().player != null) {
             CobbleDexMod.tickReloadCheck()
         }

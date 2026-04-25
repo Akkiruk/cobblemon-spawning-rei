@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.13] - 2026-04-25
+
+### Fixed
+- **Pokemon viewer icons are back on the real pre-2D path** - REI, JEI, and EMI now render live Pokemon item stacks again and the cached sprite placeholder system has been removed, so the blank letter tiles introduced by the sprite-era fallback are gone
+
 ## [1.50.12] - 2026-04-25
 
 ### Fixed

@@ -177,7 +177,6 @@ object SpawnDataIndex {
         ensureGenerationCurrent(generation)
         DebugLog.reset()
         PokemonItemCache.reset()
-        PokemonSpriteService.reset()
 
         val current = snapshot
 
@@ -387,7 +386,6 @@ object SpawnDataIndex {
     fun onDisconnect() {
         cancelPendingLoad()
         PokemonItemCache.reset()
-        PokemonSpriteService.reset()
         RecipeViewerReloader.reset()
         emptyEvoRetries = 0
         hasServerSync = false

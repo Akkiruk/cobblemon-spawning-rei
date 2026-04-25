@@ -3,7 +3,7 @@ package com.cobbledex.rei
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
-import com.cobbledex.PokemonSpriteService
+import com.cobbledex.PokemonItemCache
 import com.cobbledex.RecipeCatalogCache
 import com.cobbledex.RecipeHandle
 import com.cobbledex.RecipeViewerReloader
@@ -45,7 +45,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             return SpawnDataIndex.allSpeciesNames.mapNotNull { species ->
                 val info = SpawnDataIndex.getSpeciesInfo(species)
                 if (info?.isForm == true && !config.registerFormEntries) return@mapNotNull null
-                if (!PokemonSpriteService.canRender(species)) return@mapNotNull null
+                if (!PokemonItemCache.canRender(species)) return@mapNotNull null
                 EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(species))
             }
         }

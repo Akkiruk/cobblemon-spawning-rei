@@ -3,7 +3,7 @@ package com.cobbledex.jei
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
-import com.cobbledex.PokemonSpriteService
+import com.cobbledex.PokemonItemCache
 import com.cobbledex.PokemonSearchTerms
 import com.cobbledex.RecipeCatalogCache
 import com.cobbledex.RecipeHandle
@@ -47,7 +47,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
                     val info = SpawnDataIndex.getSpeciesInfo(name)
                     info?.isForm != true || config.registerFormEntries
                 }
-                .filter { PokemonSpriteService.canRender(it) }
+                .filter { PokemonItemCache.canRender(it) }
                 .map { PokemonIngredient(it) }
         }
 
