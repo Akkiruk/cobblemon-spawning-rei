@@ -69,6 +69,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             if (speciesInfo == null) continue
             if (speciesInfo.isForm && !config.registerFormEntries) continue
             if (!SpawnDataIndex.shouldSurfaceSpecies(species)) continue
+            if (!PokemonItemCache.canRender(species)) continue
             val item = PokemonItemCache.getItem(species) ?: continue
             if (item.isEmpty) continue
             val searchText = DiscoveryAliases.pokemonSearchText(species)
@@ -118,6 +119,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
         override fun getInputs(): List<EmiIngredient> {
             val pokemon = handle.lookupInputSpecies()
                 .mapNotNull { species ->
+                    if (!PokemonItemCache.canRender(species)) return@mapNotNull null
                     val item = PokemonItemCache.getItem(species)
                     if (item != null && !item.isEmpty) EmiStack.of(item) else null
                 }
@@ -131,6 +133,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
         override fun getOutputs(): List<EmiStack> {
             val pokemon = handle.lookupOutputSpecies()
                 .mapNotNull { species ->
+                    if (!PokemonItemCache.canRender(species)) return@mapNotNull null
                     val item = PokemonItemCache.getItem(species)
                     if (item != null && !item.isEmpty) EmiStack.of(item) else null
                 }
@@ -150,6 +153,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             val slots = handle.slots
 
             for (slot in slots.pokemon) {
+                if (!PokemonItemCache.canRender(slot.species)) continue
                 val item = PokemonItemCache.getItem(slot.species)
                 if (item != null && !item.isEmpty) {
                     widgets.addSlot(EmiStack.of(item), slot.x, slot.y).recipeContext(this)

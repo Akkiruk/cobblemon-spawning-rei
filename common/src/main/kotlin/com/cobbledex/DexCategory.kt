@@ -170,6 +170,9 @@ object EvolutionDex : DexCategory {
         return listOf(toChainHandle(chain))
     }
 
+    override fun buildRecipesForItem(itemId: String): List<RecipeHandle> =
+        EvolutionChainBuilder.getChainsForItem(itemId).map(::toChainHandle)
+
     private fun toChainHandle(chain: EvolutionChainBuilder.ChainNode): RecipeHandle {
         val allSpecies = EvolutionChainBuilder.collectAllSpecies(chain).toList()
         var chainResult: SpawnDisplayHelper.ChainLayoutResult? = null

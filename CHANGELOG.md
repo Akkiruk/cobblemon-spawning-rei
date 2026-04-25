@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.17] - 2026-04-25
+
+### Fixed
+- **Recipe viewers now stop retrying Pokemon item renders that Cobblemon cannot pose** - JEI and REI catch the first item-render failure, hide that Pokemon for the rest of the session, and the shared viewer cache blocks the same broken species from being re-used by REI, JEI, or EMI so the render thread stops spamming poser exceptions every frame
+- Added explicit evolution item reverse lookup support so evolution chains can be found from evolution stones, held items, and other item requirements through the shared category query path
+
 ## [1.50.16] - 2026-04-25
 
 ### Improved

@@ -71,6 +71,11 @@ object EvolutionChainBuilder {
         return cachedChains?.get(base)
     }
 
+    fun getChainsForItem(itemId: String): List<ChainNode> {
+        val normalizedItem = itemId.lowercase()
+        return getAllChains().values.filter { chain -> chainUsesItem(chain, normalizedItem) }
+    }
+
     fun findBase(species: String): String {
         val visited = mutableSetOf(SpeciesNameNormalizer.normalize(species))
         var current = species
@@ -256,6 +261,13 @@ object EvolutionChainBuilder {
         val result = mutableSetOf<String>()
         collectSpeciesRecursive(node, result)
         return result
+    }
+
+    private fun chainUsesItem(node: ChainNode, itemId: String): Boolean {
+        return node.evolutions.any { edge ->
+            edge.info.itemRequirements.any { it.itemId.equals(itemId, ignoreCase = true) } ||
+                chainUsesItem(edge.target, itemId)
+        }
     }
 
     private fun collectSpeciesRecursive(node: ChainNode, result: MutableSet<String>) {

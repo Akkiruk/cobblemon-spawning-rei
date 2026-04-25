@@ -15,6 +15,22 @@ object PokemonItemCache {
 
     private val speciesCache = ConcurrentHashMap<String, Species>()
     private val itemCache = ConcurrentHashMap<String, ItemStack>()
+    private val blockedRenderKeys = ConcurrentHashMap.newKeySet<String>()
+
+    private fun resolveAspects(name: String, explicitAspects: Set<String>): Set<String> {
+        if (explicitAspects.isNotEmpty()) return explicitAspects
+        val normalized = SpeciesNameNormalizer.normalize(name)
+        val decomp = SpeciesNameNormalizer.decomposeFormSpecies(normalized)
+        return decomp.cobblemonAspects.ifEmpty {
+            SpawnDataIndex.getSpeciesInfo(name)?.formAspects ?: emptySet()
+        }
+    }
+
+    private fun cacheKey(name: String, explicitAspects: Set<String> = emptySet()): String {
+        val normalized = SpeciesNameNormalizer.normalize(name)
+        val aspects = resolveAspects(name, explicitAspects)
+        return if (aspects.isEmpty()) normalized else "$normalized|${aspects.sorted().joinToString(",")}"
+    }
 
     fun resolveSpecies(name: String): Species? {
         val normalized = SpeciesNameNormalizer.normalize(name)
@@ -56,14 +72,9 @@ object PokemonItemCache {
     }
 
     fun getItem(name: String, explicitAspects: Set<String> = emptySet()): ItemStack? {
-        val normalized = SpeciesNameNormalizer.normalize(name)
-        val decomp = SpeciesNameNormalizer.decomposeFormSpecies(normalized)
-        val aspects = explicitAspects.ifEmpty {
-            decomp.cobblemonAspects.ifEmpty {
-                SpawnDataIndex.getSpeciesInfo(name)?.formAspects ?: emptySet()
-            }
-        }
-        val cacheKey = if (aspects.isEmpty()) normalized else "$normalized|${aspects.sorted().joinToString(",")}"
+        val aspects = resolveAspects(name, explicitAspects)
+        val cacheKey = cacheKey(name, explicitAspects)
+        if (blockedRenderKeys.contains(cacheKey)) return null
         itemCache[cacheKey]?.let { return it.copy() }
         val species = resolveSpecies(name) ?: return null
         val item = try {
@@ -76,13 +87,27 @@ object PokemonItemCache {
         return item?.copy()
     }
 
-    fun canRender(name: String): Boolean {
-        val item = getItem(name)
+    fun canRender(name: String, explicitAspects: Set<String> = emptySet()): Boolean {
+        if (blockedRenderKeys.contains(cacheKey(name, explicitAspects))) return false
+        val item = getItem(name, explicitAspects)
         return item != null && !item.isEmpty
+    }
+
+    fun markRenderFailed(name: String, explicitAspects: Set<String> = emptySet(), error: Throwable? = null) {
+        val cacheKey = cacheKey(name, explicitAspects)
+        if (!blockedRenderKeys.add(cacheKey)) return
+        DebugLog.trackMissingModel(name)
+        DebugLog.warnOnce("pokemon-render-fail-$cacheKey") {
+            val detail = error?.message?.takeIf { it.isNotBlank() }
+                ?: error?.javaClass?.simpleName
+                ?: "unknown render error"
+            "Hiding $name from recipe viewers after render failure: $detail"
+        }
     }
 
     fun reset() {
         speciesCache.clear()
         itemCache.clear()
+        blockedRenderKeys.clear()
     }
 }

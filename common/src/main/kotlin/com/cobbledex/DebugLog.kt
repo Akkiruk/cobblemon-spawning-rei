@@ -62,7 +62,7 @@ object DebugLog {
             val sorted = missingModels.sorted()
             val preview = sorted.take(15).joinToString(", ")
             val suffix = if (sorted.size > 15) " ... and ${sorted.size - 15} more" else ""
-            logger.info("[CobbleDex] ${sorted.size} species hidden (no model): $preview$suffix")
+            logger.info("[CobbleDex] ${sorted.size} species hidden (no renderable model): $preview$suffix")
             logger.debug("[CobbleDex] Full missing model list: ${sorted.joinToString(", ")}")
         }
         if (failedSpawnParse.isNotEmpty()) {

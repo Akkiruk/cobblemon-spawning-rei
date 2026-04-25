@@ -23,6 +23,7 @@ class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
         val pokemon = entry.value ?: return
         val decomp = SpeciesNameNormalizer.decomposeFormSpecies(pokemon.species)
         val aspects = pokemon.formAspects.ifEmpty { decomp.cobblemonAspects }
+        if (!PokemonItemCache.canRender(pokemon.species, aspects)) return
         val itemStack = PokemonItemCache.getItem(pokemon.species, aspects)
 
         if (itemStack != null && !itemStack.isEmpty) {
@@ -34,7 +35,13 @@ class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
             poseStack.translate(bounds.x.toFloat(), bounds.y.toFloat(), 0f)
             poseStack.scale(scale, scale, 1f)
 
-            graphics.renderItem(itemStack, 0, 0)
+            try {
+                graphics.renderItem(itemStack, 0, 0)
+            } catch (t: Throwable) {
+                PokemonItemCache.markRenderFailed(pokemon.species, aspects, t)
+                poseStack.popPose()
+                return
+            }
             poseStack.popPose()
         }
     }
