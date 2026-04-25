@@ -1,6 +1,7 @@
 package com.cobbledex
 
 import com.cobbledex.config.CobbleDexConfig
+import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphics
@@ -536,53 +537,61 @@ object SpawnDisplayHelper {
 
     fun buildPokemonTooltipLines(speciesName: String, displayName: String): List<Component> {
         val lines = mutableListOf<Component>()
-        lines.add(Component.literal(displayName))
+        lines.add(tooltipLine(displayName, ChatFormatting.WHITE))
         val species = PokemonItemCache.resolveSpecies(speciesName)
         if (species != null) {
-            lines.add(Component.literal("§7" + tr("cobbledex-rei-emi-jei.tooltip.pokedex_number", species.nationalPokedexNumber)))
+            lines.add(tooltipLine(tr("cobbledex-rei-emi-jei.tooltip.pokedex_number", species.nationalPokedexNumber), ChatFormatting.GRAY))
         }
         val info = SpawnDataIndex.getSpeciesInfo(speciesName)
         if (info != null) {
             // Show base species for forms
             if (info.isForm && info.baseSpeciesName != null) {
-                lines.add(Component.literal("§8" + tr("cobbledex-rei-emi-jei.tooltip.form_of", formatSpeciesName(info.baseSpeciesName))))
+                lines.add(tooltipLine(tr("cobbledex-rei-emi-jei.tooltip.form_of", formatSpeciesName(info.baseSpeciesName)), ChatFormatting.DARK_GRAY))
             }
 
-            val typeStr = buildString {
-                append("§e")
-                append(formatTypeName(info.primaryType))
-                info.secondaryType?.let { append(" §7/ §e${formatTypeName(it)}") }
+            val typeLine = tooltipLine(formatTypeName(info.primaryType), ChatFormatting.YELLOW)
+            info.secondaryType?.let {
+                typeLine.append(tooltipLine(" / ", ChatFormatting.GRAY))
+                typeLine.append(tooltipLine(formatTypeName(it), ChatFormatting.YELLOW))
             }
-            lines.add(Component.literal(typeStr))
+            lines.add(typeLine)
 
             val labelBadges = info.labels?.filter {
                 it in setOf("legendary", "mythical", "ultra_beast", "paradox")
             }
             if (!labelBadges.isNullOrEmpty()) {
                 val badge = labelBadges.joinToString(", ") {
-                    "§d" + tr("cobbledex-rei-emi-jei.label.${it}")
+                    tr("cobbledex-rei-emi-jei.label.${it}")
                 }
-                lines.add(Component.literal(badge))
+                lines.add(tooltipLine(badge, ChatFormatting.LIGHT_PURPLE))
             }
         }
 
-        val counts = mutableListOf<String>()
+        val counts = mutableListOf<Component>()
         val spawns = SpawnDataIndex.getSpawnsFor(speciesName)
-        if (spawns.isNotEmpty()) counts.add("§a" + tr("cobbledex-rei-emi-jei.tooltip.spawns", buildSortedSpawns(spawns).size))
+        if (spawns.isNotEmpty()) counts.add(tooltipLine(tr("cobbledex-rei-emi-jei.tooltip.spawns", buildSortedSpawns(spawns).size), ChatFormatting.GREEN))
         val evosFrom = SpawnDataIndex.getEvolutionsFrom(speciesName)
         val evosTo = SpawnDataIndex.getEvolutionsTo(speciesName)
         val evoCount = evosFrom.size + evosTo.size
-        if (evoCount > 0) counts.add("§6" + tr("cobbledex-rei-emi-jei.tooltip.evos", evoCount))
+        if (evoCount > 0) counts.add(tooltipLine(tr("cobbledex-rei-emi-jei.tooltip.evos", evoCount), ChatFormatting.GOLD))
         val dropCount = info?.drops?.size ?: 0
-        if (dropCount > 0) counts.add("§b" + tr("cobbledex-rei-emi-jei.tooltip.drops", dropCount))
+        if (dropCount > 0) counts.add(tooltipLine(tr("cobbledex-rei-emi-jei.tooltip.drops", dropCount), ChatFormatting.AQUA))
         val obtainments = SpawnDataIndex.getObtainmentFor(speciesName)
-        if (obtainments.isNotEmpty()) counts.add("§d" + tr("cobbledex-rei-emi-jei.tooltip.obtainment", obtainments.size))
+        if (obtainments.isNotEmpty()) counts.add(tooltipLine(tr("cobbledex-rei-emi-jei.tooltip.obtainment", obtainments.size), ChatFormatting.LIGHT_PURPLE))
         if (counts.isNotEmpty()) {
-            lines.add(Component.literal(counts.joinToString(" §7| ")))
+            val countLine = Component.empty()
+            counts.forEachIndexed { index, count ->
+                if (index > 0) countLine.append(tooltipLine(" | ", ChatFormatting.GRAY))
+                countLine.append(count)
+            }
+            lines.add(countLine)
         }
 
         return lines
     }
+
+    private fun tooltipLine(text: String, color: ChatFormatting) =
+        Component.literal(text).withStyle(color)
 
     // --- Spawn layout builder (single source of truth for measure + render) ---
 

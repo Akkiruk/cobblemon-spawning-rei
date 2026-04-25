@@ -2,6 +2,16 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.21] - 2026-04-25
+
+### Fixed
+- Fixed Pokemon browser hover text in JEI/EMI by removing hidden search-alias text from visible tooltips and item lore
+- Fixed EMI Pokemon clicks failing to resolve recipes/usages by registering Pokemon aliases through EMI's alias API instead of mutating stack lore used by component comparison
+- Replaced raw section-sign tooltip formatting with styled Minecraft components for shared Pokemon hover text across viewers
+
+### Tests
+- Added recipe-handle lookup coverage to keep input-only and output-only Pokemon pages discoverable from both recipe and usage paths
+
 ## [1.50.20] - 2026-04-25
 
 ### Added

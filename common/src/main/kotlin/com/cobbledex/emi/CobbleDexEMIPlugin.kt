@@ -17,12 +17,9 @@ import dev.emi.emi.api.recipe.EmiRecipe
 import dev.emi.emi.api.recipe.EmiRecipeCategory
 import dev.emi.emi.api.stack.EmiIngredient
 import dev.emi.emi.api.stack.EmiStack
-import net.minecraft.core.component.DataComponents
 import net.minecraft.network.chat.Component
-import net.minecraft.network.chat.Style
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.Items
-import net.minecraft.world.item.component.ItemLore
 
 open class CobbleDexEMIPlugin : EmiPlugin {
 
@@ -73,11 +70,11 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             val item = PokemonItemCache.getItem(species) ?: continue
             if (item.isEmpty) continue
             val searchText = DiscoveryAliases.pokemonSearchText(species)
-            if (searchText.isNotBlank()) {
-                item.set(DataComponents.LORE, ItemLore(listOf(Component.literal(searchText).withStyle(Style.EMPTY.withColor(0x100010)))))
-            }
             val stack = EmiStack.of(item)
             registry.addEmiStack(stack)
+            if (searchText.isNotBlank()) {
+                registry.addAlias(stack, Component.literal(searchText))
+            }
             registry.setDefaultComparison(stack) { _ ->
                 dev.emi.emi.api.stack.Comparison.compareComponents()
             }
