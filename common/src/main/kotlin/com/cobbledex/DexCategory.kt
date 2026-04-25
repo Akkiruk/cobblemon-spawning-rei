@@ -59,6 +59,28 @@ class RecipeHandle(
             Slots()
         }
     }
+
+    fun lookupInputSpecies(): List<String> = lookupSpecies(inputSpecies, outputSpecies)
+
+    fun lookupOutputSpecies(): List<String> = lookupSpecies(outputSpecies, inputSpecies)
+
+    fun lookupInputItemIds(): List<String> {
+        val currentSlots = slots
+        return (currentSlots.catalogInputIds + currentSlots.items.filter { it.role == SlotRole.INPUT }.map { it.itemId })
+            .filter { it.isNotBlank() }
+            .distinct()
+    }
+
+    fun lookupOutputItemIds(): List<String> = slots.items
+        .filter { it.role == SlotRole.OUTPUT }
+        .map { it.itemId }
+        .filter { it.isNotBlank() }
+        .distinct()
+
+    private fun lookupSpecies(primary: List<String>, fallback: List<String>): List<String> =
+        (if (primary.isNotEmpty()) primary else fallback)
+            .filter { it.isNotBlank() }
+            .distinct()
 }
 
 interface DexCategory {

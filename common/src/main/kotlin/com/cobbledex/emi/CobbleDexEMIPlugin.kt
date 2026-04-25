@@ -3,6 +3,7 @@ package com.cobbledex.emi
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
+import com.cobbledex.DiscoveryAliases
 import com.cobbledex.PokemonItemCache
 import com.cobbledex.RecipeHandle
 import com.cobbledex.RecipeViewerReloader
@@ -70,19 +71,9 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             if (!SpawnDataIndex.shouldSurfaceSpecies(species)) continue
             val item = PokemonItemCache.getItem(species) ?: continue
             if (item.isEmpty) continue
-            // Add search metadata as invisible lore for EMI search indexing (black text = invisible on tooltip)
-            val loreLines = mutableListOf<Component>()
-            val jobs = SpawnDataIndex.getJobsFor(species)
-            if (jobs.isNotEmpty()) {
-                val searchText = jobs.joinToString(" ") { "job:${it.rule.id} ${it.rule.displayName}" }
-                loreLines.add(Component.literal(searchText).withStyle(Style.EMPTY.withColor(0x100010)))
-            }
-            if (speciesInfo.isForm && speciesInfo.baseSpeciesName != null) {
-                val baseName = com.cobbledex.formatSpeciesName(speciesInfo.baseSpeciesName)
-                loreLines.add(Component.literal(baseName).withStyle(Style.EMPTY.withColor(0x100010)))
-            }
-            if (loreLines.isNotEmpty()) {
-                item.set(DataComponents.LORE, ItemLore(loreLines))
+            val searchText = DiscoveryAliases.pokemonSearchText(species)
+            if (searchText.isNotBlank()) {
+                item.set(DataComponents.LORE, ItemLore(listOf(Component.literal(searchText).withStyle(Style.EMPTY.withColor(0x100010)))))
             }
             val stack = EmiStack.of(item)
             registry.addEmiStack(stack)
@@ -125,36 +116,28 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "emi_${handle.recipeIdPath}")
 
         override fun getInputs(): List<EmiIngredient> {
-            val pokemon = handle.slots.pokemon
-                .mapNotNull { slot ->
-                    val item = PokemonItemCache.getItem(slot.species)
+            val pokemon = handle.lookupInputSpecies()
+                .mapNotNull { species ->
+                    val item = PokemonItemCache.getItem(species)
                     if (item != null && !item.isEmpty) EmiStack.of(item) else null
                 }
-            val items = handle.slots.items
-                .filter { it.role == SlotRole.INPUT }
-                .mapNotNull { slot ->
-                    val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
-                    if (!stack.isEmpty) EmiStack.of(stack) else null
-                }
-            val catalog = handle.slots.catalogInputIds.mapNotNull { itemId ->
+            val items = handle.lookupInputItemIds().mapNotNull { itemId ->
                 val stack = SpawnDisplayHelper.resolveItemStack(itemId)
                 if (!stack.isEmpty) EmiStack.of(stack) else null
             }
-            return pokemon + items + catalog
+            return pokemon + items
         }
 
         override fun getOutputs(): List<EmiStack> {
-            val pokemon = handle.slots.pokemon
-                .mapNotNull { slot ->
-                    val item = PokemonItemCache.getItem(slot.species)
+            val pokemon = handle.lookupOutputSpecies()
+                .mapNotNull { species ->
+                    val item = PokemonItemCache.getItem(species)
                     if (item != null && !item.isEmpty) EmiStack.of(item) else null
                 }
-            val items = handle.slots.items
-                .filter { it.role == SlotRole.OUTPUT }
-                .mapNotNull { slot ->
-                    val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
-                    if (!stack.isEmpty) EmiStack.of(stack) else null
-                }
+            val items = handle.lookupOutputItemIds().mapNotNull { itemId ->
+                val stack = SpawnDisplayHelper.resolveItemStack(itemId)
+                if (!stack.isEmpty) EmiStack.of(stack) else null
+            }
             return pokemon + items
         }
 

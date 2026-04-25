@@ -140,32 +140,24 @@ open class CobbleDexREIPlugin : REIClientPlugin {
     class GenericDisplay(val handle: RecipeHandle, val def: DexCategory) : Display {
 
         private val cachedInputEntries: List<EntryIngredient> by lazy {
-            val pokemon = handle.inputSpecies.map {
+            val pokemon = handle.lookupInputSpecies().map {
                 EntryIngredient.of(EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(it)))
             }
-            val catalog = handle.slots.catalogInputIds.mapNotNull { itemId ->
+            val items = handle.lookupInputItemIds().mapNotNull { itemId ->
                 val stack = SpawnDisplayHelper.resolveItemStack(itemId)
                 if (!stack.isEmpty) EntryIngredient.of(EntryStacks.of(stack)) else null
             }
-            val itemInputs = handle.slots.items
-                .filter { it.role == SlotRole.INPUT }
-                .mapNotNull { slot ->
-                    val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
-                    if (!stack.isEmpty) EntryIngredient.of(EntryStacks.of(stack)) else null
-                }
-            pokemon + catalog + itemInputs
+            pokemon + items
         }
 
         private val cachedOutputEntries: List<EntryIngredient> by lazy {
-            val pokemonEntries = handle.outputSpecies.map {
+            val pokemonEntries = handle.lookupOutputSpecies().map {
                 EntryIngredient.of(EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(it)))
             }
-            val itemEntries = handle.slots.items
-                .filter { it.role == SlotRole.OUTPUT }
-                .mapNotNull { slot ->
-                    val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
-                    if (!stack.isEmpty) EntryIngredient.of(EntryStacks.of(stack)) else null
-                }
+            val itemEntries = handle.lookupOutputItemIds().mapNotNull { itemId ->
+                val stack = SpawnDisplayHelper.resolveItemStack(itemId)
+                if (!stack.isEmpty) EntryIngredient.of(EntryStacks.of(stack)) else null
+            }
             pokemonEntries + itemEntries
         }
 

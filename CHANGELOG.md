@@ -2,6 +2,13 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.16] - 2026-04-25
+
+### Improved
+- Added a shared Pokemon discovery alias model used by REI, JEI, and EMI so base-form names, type aliases, ability aliases, job aliases, form aspects, and material-form reasons are indexed consistently across viewers
+- Added shared lookup-role helpers for CobbleDex recipe handles so viewer adapters use the same Pokemon and item input/output interpretation for reverse lookups and recipe-tree participation
+- Added focused tests for discovery aliases, including form/base aliases, job and ability aliases, and TM-style move search terms
+
 ## [1.50.15] - 2026-04-25
 
 ### Fixed

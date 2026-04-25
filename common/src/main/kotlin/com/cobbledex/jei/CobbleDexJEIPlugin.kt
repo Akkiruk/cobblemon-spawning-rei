@@ -211,15 +211,18 @@ open class CobbleDexJEIPlugin : IModPlugin {
                 else outputPokemon.add(ingredient)
             }
 
-            // Add invisible OUTPUT for INPUT-only Pokémon (enables R-key lookup)
-            if (inputPokemon.isNotEmpty() && outputPokemon.isEmpty()) {
+            val visibleInputSpecies = inputPokemon.map { it.species }.toSet()
+            val visibleOutputSpecies = outputPokemon.map { it.species }.toSet()
+            val hiddenOutputPokemon = handle.lookupOutputSpecies().filterNot { it in visibleOutputSpecies }
+            val hiddenInputPokemon = handle.lookupInputSpecies().filterNot { it in visibleInputSpecies }
+
+            if (hiddenOutputPokemon.isNotEmpty()) {
                 val inv = builder.addInvisibleIngredients(RecipeIngredientRole.OUTPUT)
-                for (p in inputPokemon) inv.addIngredient(PokemonIngredientType, p)
+                for (species in hiddenOutputPokemon) inv.addIngredient(PokemonIngredientType, PokemonIngredient(species))
             }
-            // Add invisible INPUT for OUTPUT-only Pokémon (enables U-key lookup)
-            if (outputPokemon.isNotEmpty() && inputPokemon.isEmpty()) {
+            if (hiddenInputPokemon.isNotEmpty()) {
                 val inv = builder.addInvisibleIngredients(RecipeIngredientRole.INPUT)
-                for (p in outputPokemon) inv.addIngredient(PokemonIngredientType, p)
+                for (species in hiddenInputPokemon) inv.addIngredient(PokemonIngredientType, PokemonIngredient(species))
             }
 
             for (slot in slots.items) {
