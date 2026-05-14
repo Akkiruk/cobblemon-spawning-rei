@@ -23,7 +23,6 @@ class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
         val pokemon = entry.value ?: return
         val decomp = SpeciesNameNormalizer.decomposeFormSpecies(pokemon.species)
         val aspects = pokemon.formAspects.ifEmpty { decomp.cobblemonAspects }
-        if (!PokemonItemCache.canRender(pokemon.species, aspects)) return
         val itemStack = PokemonItemCache.getItem(pokemon.species, aspects)
 
         if (itemStack != null && !itemStack.isEmpty) {
@@ -46,7 +45,7 @@ class PokemonEntryRenderer : EntryRenderer<PokemonEntry> {
         }
     }
 
-    fun canRender(species: String): Boolean = PokemonItemCache.canRender(species)
+    fun canRender(species: String): Boolean = PokemonItemCache.getItem(species) != null
 
     override fun getTooltip(entry: EntryStack<PokemonEntry>, context: TooltipContext): Tooltip? {
         val pokemon = entry.value ?: return null

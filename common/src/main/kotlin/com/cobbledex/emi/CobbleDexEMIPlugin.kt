@@ -53,6 +53,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
     override fun register(registry: EmiRegistry) {
         SpawnDataIndex.ensureLoaded()
         val config = CobbleDexConfig.get()
+        val queries = SpawnDataIndex.currentQueries()
         val hasSync = SpawnDataIndex.loadState == SpawnDataIndex.LoadState.FULLY_LOADED
         val spawnCount = SpawnDataIndex.spawnsBySpecies.size
 
@@ -63,11 +64,10 @@ open class CobbleDexEMIPlugin : EmiPlugin {
         var registered = 0
         var formCount = 0
         for (species in SpawnDataIndex.allSpeciesNames) {
-            val speciesInfo = SpawnDataIndex.getSpeciesInfo(species)
+            val speciesInfo = queries.getSpeciesInfo(species)
             if (speciesInfo == null) continue
             if (speciesInfo.isForm && !config.registerFormEntries) continue
-            if (!SpawnDataIndex.shouldSurfaceSpecies(species)) continue
-            if (!PokemonItemCache.canRender(species)) continue
+            if (!queries.shouldSurfaceSpecies(species)) continue
             val item = PokemonItemCache.getItem(species) ?: continue
             if (item.isEmpty) continue
             val searchText = DiscoveryAliases.pokemonSearchText(species)
@@ -110,15 +110,9 @@ open class CobbleDexEMIPlugin : EmiPlugin {
         private val def: DexCategory,
     ) : EmiRecipe {
 
-        override fun getCategory(): EmiRecipeCategory = emiCategory
-
-        override fun getId(): ResourceLocation =
-            ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "emi_${handle.recipeIdPath}")
-
-        override fun getInputs(): List<EmiIngredient> {
+        private val cachedInputs: List<EmiIngredient> by lazy(LazyThreadSafetyMode.NONE) {
             val pokemon = handle.lookupInputSpecies()
                 .mapNotNull { species ->
-                    if (!PokemonItemCache.canRender(species)) return@mapNotNull null
                     val item = PokemonItemCache.getItem(species)
                     if (item != null && !item.isEmpty) EmiStack.of(item) else null
                 }
@@ -126,13 +120,12 @@ open class CobbleDexEMIPlugin : EmiPlugin {
                 val stack = SpawnDisplayHelper.resolveItemStack(itemId)
                 if (!stack.isEmpty) EmiStack.of(stack) else null
             }
-            return pokemon + items
+            pokemon + items
         }
 
-        override fun getOutputs(): List<EmiStack> {
+        private val cachedOutputs: List<EmiStack> by lazy(LazyThreadSafetyMode.NONE) {
             val pokemon = handle.lookupOutputSpecies()
                 .mapNotNull { species ->
-                    if (!PokemonItemCache.canRender(species)) return@mapNotNull null
                     val item = PokemonItemCache.getItem(species)
                     if (item != null && !item.isEmpty) EmiStack.of(item) else null
                 }
@@ -140,8 +133,17 @@ open class CobbleDexEMIPlugin : EmiPlugin {
                 val stack = SpawnDisplayHelper.resolveItemStack(itemId)
                 if (!stack.isEmpty) EmiStack.of(stack) else null
             }
-            return pokemon + items
+            pokemon + items
         }
+
+        override fun getCategory(): EmiRecipeCategory = emiCategory
+
+        override fun getId(): ResourceLocation =
+            ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "emi_${handle.recipeIdPath}")
+
+        override fun getInputs(): List<EmiIngredient> = cachedInputs
+
+        override fun getOutputs(): List<EmiStack> = cachedOutputs
 
         override fun getDisplayWidth(): Int = handle.width
         override fun getDisplayHeight(): Int = handle.height
@@ -152,7 +154,6 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             val slots = handle.slots
 
             for (slot in slots.pokemon) {
-                if (!PokemonItemCache.canRender(slot.species)) continue
                 val item = PokemonItemCache.getItem(slot.species)
                 if (item != null && !item.isEmpty) {
                     widgets.addSlot(EmiStack.of(item), slot.x, slot.y).recipeContext(this)

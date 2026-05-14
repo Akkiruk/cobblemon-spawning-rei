@@ -16,6 +16,12 @@ object SpawnDataIndex {
     @Volatile
     private var snapshot: CobbleDexDataSnapshot = CobbleDexDataSnapshot()
 
+    @Volatile
+    private var cachedQueriesSnapshot: CobbleDexDataSnapshot? = null
+
+    @Volatile
+    private var cachedQueries: CobbleDexDataQueries? = null
+
     var loadState: LoadState
         get() = snapshot.loadState
         private set(value) { snapshot = snapshot.copy(loadState = value) }
@@ -113,7 +119,17 @@ object SpawnDataIndex {
 
     fun currentSnapshot(): CobbleDexDataSnapshot = snapshot
 
-    fun currentQueries(): CobbleDexDataQueries = CobbleDexDataQueries(snapshot)
+    fun currentQueries(): CobbleDexDataQueries {
+        val current = snapshot
+        val cachedSnapshot = cachedQueriesSnapshot
+        val cached = cachedQueries
+        if (cachedSnapshot === current && cached != null) return cached
+
+        val queries = CobbleDexDataQueries(current)
+        cachedQueriesSnapshot = current
+        cachedQueries = queries
+        return queries
+    }
 
     fun ensureLoaded() {
         when (loadState) {

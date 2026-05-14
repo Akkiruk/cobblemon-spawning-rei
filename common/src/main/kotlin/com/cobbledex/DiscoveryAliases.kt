@@ -1,5 +1,7 @@
 package com.cobbledex
 
+import java.util.concurrent.ConcurrentHashMap
+
 object DiscoveryAliases {
     data class PokemonContext(
         val species: String,
@@ -14,7 +16,21 @@ object DiscoveryAliases {
         val materialFormReasons: List<String> = emptyList(),
     )
 
-    fun pokemonSearchText(species: String): String = pokemonAliases(contextFor(species)).joinToString(" ")
+    private data class CachedSearchText(val dataVersion: Long, val text: String)
+
+    private val searchTextCache = ConcurrentHashMap<String, CachedSearchText>()
+
+    fun pokemonSearchText(species: String): String {
+        val normalized = SpeciesNameNormalizer.normalize(species)
+        val version = SpawnDataIndex.dataVersion
+        searchTextCache[normalized]?.let { cached ->
+            if (cached.dataVersion == version) return cached.text
+        }
+
+        val text = pokemonAliases(contextFor(normalized)).joinToString(" ")
+        searchTextCache[normalized] = CachedSearchText(version, text)
+        return text
+    }
 
     fun pokemonAliases(context: PokemonContext): List<String> {
         val aliases = mutableListOf<String>()
@@ -72,11 +88,12 @@ object DiscoveryAliases {
     }
 
     private fun contextFor(species: String): PokemonContext {
-        val info = SpawnDataIndex.getSpeciesInfo(species)
-        val jobs = SpawnDataIndex.getJobsFor(species).flatMap { match ->
+        val queries = SpawnDataIndex.currentQueries()
+        val info = queries.getSpeciesInfo(species)
+        val jobs = queries.getJobsFor(species).flatMap { match ->
             listOf("job:${match.rule.id}", match.rule.displayName)
         }
-        val materialReasons = SpawnDataIndex.materialFormDecision(species)?.reasons.orEmpty()
+        val materialReasons = queries.materialFormDecision(species)?.reasons.orEmpty()
         return PokemonContext(
             species = species,
             displayName = formatSpeciesName(species),

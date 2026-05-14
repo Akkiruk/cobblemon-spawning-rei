@@ -75,6 +75,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
             if (SpawnDataIndex.hasJobRules()) {
                 try {
                     val config = CobbleDexConfig.get()
+                    val queries = SpawnDataIndex.currentQueries()
                     val ingredientManager = rt.ingredientManager
                     val existing = ingredientManager.getAllIngredients(PokemonIngredientType).toList()
                     if (existing.isNotEmpty()) {
@@ -82,13 +83,13 @@ open class CobbleDexJEIPlugin : IModPlugin {
                     }
                     val updated = SpawnDataIndex.allSpeciesNames
                         .filter { name ->
-                            val info = SpawnDataIndex.getSpeciesInfo(name)
+                            val info = queries.getSpeciesInfo(name)
                             if (info == null) false
                             else if (info.isForm) config.registerFormEntries
                             else info.baseSpeciesName == null
                         }
-                        .filter { SpawnDataIndex.shouldSurfaceSpecies(it) }
-                        .filter { PokemonItemCache.canRender(it) }
+                        .filter { queries.shouldSurfaceSpecies(it) }
+                        .filter { PokemonItemCache.getItem(it) != null }
                         .map { PokemonIngredient(it) }
                     ingredientManager.addIngredientsAtRuntime(PokemonIngredientType, updated)
                     DebugLog.info("JEI: Re-indexed ${updated.size} Pokémon ingredients with job data")
@@ -108,15 +109,16 @@ open class CobbleDexJEIPlugin : IModPlugin {
     override fun registerIngredients(registration: IModIngredientRegistration) {
         SpawnDataIndex.ensureLoaded()
         val config = CobbleDexConfig.get()
+        val queries = SpawnDataIndex.currentQueries()
         val allPokemon = SpawnDataIndex.allSpeciesNames
             .filter { name ->
-                val info = SpawnDataIndex.getSpeciesInfo(name)
+                val info = queries.getSpeciesInfo(name)
                 if (info == null) false
                 else if (info.isForm) config.registerFormEntries
                 else true
             }
-                .filter { SpawnDataIndex.shouldSurfaceSpecies(it) }
-            .filter { PokemonItemCache.canRender(it) }
+            .filter { queries.shouldSurfaceSpecies(it) }
+            .filter { PokemonItemCache.getItem(it) != null }
             .map { PokemonIngredient(it) }
 
         registration.register(
@@ -125,7 +127,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
             PokemonIngredientHelper(),
             PokemonIngredientRenderer()
         )
-        val formCount = allPokemon.count { SpawnDataIndex.isForm(it.species) }
+        val formCount = allPokemon.count { queries.isForm(it.species) }
         DebugLog.info("JEI: Registered ${allPokemon.size - formCount} Pokémon + $formCount form ingredients")
     }
 

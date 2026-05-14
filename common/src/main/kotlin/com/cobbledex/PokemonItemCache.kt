@@ -29,7 +29,12 @@ object PokemonItemCache {
     private fun cacheKey(name: String, explicitAspects: Set<String> = emptySet()): String {
         val normalized = SpeciesNameNormalizer.normalize(name)
         val aspects = resolveAspects(name, explicitAspects)
-        return if (aspects.isEmpty()) normalized else "$normalized|${aspects.sorted().joinToString(",")}"
+        return resolvedCacheKey(normalized, aspects)
+    }
+
+    private fun resolvedCacheKey(normalizedName: String, resolvedAspects: Set<String>): String {
+        val aspects = resolvedAspects
+        return if (aspects.isEmpty()) normalizedName else "$normalizedName|${aspects.sorted().joinToString(",")}" 
     }
 
     fun resolveSpecies(name: String): Species? {
@@ -73,7 +78,8 @@ object PokemonItemCache {
 
     fun getItem(name: String, explicitAspects: Set<String> = emptySet()): ItemStack? {
         val aspects = resolveAspects(name, explicitAspects)
-        val cacheKey = cacheKey(name, explicitAspects)
+        val normalized = SpeciesNameNormalizer.normalize(name)
+        val cacheKey = resolvedCacheKey(normalized, aspects)
         if (blockedRenderKeys.contains(cacheKey)) return null
         itemCache[cacheKey]?.let { return it.copy() }
         val species = resolveSpecies(name) ?: return null
@@ -88,7 +94,6 @@ object PokemonItemCache {
     }
 
     fun canRender(name: String, explicitAspects: Set<String> = emptySet()): Boolean {
-        if (blockedRenderKeys.contains(cacheKey(name, explicitAspects))) return false
         val item = getItem(name, explicitAspects)
         return item != null && !item.isEmpty
     }

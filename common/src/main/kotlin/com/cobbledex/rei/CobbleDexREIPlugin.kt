@@ -111,16 +111,17 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         ensureEntryTypeAvailable()
         SpawnDataIndex.ensureLoaded()
         val config = CobbleDexConfig.get()
+        val queries = SpawnDataIndex.currentQueries()
 
         var registered = 0
         var formCount = 0
         var hidden = 0
         for (species in SpawnDataIndex.allSpeciesNames) {
-            val info = SpawnDataIndex.getSpeciesInfo(species)
+            val info = queries.getSpeciesInfo(species)
             if (info == null) continue
             if (info.isForm && !config.registerFormEntries) continue
-            if (!SpawnDataIndex.shouldSurfaceSpecies(species)) continue
-            if (!PokemonItemCache.canRender(species)) {
+            if (!queries.shouldSurfaceSpecies(species)) continue
+            if (PokemonItemCache.getItem(species) == null) {
                 DebugLog.trackMissingModel(species)
                 hidden++
                 continue

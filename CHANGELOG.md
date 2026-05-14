@@ -2,6 +2,17 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.25] - 2026-05-14
+
+### Improved
+- Added a shared snapshot query cache so repeated CobbleDex index lookups reuse the same memoized species/form/evolution query object instead of rebuilding query state during viewer registration and browsing
+- Cached Pokemon search alias text and Pokemon browser tooltip lines by data version, reducing repeated work while scrolling or hovering large REI, JEI, and EMI Pokemon lists
+- Reduced duplicate PokemonItem resolution in REI, JEI, and EMI render/registration paths by using one cached item lookup instead of separate renderability and item fetch passes
+- Cached EMI recipe-tree input/output stacks per recipe and cached explicit recipe-handle measurements per page, smoothing repeated category sizing and recipe tree queries
+
+### Tests
+- Added regression coverage for snapshot query reuse and cached explicit recipe measurements
+
 ## [1.50.24] - 2026-05-14
 
 ### Fixed

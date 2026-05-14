@@ -29,4 +29,25 @@ class RecipeHandleLookupTest {
         assertEquals(listOf("bulbasaur"), handle.lookupInputSpecies())
         assertEquals(listOf("bulbasaur"), handle.lookupOutputSpecies())
     }
+
+    @Test
+    fun explicitMeasurementsAreCachedPerHandle() {
+        var widthCalls = 0
+        var heightCalls = 0
+        val handle = RecipeHandle(
+            recipeIdPath = "forms/eevee_1",
+            inputSpecies = listOf("eevee"),
+            outputSpecies = emptyList(),
+            layoutFactory = { error("layout should not be built for explicit measurement") },
+            _width = { widthCalls++; 220 },
+            _height = { heightCalls++; 120 },
+        )
+
+        assertEquals(220, handle.width)
+        assertEquals(220, handle.width)
+        assertEquals(120, handle.height)
+        assertEquals(120, handle.height)
+        assertEquals(1, widthCalls)
+        assertEquals(1, heightCalls)
+    }
 }

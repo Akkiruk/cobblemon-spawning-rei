@@ -12,8 +12,16 @@ import net.minecraft.resources.ResourceLocation
 import net.minecraft.tags.TagKey
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.biome.Biome
+import java.util.concurrent.ConcurrentHashMap
 
 object SpawnDisplayHelper {
+    private data class CachedPokemonTooltip(
+        val dataVersion: Long,
+        val displayName: String,
+        val lines: List<Component>,
+    )
+
+    private val pokemonTooltipCache = ConcurrentHashMap<String, CachedPokemonTooltip>()
 
     data class MergedSpawn(val spawn: SpawnInfo, val formVariants: List<String>)
 
@@ -542,13 +550,20 @@ object SpawnDisplayHelper {
     // --- Tooltip builder (shared across REI/JEI) ---
 
     fun buildPokemonTooltipLines(speciesName: String, displayName: String): List<Component> {
+        val normalized = SpeciesNameNormalizer.normalize(speciesName)
+        val version = SpawnDataIndex.dataVersion
+        pokemonTooltipCache[normalized]?.let { cached ->
+            if (cached.dataVersion == version && cached.displayName == displayName) return cached.lines
+        }
+
         val lines = mutableListOf<Component>()
         lines.add(tooltipLine(displayName, ChatFormatting.WHITE))
-        val species = PokemonItemCache.resolveSpecies(speciesName)
+        val queries = SpawnDataIndex.currentQueries()
+        val species = PokemonItemCache.resolveSpecies(normalized)
         if (species != null) {
             lines.add(tooltipLine(tr("cobbledex-rei-emi-jei.tooltip.pokedex_number", species.nationalPokedexNumber), ChatFormatting.GRAY))
         }
-        val info = SpawnDataIndex.getSpeciesInfo(speciesName)
+        val info = queries.getSpeciesInfo(normalized)
         if (info != null) {
             // Show base species for forms
             if (info.isForm && info.baseSpeciesName != null) {
@@ -574,15 +589,15 @@ object SpawnDisplayHelper {
         }
 
         val counts = mutableListOf<Component>()
-        val spawns = SpawnDataIndex.getSpawnsFor(speciesName)
+        val spawns = queries.getSpawnsFor(normalized)
         if (spawns.isNotEmpty()) counts.add(tooltipLine(tr("cobbledex-rei-emi-jei.tooltip.spawns", buildSortedSpawns(spawns).size), ChatFormatting.GREEN))
-        val evosFrom = SpawnDataIndex.getEvolutionsFrom(speciesName)
-        val evosTo = SpawnDataIndex.getEvolutionsTo(speciesName)
+        val evosFrom = queries.getEvolutionsFrom(normalized)
+        val evosTo = queries.getEvolutionsTo(normalized)
         val evoCount = evosFrom.size + evosTo.size
         if (evoCount > 0) counts.add(tooltipLine(tr("cobbledex-rei-emi-jei.tooltip.evos", evoCount), ChatFormatting.GOLD))
         val dropCount = info?.drops?.size ?: 0
         if (dropCount > 0) counts.add(tooltipLine(tr("cobbledex-rei-emi-jei.tooltip.drops", dropCount), ChatFormatting.AQUA))
-        val obtainments = SpawnDataIndex.getObtainmentFor(speciesName)
+        val obtainments = queries.getObtainmentFor(normalized)
         if (obtainments.isNotEmpty()) counts.add(tooltipLine(tr("cobbledex-rei-emi-jei.tooltip.obtainment", obtainments.size), ChatFormatting.LIGHT_PURPLE))
         if (counts.isNotEmpty()) {
             val countLine = Component.empty()
@@ -593,6 +608,7 @@ object SpawnDisplayHelper {
             lines.add(countLine)
         }
 
+        pokemonTooltipCache[normalized] = CachedPokemonTooltip(version, displayName, lines)
         return lines
     }
 

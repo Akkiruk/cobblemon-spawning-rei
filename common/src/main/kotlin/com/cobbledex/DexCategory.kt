@@ -49,8 +49,12 @@ class RecipeHandle(
             PanelLayout.error("Data unavailable")
         }
     }
-    val width: Int get() = try { _width?.invoke() ?: layout.width } catch (_: Exception) { 200 }
-    val height: Int get() = try { _height?.invoke() ?: layout.height } catch (_: Exception) { 100 }
+    val width: Int by lazy(LazyThreadSafetyMode.NONE) {
+        try { _width?.invoke() ?: layout.width } catch (_: Exception) { 200 }
+    }
+    val height: Int by lazy(LazyThreadSafetyMode.NONE) {
+        try { _height?.invoke() ?: layout.height } catch (_: Exception) { 100 }
+    }
     val hasExplicitSize: Boolean get() = _width != null && _height != null
     val slots: Slots by lazy(LazyThreadSafetyMode.NONE) {
         try {
@@ -78,9 +82,9 @@ class RecipeHandle(
         .filter { it.isNotBlank() }
         .distinct()
 
-    fun explicitWidthOrNull(): Int? = try { _width?.invoke() } catch (_: Exception) { null }
+    fun explicitWidthOrNull(): Int? = if (_width != null) width else null
 
-    fun explicitHeightOrNull(): Int? = try { _height?.invoke() } catch (_: Exception) { null }
+    fun explicitHeightOrNull(): Int? = if (_height != null) height else null
 
     private fun lookupSpecies(primary: List<String>, fallback: List<String>): List<String> =
         (if (primary.isNotEmpty()) primary else fallback)
