@@ -17,6 +17,9 @@ object SpawnPageBuilder {
 }
 
 object EvolutionPageBuilder {
+    fun build(data: EvolutionRecipeData): SpawnDisplayHelper.EvolutionLayoutResult =
+        SpawnDisplayHelper.buildEvolutionLayout(data)
+
     fun build(chain: EvolutionChainBuilder.ChainNode): SpawnDisplayHelper.ChainLayoutResult =
         SpawnDisplayHelper.buildEvolutionChainLayout(chain)
 }
@@ -224,28 +227,67 @@ object DropPageBuilder {
 }
 
 object PokemonInfoPageBuilder {
-    fun measureFormsFixedHeight(): Int = 30 + PanelLayout.LINE_HEIGHT + 2 + PanelLayout.PADDING
-
-    fun measureFormEntryHeight(form: FormInfoEntry): Int {
-        var height = 22 + 13 + 1 + 4
-        val allAbilities = form.abilities + listOfNotNull(form.hiddenAbility)
-        if (allAbilities.isNotEmpty()) height += 13
-        if (form.baseStatTotal != null) height += 13
-        return height
-    }
+    fun measureFormsFixedHeight(): Int = 30 + PanelLayout.LINE_HEIGHT * 3 + 8 + PanelLayout.PADDING
 
     fun measureFormsWidth(data: FormRecipeData): Int {
         val font = Minecraft.getInstance().font
         val padding = PanelLayout.PADDING
-        val baseDisplay = formatSpeciesName(data.baseSpeciesName)
+        val formDisplay = data.form.formDisplayName
         val headerBase = tr("category.cobbledex-rei-emi-jei.forms")
         val headerTag = if (data.pageTotal > 1) "$headerBase (${data.pageIndex}/${data.pageTotal})" else headerBase
-        val headerWidth = PanelLayout.TEXT_START_X + font.width(baseDisplay) + 8 + font.width(headerTag) + padding
-        return maxOf(headerWidth, 200, PanelLayout.MIN_WIDTH).coerceAtMost(PanelLayout.MAX_WIDTH)
+        val headerWidth = PanelLayout.TEXT_START_X + font.width(formDisplay) + 8 + font.width(headerTag) + padding
+        return maxOf(headerWidth, 220, PanelLayout.MIN_WIDTH).coerceAtMost(PanelLayout.MAX_WIDTH)
     }
 
-    fun measureFormsHeight(data: FormRecipeData): Int =
-        measureFormsFixedHeight() + data.forms.sumOf(::measureFormEntryHeight)
+    fun measureFormsHeight(data: FormRecipeData): Int {
+        val font = Minecraft.getInstance().font
+        val width = measureFormsWidth(data)
+        val padding = PanelLayout.PADDING
+        val labelWidth = 68
+        val valueX = padding + labelWidth
+        val valueWidth = width - padding - valueX
+        var height = measureFormsFixedHeight()
+
+        val abilityText = data.form.abilities.joinToString(", ") { formatAbilityName(it) }
+        val hiddenText = data.form.hiddenAbility?.let(::formatAbilityName).orEmpty()
+        val bstText = data.form.baseStatTotal?.let { bst ->
+            val delta = data.baseInfo?.baseStatTotal?.let { baseBst ->
+                val change = bst - baseBst
+                when {
+                    change > 0 -> " (+$change vs base)"
+                    change < 0 -> " ($change vs base)"
+                    else -> " (same as base)"
+                }
+            }.orEmpty()
+            tr("cobbledex-rei-emi-jei.stats.bst", bst) + delta
+        }.orEmpty()
+
+        height += SpawnDisplayHelper.wrapText(font, formatSpeciesName(data.baseSpeciesName), valueWidth).size.coerceAtLeast(1) * PanelLayout.LINE_HEIGHT
+        height += SpawnDisplayHelper.wrapText(
+            font,
+            buildTypeText(data.form.primaryType, data.form.secondaryType),
+            valueWidth,
+        ).size.coerceAtLeast(1) * PanelLayout.LINE_HEIGHT
+        if (abilityText.isNotBlank()) {
+            height += SpawnDisplayHelper.wrapText(font, abilityText, valueWidth).size.coerceAtLeast(1) * PanelLayout.LINE_HEIGHT
+        }
+        if (hiddenText.isNotBlank()) {
+            height += SpawnDisplayHelper.wrapText(font, hiddenText, valueWidth).size.coerceAtLeast(1) * PanelLayout.LINE_HEIGHT
+        }
+        if (bstText.isNotBlank()) {
+            height += SpawnDisplayHelper.wrapText(font, bstText, valueWidth).size.coerceAtLeast(1) * PanelLayout.LINE_HEIGHT
+        }
+
+        if (data.differenceReasons.isNotEmpty()) {
+            height += 3 + PanelLayout.LINE_HEIGHT
+            height += data.differenceReasons.sumOf { reason ->
+                SpawnDisplayHelper.wrapText(font, "• $reason", width - (padding + 6)).size.coerceAtLeast(1) * PanelLayout.LINE_HEIGHT
+            }
+        }
+
+        height += 1 + 4 + font.lineHeight + padding
+        return height
+    }
 
     fun buildOverview(data: PokemonOverviewRecipeData): PanelLayout {
         val projection = data.projection

@@ -14,6 +14,24 @@ data class PokemonOverviewRecipeData(
     val speciesName: String get() = projection.speciesName
 }
 
+data class EvolutionMethodRecipeData(
+    val requirementText: String,
+    val itemRequirements: List<EvolutionItemInfo> = emptyList(),
+)
+
+data class EvolutionRecipeData(
+    val sourceSpeciesName: String,
+    val sourceAspects: Set<String> = emptySet(),
+    val targetSpeciesName: String? = null,
+    val targetAspects: Set<String> = emptySet(),
+    val methods: List<EvolutionMethodRecipeData> = emptyList(),
+    val pageIndex: Int = 1,
+    val pageTotal: Int = 1,
+    val totalOutcomes: Int = if (targetSpeciesName == null) 0 else 1,
+) {
+    val isTerminal: Boolean get() = targetSpeciesName == null
+}
+
 data class ObtainmentRecipeData(
     val speciesName: String,
     val obtainment: ObtainmentInfo,

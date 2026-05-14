@@ -23,6 +23,12 @@ object SpawnDisplayHelper {
         val itemSlots: List<ItemSlotDef>,
     )
 
+    data class EvolutionLayoutResult(
+        val layout: PanelLayout,
+        val pokemonSlots: List<PokemonSlotDef>,
+        val itemSlots: List<ItemSlotDef>,
+    )
+
     val BUCKET_COLORS = mapOf(
         "common" to 0xFF4CAF50.toInt(),
         "uncommon" to 0xFFFFC107.toInt(),
@@ -1072,6 +1078,77 @@ object SpawnDisplayHelper {
         return ChainLayoutResult(layout, pokemonSlots, itemSlots)
     }
 
+    fun buildEvolutionLayout(data: EvolutionRecipeData): EvolutionLayoutResult {
+        val font = Minecraft.getInstance().font
+        val padding = PanelLayout.PADDING
+        val headerBase = tr("category.cobbledex-rei-emi-jei.evolution")
+        val headerTag = if (data.pageTotal > 1) "$headerBase (${data.pageIndex}/${data.pageTotal})" else headerBase
+        val sourceDisplay = formatSpeciesName(data.sourceSpeciesName)
+        val targetDisplay = data.targetSpeciesName?.let(::formatSpeciesName)
+        val width = computePanelWidth(
+            measureHeaderWidth(font, sourceDisplay, headerTag),
+            targetDisplay?.let { padding + 22 + font.width(it) + padding } ?: PanelLayout.MIN_WIDTH,
+            220,
+        )
+        val layout = PanelLayout(width)
+        val right = layout.right
+        val labelX = padding + 4
+        val detailX = padding + 10
+        val detailWidth = right - detailX
+        val pokemonSlots = mutableListOf<PokemonSlotDef>()
+        val itemSlots = mutableListOf<ItemSlotDef>()
+
+        pokemonSlots.add(PokemonSlotDef(data.sourceSpeciesName, data.sourceAspects, padding, 2, SlotRole.INPUT))
+        drawHeader(layout, sourceDisplay, headerTag, 0xDDCC99, dividerY = 24)
+        layout.skipTo(30)
+
+        if (data.isTerminal) {
+            layout.text(labelX, "No further evolution", 0xFFDD88)
+            layout.line()
+            layout.wrapped(detailX, "This entry has no additional evolution or transformation route in the current data snapshot.", detailWidth, 0xBBBBBB)
+        } else {
+            val targetSpeciesName = data.targetSpeciesName!!
+            val targetSlotY = layout.y
+            pokemonSlots.add(PokemonSlotDef(targetSpeciesName, data.targetAspects, padding + 2, targetSlotY, SlotRole.OUTPUT,
+                disableBackground = false, disableHighlight = false))
+            layout.textAt(padding + 24, targetSlotY + 5, targetDisplay ?: formatSpeciesName(targetSpeciesName), 0xFFFFFF)
+            layout.gap(22)
+
+            layout.text(labelX, if (data.methods.size > 1) "Ways to reach this outcome" else "Requirement", 0xEEEEEE)
+            layout.line()
+            layout.gap(2)
+
+            data.methods.forEachIndexed { index, method ->
+                val rowTop = layout.y
+                val prefix = if (data.methods.size > 1) "${index + 1}." else "•"
+                layout.text(labelX, prefix, 0xFFDD88)
+                val itemCount = method.itemRequirements.size.coerceAtMost(4)
+                val itemSpace = if (itemCount > 0) (itemCount * 18) + 4 else 0
+                val lineWidth = (detailWidth - itemSpace).coerceAtLeast(60)
+                layout.wrapped(detailX, method.requirementText, lineWidth, 0xDDDDDD)
+                if (method.itemRequirements.isNotEmpty()) {
+                    method.itemRequirements.take(4).forEachIndexed { itemIndex, item ->
+                        itemSlots.add(ItemSlotDef(item.itemId, right - 18 * (method.itemRequirements.take(4).size - itemIndex), rowTop, SlotRole.INPUT))
+                    }
+                }
+                layout.gap(3)
+            }
+        }
+
+        layout.gap(1)
+        layout.separator(0x20FFFFFF)
+        layout.gap(4)
+        val summary = when {
+            data.isTerminal -> "No next-stage outcomes"
+            data.totalOutcomes == 1 -> "1 next-stage outcome"
+            else -> "${data.totalOutcomes} next-stage outcomes"
+        }
+        layout.text(padding, summary, 0x888888)
+        layout.gap(font.lineHeight + padding)
+
+        return EvolutionLayoutResult(layout, pokemonSlots, itemSlots)
+    }
+
     // --- Stats detail rendering (shared between REI/JEI/EMI) ---
 
     private val STAT_NAMES = listOf("hp", "atk", "def", "spa", "spd", "spe")
@@ -1765,85 +1842,98 @@ object SpawnDisplayHelper {
     fun buildFormLayout(data: FormRecipeData): FormLayoutResult {
         val font = Minecraft.getInstance().font
         val padding = PanelLayout.PADDING
-        val baseDisplay = formatSpeciesName(data.baseSpeciesName)
+        val form = data.form
         val headerBase = tr("category.cobbledex-rei-emi-jei.forms")
         val headerTag = if (data.pageTotal > 1) "$headerBase (${data.pageIndex}/${data.pageTotal})" else headerBase
-        val iconSize = 20
-        val afterIcon = iconSize + 2
-        val lineHeight = 13
-
-        val width = computePanelWidth(measureHeaderWidth(font, baseDisplay, headerTag), 200)
+        val width = computePanelWidth(measureHeaderWidth(font, form.formDisplayName, headerTag), 220)
         val layout = PanelLayout(width)
         val right = layout.right
         val pokemonSlots = mutableListOf<PokemonSlotDef>()
+        val labelWidth = 68
+        val valueX = padding + labelWidth
+        val valueWidth = right - valueX
 
-        pokemonSlots.add(PokemonSlotDef(data.baseSpeciesName, emptySet(), padding, 2, SlotRole.INPUT))
-        drawHeader(layout, baseDisplay, headerTag, 0xDDCC99, dividerY = 24)
+        fun drawDetailRow(
+            label: String,
+            value: String,
+            color: Int = 0xDDDDDD,
+            tooltip: List<Component> = emptyList(),
+        ) {
+            if (value.isBlank()) return
+            val rowTop = layout.y
+            layout.clippedAt(padding + 4, rowTop, label, labelWidth - 6, 0x999999)
+            layout.wrapped(valueX, value, valueWidth, color)
+            val rowHeight = (layout.y - rowTop).coerceAtLeast(PanelLayout.LINE_HEIGHT)
+            if (tooltip.isNotEmpty()) {
+                layout.addTooltipZone(valueX, rowTop, valueWidth, rowHeight, tooltip)
+            }
+        }
+
+        pokemonSlots.add(PokemonSlotDef(form.formKey, form.formAspects, padding, 2, SlotRole.INPUT))
+        drawHeader(layout, form.formDisplayName, headerTag, 0xDDCC99, dividerY = 24)
         layout.skipTo(30)
 
-        val formCount = tr("cobbledex-rei-emi-jei.forms.count", data.totalForms)
-        layout.text(padding, formCount, 0x888888)
-        layout.line()
-        layout.gap(2)
-
-        for (form in data.forms) {
-            // Form sprite + name
-            pokemonSlots.add(PokemonSlotDef(
-                form.formKey, form.formAspects, padding + 2, layout.y, SlotRole.INPUT,
-                disableBackground = false, disableHighlight = false
-            ))
-            val nameX = padding + 2 + afterIcon
-            val clippedName = clipToWidth(font, form.formDisplayName, right - nameX - 2)
-            layout.textAt(nameX, layout.y + 5, clippedName, 0xFFFFFF)
-            layout.gap(22)
-
-            // Types
-            val typeStr = buildString {
+        drawDetailRow("Base", formatSpeciesName(data.baseSpeciesName))
+        drawDetailRow(
+            "Typing",
+            buildString {
                 append(formatTypeName(form.primaryType))
                 form.secondaryType?.let { append(" / ${formatTypeName(it)}") }
-            }
-            layout.clipped(padding + 6, typeStr, right - padding - 6, typeColor(form.primaryType))
-            layout.gap(lineHeight)
+            },
+            color = typeColor(form.primaryType),
+        )
 
-            // Abilities (compact)
-            val allAbilities = buildList {
-                addAll(form.abilities)
-                form.hiddenAbility?.let { add("$it (H)") }
-            }
-            if (allAbilities.isNotEmpty()) {
-                val abilityY = layout.y
-                val abilityStr = allAbilities.joinToString(", ")
-                layout.clipped(padding + 6, "\u2605 $abilityStr", right - padding - 6, 0xFF88CCFF.toInt())
-                val tooltipLines = mutableListOf<Component>()
-                for (ab in form.abilities) {
-                    tooltipLines.addAll(buildAbilityTooltip(ab))
-                }
-                form.hiddenAbility?.let { ha ->
-                    if (tooltipLines.isNotEmpty()) tooltipLines.add(Component.literal(""))
-                    tooltipLines.addAll(buildAbilityTooltip(ha, hidden = true))
-                }
-                if (tooltipLines.isNotEmpty()) {
-                    layout.addTooltipZone(padding + 6, abilityY, right - padding - 6, lineHeight, tooltipLines)
-                }
-                layout.gap(lineHeight)
-            }
-
-            // BST
-            val bst = form.baseStatTotal
-            if (bst != null) {
-                val bstColor = when {
-                    bst >= 600 -> 0xFFFF5555.toInt()
-                    bst >= 500 -> 0xFFFFCC33.toInt()
-                    bst >= 400 -> 0xFF77CC55.toInt()
-                    else -> 0xFFBBBBBB.toInt()
-                }
-                layout.text(padding + 6, tr("cobbledex-rei-emi-jei.stats.bst", bst), bstColor)
-                layout.gap(lineHeight)
-            }
-
-            layout.separator(0x20FFFFFF)
-            layout.gap(4)
+        if (form.abilities.isNotEmpty()) {
+            val tooltipLines = form.abilities.flatMap(::buildAbilityTooltip)
+            drawDetailRow(
+                "Abilities",
+                form.abilities.joinToString(", ") { ability -> formatAbilityName(ability) },
+                color = 0xFF88CCFF.toInt(),
+                tooltip = tooltipLines,
+            )
         }
+
+        form.hiddenAbility?.let { hiddenAbility ->
+            drawDetailRow(
+                "Hidden",
+                formatAbilityName(hiddenAbility),
+                color = 0xFF88CCFF.toInt(),
+                tooltip = buildAbilityTooltip(hiddenAbility, hidden = true),
+            )
+        }
+
+        form.baseStatTotal?.let { bst ->
+            val bstColor = when {
+                bst >= 600 -> 0xFFFF5555.toInt()
+                bst >= 500 -> 0xFFFFCC33.toInt()
+                bst >= 400 -> 0xFF77CC55.toInt()
+                else -> 0xFFBBBBBB.toInt()
+            }
+            val delta = data.baseInfo?.baseStatTotal?.let { baseBst ->
+                val change = bst - baseBst
+                when {
+                    change > 0 -> " (+$change vs base)"
+                    change < 0 -> " ($change vs base)"
+                    else -> " (same as base)"
+                }
+            }.orEmpty()
+            drawDetailRow("BST", tr("cobbledex-rei-emi-jei.stats.bst", bst) + delta, bstColor)
+        }
+
+        if (data.differenceReasons.isNotEmpty()) {
+            layout.gap(3)
+            layout.text(padding, "Notable differences", 0xEEEEEE)
+            layout.line()
+            data.differenceReasons.forEach { reason ->
+                layout.wrapped(padding + 6, "• $reason", right - (padding + 6), 0xBBBBBB)
+            }
+        }
+
+        layout.gap(1)
+        layout.separator(0x20FFFFFF)
+        layout.gap(4)
+        val formCount = tr("cobbledex-rei-emi-jei.forms.count", data.totalForms)
+        layout.text(padding, formCount, 0x888888)
 
         layout.gap(padding)
         return FormLayoutResult(layout, pokemonSlots)

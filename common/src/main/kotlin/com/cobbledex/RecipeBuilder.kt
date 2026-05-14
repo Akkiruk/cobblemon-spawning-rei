@@ -1,6 +1,41 @@
 package com.cobbledex
 
 object RecipeBuilder {
+    private val FORM_REASON_PRIORITY = listOf(
+        "typing",
+        "abilities",
+        "base stat total",
+        "base stats",
+        "form-specific evolution data",
+        "form-specific spawn data",
+        "form-specific obtainment data",
+        "drops",
+        "level-up moves",
+        "egg moves",
+        "tutor moves",
+        "tm moves",
+        "form-specific riding data",
+        "labels",
+        "body metrics",
+        "catch rate",
+        "ev yield",
+        "egg groups",
+        "gender ratio",
+        "egg cycles",
+        "experience group",
+        "base experience",
+        "base friendship",
+        "shoulder mount",
+        "form-specific fossil data",
+    ).withIndex().associate { (index, value) -> value to index }
+
+    private data class EvolutionTargetPage(
+        val targetSpeciesName: String,
+        val targetAspects: Set<String>,
+        val methods: List<EvolutionMethodRecipeData>,
+        val priority: Int,
+    )
+
     fun buildAllOverviewRecipes(): List<PokemonOverviewRecipeData> =
         PageProjectionBuilder.allPokemon().map { PokemonOverviewRecipeData(it) }
 
@@ -14,6 +49,75 @@ object RecipeBuilder {
             } catch (e: Exception) {
                 DebugLog.once("recipe-spawn-$species-${entry.spawn.id}") { "Failed: ${e.message}" }
                 null
+            }
+        }
+    }
+
+    fun buildAllEvolutionRecipes(
+        snapshot: CobbleDexDataSnapshot = SpawnDataIndex.currentSnapshot(),
+    ): List<EvolutionRecipeData> {
+        val queries = CobbleDexDataQueries(snapshot)
+        val speciesNames = if (snapshot.allSpeciesNames.isNotEmpty()) {
+            snapshot.allSpeciesNames
+        } else {
+            (snapshot.speciesInfo.keys + snapshot.evolutionsBySpecies.keys)
+                .map(SpeciesNameNormalizer::normalize)
+                .distinct()
+                .sorted()
+        }
+
+        return speciesNames
+            .map(SpeciesNameNormalizer::normalize)
+            .filter(queries::shouldSurfaceSpecies)
+            .flatMap { species -> buildEvolutionPagesFor(species, snapshot) }
+    }
+
+    fun buildEvolutionPagesFor(
+        speciesName: String,
+        snapshot: CobbleDexDataSnapshot = SpawnDataIndex.currentSnapshot(),
+    ): List<EvolutionRecipeData> {
+        val queries = CobbleDexDataQueries(snapshot)
+        val normalized = SpeciesNameNormalizer.normalize(speciesName)
+        if (!queries.shouldSurfaceSpecies(normalized)) return emptyList()
+
+        val info = queries.getSpeciesInfo(normalized)
+        val sourceAspects = info?.formAspects ?: emptySet()
+        val targets = buildEvolutionTargets(normalized, sourceAspects, snapshot, queries)
+        if (targets.isEmpty()) {
+            return listOf(
+                EvolutionRecipeData(
+                    sourceSpeciesName = normalized,
+                    sourceAspects = sourceAspects,
+                    pageIndex = 1,
+                    pageTotal = 1,
+                    totalOutcomes = 0,
+                )
+            )
+        }
+
+        val total = targets.size
+        return targets.mapIndexed { index, target ->
+            EvolutionRecipeData(
+                sourceSpeciesName = normalized,
+                sourceAspects = sourceAspects,
+                targetSpeciesName = target.targetSpeciesName,
+                targetAspects = target.targetAspects,
+                methods = target.methods,
+                pageIndex = index + 1,
+                pageTotal = total,
+                totalOutcomes = total,
+            )
+        }
+    }
+
+    fun buildEvolutionRecipesForItem(
+        itemId: String,
+        snapshot: CobbleDexDataSnapshot = SpawnDataIndex.currentSnapshot(),
+    ): List<EvolutionRecipeData> {
+        val normalizedItem = itemId.lowercase()
+        return buildAllEvolutionRecipes(snapshot).filter { page ->
+            page.methods.any { method ->
+                method.itemRequirements.any { requirement -> requirement.itemId.equals(normalizedItem, ignoreCase = true) }
             }
         }
     }
@@ -428,47 +532,61 @@ object RecipeBuilder {
 
     // --- Alternate form recipes ---
 
-    fun buildAllFormRecipes(): List<FormRecipeData> {
-        val formsByBase = mutableMapOf<String, MutableList<FormInfoEntry>>()
-        for ((key, info) in SpawnDataIndex.speciesInfo) {
-            val base = info.baseSpeciesName ?: continue
-            if (!SpawnDataIndex.shouldSurfaceSpecies(key)) continue
-            formsByBase.getOrPut(SpeciesNameNormalizer.normalize(base)) { mutableListOf() }
-                .add(toFormEntry(key, info))
-        }
-        return formsByBase.flatMap { (base, forms) ->
-            paginateForms(base, forms)
+    fun buildAllFormRecipes(
+        snapshot: CobbleDexDataSnapshot = SpawnDataIndex.currentSnapshot(),
+    ): List<FormRecipeData> {
+        val queries = CobbleDexDataQueries(snapshot)
+        val formsByBase = snapshot.speciesInfo.values
+            .filter { info ->
+                info.isForm && queries.shouldSurfaceSpecies(info.name)
+            }
+            .groupBy { info ->
+                SpeciesNameNormalizer.normalize(info.baseSpeciesName!!)
+            }
+
+        return formsByBase.flatMap { (baseSpeciesName, forms) ->
+            buildFormPages(baseSpeciesName, forms, queries)
         }
     }
 
-    fun buildFormsFor(speciesName: String): List<FormRecipeData> {
-        val normalized = SpeciesNameNormalizer.normalize(speciesName)
-        val forms = mutableListOf<FormInfoEntry>()
-        for ((key, info) in SpawnDataIndex.speciesInfo) {
-            if (info.baseSpeciesName == null) continue
-            if (SpeciesNameNormalizer.normalize(info.baseSpeciesName) != normalized) continue
-            if (!SpawnDataIndex.shouldSurfaceSpecies(key)) continue
-            forms.add(toFormEntry(key, info))
+    fun buildFormsFor(
+        speciesName: String,
+        snapshot: CobbleDexDataSnapshot = SpawnDataIndex.currentSnapshot(),
+    ): List<FormRecipeData> {
+        val queries = CobbleDexDataQueries(snapshot)
+        val lookupInfo = queries.getSpeciesInfo(speciesName)
+        val baseSpeciesName = SpeciesNameNormalizer.normalize(lookupInfo?.baseSpeciesName ?: speciesName)
+        val forms = snapshot.speciesInfo.values.filter { info ->
+            info.isForm &&
+                SpeciesNameNormalizer.normalize(info.baseSpeciesName!!) == baseSpeciesName &&
+                queries.shouldSurfaceSpecies(info.name)
         }
         if (forms.isEmpty()) return emptyList()
-        return paginateForms(normalized, forms)
+        return buildFormPages(baseSpeciesName, forms, queries)
     }
 
-    private fun paginateForms(baseSpeciesName: String, forms: List<FormInfoEntry>): List<FormRecipeData> {
-        val sortedForms = forms.sortedBy { it.formDisplayName }
-        val pages = MeasuredPagePlanner.paginate(
-            items = sortedForms,
-            fixedHeight = PokemonInfoPageBuilder.measureFormsFixedHeight(),
-            measureItemHeight = PokemonInfoPageBuilder::measureFormEntryHeight,
-        )
-        val totalPages = pages.size
-        return pages.mapIndexed { index, pageForms ->
+    private fun buildFormPages(
+        baseSpeciesName: String,
+        forms: List<EvolutionDataLoader.SpeciesBasicInfo>,
+        queries: CobbleDexDataQueries,
+    ): List<FormRecipeData> {
+        val sortedForms = forms.sortedBy { formatSpeciesName(it.name) }
+        val siblingFormKeys = sortedForms.map { info -> info.name }
+        val totalPages = sortedForms.size
+        val baseInfo = queries.getSpeciesInfo(baseSpeciesName)
+
+        return sortedForms.mapIndexed { index, info ->
             FormRecipeData(
                 baseSpeciesName = baseSpeciesName,
-                forms = pageForms,
+                form = toFormEntry(info.name, info),
+                baseInfo = baseInfo,
+                siblingFormKeys = siblingFormKeys,
+                differenceReasons = describeFormDifferences(
+                    queries.materialFormDecision(info.name)?.reasons.orEmpty()
+                ),
                 pageIndex = index + 1,
                 pageTotal = totalPages,
-                totalForms = sortedForms.size
+                totalForms = totalPages,
             )
         }
     }
@@ -484,6 +602,135 @@ object RecipeBuilder {
         baseStatTotal = info.baseStatTotal,
         formAspects = info.formAspects
     )
+
+    private fun buildEvolutionTargets(
+        sourceSpeciesName: String,
+        sourceAspects: Set<String>,
+        snapshot: CobbleDexDataSnapshot,
+        queries: CobbleDexDataQueries,
+    ): List<EvolutionTargetPage> {
+        val exactAspects = normalizeAspects(sourceAspects)
+        val directTargets = queries.getEvolutionsFrom(sourceSpeciesName)
+            .filter { evolution -> normalizeAspects(evolution.fromAspects) == exactAspects }
+            .groupBy { evolution -> resolveEvolutionTargetKey(evolution.toSpecies, evolution.toAspects, snapshot, queries) }
+            .map { (targetSpeciesName, evolutions) ->
+                EvolutionTargetPage(
+                    targetSpeciesName = targetSpeciesName,
+                    targetAspects = evolutions.first().toAspects,
+                    methods = evolutions.map { evolution ->
+                        EvolutionMethodRecipeData(
+                            requirementText = evolution.displayRequirements,
+                            itemRequirements = evolution.itemRequirements,
+                        )
+                    }.distinctBy { method ->
+                        method.requirementText to method.itemRequirements.map(EvolutionItemInfo::itemId)
+                    },
+                    priority = 0,
+                )
+            }
+
+        val transformTargets = if (sourceAspects.isEmpty()) {
+            snapshot.speciesInfo.values.mapNotNull { info ->
+                if (!info.isForm) return@mapNotNull null
+                if (!queries.shouldSurfaceSpecies(info.name)) return@mapNotNull null
+                if (SpeciesNameNormalizer.normalize(info.baseSpeciesName!!) != sourceSpeciesName) return@mapNotNull null
+
+                val label = info.labels.orEmpty().map(String::lowercase)
+                val methodText = when {
+                    "mega" in label -> tr("cobbledex-rei-emi-jei.evo.form_change.mega")
+                    "primal" in label -> tr("cobbledex-rei-emi-jei.evo.form_change.primal")
+                    "ultra_burst" in label -> tr("cobbledex-rei-emi-jei.evo.form_change.ultra_burst")
+                    "gmax" in label -> tr("cobbledex-rei-emi-jei.evo.form_change.gmax")
+                    else -> null
+                } ?: return@mapNotNull null
+
+                EvolutionTargetPage(
+                    targetSpeciesName = info.name,
+                    targetAspects = info.formAspects,
+                    methods = listOf(EvolutionMethodRecipeData(methodText)),
+                    priority = 1,
+                )
+            }
+        } else {
+            emptyList()
+        }
+
+        return (directTargets + transformTargets)
+            .distinctBy { target -> target.targetSpeciesName }
+            .sortedWith(
+                compareBy<EvolutionTargetPage>({ it.priority }, { targetSortWeight(it.targetSpeciesName, snapshot) }, { formatSpeciesName(it.targetSpeciesName) })
+            )
+    }
+
+    private fun resolveEvolutionTargetKey(
+        targetSpeciesName: String,
+        targetAspects: Set<String>,
+        snapshot: CobbleDexDataSnapshot,
+        queries: CobbleDexDataQueries,
+    ): String {
+        val normalizedTarget = SpeciesNameNormalizer.normalize(targetSpeciesName)
+        if (targetAspects.isEmpty()) return normalizedTarget
+
+        val targetAspectKey = normalizeAspects(targetAspects)
+        val resolvedForm = snapshot.speciesInfo.values.firstOrNull { info ->
+            info.isForm &&
+                SpeciesNameNormalizer.normalize(info.baseSpeciesName!!) == normalizedTarget &&
+                normalizeAspects(info.formAspects) == targetAspectKey
+        }?.name
+
+        return when {
+            resolvedForm == null -> normalizedTarget
+            queries.shouldSurfaceSpecies(resolvedForm) -> resolvedForm
+            else -> normalizedTarget
+        }
+    }
+
+    private fun normalizeAspects(aspects: Set<String>): Set<String> =
+        aspects.map { aspect ->
+            aspect.lowercase().replace(Regex("[^a-z0-9]"), "")
+        }.filter { it.isNotBlank() }.toSet()
+
+    private fun targetSortWeight(
+        targetSpeciesName: String,
+        snapshot: CobbleDexDataSnapshot,
+    ): Int = snapshot.speciesInfo[SpeciesNameNormalizer.normalize(targetSpeciesName)]?.nationalDexNumber ?: Int.MAX_VALUE
+
+    private fun describeFormDifferences(reasons: List<String>): List<String> {
+        if (reasons.isEmpty()) return listOf("Distinct material form.")
+
+        return reasons.distinct()
+            .sortedBy { reason -> FORM_REASON_PRIORITY[reason.lowercase()] ?: Int.MAX_VALUE }
+            .map { reason ->
+                when (reason.lowercase()) {
+                    "typing" -> "Typing differs from the base species."
+                    "abilities" -> "Ability pool differs from the base species."
+                    "base stats" -> "Individual base stats differ from the base species."
+                    "base stat total" -> "Base stat total differs from the base species."
+                    "ev yield" -> "EV yield differs from the base species."
+                    "catch rate" -> "Catch rate differs from the base species."
+                    "body metrics" -> "Height or weight differs from the base species."
+                    "egg groups" -> "Egg groups differ from the base species."
+                    "gender ratio" -> "Gender ratio differs from the base species."
+                    "egg cycles" -> "Egg cycles differ from the base species."
+                    "experience group" -> "Experience group differs from the base species."
+                    "base experience" -> "Base experience yield differs from the base species."
+                    "base friendship" -> "Base friendship differs from the base species."
+                    "labels" -> "Special labels differ from the base species."
+                    "drops" -> "Drop table differs from the base species."
+                    "level-up moves" -> "Level-up move list differs from the base species."
+                    "egg moves" -> "Egg move list differs from the base species."
+                    "tutor moves" -> "Tutor move list differs from the base species."
+                    "tm moves" -> "TM compatibility differs from the base species."
+                    "shoulder mount" -> "Shoulder-mount support differs from the base species."
+                    "form-specific spawn data" -> "Spawn data differs from the base species."
+                    "form-specific obtainment data" -> "Obtainment routes differ from the base species."
+                    "form-specific evolution data" -> "Evolution routes differ from the base species."
+                    "form-specific fossil data" -> "Fossil data differs from the base species."
+                    "form-specific riding data" -> "Riding data differs from the base species."
+                    else -> "${reason.replaceFirstChar { ch -> ch.uppercase() }}."
+                }
+            }
+    }
 
     // --- Riding recipes ---
 

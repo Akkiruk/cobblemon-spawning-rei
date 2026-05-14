@@ -2,6 +2,16 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.23] - 2026-05-13
+
+### Improved
+- Reworked the Evolutions tab into exact-entry semantic pages, so each page now shows one immediate next-stage outcome for the current Pokemon instead of collapsing full chains into a single tree
+- Grouped multiple methods for the same immediate target onto one evolution page while keeping alternate targets paged separately, so branch-heavy species like Eevee paginate cleanly without cramming multiple outcomes together
+- Reworked the Forms tab into one detailed sibling-form page at a time, with per-form typing, abilities, BST comparison, and surfaced-form difference summaries instead of overflow-driven multi-form list pages
+
+### Tests
+- Added focused common-module coverage for semantic evolution pagination, form-family pagination, exact form-route filtering, and transformation-form branch handling
+
 ## [1.50.22] - 2026-04-25
 
 ### Improved

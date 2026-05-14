@@ -14,8 +14,11 @@ data class FormInfoEntry(
 
 data class FormRecipeData(
     val baseSpeciesName: String,
-    val forms: List<FormInfoEntry>,
+    val form: FormInfoEntry,
+    val baseInfo: EvolutionDataLoader.SpeciesBasicInfo? = null,
+    val siblingFormKeys: List<String> = listOf(form.formKey),
+    val differenceReasons: List<String> = emptyList(),
     val pageIndex: Int = 1,
     val pageTotal: Int = 1,
-    val totalForms: Int = forms.size
+    val totalForms: Int = pageTotal
 )

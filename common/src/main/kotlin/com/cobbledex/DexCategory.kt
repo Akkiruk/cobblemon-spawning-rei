@@ -187,39 +187,36 @@ object EvolutionDex : DexCategory {
     override val maxSize: () -> CategorySizer.PanelSize = { CategorySizer.getBounds(this) }
     override fun isEnabled(config: CobbleDexConfig) = config.showEvolutions
 
-    override fun buildAllRecipes(): List<RecipeHandle> {
-        val chains = EvolutionChainBuilder.getAllChains()
-        return chains.values.map(::toChainHandle)
-    }
+    override fun buildAllRecipes(): List<RecipeHandle> =
+        RecipeBuilder.buildAllEvolutionRecipes().map(::toHandle)
 
-    override fun buildRecipesFor(species: String): List<RecipeHandle> {
-        val chain = EvolutionChainBuilder.getChainFor(species) ?: return emptyList()
-        return listOf(toChainHandle(chain))
-    }
+    override fun buildRecipesFor(species: String): List<RecipeHandle> =
+        RecipeBuilder.buildEvolutionPagesFor(species).map(::toHandle)
 
-    override fun buildUsagesFor(species: String): List<RecipeHandle> {
-        val chain = EvolutionChainBuilder.getChainFor(species) ?: return emptyList()
-        return listOf(toChainHandle(chain))
-    }
+    override fun buildUsagesFor(species: String): List<RecipeHandle> =
+        RecipeBuilder.buildEvolutionPagesFor(species).map(::toHandle)
 
     override fun buildRecipesForItem(itemId: String): List<RecipeHandle> =
-        EvolutionChainBuilder.getChainsForItem(itemId).map(::toChainHandle)
+        RecipeBuilder.buildEvolutionRecipesForItem(itemId).map(::toHandle)
 
-    private fun toChainHandle(chain: EvolutionChainBuilder.ChainNode): RecipeHandle {
-        val allSpecies = EvolutionChainBuilder.collectAllSpecies(chain).toList()
-        var chainResult: SpawnDisplayHelper.ChainLayoutResult? = null
+    private fun toHandle(d: EvolutionRecipeData): RecipeHandle {
+        var evolutionResult: SpawnDisplayHelper.EvolutionLayoutResult? = null
         return RecipeHandle(
-            recipeIdPath = "evolution/chain_${sanitizePath(chain.species)}",
-            inputSpecies = allSpecies,
-            outputSpecies = allSpecies,
+            recipeIdPath = "evolution/${sanitizePath(d.sourceSpeciesName)}_${d.pageIndex}",
+            inputSpecies = listOf(d.sourceSpeciesName),
+            outputSpecies = listOfNotNull(d.targetSpeciesName),
             layoutFactory = {
-                val r = EvolutionPageBuilder.build(chain)
-                chainResult = r
+                val r = EvolutionPageBuilder.build(d)
+                evolutionResult = r
                 r.layout
             },
             _slots = { _ ->
-                val r = chainResult ?: EvolutionPageBuilder.build(chain).also { chainResult = it }
-                RecipeHandle.Slots(pokemon = r.pokemonSlots, items = r.itemSlots)
+                val r = evolutionResult ?: EvolutionPageBuilder.build(d).also { evolutionResult = it }
+                RecipeHandle.Slots(
+                    pokemon = r.pokemonSlots,
+                    items = r.itemSlots,
+                    catalogInputIds = d.methods.flatMap { method -> method.itemRequirements.map(EvolutionItemInfo::itemId) }.distinct(),
+                )
             },
         )
     }
@@ -556,7 +553,7 @@ object FormsDex : DexCategory {
     }
 
     private fun toHandle(d: FormRecipeData): RecipeHandle {
-        val allFormKeys = d.forms.map { it.formKey }
+        val allFormKeys = d.siblingFormKeys
         var formResult: SpawnDisplayHelper.FormLayoutResult? = null
         return RecipeHandle(
             recipeIdPath = "forms/${sanitizePath(d.baseSpeciesName)}_${d.pageIndex}",
