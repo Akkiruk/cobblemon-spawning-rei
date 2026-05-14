@@ -89,7 +89,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
                             else info.baseSpeciesName == null
                         }
                         .filter { queries.shouldSurfaceSpecies(it) }
-                        .filter { PokemonItemCache.getItem(it) != null }
+                        .filter { PokemonItemCache.canRender(it) }
                         .map { PokemonIngredient(it) }
                     ingredientManager.addIngredientsAtRuntime(PokemonIngredientType, updated)
                     DebugLog.info("JEI: Re-indexed ${updated.size} Pokémon ingredients with job data")
@@ -118,7 +118,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
                 else true
             }
             .filter { queries.shouldSurfaceSpecies(it) }
-            .filter { PokemonItemCache.getItem(it) != null }
+            .filter { PokemonItemCache.canRender(it) }
             .map { PokemonIngredient(it) }
 
         registration.register(

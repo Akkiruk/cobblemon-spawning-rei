@@ -68,16 +68,12 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             if (speciesInfo == null) continue
             if (speciesInfo.isForm && !config.registerFormEntries) continue
             if (!queries.shouldSurfaceSpecies(species)) continue
-            val item = PokemonItemCache.getItem(species) ?: continue
-            if (item.isEmpty) continue
+            if (!PokemonItemCache.canRender(species)) continue
             val searchText = DiscoveryAliases.pokemonSearchText(species)
-            val stack = EmiStack.of(item)
+            val stack = PokemonEmiStack.of(species)
             registry.addEmiStack(stack)
             if (searchText.isNotBlank()) {
                 registry.addAlias(stack, Component.literal(searchText))
-            }
-            registry.setDefaultComparison(stack) { _ ->
-                dev.emi.emi.api.stack.Comparison.compareComponents()
             }
             if (speciesInfo.isForm) formCount++ else registered++
         }
@@ -113,8 +109,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
         private val cachedInputs: List<EmiIngredient> by lazy(LazyThreadSafetyMode.NONE) {
             val pokemon = handle.lookupInputSpecies()
                 .mapNotNull { species ->
-                    val item = PokemonItemCache.getItem(species)
-                    if (item != null && !item.isEmpty) EmiStack.of(item) else null
+                    if (PokemonItemCache.canRender(species)) PokemonEmiStack.of(species) else null
                 }
             val items = handle.lookupInputItemIds().mapNotNull { itemId ->
                 val stack = SpawnDisplayHelper.resolveItemStack(itemId)
@@ -126,8 +121,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
         private val cachedOutputs: List<EmiStack> by lazy(LazyThreadSafetyMode.NONE) {
             val pokemon = handle.lookupOutputSpecies()
                 .mapNotNull { species ->
-                    val item = PokemonItemCache.getItem(species)
-                    if (item != null && !item.isEmpty) EmiStack.of(item) else null
+                    if (PokemonItemCache.canRender(species)) PokemonEmiStack.of(species) else null
                 }
             val items = handle.lookupOutputItemIds().mapNotNull { itemId ->
                 val stack = SpawnDisplayHelper.resolveItemStack(itemId)
@@ -154,9 +148,9 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             val slots = handle.slots
 
             for (slot in slots.pokemon) {
-                val item = PokemonItemCache.getItem(slot.species)
-                if (item != null && !item.isEmpty) {
-                    widgets.addSlot(EmiStack.of(item), slot.x, slot.y).recipeContext(this)
+                val stack = PokemonEmiStack.of(slot.species, slot.aspects)
+                if (!stack.isEmpty) {
+                    widgets.addSlot(stack, slot.x, slot.y).recipeContext(this)
                 }
             }
 

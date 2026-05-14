@@ -2,6 +2,17 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.27] - 2026-05-14
+
+### Improved
+- Added a no-copy Pokemon render stack path so REI and JEI browser entries reuse cached Cobblemon item stacks during drawing instead of allocating a fresh copy every frame
+- Replaced EMI Pokemon browser entries and recipe slots with lightweight CobbleDex EMI stacks backed by cached render items, avoiding normal mutable ItemStack wrapping for every Pokemon entry
+- Cached Pokemon overview page projections per immutable data snapshot so first-open Pokemon info pages reuse prepared spawn, form, job, riding, and obtainment projection data
+- Stopped recipe slot metadata lookup from forcing full page layout construction for simple CobbleDex pages, reducing first-open hitches in REI, JEI, and EMI
+
+### Tests
+- Added coverage for cached page projection reuse and slot metadata lookup that does not build page layouts
+
 ## [1.50.26] - 2026-05-14
 
 ### Fixed

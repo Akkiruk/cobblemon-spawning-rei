@@ -58,16 +58,64 @@ sealed class ObtainmentRoute {
 }
 
 object PageProjectionBuilder {
+    private val cacheLock = Any()
+    @Volatile private var cachedSnapshot: CobbleDexDataSnapshot? = null
+    @Volatile private var cachedAllPokemon: List<PokemonPageProjection>? = null
+    private var cachedBySpecies = mutableMapOf<String, PokemonPageProjection?>()
+
     fun allPokemon(snapshot: CobbleDexDataSnapshot = SpawnDataIndex.currentSnapshot()): List<PokemonPageProjection> {
-        val speciesNames = if (snapshot.allSpeciesNames.isNotEmpty()) snapshot.allSpeciesNames else fallbackSpeciesNames(snapshot)
-        return speciesNames.mapNotNull { pokemon(it, snapshot) }
+        if (cachedSnapshot === snapshot) {
+            cachedAllPokemon?.let { return it }
+        }
+
+        synchronized(cacheLock) {
+            prepareCache(snapshot)
+            cachedAllPokemon?.let { return it }
+
+            val queries = queriesFor(snapshot)
+            val speciesNames = if (snapshot.allSpeciesNames.isNotEmpty()) snapshot.allSpeciesNames else fallbackSpeciesNames(snapshot)
+            val projections = speciesNames.mapNotNull { name ->
+                val normalized = SpeciesNameNormalizer.normalize(name)
+                val projection = cachedBySpecies[normalized]
+                    ?: buildPokemon(normalized, queries).also { cachedBySpecies[normalized] = it }
+                projection
+            }
+            cachedAllPokemon = projections
+            return projections
+        }
     }
 
     fun pokemon(
         speciesName: String,
         snapshot: CobbleDexDataSnapshot = SpawnDataIndex.currentSnapshot(),
     ): PokemonPageProjection? {
-        val queries = CobbleDexDataQueries(snapshot)
+        val normalized = SpeciesNameNormalizer.normalize(speciesName)
+        synchronized(cacheLock) {
+            prepareCache(snapshot)
+            cachedBySpecies[normalized]?.let { return it }
+            if (cachedBySpecies.containsKey(normalized)) return null
+
+            val projection = buildPokemon(normalized, queriesFor(snapshot))
+            cachedBySpecies[normalized] = projection
+            return projection
+        }
+    }
+
+    private fun prepareCache(snapshot: CobbleDexDataSnapshot) {
+        if (cachedSnapshot === snapshot) return
+        cachedSnapshot = snapshot
+        cachedAllPokemon = null
+        cachedBySpecies = mutableMapOf()
+    }
+
+    private fun queriesFor(snapshot: CobbleDexDataSnapshot): CobbleDexDataQueries =
+        if (snapshot === SpawnDataIndex.currentSnapshot()) SpawnDataIndex.currentQueries()
+        else CobbleDexDataQueries(snapshot)
+
+    private fun buildPokemon(
+        speciesName: String,
+        queries: CobbleDexDataQueries,
+    ): PokemonPageProjection? {
         val normalized = SpeciesNameNormalizer.normalize(speciesName)
         if (!queries.shouldSurfaceSpecies(normalized)) return null
         val info = queries.getSpeciesInfo(normalized)

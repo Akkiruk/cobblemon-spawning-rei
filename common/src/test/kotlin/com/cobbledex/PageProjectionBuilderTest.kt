@@ -2,6 +2,7 @@ package com.cobbledex
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class PageProjectionBuilderTest {
@@ -58,6 +59,20 @@ class PageProjectionBuilderTest {
 
         assertEquals(listOf("lapras"), recipes.map { it.speciesName })
         assertTrue(recipes.single().projection.sortedSpawns.isNotEmpty())
+    }
+
+    @Test
+    fun projectionCacheReusesPokemonPagesForTheSameSnapshot() {
+        val snapshot = CobbleDexDataSnapshot(
+            speciesInfo = mapOf("lapras" to speciesInfo("lapras", nationalDexNumber = 131)),
+            spawnsBySpecies = mapOf("lapras" to listOf(spawn("lapras"))),
+            allSpeciesNames = listOf("lapras"),
+        )
+
+        val allProjection = PageProjectionBuilder.allPokemon(snapshot).single()
+        val directProjection = PageProjectionBuilder.pokemon("lapras", snapshot)
+
+        assertSame(allProjection, directProjection)
     }
 
     private fun spawn(species: String) = SpawnInfo(

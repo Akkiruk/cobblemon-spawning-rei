@@ -13,7 +13,7 @@ class PokemonIngredientRenderer : IIngredientRenderer<PokemonIngredient> {
     override fun render(graphics: GuiGraphics, ingredient: PokemonIngredient) {
         val decomp = SpeciesNameNormalizer.decomposeFormSpecies(ingredient.species)
         val aspects = ingredient.formAspects.ifEmpty { decomp.cobblemonAspects }
-        val itemStack = PokemonItemCache.getItem(ingredient.species, aspects) ?: return
+        val itemStack = PokemonItemCache.getRenderItem(ingredient.species, aspects) ?: return
         if (itemStack.isEmpty) return
         try {
             graphics.renderItem(itemStack, 0, 0)
@@ -26,5 +26,5 @@ class PokemonIngredientRenderer : IIngredientRenderer<PokemonIngredient> {
         return SpawnDisplayHelper.buildPokemonTooltipLines(ingredient.species, ingredient.displayName)
     }
 
-    fun canRender(species: String): Boolean = PokemonItemCache.getItem(species) != null
+    fun canRender(species: String): Boolean = PokemonItemCache.canRender(species)
 }

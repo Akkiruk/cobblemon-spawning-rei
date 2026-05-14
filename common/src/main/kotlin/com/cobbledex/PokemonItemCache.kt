@@ -14,15 +14,18 @@ import java.util.concurrent.ConcurrentHashMap
 object PokemonItemCache {
 
     private val speciesCache = ConcurrentHashMap<String, Species>()
+    private val aspectCache = ConcurrentHashMap<String, Set<String>>()
     private val itemCache = ConcurrentHashMap<String, ItemStack>()
     private val blockedRenderKeys = ConcurrentHashMap.newKeySet<String>()
 
     private fun resolveAspects(name: String, explicitAspects: Set<String>): Set<String> {
         if (explicitAspects.isNotEmpty()) return explicitAspects
         val normalized = SpeciesNameNormalizer.normalize(name)
-        val decomp = SpeciesNameNormalizer.decomposeFormSpecies(normalized)
-        return decomp.cobblemonAspects.ifEmpty {
-            SpawnDataIndex.getSpeciesInfo(name)?.formAspects ?: emptySet()
+        return aspectCache.getOrPut(normalized) {
+            val decomp = SpeciesNameNormalizer.decomposeFormSpecies(normalized)
+            decomp.cobblemonAspects.ifEmpty {
+                SpawnDataIndex.getSpeciesInfo(normalized)?.formAspects ?: emptySet()
+            }
         }
     }
 
@@ -76,12 +79,12 @@ object PokemonItemCache {
         return null
     }
 
-    fun getItem(name: String, explicitAspects: Set<String> = emptySet()): ItemStack? {
+    fun getRenderItem(name: String, explicitAspects: Set<String> = emptySet()): ItemStack? {
         val aspects = resolveAspects(name, explicitAspects)
         val normalized = SpeciesNameNormalizer.normalize(name)
         val cacheKey = resolvedCacheKey(normalized, aspects)
         if (blockedRenderKeys.contains(cacheKey)) return null
-        itemCache[cacheKey]?.let { return it.copy() }
+        itemCache[cacheKey]?.let { return it }
         val species = resolveSpecies(name) ?: return null
         val item = try {
             if (aspects.isNotEmpty()) PokemonItem.from(species, aspects)
@@ -90,11 +93,15 @@ object PokemonItemCache {
             try { PokemonItem.from(species) } catch (_: Exception) { null }
         }
         if (item != null && !item.isEmpty) itemCache[cacheKey] = item
-        return item?.copy()
+        return item
+    }
+
+    fun getItem(name: String, explicitAspects: Set<String> = emptySet()): ItemStack? {
+        return getRenderItem(name, explicitAspects)?.copy()
     }
 
     fun canRender(name: String, explicitAspects: Set<String> = emptySet()): Boolean {
-        val item = getItem(name, explicitAspects)
+        val item = getRenderItem(name, explicitAspects)
         return item != null && !item.isEmpty
     }
 
@@ -112,6 +119,7 @@ object PokemonItemCache {
 
     fun reset() {
         speciesCache.clear()
+        aspectCache.clear()
         itemCache.clear()
         blockedRenderKeys.clear()
     }

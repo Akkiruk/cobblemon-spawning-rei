@@ -121,7 +121,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             if (info == null) continue
             if (info.isForm && !config.registerFormEntries) continue
             if (!queries.shouldSurfaceSpecies(species)) continue
-            if (PokemonItemCache.getItem(species) == null) {
+            if (!PokemonItemCache.canRender(species)) {
                 DebugLog.trackMissingModel(species)
                 hidden++
                 continue

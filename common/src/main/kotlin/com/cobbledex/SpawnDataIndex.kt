@@ -400,6 +400,7 @@ object SpawnDataIndex {
                         syncedJobRules: List<JobRule>? = null,
                         syncedFossils: Map<String, List<FossilCombo>>? = null) {
         dataLock.withLock {
+            PokemonItemCache.reset()
             spawnsBySpecies = normalizeMapKeys(syncedSpawns)
             evolutionsBySpecies = normalizeMapKeys(syncedEvolutions)
             speciesInfo = normalizeMapKeys(syncedSpeciesInfo)

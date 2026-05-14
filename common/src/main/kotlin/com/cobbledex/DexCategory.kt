@@ -30,7 +30,7 @@ class RecipeHandle(
     layoutFactory: () -> PanelLayout,
     private val _width: (() -> Int)? = null,
     private val _height: (() -> Int)? = null,
-    private val _slots: (PanelLayout) -> Slots = { Slots() },
+    private val _slots: () -> Slots = { Slots() },
 ) {
     data class Slots(
         val pokemon: List<PokemonSlotDef> = emptyList(),
@@ -58,7 +58,7 @@ class RecipeHandle(
     val hasExplicitSize: Boolean get() = _width != null && _height != null
     val slots: Slots by lazy(LazyThreadSafetyMode.NONE) {
         try {
-            _slots(layout)
+            _slots()
         } catch (e: Exception) {
             DebugLog.once("slots-$recipeIdPath") { "Slots failed: ${e.message}" }
             Slots()
@@ -210,11 +210,11 @@ object EvolutionDex : DexCategory {
             inputSpecies = listOf(d.sourceSpeciesName),
             outputSpecies = listOfNotNull(d.targetSpeciesName),
             layoutFactory = {
-                val r = EvolutionPageBuilder.build(d)
+                val r = evolutionResult ?: EvolutionPageBuilder.build(d)
                 evolutionResult = r
                 r.layout
             },
-            _slots = { _ ->
+            _slots = {
                 val r = evolutionResult ?: EvolutionPageBuilder.build(d).also { evolutionResult = it }
                 RecipeHandle.Slots(
                     pokemon = r.pokemonSlots,
@@ -287,7 +287,7 @@ object DropDex : DexCategory {
         layoutFactory = { DropPageBuilder.build(d) },
         _width = { DropPageBuilder.measureWidth(d) },
         _height = { DropPageBuilder.measureHeight(d) },
-        _slots = { _ ->
+        _slots = {
             RecipeHandle.Slots(
                 pokemon = listOf(pokemonInput(d.speciesName)),
                 items = d.drops.mapIndexed { i, drop ->
@@ -446,7 +446,7 @@ object FossilDex : DexCategory {
         inputSpecies = emptyList(),
         outputSpecies = listOf(d.speciesName),
         layoutFactory = { MechanicPageBuilder.buildFossil(d) },
-        _slots = { _ ->
+        _slots = {
             RecipeHandle.Slots(
                 pokemon = listOf(pokemonOutput(d.speciesName)),
                 items = d.fossilItems.mapIndexed { i, itemId ->
@@ -563,13 +563,13 @@ object FormsDex : DexCategory {
             inputSpecies = listOf(d.baseSpeciesName, d.form.formKey),
             outputSpecies = emptyList(),
             layoutFactory = {
-                val r = PokemonInfoPageBuilder.buildForms(d)
+                val r = formResult ?: PokemonInfoPageBuilder.buildForms(d)
                 formResult = r
                 r.layout
             },
             _width = { PokemonInfoPageBuilder.measureFormsWidth(d) },
             _height = { PokemonInfoPageBuilder.measureFormsHeight(d) },
-            _slots = { _ ->
+            _slots = {
                 val r = formResult ?: PokemonInfoPageBuilder.buildForms(d).also { formResult = it }
                 RecipeHandle.Slots(pokemon = r.pokemonSlots)
             },

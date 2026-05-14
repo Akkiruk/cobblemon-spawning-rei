@@ -50,4 +50,23 @@ class RecipeHandleLookupTest {
         assertEquals(1, widthCalls)
         assertEquals(1, heightCalls)
     }
+
+    @Test
+    fun slotLookupDoesNotForceLayoutConstruction() {
+        val handle = RecipeHandle(
+            recipeIdPath = "drops/bulbasaur_1",
+            inputSpecies = listOf("bulbasaur"),
+            outputSpecies = emptyList(),
+            layoutFactory = { error("layout should not be built for slot metadata") },
+            _slots = {
+                RecipeHandle.Slots(
+                    items = listOf(ItemSlotDef("minecraft:apple", 8, 34, SlotRole.OUTPUT)),
+                    catalogInputIds = listOf("minecraft:bone_meal"),
+                )
+            },
+        )
+
+        assertEquals(listOf("minecraft:bone_meal"), handle.lookupInputItemIds())
+        assertEquals(listOf("minecraft:apple"), handle.lookupOutputItemIds())
+    }
 }
