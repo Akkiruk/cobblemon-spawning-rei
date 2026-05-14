@@ -110,6 +110,28 @@ object RecipeBuilder {
         }
     }
 
+    fun buildEvolutionRecipesInto(
+        speciesName: String,
+        snapshot: CobbleDexDataSnapshot = SpawnDataIndex.currentSnapshot(),
+    ): List<EvolutionRecipeData> {
+        val queries = CobbleDexDataQueries(snapshot)
+        val normalized = SpeciesNameNormalizer.normalize(speciesName)
+        if (!queries.shouldSurfaceSpecies(normalized)) return emptyList()
+
+        val incomingSources = queries.getEvolutionsTo(normalized)
+            .map { evolution -> resolveEvolutionSourceKey(evolution, queries) }
+
+        val formBaseSource = queries.getSpeciesInfo(normalized)
+            ?.takeIf { info -> info.formAspects.isNotEmpty() }
+            ?.baseSpeciesName
+            ?.let(SpeciesNameNormalizer::normalize)
+
+        return (incomingSources + listOfNotNull(formBaseSource))
+            .distinct()
+            .flatMap { source -> buildEvolutionPagesFor(source, snapshot) }
+            .filter { page -> SpeciesNameNormalizer.normalize(page.targetSpeciesName.orEmpty()) == normalized }
+    }
+
     fun buildEvolutionRecipesForItem(
         itemId: String,
         snapshot: CobbleDexDataSnapshot = SpawnDataIndex.currentSnapshot(),

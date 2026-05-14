@@ -2,6 +2,16 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.26] - 2026-05-14
+
+### Fixed
+- Fixed Evolution pages opened from Pokemon recipes so `R` now shows how the previous stage evolves into the selected Pokemon, while `U` continues to show what the selected Pokemon can evolve into
+- Preserved branch pagination identity for reverse evolution lookups, so branched species like Eevee still open the exact matching evolution outcome page instead of re-numbering pages per target
+- Included transformation-form reverse lookup support so recipe lookup on surfaced form-change targets can still show the base Pokemon changing into that form
+
+### Tests
+- Added coverage for incoming evolution recipe lookup, no-previous-stage behavior, branch page index preservation, and transformation-form reverse lookup
+
 ## [1.50.25] - 2026-05-14
 
 ### Improved

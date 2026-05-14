@@ -195,7 +195,7 @@ object EvolutionDex : DexCategory {
         RecipeBuilder.buildAllEvolutionRecipes().map(::toHandle)
 
     override fun buildRecipesFor(species: String): List<RecipeHandle> =
-        RecipeBuilder.buildEvolutionPagesFor(species).map(::toHandle)
+        RecipeBuilder.buildEvolutionRecipesInto(species).map(::toHandle)
 
     override fun buildUsagesFor(species: String): List<RecipeHandle> =
         RecipeBuilder.buildEvolutionPagesFor(species).map(::toHandle)

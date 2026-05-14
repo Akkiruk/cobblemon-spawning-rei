@@ -79,6 +79,66 @@ class SemanticPaginationRecipeBuilderTest {
     }
 
     @Test
+    fun recipeEvolutionLookupShowsIncomingPreviousStageOnly() {
+        val snapshot = CobbleDexDataSnapshot(
+            speciesInfo = mapOf(
+                "eevee" to speciesInfo("eevee", nationalDexNumber = 133),
+                "vaporeon" to speciesInfo("vaporeon", nationalDexNumber = 134),
+                "jolteon" to speciesInfo("jolteon", nationalDexNumber = 135),
+            ),
+            evolutionsBySpecies = mapOf(
+                "eevee" to listOf(
+                    evolution(fromSpecies = "eevee", toSpecies = "vaporeon", requiredContext = "cobblemon:water_stone"),
+                    evolution(fromSpecies = "eevee", toSpecies = "jolteon", requiredContext = "cobblemon:thunder_stone"),
+                ),
+            ),
+            evolutionsToSpecies = mapOf(
+                "vaporeon" to listOf(evolution(fromSpecies = "eevee", toSpecies = "vaporeon", requiredContext = "cobblemon:water_stone")),
+                "jolteon" to listOf(evolution(fromSpecies = "eevee", toSpecies = "jolteon", requiredContext = "cobblemon:thunder_stone")),
+            ),
+            allSpeciesNames = listOf("eevee", "vaporeon", "jolteon"),
+        )
+
+        val incoming = RecipeBuilder.buildEvolutionRecipesInto("vaporeon", snapshot)
+        val basicStageIncoming = RecipeBuilder.buildEvolutionRecipesInto("eevee", snapshot)
+        val outgoing = RecipeBuilder.buildEvolutionPagesFor("eevee", snapshot)
+
+        assertEquals(1, incoming.size)
+        assertEquals("eevee", incoming.single().sourceSpeciesName)
+        assertEquals("vaporeon", incoming.single().targetSpeciesName)
+        assertEquals(1, incoming.single().pageIndex)
+        assertEquals(emptyList(), basicStageIncoming)
+        assertEquals(setOf("vaporeon", "jolteon"), outgoing.mapNotNull { it.targetSpeciesName }.toSet())
+    }
+
+    @Test
+    fun recipeEvolutionLookupPreservesForwardPageIndexForBranchTargets() {
+        val snapshot = CobbleDexDataSnapshot(
+            speciesInfo = mapOf(
+                "eevee" to speciesInfo("eevee", nationalDexNumber = 133),
+                "vaporeon" to speciesInfo("vaporeon", nationalDexNumber = 134),
+                "jolteon" to speciesInfo("jolteon", nationalDexNumber = 135),
+            ),
+            evolutionsBySpecies = mapOf(
+                "eevee" to listOf(
+                    evolution(fromSpecies = "eevee", toSpecies = "vaporeon", requiredContext = "cobblemon:water_stone"),
+                    evolution(fromSpecies = "eevee", toSpecies = "jolteon", requiredContext = "cobblemon:thunder_stone"),
+                ),
+            ),
+            evolutionsToSpecies = mapOf(
+                "jolteon" to listOf(evolution(fromSpecies = "eevee", toSpecies = "jolteon", requiredContext = "cobblemon:thunder_stone")),
+            ),
+            allSpeciesNames = listOf("eevee", "vaporeon", "jolteon"),
+        )
+
+        val incoming = RecipeBuilder.buildEvolutionRecipesInto("jolteon", snapshot)
+
+        assertEquals(1, incoming.size)
+        assertEquals("jolteon", incoming.single().targetSpeciesName)
+        assertEquals(2, incoming.single().pageIndex)
+    }
+
+    @Test
     fun transformationFormsRemainImmediateEvolutionPagesForTheirBaseSpecies() {
         val snapshot = CobbleDexDataSnapshot(
             speciesInfo = mapOf(
@@ -111,6 +171,32 @@ class SemanticPaginationRecipeBuilderTest {
 
         assertEquals(setOf("charizardmegax", "charizardmegay"), pages.mapNotNull { it.targetSpeciesName }.toSet())
         assertTrue(pages.all { page -> page.methods.single().requirementText.isNotBlank() })
+    }
+
+    @Test
+    fun recipeEvolutionLookupIncludesTransformationFormPreviousStage() {
+        val snapshot = CobbleDexDataSnapshot(
+            speciesInfo = mapOf(
+                "charizard" to speciesInfo("charizard", nationalDexNumber = 6, primaryType = "fire", secondaryType = "flying"),
+                "charizardmegax" to speciesInfo(
+                    "charizardmegax",
+                    nationalDexNumber = 6,
+                    primaryType = "fire",
+                    secondaryType = "dragon",
+                    abilities = listOf("Tough Claws"),
+                    labels = setOf("mega"),
+                    baseSpeciesName = "charizard",
+                    formAspects = setOf("mega", "x"),
+                ),
+            ),
+            allSpeciesNames = listOf("charizard", "charizardmegax"),
+        )
+
+        val incoming = RecipeBuilder.buildEvolutionRecipesInto("charizardmegax", snapshot)
+
+        assertEquals(1, incoming.size)
+        assertEquals("charizard", incoming.single().sourceSpeciesName)
+        assertEquals("charizardmegax", incoming.single().targetSpeciesName)
     }
 
     @Test
