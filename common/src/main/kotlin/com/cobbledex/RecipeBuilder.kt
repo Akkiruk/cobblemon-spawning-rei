@@ -115,7 +115,16 @@ object RecipeBuilder {
         snapshot: CobbleDexDataSnapshot = SpawnDataIndex.currentSnapshot(),
     ): List<EvolutionRecipeData> {
         val normalizedItem = itemId.lowercase()
-        return buildAllEvolutionRecipes(snapshot).filter { page ->
+        val queries = CobbleDexDataQueries(snapshot)
+        val sourceSpecies = snapshot.evolutionsBySpecies.values
+            .flatten()
+            .filter { evolution ->
+                evolution.itemRequirements.any { requirement -> requirement.itemId.equals(normalizedItem, ignoreCase = true) }
+            }
+            .map { evolution -> resolveEvolutionSourceKey(evolution, queries) }
+            .distinct()
+
+        return sourceSpecies.flatMap { species -> buildEvolutionPagesFor(species, snapshot) }.filter { page ->
             page.methods.any { method ->
                 method.itemRequirements.any { requirement -> requirement.itemId.equals(normalizedItem, ignoreCase = true) }
             }
@@ -630,11 +639,7 @@ object RecipeBuilder {
             }
 
         val transformTargets = if (sourceAspects.isEmpty()) {
-            snapshot.speciesInfo.values.mapNotNull { info ->
-                if (!info.isForm) return@mapNotNull null
-                if (!queries.shouldSurfaceSpecies(info.name)) return@mapNotNull null
-                if (SpeciesNameNormalizer.normalize(info.baseSpeciesName!!) != sourceSpeciesName) return@mapNotNull null
-
+            queries.getFormsOf(sourceSpeciesName).mapNotNull { info ->
                 val label = info.labels.orEmpty().map(String::lowercase)
                 val methodText = when {
                     "mega" in label -> tr("cobbledex-rei-emi-jei.evo.form_change.mega")
@@ -672,11 +677,7 @@ object RecipeBuilder {
         if (targetAspects.isEmpty()) return normalizedTarget
 
         val targetAspectKey = normalizeAspects(targetAspects)
-        val resolvedForm = snapshot.speciesInfo.values.firstOrNull { info ->
-            info.isForm &&
-                SpeciesNameNormalizer.normalize(info.baseSpeciesName!!) == normalizedTarget &&
-                normalizeAspects(info.formAspects) == targetAspectKey
-        }?.name
+        val resolvedForm = queries.findFormByAspects(normalizedTarget, targetAspectKey)?.name
 
         return when {
             resolvedForm == null -> normalizedTarget
@@ -689,6 +690,15 @@ object RecipeBuilder {
         aspects.map { aspect ->
             aspect.lowercase().replace(Regex("[^a-z0-9]"), "")
         }.filter { it.isNotBlank() }.toSet()
+
+    private fun resolveEvolutionSourceKey(
+        evolution: EvolutionInfo,
+        queries: CobbleDexDataQueries,
+    ): String {
+        val normalizedSource = SpeciesNameNormalizer.normalize(evolution.fromSpecies)
+        if (evolution.fromAspects.isEmpty()) return normalizedSource
+        return queries.findFormByAspects(normalizedSource, evolution.fromAspects)?.name ?: normalizedSource
+    }
 
     private fun targetSortWeight(
         targetSpeciesName: String,

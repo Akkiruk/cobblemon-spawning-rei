@@ -2,6 +2,16 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.24] - 2026-05-14
+
+### Fixed
+- Fixed a severe REI freeze when opening CobbleDex usages/info after the semantic evolution and forms rewrite by caching material-form surfacing decisions and bounding evolution/form lookup fan-out
+- Fixed item-based evolution lookups rebuilding every evolution page globally, so evolution stones and held-item lookups now only inspect relevant source branches
+- Reduced Alternate Forms page lookup metadata so each form page indexes only its base species and current form instead of every sibling form on every page
+
+### Tests
+- Added coverage for form-specific item evolution lookup after the bounded lookup rewrite
+
 ## [1.50.23] - 2026-05-13
 
 ### Improved

@@ -114,6 +114,46 @@ class SemanticPaginationRecipeBuilderTest {
     }
 
     @Test
+    fun itemEvolutionLookupKeepsFormSpecificSourcesBounded() {
+        val snapshot = CobbleDexDataSnapshot(
+            speciesInfo = mapOf(
+                "eevee" to speciesInfo("eevee", nationalDexNumber = 133),
+                "vaporeon" to speciesInfo("vaporeon", nationalDexNumber = 134),
+                "glaceon" to speciesInfo("glaceon", nationalDexNumber = 471),
+                "eeveefrost" to speciesInfo(
+                    "eeveefrost",
+                    nationalDexNumber = 133,
+                    primaryType = "ice",
+                    abilities = listOf("Snow Cloak"),
+                    baseSpeciesName = "eevee",
+                    formAspects = setOf("frost"),
+                ),
+                "pikachu" to speciesInfo("pikachu", nationalDexNumber = 25, primaryType = "electric"),
+                "raichu" to speciesInfo("raichu", nationalDexNumber = 26, primaryType = "electric"),
+            ),
+            evolutionsBySpecies = mapOf(
+                "eevee" to listOf(
+                    evolution(fromSpecies = "eevee", toSpecies = "vaporeon", requiredContext = "cobblemon:water_stone"),
+                    evolution(fromSpecies = "eevee", fromAspects = setOf("frost"), toSpecies = "glaceon", requiredContext = "cobblemon:ice_stone"),
+                ),
+                "eeveefrost" to listOf(
+                    evolution(fromSpecies = "eevee", fromAspects = setOf("frost"), toSpecies = "glaceon", requiredContext = "cobblemon:ice_stone"),
+                ),
+                "pikachu" to listOf(
+                    evolution(fromSpecies = "pikachu", toSpecies = "raichu", requiredContext = "cobblemon:thunder_stone"),
+                ),
+            ),
+            allSpeciesNames = listOf("eevee", "vaporeon", "glaceon", "eeveefrost", "pikachu", "raichu"),
+        )
+
+        val pages = RecipeBuilder.buildEvolutionRecipesForItem("cobblemon:ice_stone", snapshot)
+
+        assertEquals(1, pages.size)
+        assertEquals("eeveefrost", pages.single().sourceSpeciesName)
+        assertEquals("glaceon", pages.single().targetSpeciesName)
+    }
+
+    @Test
     fun formPagesAreOneFormPerPageAndRetainSiblingNavigationKeys() {
         val snapshot = CobbleDexDataSnapshot(
             speciesInfo = mapOf(

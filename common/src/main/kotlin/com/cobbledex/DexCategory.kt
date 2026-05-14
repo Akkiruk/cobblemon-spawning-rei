@@ -553,11 +553,10 @@ object FormsDex : DexCategory {
     }
 
     private fun toHandle(d: FormRecipeData): RecipeHandle {
-        val allFormKeys = d.siblingFormKeys
         var formResult: SpawnDisplayHelper.FormLayoutResult? = null
         return RecipeHandle(
             recipeIdPath = "forms/${sanitizePath(d.baseSpeciesName)}_${d.pageIndex}",
-            inputSpecies = listOf(d.baseSpeciesName) + allFormKeys,
+            inputSpecies = listOf(d.baseSpeciesName, d.form.formKey),
             outputSpecies = emptyList(),
             layoutFactory = {
                 val r = PokemonInfoPageBuilder.buildForms(d)
