@@ -76,6 +76,7 @@ object PokemonSpriteAtlas {
     @Volatile private var loadedAtlas: LoadedAtlas? = null
     @Volatile private var loadAttempted = false
     @Volatile private var buildInProgress = false
+    @Volatile private var autoBuildDataVersion = -1L
 
     fun resolve(species: String, explicitAspects: Set<String> = emptySet()): ResolvedSpriteKey {
         val normalized = SpeciesNameNormalizer.normalize(species)
@@ -126,6 +127,21 @@ object PokemonSpriteAtlas {
         loadAttempted = false
         loadedAtlas = null
         return getLoadedAtlas() != null
+    }
+
+    fun ensureAvailableForCurrentData() {
+        if (!SpawnDataIndex.hasData() || buildInProgress) return
+
+        val currentVersion = SpawnDataIndex.dataVersion
+        if (autoBuildDataVersion == currentVersion) return
+
+        if (getLoadedAtlas() != null) {
+            autoBuildDataVersion = currentVersion
+            return
+        }
+
+        autoBuildDataVersion = currentVersion
+        buildAtlas { }
     }
 
     fun buildAtlas(sender: DiagnosticService.MessageSender): Int {

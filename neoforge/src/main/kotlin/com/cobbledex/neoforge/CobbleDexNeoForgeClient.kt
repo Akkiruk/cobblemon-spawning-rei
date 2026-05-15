@@ -29,6 +29,7 @@ object CobbleDexNeoForgeClient {
         SpreadsheetExporter.tick()
         if (Minecraft.getInstance().player != null) {
             CobbleDexMod.tickReloadCheck()
+            PokemonSpriteAtlas.ensureAvailableForCurrentData()
         }
     }
 

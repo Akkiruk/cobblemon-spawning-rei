@@ -69,6 +69,7 @@ class CobbleDexFabricClient : ClientModInitializer {
             SpreadsheetExporter.tick()
             if (client.player != null) {
                 CobbleDexMod.tickReloadCheck()
+                PokemonSpriteAtlas.ensureAvailableForCurrentData()
             }
         }
 

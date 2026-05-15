@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.0.1] - 2026-05-14
+
+### Fixed
+- Auto-build the generated Pokemon sprite atlas on fresh client installs once CobbleDex has synced species data, so new Fabric and NeoForge instances no longer silently fall back to the old model-backed 3D renderer until a manual command is run
+
 ## [2.0.0] - 2026-05-14
 
 ### Improved
