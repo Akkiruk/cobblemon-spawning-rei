@@ -12,8 +12,8 @@ import java.nio.file.Path
 import javax.imageio.ImageIO
 
 object PokemonSpriteAtlas {
-    private const val ATLAS_VERSION = 1
-    private const val SPRITE_SIZE = IconCapture.ICON_SIZE
+    private const val ATLAS_VERSION = 2
+    private const val SPRITE_SIZE = 64
     private const val ATLAS_COLUMNS = 32
     private const val CACHE_DIR = "cobbledex-sprites"
     private const val SPRITES_DIR = "sprites"
@@ -169,7 +169,7 @@ object PokemonSpriteAtlas {
         val images = linkedMapOf<ResolvedSpriteKey, java.awt.image.BufferedImage>()
         var failed = 0
         keys.forEachIndexed { index, resolved ->
-            val png = IconCapture.captureSpeciesToPng(resolved.renderSpecies, resolved.renderAspects)
+            val png = IconCapture.captureSpeciesToPng(resolved.renderSpecies, resolved.renderAspects, SPRITE_SIZE)
             if (png != null) {
                 val image = ImageIO.read(png.inputStream())
                 images[resolved] = image

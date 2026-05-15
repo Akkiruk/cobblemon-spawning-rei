@@ -2,6 +2,15 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.0.0] - 2026-05-14
+
+### Improved
+- Raised generated Pokemon atlas sprites from 32px to 64px cells so shipped sprite sheets retain noticeably more model detail while still rendering into normal REI, JEI, and EMI slots
+- Bumped the sprite atlas manifest version so older low-resolution atlases are ignored until regenerated
+
+### Release
+- Promoted the sprite atlas performance path to a major release after the generated atlas kept large Pokemon browser views stable at roughly 4x the previous framerate
+
 ## [1.50.28] - 2026-05-14
 
 ### Added

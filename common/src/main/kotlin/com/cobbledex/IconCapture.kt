@@ -104,7 +104,7 @@ object IconCapture {
 
     // ── Species icons: render 3D model via Cobblemon's API into FBO ──
 
-    fun captureSpeciesToPng(speciesId: String, aspects: Set<String> = emptySet()): ByteArray? {
+    fun captureSpeciesToPng(speciesId: String, aspects: Set<String> = emptySet(), outputSize: Int = ICON_SIZE): ByteArray? {
         val id = speciesId.lowercase().replace(Regex("[^a-z0-9]"), "")
         val species = PokemonSpecies.getByName(id) ?: return null
         val renderable = RenderablePokemon(species, aspects)
@@ -208,10 +208,10 @@ object IconCapture {
                 }
             }
 
-            val scaled = BufferedImage(ICON_SIZE, ICON_SIZE, BufferedImage.TYPE_INT_ARGB)
+            val scaled = BufferedImage(outputSize, outputSize, BufferedImage.TYPE_INT_ARGB)
             val g2d = scaled.createGraphics()
             g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
-            g2d.drawImage(cropped, 0, 0, ICON_SIZE, ICON_SIZE, null)
+            g2d.drawImage(cropped, 0, 0, outputSize, outputSize, null)
             g2d.dispose()
 
             val out = ByteArrayOutputStream()
