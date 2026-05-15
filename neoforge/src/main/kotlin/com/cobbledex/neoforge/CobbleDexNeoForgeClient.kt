@@ -2,6 +2,7 @@ package com.cobbledex.neoforge
 
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DiagnosticService
+import com.cobbledex.PokemonSpriteAtlas
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpreadsheetExporter
 import com.cobbledex.TmTooltipHandler
@@ -78,6 +79,22 @@ object CobbleDexNeoForgeClient {
                             ctx.source.sendSuccess({ Component.literal(msg) }, false)
                         }
                     }
+                )
+                .then(Commands.literal("sprites")
+                    .then(Commands.literal("build")
+                        .executes { ctx ->
+                            PokemonSpriteAtlas.buildAtlas { msg ->
+                                ctx.source.sendSuccess({ Component.literal(msg) }, false)
+                            }
+                        }
+                    )
+                    .then(Commands.literal("reload")
+                        .executes { ctx ->
+                            val loaded = PokemonSpriteAtlas.reload()
+                            ctx.source.sendSuccess({ Component.literal(if (loaded) "§aCobbleDex sprite atlas reloaded." else "§eNo CobbleDex sprite atlas found.") }, false)
+                            1
+                        }
+                    )
                 )
         )
     }

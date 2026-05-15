@@ -1,6 +1,7 @@
 package com.cobbledex.jei
 
 import com.cobbledex.PokemonItemCache
+import com.cobbledex.PokemonSpriteAtlas
 import com.cobbledex.SpeciesNameNormalizer
 import com.cobbledex.SpawnDisplayHelper
 import mezz.jei.api.ingredients.IIngredientRenderer
@@ -13,6 +14,7 @@ class PokemonIngredientRenderer : IIngredientRenderer<PokemonIngredient> {
     override fun render(graphics: GuiGraphics, ingredient: PokemonIngredient) {
         val decomp = SpeciesNameNormalizer.decomposeFormSpecies(ingredient.species)
         val aspects = ingredient.formAspects.ifEmpty { decomp.cobblemonAspects }
+        if (PokemonSpriteAtlas.renderIfAvailable(graphics, ingredient.species, aspects, 0, 0, 16)) return
         val itemStack = PokemonItemCache.getRenderItem(ingredient.species, aspects) ?: return
         if (itemStack.isEmpty) return
         try {

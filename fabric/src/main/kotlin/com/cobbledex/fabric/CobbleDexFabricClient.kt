@@ -5,6 +5,7 @@ import com.cobbledex.DebugLog
 import com.cobbledex.DiagnosticService
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpreadsheetExporter
+import com.cobbledex.PokemonSpriteAtlas
 import com.cobbledex.TmTooltipHandler
 import com.cobbledex.network.ChunkAssembler
 import com.cobbledex.network.ChunkedSpawnSyncPayload
@@ -118,6 +119,22 @@ class CobbleDexFabricClient : ClientModInitializer {
                                 ctx.source.sendFeedback(Component.literal(msg))
                             }
                         }
+                    )
+                    .then(ClientCommandManager.literal("sprites")
+                        .then(ClientCommandManager.literal("build")
+                            .executes { ctx ->
+                                PokemonSpriteAtlas.buildAtlas { msg ->
+                                    ctx.source.sendFeedback(Component.literal(msg))
+                                }
+                            }
+                        )
+                        .then(ClientCommandManager.literal("reload")
+                            .executes { ctx ->
+                                val loaded = PokemonSpriteAtlas.reload()
+                                ctx.source.sendFeedback(Component.literal(if (loaded) "§aCobbleDex sprite atlas reloaded." else "§eNo CobbleDex sprite atlas found."))
+                                1
+                            }
+                        )
                     )
             )
         }

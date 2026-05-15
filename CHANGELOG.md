@@ -2,6 +2,20 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [1.50.28] - 2026-05-14
+
+### Added
+- Added a generated Pokemon sprite atlas system for REI, JEI, and EMI so Pokemon browser entries render shipped/generated 2D sprites before falling back to Cobblemon's model-backed fake items
+- Added stable sprite keys based on render species plus sorted normalized aspects, so regional and alternate-form sprites can be cached independently from base species sprites
+- Added `/cobbledex sprites build` to snapshot the current pack's surfaced Pokemon and forms into `cobbledex-sprites/pokemon_atlas.png`, `pokemon_atlas.json`, and individual `sprites/*.png` files
+- Added `/cobbledex sprites reload` to reload the generated atlas without restarting the client
+
+### Improved
+- Kept existing fake-item/model rendering as the final fallback when no generated 2D sprite exists, preserving rare/custom Pokemon display while moving the common browser path to cheap texture blits
+
+### Tests
+- Added coverage for sprite key normalization, regional form key resolution, and explicit aspect slot keys
+
 ## [1.50.27] - 2026-05-14
 
 ### Improved

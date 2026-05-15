@@ -1,6 +1,7 @@
 package com.cobbledex.emi
 
 import com.cobbledex.PokemonItemCache
+import com.cobbledex.PokemonSpriteAtlas
 import com.cobbledex.SpawnDisplayHelper
 import com.cobbledex.SpeciesNameNormalizer
 import com.cobbledex.formatSpeciesName
@@ -41,6 +42,7 @@ class PokemonEmiStack private constructor(
     override fun getName(): Component = Component.literal(displayName)
 
     override fun render(graphics: GuiGraphics, x: Int, y: Int, delta: Float, flags: Int) {
+        if (PokemonSpriteAtlas.renderIfAvailable(graphics, species, formAspects, x, y, 16)) return
         val stack = PokemonItemCache.getRenderItem(species, formAspects) ?: return
         try {
             graphics.renderItem(stack, x, y)
