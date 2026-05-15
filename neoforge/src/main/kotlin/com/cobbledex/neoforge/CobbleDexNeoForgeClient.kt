@@ -29,7 +29,6 @@ object CobbleDexNeoForgeClient {
         SpreadsheetExporter.tick()
         if (Minecraft.getInstance().player != null) {
             CobbleDexMod.tickReloadCheck()
-            PokemonSpriteAtlas.ensureAvailableForCurrentData()
         }
     }
 
@@ -91,7 +90,7 @@ object CobbleDexNeoForgeClient {
                     )
                     .then(Commands.literal("reload")
                         .executes { ctx ->
-                            val loaded = PokemonSpriteAtlas.reload()
+                            val loaded = PokemonSpriteAtlas.reload(preferCache = true)
                             ctx.source.sendSuccess({ Component.literal(if (loaded) "§aCobbleDex sprite atlas reloaded." else "§eNo CobbleDex sprite atlas found.") }, false)
                             1
                         }

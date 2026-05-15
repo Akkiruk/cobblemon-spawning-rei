@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.resources.ResourceLocation
+import java.io.InputStream
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.imageio.ImageIO
@@ -19,6 +20,8 @@ object PokemonSpriteAtlas {
     private const val SPRITES_DIR = "sprites"
     private const val ATLAS_FILE = "pokemon_atlas.png"
     private const val MANIFEST_FILE = "pokemon_atlas.json"
+    private val bundledAtlasPath = ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "sprites/$ATLAS_FILE")
+    private val bundledManifestPath = ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "sprites/$MANIFEST_FILE")
 
     private val gson = GsonBuilder().setPrettyPrinting().create()
 
@@ -76,7 +79,6 @@ object PokemonSpriteAtlas {
     @Volatile private var loadedAtlas: LoadedAtlas? = null
     @Volatile private var loadAttempted = false
     @Volatile private var buildInProgress = false
-    @Volatile private var autoBuildDataVersion = -1L
 
     fun resolve(species: String, explicitAspects: Set<String> = emptySet()): ResolvedSpriteKey {
         val normalized = SpeciesNameNormalizer.normalize(species)
@@ -123,25 +125,10 @@ object PokemonSpriteAtlas {
         return true
     }
 
-    fun reload(): Boolean {
+    fun reload(preferCache: Boolean = false): Boolean {
         loadAttempted = false
         loadedAtlas = null
-        return getLoadedAtlas() != null
-    }
-
-    fun ensureAvailableForCurrentData() {
-        if (!SpawnDataIndex.hasData() || buildInProgress) return
-
-        val currentVersion = SpawnDataIndex.dataVersion
-        if (autoBuildDataVersion == currentVersion) return
-
-        if (getLoadedAtlas() != null) {
-            autoBuildDataVersion = currentVersion
-            return
-        }
-
-        autoBuildDataVersion = currentVersion
-        buildAtlas { }
+        return getLoadedAtlas(preferCache) != null
     }
 
     fun buildAtlas(sender: DiagnosticService.MessageSender): Int {
@@ -161,7 +148,7 @@ object PokemonSpriteAtlas {
                 val result = buildAtlasNow(sender)
                 sender.send("§aSprite atlas ready: ${result.captured}/${result.requested} captured, ${result.failed} failed")
                 sender.send("§7${result.atlasPath.toAbsolutePath()}")
-                reload()
+                reload(preferCache = true)
             } catch (t: Throwable) {
                 sender.send("§cSprite atlas build failed: ${t.message ?: t.javaClass.simpleName}")
                 DebugLog.warn("Sprite atlas build failed: ${t.message}")
@@ -244,34 +231,83 @@ object PokemonSpriteAtlas {
             .toList()
     }
 
-    private fun getLoadedAtlas(): LoadedAtlas? {
+    private fun getLoadedAtlas(preferCache: Boolean = false): LoadedAtlas? {
         loadedAtlas?.let { return it }
         if (loadAttempted) return null
         loadAttempted = true
-        return tryLoadAtlas().also { loadedAtlas = it }
+        return tryLoadAtlas(preferCache).also { loadedAtlas = it }
     }
 
-    private fun tryLoadAtlas(): LoadedAtlas? {
+    private fun tryLoadAtlas(preferCache: Boolean): LoadedAtlas? {
+        if (preferCache) {
+            tryLoadCacheAtlas()?.let { return it }
+            tryLoadBundledAtlas()?.let { return it }
+            return null
+        }
+
+        tryLoadBundledAtlas()?.let { return it }
+
+        return tryLoadCacheAtlas()
+    }
+
+    private fun tryLoadCacheAtlas(): LoadedAtlas? {
         val dir = cacheDir()
         val manifestPath = dir.resolve(MANIFEST_FILE)
         val atlasPath = dir.resolve(ATLAS_FILE)
         if (!Files.exists(manifestPath) || !Files.exists(atlasPath)) return null
 
         return try {
-            val manifest = gson.fromJson(Files.readString(manifestPath), Manifest::class.java) ?: return null
-            if (manifest.version != ATLAS_VERSION || manifest.spriteSize != SPRITE_SIZE) return null
-
-            val image = Files.newInputStream(atlasPath).use { NativeImage.read(it) }
-            val texture = DynamicTexture(image)
-            val textureId = ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "pokemon_sprite_atlas")
-            Minecraft.getInstance().textureManager.register(textureId, texture)
-            val entries = manifest.entries.associateBy { it.id }
-            DebugLog.info("Loaded Pokemon sprite atlas (${entries.size} sprites, ${manifest.width}x${manifest.height})")
-            LoadedAtlas(textureId, manifest.width, manifest.height, entries)
+            Files.newInputStream(atlasPath).use { atlasStream ->
+                loadAtlasFromStreams(
+                    manifestJson = Files.readString(manifestPath),
+                    atlasStream = atlasStream,
+                    texturePath = "pokemon_sprite_atlas_cache",
+                    sourceDescription = atlasPath.toAbsolutePath().toString(),
+                )
+            }
         } catch (e: Exception) {
             DebugLog.warn("Pokemon sprite atlas load failed: ${e.message}")
             null
         }
+    }
+
+    private fun tryLoadBundledAtlas(): LoadedAtlas? {
+        val mc = Minecraft.getInstance()
+        val manifestResource = mc.resourceManager.getResource(bundledManifestPath).orElse(null) ?: return null
+        val atlasResource = mc.resourceManager.getResource(bundledAtlasPath).orElse(null) ?: return null
+
+        return try {
+            val manifestJson = manifestResource.open().bufferedReader().use { it.readText() }
+            atlasResource.open().use { atlasStream ->
+                loadAtlasFromStreams(
+                    manifestJson = manifestJson,
+                    atlasStream = atlasStream,
+                    texturePath = "pokemon_sprite_atlas_bundled",
+                    sourceDescription = "bundled atlas",
+                )
+            }
+        } catch (e: Exception) {
+            DebugLog.warn("Bundled Pokemon sprite atlas load failed: ${e.message}")
+            null
+        }
+    }
+
+    private fun loadAtlasFromStreams(
+        manifestJson: String,
+        atlasStream: InputStream,
+        texturePath: String,
+        sourceDescription: String,
+    ): LoadedAtlas? {
+        val manifest = gson.fromJson(manifestJson, Manifest::class.java) ?: return null
+        if (manifest.version != ATLAS_VERSION || manifest.spriteSize != SPRITE_SIZE) return null
+
+        val image = atlasStream.use { NativeImage.read(it) }
+        val texture = DynamicTexture(image)
+        val textureId = ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, texturePath)
+        Minecraft.getInstance().textureManager.register(textureId, texture)
+        val entries = manifest.entries.associateBy { it.id }
+        DebugLog.info("Loaded Pokemon sprite atlas from $sourceDescription (${entries.size} sprites, ${manifest.width}x${manifest.height})")
+        return LoadedAtlas(textureId, manifest.width, manifest.height, entries)
     }
 
     private fun cacheDir(): Path = try {

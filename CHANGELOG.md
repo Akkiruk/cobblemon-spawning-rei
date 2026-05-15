@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.0.2] - 2026-05-14
+
+### Fixed
+- Switched fresh installs back to a shipped-atlas model: CobbleDex now loads the bundled Pokemon sprite atlas from the mod jar first instead of auto-generating sprites on client machines
+- Kept the manual sprite build and reload commands as a developer workflow, with explicit reload/build now preferring the local generated cache so newly captured atlases can still be tested before packaging
+
 ## [2.0.1] - 2026-05-14
 
 ### Fixed
