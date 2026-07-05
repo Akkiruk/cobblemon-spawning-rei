@@ -96,6 +96,23 @@ object DiagnosticService {
                 sender.send("    §fid=${evo.id} result=${evo.result.species}/${evo.result.aspects}")
             }
         }
+
+        // The processed data RecipeBuilder/EvolutionDex actually consume -
+        // includes CobbleDex's own synthesized entries (fusion edges, etc),
+        // not just what Cobblemon itself reports above.
+        val normalized = SpeciesNameNormalizer.normalize(speciesName)
+        sender.send("§6Processed evolutionsBySpecies[$normalized] (outgoing, what RecipeBuilder sees):")
+        val outgoing = SpawnDataIndex.getEvolutionsFrom(normalized)
+        if (outgoing.isEmpty()) sender.send("  §7(none)")
+        for (evo in outgoing) {
+            sender.send("  §ffrom=${evo.fromSpecies}${evo.fromAspects} to=${evo.toSpecies}${evo.toAspects} variant=${evo.variant} id=${evo.id}")
+        }
+        sender.send("§6Processed evolutionsToSpecies[$normalized] (incoming):")
+        val incoming = SpawnDataIndex.getEvolutionsTo(normalized)
+        if (incoming.isEmpty()) sender.send("  §7(none)")
+        for (evo in incoming) {
+            sender.send("  §ffrom=${evo.fromSpecies}${evo.fromAspects} to=${evo.toSpecies}${evo.toAspects} variant=${evo.variant} id=${evo.id}")
+        }
         return 1
     }
 

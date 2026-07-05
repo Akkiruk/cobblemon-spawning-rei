@@ -313,6 +313,14 @@ data class EvolutionRequirement(
                 val status = cleanValue(data["status"])?.let { titleCase(it) }
                 status ?: tr("cobbledex-rei-emi-jei.evo.status_condition")
             }
+            // Synthetic requirement for fusion-mod results (see
+            // DerivedDataBuilder.rebuild) - these have no real Cobblemon
+            // Evolution data at all, only pokedex flavor text naming the
+            // other species involved.
+            "fusion_with" -> {
+                val partner = cleanValue(data["partner"]) ?: "?"
+                tr("cobbledex-rei-emi-jei.evo.fusion_with", partner)
+            }
             else -> {
                 val fallback = titleCase(variant)
                 if (fallback.length > 40 || fallback.contains("@") || (fallback.contains(".") && fallback.length > 30))
