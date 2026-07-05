@@ -596,6 +596,25 @@ object EvolutionDataLoader {
         "alolan_form", "galarian_form", "hisuian_form", "paldean_form"
     )
 
+    // Same idea as SIGNIFICANT_LABELS, but matched against the form's own
+    // ASPECT instead of its labels - some packs (or a species_additions patch
+    // from a different mod) ship a form whose labels don't carry the
+    // "gmax"/"mega"/etc marker at all (e.g. this modpack's live Eevee Gmax
+    // form reports labels=[gen1], not [gen8, gmax], even though its aspect is
+    // still plainly "gmax") - relying on labels alone silently dropped these.
+    // Aspects are the more reliable signal since Cobblemon itself keys pose/
+    // texture resolution off them, so a mod overriding flavor labels is much
+    // less likely to also break the aspect string.
+    private val SIGNIFICANT_ASPECT_MARKERS = setOf(
+        "mega", "primal", "ultra_burst", "gmax", "gigantamax",
+        "alolan", "galarian", "hisuian", "paldean", "alola", "galar", "hisui", "paldea"
+    )
+
+    private fun hasSignificantAspect(aspects: Set<String>): Boolean = aspects.any { aspect ->
+        val lower = aspect.lowercase()
+        SIGNIFICANT_ASPECT_MARKERS.any { marker -> lower == marker || lower.startsWith("${marker}_") || lower.startsWith("${marker}-") }
+    }
+
     private val REGIONAL_LABEL_TO_SUFFIX = mapOf(
         "alolan_form" to "alolan",
         "galarian_form" to "galarian",
@@ -603,7 +622,9 @@ object EvolutionDataLoader {
         "paldean_form" to "paldean"
     )
 
-    private fun shouldIncludeForm(species: com.cobblemon.mod.common.pokemon.Species, form: com.cobblemon.mod.common.pokemon.FormData, baseForm: com.cobblemon.mod.common.pokemon.FormData?): Boolean {
+    // Not private: DiagnosticService.showRawForms calls this directly to show
+    // exactly why a given form was or wasn't surfaced as an alternate form.
+    fun shouldIncludeForm(species: com.cobblemon.mod.common.pokemon.Species, form: com.cobblemon.mod.common.pokemon.FormData, baseForm: com.cobblemon.mod.common.pokemon.FormData?): Boolean {
         if (baseForm != null && form == baseForm) return false
         if (form.name.isBlank()) return false
 
@@ -619,6 +640,7 @@ object EvolutionDataLoader {
         if (form.aspects.any { it.endsWith("-costume", ignoreCase = true) }) return false
 
         if (form.labels.any { it in SIGNIFICANT_LABELS }) return true
+        if (hasSignificantAspect(form.aspects.toSet())) return true
 
         // A form with no distinguishing aspect can't meaningfully differ from
         // the species' own look (same "empty aspects = same as base" convention
@@ -641,7 +663,9 @@ object EvolutionDataLoader {
         return typeDiffers || statsDiffer || abilitiesDiffer
     }
 
-    private fun buildFormEntryKey(baseName: String, form: com.cobblemon.mod.common.pokemon.FormData, species: com.cobblemon.mod.common.pokemon.Species): String {
+    // Not private: DiagnosticService.showRawForms uses the real key so its
+    // "surfaced"/"in speciesInfo" checks match production exactly.
+    fun buildFormEntryKey(baseName: String, form: com.cobblemon.mod.common.pokemon.FormData, species: com.cobblemon.mod.common.pokemon.Species): String {
         // Regional forms reuse SpeciesNameNormalizer's pattern for dedup with spawn data (O3)
         val regionalLabel = form.labels.firstOrNull { it in REGIONAL_LABEL_TO_SUFFIX }
         if (regionalLabel != null) {

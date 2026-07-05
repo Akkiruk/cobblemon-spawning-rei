@@ -66,9 +66,15 @@ object DiagnosticService {
             return 0
         }
         sender.send("§7Total forms: ${forms.size}")
+        val queries = SpawnDataIndex.currentQueries()
         for (form in forms) {
             val isStandard = form === standardForm
-            sender.send("  §fname=\"${form.name}\" aspects=${form.aspects} isStandard=$isStandard")
+            val included = try { EvolutionDataLoader.shouldIncludeForm(species, form, standardForm) } catch (e: Exception) { "ERROR: ${e.message}" }
+            val formKey = try { EvolutionDataLoader.buildFormEntryKey(species.name.lowercase(), form, species) } catch (e: Exception) { "ERROR: ${e.message}" }
+            val inSpeciesInfo = SpawnDataIndex.speciesInfo.containsKey(formKey)
+            val surfaced = try { queries.shouldSurfaceSpecies(formKey) } catch (e: Exception) { "ERROR: ${e.message}" }
+            sender.send("  §fname=\"${form.name}\" aspects=${form.aspects} labels=${form.labels} isStandard=$isStandard")
+            sender.send("    §7shouldIncludeForm=$included formKey=$formKey inSpeciesInfo=$inSpeciesInfo surfaced=$surfaced")
         }
 
         sender.send("§6species.evolutions (base-level):")

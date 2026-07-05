@@ -219,6 +219,57 @@ object PokemonSpriteAtlas {
         return BuildResult(atlasPath, manifestPath, keys.size, images.size, failed)
     }
 
+    // For the companion Pokedex website: full-size individual PNGs (not the
+    // small REI atlas) named exactly by SpriteKey.id, so an external pipeline
+    // can match them against its own normalized species+aspects without any
+    // coupling to this mod's internal file layout.
+    fun exportWebsiteSprites(size: Int, sender: DiagnosticService.MessageSender): Int {
+        if (buildInProgress) {
+            sender.send("§eA CobbleDex sprite build/export is already running.")
+            return 0
+        }
+        if (!SpawnDataIndex.hasData()) {
+            sender.send(tr("cobbledex-rei-emi-jei.cmd.no_data_short"))
+            return 0
+        }
+
+        buildInProgress = true
+        sender.send("§7Exporting $size" + "x" + "$size Pokemon sprites for the website...")
+        Minecraft.getInstance().execute {
+            try {
+                val keys = collectSpriteKeys()
+                val outputDir = cacheDir().resolve("website-sprites")
+                Files.createDirectories(outputDir)
+                IconCapture.init()
+                var captured = 0
+                var failed = 0
+                keys.forEachIndexed { index, resolved ->
+                    val png = IconCapture.captureSpeciesToPng(resolved.renderSpecies, resolved.renderAspects, size)
+                    if (png != null) {
+                        Files.write(outputDir.resolve("${resolved.key.id}.png"), png)
+                        captured++
+                    } else {
+                        failed++
+                    }
+                    val completed = index + 1
+                    if (completed == keys.size || completed % 50 == 0) {
+                        sender.send("§7Exported: $completed/${keys.size}")
+                    }
+                }
+                sender.send("§aWebsite sprite export done: $captured/${keys.size} captured, $failed failed")
+                sender.send("§7${outputDir.toAbsolutePath()}")
+            } catch (t: Throwable) {
+                sender.send("§cWebsite sprite export failed: ${t.message ?: t.javaClass.simpleName}")
+                DebugLog.warn("Website sprite export failed: ${t.message}")
+                t.printStackTrace()
+            } finally {
+                buildInProgress = false
+                IconCapture.cleanup()
+            }
+        }
+        return 1
+    }
+
     private fun collectSpriteKeys(): List<ResolvedSpriteKey> {
         val queries = SpawnDataIndex.currentQueries()
         val names = SpawnDataIndex.allSpeciesNames.ifEmpty { SpawnDataIndex.speciesInfo.keys.sorted() }

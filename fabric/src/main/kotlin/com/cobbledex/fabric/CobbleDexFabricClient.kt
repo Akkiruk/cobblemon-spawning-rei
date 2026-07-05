@@ -145,6 +145,21 @@ class CobbleDexFabricClient : ClientModInitializer {
                                 1
                             }
                         )
+                        .then(ClientCommandManager.literal("export")
+                            .executes { ctx ->
+                                PokemonSpriteAtlas.exportWebsiteSprites(512) { msg ->
+                                    ctx.source.sendFeedback(Component.literal(msg))
+                                }
+                            }
+                            .then(ClientCommandManager.argument("size", com.mojang.brigadier.arguments.IntegerArgumentType.integer(32, 1024))
+                                .executes { ctx ->
+                                    val size = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "size")
+                                    PokemonSpriteAtlas.exportWebsiteSprites(size) { msg ->
+                                        ctx.source.sendFeedback(Component.literal(msg))
+                                    }
+                                }
+                            )
+                        )
                     )
             )
         }
