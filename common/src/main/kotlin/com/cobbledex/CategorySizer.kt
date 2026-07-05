@@ -32,16 +32,20 @@ object CategorySizer {
         if (recipes.isEmpty()) return PanelSize(200, 100)
         var maxW = PanelLayout.MIN_WIDTH
         var maxH = 80
-        var settled = true
-        for ((i, handle) in recipes.withIndex()) {
+        // This result is cached per category+dataVersion+language (getBounds
+        // above), so it only runs once per data load/reload - not worth an
+        // early-exit shortcut that can under-measure the panel when an
+        // outlier (e.g. a species with a very long evolution requirement
+        // list, or many "notable differences" bullet points) happens to sit
+        // outside whatever sample window a shortcut would have checked.
+        // Scanning every recipe here is what fixed text overflowing the
+        // Evolution and Alternate Forms panels.
+        for (handle in recipes) {
             try {
                 val w = handle.width
                 val h = handle.height
-                if (w > maxW) { maxW = w; settled = false }
-                if (h > maxH) { maxH = h; settled = false }
-                // If size hasn't grown in the last 50 recipes, the rest won't push it higher
-                if (settled && i >= 50) break
-                if (!settled && i % 50 == 49) settled = true
+                if (w > maxW) maxW = w
+                if (h > maxH) maxH = h
             } catch (_: Exception) {}
         }
         return PanelSize(

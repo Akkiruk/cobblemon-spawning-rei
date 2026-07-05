@@ -70,6 +70,15 @@ object EvolutionDataLoader {
                 val formEvos = try { form.evolutions } catch (_: Exception) { continue }
                 if (formEvos.isEmpty()) continue
                 val formAspects = form.aspects.toSet()
+                // Cobblemon registers every species' own baseline look as a form
+                // in its own right (typically named "Normal", with no aspect tag
+                // of its own) alongside genuinely distinct forms like Gmax/Alolan.
+                // Without this check that "Normal" form was being treated as a
+                // real alternate form - creating a bogus "<species>_normal" entry
+                // for essentially every species with any registered form, and
+                // double-counting the base species' own evolutions (added once
+                // from species.evolutions above, then again here).
+                if (formAspects.isEmpty()) continue
                 val formKey = buildFormEntryKey(baseName, form, species)
 
                 for (evo in formEvos) {
@@ -539,11 +548,25 @@ object EvolutionDataLoader {
         // Load alternate forms as separate entries
         if (com.cobbledex.config.CobbleDexConfig.get().showAlternateForms) {
             var formCount = 0
+            var skippedDuplicateAspectCount = 0
             for (species in implemented) {
                 val baseName = species.name.lowercase()
                 val baseForm = try { species.standardForm } catch (_: Exception) { null }
-                for (form in try { species.forms } catch (_: Exception) { emptyList() }) {
-                    if (!shouldIncludeForm(species, form, baseForm)) continue
+                // shouldIncludeForm already drops cosmetic "-costume" forms (see
+                // its comment). This grouping is just a safety net in case two
+                // eligible forms still end up sharing one aspect set for some
+                // other reason - keep the shortest/cleanest name in that case.
+                val eligibleForms = try { species.forms } catch (_: Exception) { emptyList() }
+                    .filter { form -> shouldIncludeForm(species, form, baseForm) }
+                val winningForms = eligibleForms
+                    .groupBy { form -> form.aspects.map { it.lowercase() }.toSet() }
+                    .flatMap { (aspectKey, candidates) ->
+                        if (aspectKey.isEmpty() || candidates.size <= 1) candidates
+                        else listOf(candidates.minBy { it.name.length })
+                    }
+                skippedDuplicateAspectCount += eligibleForms.size - winningForms.size
+
+                for (form in winningForms) {
                     try {
                         val formKey = buildFormEntryKey(baseName, form, species)
                         val info = buildFormSpeciesInfo(formKey, species, form, baseForm)
@@ -560,7 +583,7 @@ object EvolutionDataLoader {
                     }
                 }
             }
-            DebugLog.info("Loaded ${result.size} species from runtime API ($dropSpeciesCount with drops, $formCount alternate forms)")
+            DebugLog.info("Loaded ${result.size} species from runtime API ($dropSpeciesCount with drops, $formCount alternate forms, $skippedDuplicateAspectCount cosmetic-skin duplicates skipped)")
         } else {
             DebugLog.info("Loaded ${result.size} species from runtime API ($dropSpeciesCount with drops, alternate forms disabled)")
         }
@@ -584,7 +607,27 @@ object EvolutionDataLoader {
         if (baseForm != null && form == baseForm) return false
         if (form.name.isBlank()) return false
 
+        // Cobblemon's cosmetic-item system (wardrobe costumes granted via
+        // consumable items, e.g. data/cobblemon/cosmetic_items/*.json) tags
+        // every aspect it contributes with a "-costume" suffix (confirmed via
+        // /cobbledex forms: Lucario has real forms like "Mega" aspects=[mega]
+        // alongside cosmetic ones like "Mega-Chef-Costume" aspects=[chef-costume, mega]
+        // and standalone "Cafe-Costume" aspects=[cafe-costume]). These ARE genuine
+        // FormData entries registered by Cobblemon at runtime - not a bug in
+        // another mod - but they're purely cosmetic reskins, not gameplay forms,
+        // so they must never surface as alternate forms or evolution outcomes.
+        if (form.aspects.any { it.endsWith("-costume", ignoreCase = true) }) return false
+
         if (form.labels.any { it in SIGNIFICANT_LABELS }) return true
+
+        // A form with no distinguishing aspect can't meaningfully differ from
+        // the species' own look (same "empty aspects = same as base" convention
+        // used elsewhere for evolution data). Some species_additions patches
+        // register their own copy of the base/"Normal" form that isn't
+        // reference-equal to species.standardForm, so the check above alone
+        // doesn't catch it - this is what was surfacing as a bogus
+        // "<species> Normal" alternate form for most of the dex.
+        if (form.aspects.isEmpty()) return false
 
         val base = baseForm ?: return false
         val typeDiffers = form.primaryType != base.primaryType || form.secondaryType != base.secondaryType

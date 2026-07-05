@@ -194,8 +194,26 @@ object EvolutionDex : DexCategory {
     override fun buildAllRecipes(): List<RecipeHandle> =
         RecipeBuilder.buildAllEvolutionRecipes().map(::toHandle)
 
-    override fun buildRecipesFor(species: String): List<RecipeHandle> =
-        RecipeBuilder.buildEvolutionRecipesInto(species).map(::toHandle)
+    // The Pokemon Overview navigator only ever calls buildRecipesFor per
+    // category (never buildUsagesFor) - so a species with no INCOMING
+    // evolution (e.g. a base form like Eevee) showed no Evolution tab at all,
+    // even though it has plenty of OUTGOING branches. Combine both directions
+    // here so every member of a family (base or evolved) shows its full
+    // evolution info - what it comes from AND what it can become.
+    override fun buildRecipesFor(species: String): List<RecipeHandle> {
+        val incoming = RecipeBuilder.buildEvolutionRecipesInto(species).filter { it.targetSpeciesName != null }
+        val outgoing = RecipeBuilder.buildEvolutionPagesFor(species).filter { it.targetSpeciesName != null }
+        val combined = incoming + outgoing
+        if (combined.isEmpty()) {
+            // Neither direction has real data - fall back to the plain
+            // "no evolutions" placeholder instead of showing nothing.
+            return RecipeBuilder.buildEvolutionPagesFor(species).map(::toHandle)
+        }
+        val total = combined.size
+        return combined
+            .mapIndexed { index, data -> data.copy(pageIndex = index + 1, pageTotal = total, totalOutcomes = total) }
+            .map(::toHandle)
+    }
 
     override fun buildUsagesFor(species: String): List<RecipeHandle> =
         RecipeBuilder.buildEvolutionPagesFor(species).map(::toHandle)

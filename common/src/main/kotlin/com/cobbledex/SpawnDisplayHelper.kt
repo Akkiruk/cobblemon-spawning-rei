@@ -1936,15 +1936,6 @@ object SpawnDisplayHelper {
             drawDetailRow("BST", tr("cobbledex-rei-emi-jei.stats.bst", bst) + delta, bstColor)
         }
 
-        if (data.differenceReasons.isNotEmpty()) {
-            layout.gap(3)
-            layout.text(padding, "Notable differences", 0xEEEEEE)
-            layout.line()
-            data.differenceReasons.forEach { reason ->
-                layout.wrapped(padding + 6, "• $reason", right - (padding + 6), 0xBBBBBB)
-            }
-        }
-
         layout.gap(1)
         layout.separator(0x20FFFFFF)
         layout.gap(4)

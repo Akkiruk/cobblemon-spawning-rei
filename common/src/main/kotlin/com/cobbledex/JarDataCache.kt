@@ -502,6 +502,14 @@ object JarDataCache {
         var baseEvoCount = 0
         var formEvoCount = 0
 
+        // "species/*.json" files declare a species outright via a "name" field.
+        // "species_additions/*.json" files patch an *existing* species (added by
+        // another mod/base game) and identify their target via a "target" field
+        // instead (e.g. "cobblemon:eevee") - no "name" field at all. Addon packs
+        // like Extra Eeveelutions/Kazeran Eeveelutions add their evolution
+        // branches this way, so both folders must be scanned or those branches
+        // are silently invisible even though the base species' own evolutions
+        // (from "species/") parse fine.
         for (root in modRoots) {
             try {
                 val dataDir = root.resolve("data")
@@ -509,91 +517,97 @@ object JarDataCache {
 
                 Files.list(dataDir).use { namespaces ->
                     namespaces.filter { Files.isDirectory(it) }.forEach { namespace ->
-                        val speciesDir = namespace.resolve("species")
-                        if (!Files.exists(speciesDir) || !Files.isDirectory(speciesDir)) return@forEach
+                        for ((folderName, isAddition) in listOf("species" to false, "species_additions" to true)) {
+                            val speciesDir = namespace.resolve(folderName)
+                            if (!Files.exists(speciesDir) || !Files.isDirectory(speciesDir)) continue
 
-                        Files.walk(speciesDir, 10).use { files ->
-                            files.filter { it.toString().endsWith(".json") && Files.isRegularFile(it) }.forEach { file ->
-                                try {
-                                    val obj = InputStreamReader(Files.newInputStream(file), Charsets.UTF_8).use { reader ->
-                                        JsonParser.parseReader(reader).asJsonObject
-                                    }
-
-                                    val name = obj.optString("name")?.lowercase() ?: return@forEach
-                                    fileCount++
-
-                                    // Parse moves
-                                    val movesArray = obj.optArray("moves")
-                                    if (movesArray != null) {
-                                        val levelUp = mutableMapOf<Int, MutableList<String>>()
-                                        val egg = mutableListOf<String>()
-                                        val tutor = mutableListOf<String>()
-                                        val tm = mutableListOf<String>()
-                                        for (elem in movesArray) {
-                                            try {
-                                                val str = elem.asString
-                                                val colonIdx = str.indexOf(':')
-                                                if (colonIdx < 1) continue
-                                                val prefix = str.substring(0, colonIdx)
-                                                val moveName = str.substring(colonIdx + 1)
-                                                when (prefix) {
-                                                    "egg" -> egg.add(moveName)
-                                                    "tm" -> tm.add(moveName)
-                                                    "tutor" -> tutor.add(moveName)
-                                                    else -> prefix.toIntOrNull()?.let { level ->
-                                                        levelUp.getOrPut(level) { mutableListOf() }.add(moveName)
-                                                    }
-                                                }
-                                            } catch (_: Exception) {}
+                            Files.walk(speciesDir, 10).use { files ->
+                                files.filter { it.toString().endsWith(".json") && Files.isRegularFile(it) }.forEach { file ->
+                                    try {
+                                        val obj = InputStreamReader(Files.newInputStream(file), Charsets.UTF_8).use { reader ->
+                                            JsonParser.parseReader(reader).asJsonObject
                                         }
-                                        if (levelUp.isNotEmpty() || egg.isNotEmpty() || tutor.isNotEmpty() || tm.isNotEmpty()) {
-                                            movesResult[name] = JarMoveData(levelUp, egg, tutor, tm)
-                                        }
-                                    }
 
-                                    // Base evolutions
-                                    val evolutions = obj.optArray("evolutions")
-                                    if (evolutions != null) {
-                                        for (evoElem in evolutions) {
-                                            try {
-                                                val info = parseEvolutionFromJson(name, null, evoElem.asJsonObject)
-                                                if (info != null) {
-                                                    result.getOrPut(name) { mutableListOf() }.add(info)
-                                                    baseEvoCount++
-                                                }
-                                            } catch (_: Exception) {}
-                                        }
-                                    }
+                                        val name = if (isAddition) {
+                                            obj.optString("target")?.substringAfter(':')?.lowercase()
+                                        } else {
+                                            obj.optString("name")?.lowercase()
+                                        } ?: return@forEach
+                                        fileCount++
 
-                                    // Form evolutions
-                                    val forms = obj.optArray("forms")
-                                    if (forms != null) {
-                                        for (formElem in forms) {
-                                            try {
-                                                val form = formElem.asJsonObject
-                                                val formEvos = form.optArray("evolutions") ?: continue
-                                                if (formEvos.isEmpty) continue
-
-                                                val aspects = form.optStringArray("aspects").toSet()
-                                                val formKey = if (aspects.isEmpty()) name
-                                                    else "$name ${aspects.sorted().joinToString(" ")}"
-
-                                                for (evoElem in formEvos) {
-                                                    try {
-                                                        val info = parseEvolutionFromJson(name, aspects, evoElem.asJsonObject)
-                                                        if (info != null) {
-                                                            result.getOrPut(formKey) { mutableListOf() }.add(info)
-                                                            if (formKey != name) {
-                                                                result.getOrPut(name) { mutableListOf() }.add(info)
-                                                            }
-                                                            formEvoCount++
+                                        // Parse moves
+                                        val movesArray = obj.optArray("moves")
+                                        if (movesArray != null) {
+                                            val levelUp = mutableMapOf<Int, MutableList<String>>()
+                                            val egg = mutableListOf<String>()
+                                            val tutor = mutableListOf<String>()
+                                            val tm = mutableListOf<String>()
+                                            for (elem in movesArray) {
+                                                try {
+                                                    val str = elem.asString
+                                                    val colonIdx = str.indexOf(':')
+                                                    if (colonIdx < 1) continue
+                                                    val prefix = str.substring(0, colonIdx)
+                                                    val moveName = str.substring(colonIdx + 1)
+                                                    when (prefix) {
+                                                        "egg" -> egg.add(moveName)
+                                                        "tm" -> tm.add(moveName)
+                                                        "tutor" -> tutor.add(moveName)
+                                                        else -> prefix.toIntOrNull()?.let { level ->
+                                                            levelUp.getOrPut(level) { mutableListOf() }.add(moveName)
                                                         }
-                                                    } catch (_: Exception) {}
-                                                }
-                                            } catch (_: Exception) {}
+                                                    }
+                                                } catch (_: Exception) {}
+                                            }
+                                            if (levelUp.isNotEmpty() || egg.isNotEmpty() || tutor.isNotEmpty() || tm.isNotEmpty()) {
+                                                movesResult[name] = JarMoveData(levelUp, egg, tutor, tm)
+                                            }
                                         }
-                                    }
-                                } catch (_: Exception) { failCount++ }
+
+                                        // Base evolutions
+                                        val evolutions = obj.optArray("evolutions")
+                                        if (evolutions != null) {
+                                            for (evoElem in evolutions) {
+                                                try {
+                                                    val info = parseEvolutionFromJson(name, null, evoElem.asJsonObject)
+                                                    if (info != null) {
+                                                        result.getOrPut(name) { mutableListOf() }.add(info)
+                                                        baseEvoCount++
+                                                    }
+                                                } catch (_: Exception) {}
+                                            }
+                                        }
+
+                                        // Form evolutions
+                                        val forms = obj.optArray("forms")
+                                        if (forms != null) {
+                                            for (formElem in forms) {
+                                                try {
+                                                    val form = formElem.asJsonObject
+                                                    val formEvos = form.optArray("evolutions") ?: continue
+                                                    if (formEvos.isEmpty) continue
+
+                                                    val aspects = form.optStringArray("aspects").toSet()
+                                                    val formKey = if (aspects.isEmpty()) name
+                                                        else "$name ${aspects.sorted().joinToString(" ")}"
+
+                                                    for (evoElem in formEvos) {
+                                                        try {
+                                                            val info = parseEvolutionFromJson(name, aspects, evoElem.asJsonObject)
+                                                            if (info != null) {
+                                                                result.getOrPut(formKey) { mutableListOf() }.add(info)
+                                                                if (formKey != name) {
+                                                                    result.getOrPut(name) { mutableListOf() }.add(info)
+                                                                }
+                                                                formEvoCount++
+                                                            }
+                                                        } catch (_: Exception) {}
+                                                    }
+                                                } catch (_: Exception) {}
+                                            }
+                                        }
+                                    } catch (_: Exception) { failCount++ }
+                                }
                             }
                         }
                     }

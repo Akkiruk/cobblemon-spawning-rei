@@ -106,6 +106,16 @@ class CobbleDexFabricClient : ClientModInitializer {
                             }
                         }
                     )
+                    .then(ClientCommandManager.literal("forms")
+                        .then(ClientCommandManager.argument("species", com.mojang.brigadier.arguments.StringArgumentType.word())
+                            .executes { ctx ->
+                                val species = com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "species")
+                                DiagnosticService.showRawForms(species) { msg ->
+                                    ctx.source.sendFeedback(Component.literal(msg))
+                                }
+                            }
+                        )
+                    )
                     .then(ClientCommandManager.literal("reload")
                         .executes { ctx ->
                             DiagnosticService.reloadData { msg ->

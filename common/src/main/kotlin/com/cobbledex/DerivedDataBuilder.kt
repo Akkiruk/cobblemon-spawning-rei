@@ -13,10 +13,18 @@ object DerivedDataBuilder {
         snapshot: CobbleDexDataSnapshot,
         runtimeSpeciesNames: () -> Iterable<String> = ::loadRuntimeSpeciesNames,
     ): Result {
+        // Resolve aspect-qualified results (e.g. Riolu -> "lucario y", the
+        // Midnight form) to the specific form's own key, not just the bare
+        // species name - otherwise the reverse map only ever pointed at base
+        // Lucario, so Lucario (Midnight)'s own page never showed it came
+        // from Riolu. Snapshot.speciesInfo already has form entries (with
+        // their aspects) synced/loaded before this runs, so lookups work
+        // even though `enriched` below hasn't been built yet.
+        val reverseLookupQueries = CobbleDexDataQueries(snapshot)
         val reverseMap = mutableMapOf<String, MutableList<EvolutionInfo>>()
         for ((_, evolutions) in snapshot.evolutionsBySpecies) {
             for (evo in evolutions) {
-                val normalizedTo = SpeciesNameNormalizer.normalize(evo.toSpecies)
+                val normalizedTo = RecipeBuilder.resolveEvolutionTargetKey(evo.toSpecies, evo.toAspects, snapshot, reverseLookupQueries)
                 reverseMap.getOrPut(normalizedTo) { mutableListOf() }.add(evo)
             }
         }

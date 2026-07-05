@@ -278,13 +278,6 @@ object PokemonInfoPageBuilder {
             height += SpawnDisplayHelper.wrapText(font, bstText, valueWidth).size.coerceAtLeast(1) * PanelLayout.LINE_HEIGHT
         }
 
-        if (data.differenceReasons.isNotEmpty()) {
-            height += 3 + PanelLayout.LINE_HEIGHT
-            height += data.differenceReasons.sumOf { reason ->
-                SpawnDisplayHelper.wrapText(font, "• $reason", width - (padding + 6)).size.coerceAtLeast(1) * PanelLayout.LINE_HEIGHT
-            }
-        }
-
         height += 1 + 4 + font.lineHeight + padding
         return height
     }

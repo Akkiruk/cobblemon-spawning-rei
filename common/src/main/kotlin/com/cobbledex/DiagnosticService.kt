@@ -41,6 +41,58 @@ object DiagnosticService {
         return 1
     }
     
+    // Bypasses all of CobbleDex's own form-loading/dedup logic and prints
+    // exactly what Cobblemon's live Species API reports for one species -
+    // used to debug cases where a bogus alternate-form entry (e.g. a
+    // cosmetic resourcepack skin) shows up and it's unclear whether
+    // Cobblemon itself is reporting it as a form or CobbleDex is
+    // synthesizing it.
+    fun showRawForms(speciesName: String, sender: MessageSender): Int {
+        val species = try {
+            PokemonSpecies.getByName(speciesName.lowercase())
+        } catch (e: Exception) {
+            sender.send("§cFailed to look up species: ${e.message}")
+            return 0
+        }
+        if (species == null) {
+            sender.send("§cSpecies not found in Cobblemon runtime: $speciesName")
+            return 0
+        }
+        sender.send("§6Raw Cobblemon forms for ${species.name}:")
+        val standardForm = try { species.standardForm } catch (_: Exception) { null }
+        sender.send("§7standardForm: name=${standardForm?.name} aspects=${standardForm?.aspects}")
+        val forms = try { species.forms } catch (e: Exception) {
+            sender.send("§cFailed to access species.forms: ${e.message}")
+            return 0
+        }
+        sender.send("§7Total forms: ${forms.size}")
+        for (form in forms) {
+            val isStandard = form === standardForm
+            sender.send("  §fname=\"${form.name}\" aspects=${form.aspects} isStandard=$isStandard")
+        }
+
+        sender.send("§6species.evolutions (base-level):")
+        val baseEvos = try { species.evolutions } catch (e: Exception) {
+            sender.send("§cFailed to access species.evolutions: ${e.message}")
+            emptyList()
+        }
+        if (baseEvos.isEmpty()) sender.send("  §7(none)")
+        for (evo in baseEvos) {
+            sender.send("  §fid=${evo.id} result=${evo.result.species}/${evo.result.aspects}")
+        }
+
+        sender.send("§6Per-form evolutions:")
+        for (form in forms) {
+            val formEvos = try { form.evolutions } catch (_: Exception) { continue }
+            if (formEvos.isEmpty()) continue
+            sender.send("  §7form=\"${form.name}\" aspects=${form.aspects}:")
+            for (evo in formEvos) {
+                sender.send("    §fid=${evo.id} result=${evo.result.species}/${evo.result.aspects}")
+            }
+        }
+        return 1
+    }
+
     fun showMissing(sender: MessageSender): Int {
         val index = SpawnDataIndex
         

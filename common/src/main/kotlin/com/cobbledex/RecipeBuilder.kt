@@ -121,12 +121,14 @@ object RecipeBuilder {
         val incomingSources = queries.getEvolutionsTo(normalized)
             .map { evolution -> resolveEvolutionSourceKey(evolution, queries) }
 
-        val formBaseSource = queries.getSpeciesInfo(normalized)
+        // The immediate parent for a mega/primal/gmax-style transform isn't
+        // always the base species - e.g. "Mega Midnight" transforms from
+        // "Midnight", not from base Lucario (see resolveTransformParent).
+        val transformParentSource = queries.getSpeciesInfo(normalized)
             ?.takeIf { info -> info.formAspects.isNotEmpty() }
-            ?.baseSpeciesName
-            ?.let(SpeciesNameNormalizer::normalize)
+            ?.let { info -> resolveTransformParent(normalized, info.formAspects, queries)?.first }
 
-        return (incomingSources + listOfNotNull(formBaseSource))
+        return (incomingSources + listOfNotNull(transformParentSource))
             .distinct()
             .flatMap { source -> buildEvolutionPagesFor(source, snapshot) }
             .filter { page -> SpeciesNameNormalizer.normalize(page.targetSpeciesName.orEmpty()) == normalized }
@@ -660,26 +662,25 @@ object RecipeBuilder {
                 )
             }
 
-        val transformTargets = if (sourceAspects.isEmpty()) {
-            queries.getFormsOf(sourceSpeciesName).mapNotNull { info ->
-                val label = info.labels.orEmpty().map(String::lowercase)
-                val methodText = when {
-                    "mega" in label -> tr("cobbledex-rei-emi-jei.evo.form_change.mega")
-                    "primal" in label -> tr("cobbledex-rei-emi-jei.evo.form_change.primal")
-                    "ultra_burst" in label -> tr("cobbledex-rei-emi-jei.evo.form_change.ultra_burst")
-                    "gmax" in label -> tr("cobbledex-rei-emi-jei.evo.form_change.gmax")
-                    else -> null
-                } ?: return@mapNotNull null
-
-                EvolutionTargetPage(
-                    targetSpeciesName = info.name,
-                    targetAspects = info.formAspects,
-                    methods = listOf(EvolutionMethodRecipeData(methodText)),
-                    priority = 1,
-                )
-            }
-        } else {
-            emptyList()
+        // Mega/Mega-Z/Gmax-style transforms have no real Cobblemon Evolution
+        // data behind them at all (confirmed via /cobbledex forms: Lucario's
+        // 23 forms and its species.evolutions/form.evolutions are all empty) -
+        // Cobblemon just registers them as forms with a distinguishing aspect.
+        // So the only way to find these is to compare aspect sets across the
+        // whole family (base + every sibling form) and infer parent/child
+        // transform edges from them - see resolveTransformParent's comment.
+        val sourceAspectsRaw = sourceAspects.map { it.lowercase() }.toSet()
+        val family = buildFamilyAspectMembers(sourceSpeciesName, queries)
+        val transformTargets = family.mapNotNull { (targetKey, targetAspects) ->
+            if (targetAspects == sourceAspectsRaw || !targetAspects.containsAll(sourceAspectsRaw)) return@mapNotNull null
+            val parent = findTransformParent(targetAspects, family) ?: return@mapNotNull null
+            if (parent.second != sourceAspectsRaw) return@mapNotNull null
+            EvolutionTargetPage(
+                targetSpeciesName = targetKey,
+                targetAspects = targetAspects,
+                methods = listOf(EvolutionMethodRecipeData(parent.third)),
+                priority = 1,
+            )
         }
 
         return (directTargets + transformTargets)
@@ -689,7 +690,10 @@ object RecipeBuilder {
             )
     }
 
-    private fun resolveEvolutionTargetKey(
+    // Not private: DerivedDataBuilder reuses this to index the "what evolves
+    // into X" reverse map by the exact aspect-qualified form (e.g.
+    // "lucario_midnight"), not just the bare species name - see its usage there.
+    fun resolveEvolutionTargetKey(
         targetSpeciesName: String,
         targetAspects: Set<String>,
         snapshot: CobbleDexDataSnapshot,
@@ -712,6 +716,79 @@ object RecipeBuilder {
         aspects.map { aspect ->
             aspect.lowercase().replace(Regex("[^a-z0-9]"), "")
         }.filter { it.isNotBlank() }.toSet()
+
+    // (speciesKey, raw lowercase aspects) for the base species plus every
+    // sibling form - used to infer mega/primal/gmax-style transform edges
+    // by comparing aspect sets directly, since Cobblemon doesn't back these
+    // with real Evolution data (see buildEvolutionTargets' comment). Aspects
+    // are kept raw/unstripped here (not run through normalizeAspects) so
+    // markers like "mega_z" or "chef-costume" stay recognizable by prefix/
+    // suffix in transformMethodTextFor and the costume filter upstream.
+    private fun buildFamilyAspectMembers(
+        speciesName: String,
+        queries: CobbleDexDataQueries,
+    ): List<Pair<String, Set<String>>> {
+        val realBaseName = queries.getSpeciesInfo(speciesName)?.baseSpeciesName
+            ?.let(SpeciesNameNormalizer::normalize)
+            ?: SpeciesNameNormalizer.normalize(speciesName)
+        val siblings = queries.getFormsOf(realBaseName).map { info ->
+            info.name to info.formAspects.map { it.lowercase() }.toSet()
+        }
+        return listOf(realBaseName to emptySet<String>()) + siblings
+    }
+
+    private val TRANSFORM_ASPECT_MARKERS = mapOf(
+        "cobbledex-rei-emi-jei.evo.form_change.mega" to setOf("mega"),
+        "cobbledex-rei-emi-jei.evo.form_change.primal" to setOf("primal"),
+        "cobbledex-rei-emi-jei.evo.form_change.ultra_burst" to setOf("ultra_burst"),
+        "cobbledex-rei-emi-jei.evo.form_change.gmax" to setOf("gmax", "gigantamax"),
+    )
+
+    // Recognizes not just an exact aspect match ("mega") but also namespaced
+    // variants a mod might register for custom mega-likes ("mega_z",
+    // "mega-y") so third-party additions still get labeled sensibly instead
+    // of being silently dropped from the evolution chain.
+    private fun transformMethodTextFor(addedAspects: Set<String>): String? {
+        for ((trKey, markers) in TRANSFORM_ASPECT_MARKERS) {
+            val matches = addedAspects.any { aspect ->
+                markers.any { marker -> aspect == marker || aspect.startsWith("${marker}_") || aspect.startsWith("${marker}-") }
+            }
+            if (matches) return tr(trKey)
+        }
+        return null
+    }
+
+    // Finds the closest family member whose aspect set is a proper subset of
+    // targetAspects and whose "new" aspects (relative to that member) read as
+    // a mega/primal/gmax-style transform. "Closest" = the candidate with the
+    // largest aspect set, so e.g. a "Mega Midnight" form (aspects=[mega_y,y])
+    // resolves to "Midnight" (aspects=[y]) as its parent rather than jumping
+    // all the way back to the base species - both are technically subsets,
+    // but Midnight is the direct one.
+    private fun findTransformParent(
+        targetAspects: Set<String>,
+        familyMembers: List<Pair<String, Set<String>>>,
+    ): Triple<String, Set<String>, String>? {
+        var best: Triple<String, Set<String>, String>? = null
+        for ((key, aspects) in familyMembers) {
+            if (aspects == targetAspects || !targetAspects.containsAll(aspects)) continue
+            val methodText = transformMethodTextFor(targetAspects - aspects) ?: continue
+            if (best == null || aspects.size > best.second.size) {
+                best = Triple(key, aspects, methodText)
+            }
+        }
+        return best
+    }
+
+    private fun resolveTransformParent(
+        speciesName: String,
+        speciesAspects: Set<String>,
+        queries: CobbleDexDataQueries,
+    ): Triple<String, Set<String>, String>? {
+        val family = buildFamilyAspectMembers(speciesName, queries)
+        val targetAspects = speciesAspects.map { it.lowercase() }.toSet()
+        return findTransformParent(targetAspects, family)
+    }
 
     private fun resolveEvolutionSourceKey(
         evolution: EvolutionInfo,
