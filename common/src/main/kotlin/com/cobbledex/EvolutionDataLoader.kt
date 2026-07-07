@@ -748,8 +748,17 @@ object EvolutionDataLoader {
             yieldMap.ifEmpty { null }
         } catch (_: Exception) { null }
 
+        // A form's moves being empty is Cobblemon's convention for "inherit the
+        // base form's moveset", not "this form learns nothing" - confirmed via
+        // vanilla Cobblemon's own gimmighoul.json, whose "Roaming" form has
+        // "moves": [] on purpose (Roaming and Chest Gimmighoul learn the same
+        // moves as base Gimmighoul). abilities/eggGroups a few lines below
+        // already fall back to baseForm when the form's own value is empty;
+        // the four move lists here didn't, so any form relying on this
+        // convention (rather than genuinely overriding its moveset) silently
+        // lost its entire learnset with no fallback.
         val levelUpMoves = try {
-            val moves = form.moves.levelUpMoves
+            val moves = form.moves.levelUpMoves.ifEmpty { baseForm?.moves?.levelUpMoves ?: emptyMap() }
             if (moves.isNotEmpty()) {
                 val grouped = mutableMapOf<Int, MutableList<MoveDetail>>()
                 for ((level, moveList) in moves) {
@@ -764,15 +773,18 @@ object EvolutionDataLoader {
         } catch (_: Exception) { null }
 
         val eggMoves = try {
-            form.moves.eggMoves.map { toMoveDetail(it) }.ifEmpty { null }
+            form.moves.eggMoves.ifEmpty { baseForm?.moves?.eggMoves ?: emptyList() }
+                .map { toMoveDetail(it) }.ifEmpty { null }
         } catch (_: Exception) { null }
 
         val tutorMoves = try {
-            form.moves.tutorMoves.map { toMoveDetail(it) }.ifEmpty { null }
+            form.moves.tutorMoves.ifEmpty { baseForm?.moves?.tutorMoves ?: emptyList() }
+                .map { toMoveDetail(it) }.ifEmpty { null }
         } catch (_: Exception) { null }
 
         val tmMoves = try {
-            form.moves.tmMoves.map { toMoveDetail(it) }.ifEmpty { null }
+            form.moves.tmMoves.ifEmpty { baseForm?.moves?.tmMoves ?: emptyList() }
+                .map { toMoveDetail(it) }.ifEmpty { null }
         } catch (_: Exception) { null }
 
         // Build the form name for i18n: preserve original casing with hyphens (e.g. "mega-x", "therian")
