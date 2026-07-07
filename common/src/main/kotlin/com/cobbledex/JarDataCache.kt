@@ -615,11 +615,22 @@ object JarDataCache {
         counters: EvoMoveParseCounters,
     ) {
         try {
-            val name = if (isAddition) {
+            val rawName = if (isAddition) {
                 obj.optString("target")?.substringAfter(':')?.lowercase()
             } else {
                 obj.optString("name")?.lowercase()
             } ?: return
+            // Species' own "name" field is a display name and can contain
+            // spaces/punctuation (e.g. "Great Tusk", "Iron Treads", "Ting-Lu",
+            // "Mime Jr.") - every other map in the pipeline is keyed by
+            // SpeciesNameNormalizer.normalize()'d ids, so leaving this one
+            // unnormalized meant movesResult["great tusk"] (with a space)
+            // never matched enrichWithJarMoves's lookup by the real
+            // normalized key "greattusk", silently losing that species' TM/
+            // tutor/egg move fallback entirely (confirmed via the exported
+            // CobbleDex spreadsheet: Great Tusk showed only its 17 level-up
+            // moves, none of its 53 TM + 25 tutor moves).
+            val name = SpeciesNameNormalizer.normalize(rawName)
             counters.fileCount++
 
             // Parse moves
@@ -731,11 +742,28 @@ object JarDataCache {
         "paldean_form" to "paldean"
     )
 
+    // Mirrors EvolutionDataLoader.REGIONAL_ASPECT_TO_SUFFIX - falls back to
+    // the form's aspect when its labels don't carry a recognized regional
+    // marker, in case a mod's own JSON omits/misdeclares "labels" the way
+    // Cobblemon's runtime FormData was found to for Farfetch'd Galar
+    // (aspect stayed correct even when the runtime label didn't).
+    private val REGIONAL_ASPECT_TO_SUFFIX = mapOf(
+        "alolan" to "alolan",
+        "galarian" to "galarian",
+        "hisuian" to "hisuian",
+        "paldean" to "paldean"
+    )
+
     private fun buildJsonFormEntryKey(name: String, form: JsonObject): String {
         val labels = form.optStringArray("labels")
         val regionalLabel = labels.firstOrNull { it in REGIONAL_LABEL_TO_SUFFIX }
-        if (regionalLabel != null) {
-            return "${SpeciesNameNormalizer.normalize(name)}${REGIONAL_LABEL_TO_SUFFIX[regionalLabel]}"
+        val regionalSuffix = if (regionalLabel != null) {
+            REGIONAL_LABEL_TO_SUFFIX[regionalLabel]
+        } else {
+            form.optStringArray("aspects").map { it.lowercase() }.firstNotNullOfOrNull { REGIONAL_ASPECT_TO_SUFFIX[it] }
+        }
+        if (regionalSuffix != null) {
+            return "${SpeciesNameNormalizer.normalize(name)}$regionalSuffix"
         }
         val formName = form.optString("name")?.lowercase()?.replace(Regex("[^a-z0-9]"), "")
         if (formName.isNullOrBlank()) return name
