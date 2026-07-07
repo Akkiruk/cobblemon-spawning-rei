@@ -622,6 +622,25 @@ object EvolutionDataLoader {
         "paldean_form" to "paldean"
     )
 
+    // Same regional suffixes, keyed by the form's own ASPECT instead of its
+    // labels - a form's labels can end up wrong at runtime for reasons
+    // outside any mod's own JSON (confirmed via /cobbledex forms: Farfetch'd
+    // Galar's own species_additions file and Cobblemon's base file both
+    // correctly declare labels=[gen8, galarian_form], but Cobblemon's
+    // runtime FormData reported labels=[gen1, kantonian_form] instead - a
+    // stale/conflicting value from elsewhere in the load pipeline). The
+    // aspect ("galarian") was still correct, so checking it as a fallback
+    // keeps the computed key ("farfetchdgalarian") matching what
+    // JarDataCache's raw-JSON-based key builder computes from the (correct)
+    // source labels, instead of silently falling back to the generic
+    // underscore scheme and breaking JAR-move-fallback lookups.
+    private val REGIONAL_ASPECT_TO_SUFFIX = mapOf(
+        "alolan" to "alolan",
+        "galarian" to "galarian",
+        "hisuian" to "hisuian",
+        "paldean" to "paldean"
+    )
+
     // Not private: DiagnosticService.showRawForms calls this directly to show
     // exactly why a given form was or wasn't surfaced as an alternate form.
     fun shouldIncludeForm(species: com.cobblemon.mod.common.pokemon.Species, form: com.cobblemon.mod.common.pokemon.FormData, baseForm: com.cobblemon.mod.common.pokemon.FormData?): Boolean {
@@ -668,9 +687,13 @@ object EvolutionDataLoader {
     fun buildFormEntryKey(baseName: String, form: com.cobblemon.mod.common.pokemon.FormData, species: com.cobblemon.mod.common.pokemon.Species): String {
         // Regional forms reuse SpeciesNameNormalizer's pattern for dedup with spawn data (O3)
         val regionalLabel = form.labels.firstOrNull { it in REGIONAL_LABEL_TO_SUFFIX }
-        if (regionalLabel != null) {
-            val suffix = REGIONAL_LABEL_TO_SUFFIX[regionalLabel]!!
-            return "${SpeciesNameNormalizer.normalize(baseName)}$suffix"
+        val regionalSuffix = if (regionalLabel != null) {
+            REGIONAL_LABEL_TO_SUFFIX[regionalLabel]!!
+        } else {
+            form.aspects.map { it.lowercase() }.firstNotNullOfOrNull { REGIONAL_ASPECT_TO_SUFFIX[it] }
+        }
+        if (regionalSuffix != null) {
+            return "${SpeciesNameNormalizer.normalize(baseName)}$regionalSuffix"
         }
         // Non-regional: underscore-separated normalized key (O12)
         val normalizedFormName = form.name.lowercase().replace(Regex("[^a-z0-9]"), "")
@@ -713,7 +736,18 @@ object EvolutionDataLoader {
         } catch (_: Exception) { Pair(null, null) }
 
         val primaryType = try { form.primaryType?.name?.lowercase() ?: species.primaryType?.name?.lowercase() ?: "normal" } catch (_: Exception) { "normal" }
-        val secondaryType = try { form.secondaryType?.name?.lowercase() ?: species.secondaryType?.name?.lowercase() } catch (_: Exception) { null }
+        // form.secondaryType being null is a real, meaningful value - "this
+        // form is mono-typed" - not "not specified, inherit the base
+        // species' type". Cobblemon fully resolves every form's own type at
+        // data-load time (unlike abilities/moves, which use an empty list as
+        // "no override" since a real Pokemon can't have zero abilities),
+        // so falling back to species.secondaryType here silently re-added a
+        // secondary type the form deliberately dropped - confirmed via
+        // Fai's Mythical Monstrosities' Sableye (Bloodmoon), whose form JSON
+        // sets primaryType=dark with no secondaryType at all (intentionally
+        // mono-type), but showed as Dark/Ghost (inheriting base Sableye's
+        // Ghost typing) until this fallback was removed.
+        val secondaryType = try { form.secondaryType?.name?.lowercase() } catch (_: Exception) { null }
 
         val eggGroups = try {
             val groups = form.eggGroups.ifEmpty { species.eggGroups }
