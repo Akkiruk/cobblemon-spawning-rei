@@ -459,17 +459,30 @@ object SpawnDataIndex {
     /**
      * Fill in missing move data from JarDataCache when the runtime API
      * didn't provide egg/tutor/tm/level-up moves (common on dedicated-server clients).
+     *
+     * A form's own move data is checked first (formJarMoves, keyed by the same
+     * form key as speciesInfo) before falling back to the base species' moves
+     * (jarMoves, bare-name keyed) - Cobblemon's client-side FormData for a
+     * species_additions-nested form routinely only syncs its LEVEL-UP moves,
+     * silently dropping any egg/tutor/tm moves the form defines on its own
+     * (confirmed via /cobbledex evo: Laser's Fakemon Pack's Fomantis Lunar
+     * form defines 102 moves of its own, but Cobblemon's runtime form.moves
+     * only exposed the 13 level-up ones). Falling back straight to the base
+     * species' moves in that case would silently substitute the wrong
+     * Pokemon's moveset instead of the form's own (missing) one.
      */
     private fun enrichWithJarMoves() {
-        if (!JarDataCache.hasCachedMoves()) return
+        if (!JarDataCache.hasCachedMoves() && !JarDataCache.hasCachedFormMoves()) return
         if (speciesInfo.isEmpty()) return
         val jarMoves = JarDataCache.getCachedMoves()
+        val formJarMoves = JarDataCache.getCachedFormMoves()
 
         val enriched = speciesInfo.toMutableMap()
         var enrichCount = 0
 
         for ((species, info) in enriched) {
-            val jarData = jarMoves[species] ?: continue
+            val baseKey = info.baseSpeciesName ?: species
+            val jarData = formJarMoves[species] ?: jarMoves[baseKey] ?: continue
             val needsEnrichment = info.levelUpMoves == null || info.eggMoves == null ||
                 info.tutorMoves == null || info.tmMoves == null
             if (!needsEnrichment) continue
