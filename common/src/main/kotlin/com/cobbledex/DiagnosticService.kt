@@ -116,6 +116,114 @@ object DiagnosticService {
         return 1
     }
 
+    // Calls the exact same RecipeBuilder functions the REI/EMI Evolution tab
+    // calls (EvolutionDex.buildRecipesFor), using the same form-key string a
+    // Pokemon entry would carry (e.g. "fomantis_lunar"). Used to tell apart
+    // "the data pipeline never produced this edge" (showRawForms would show
+    // that) from "the pipeline has it right, but REI is asking for the wrong
+    // key or something in RecipeBuilder's per-form lookup misses it" - this
+    // command bypasses REI entirely and prints RecipeBuilder's raw output.
+    fun showEvoPages(formKey: String, sender: MessageSender): Int {
+        val normalized = SpeciesNameNormalizer.normalize(formKey)
+        val queries = CobbleDexDataQueries(SpawnDataIndex.currentSnapshot())
+
+        sender.send("§6buildEvolutionPagesFor($normalized) (outgoing, what the Evolution tab calls):")
+        val outgoing = RecipeBuilder.buildEvolutionPagesFor(normalized)
+        for (page in outgoing) {
+            sender.send("  §fpage=${page.pageIndex}/${page.pageTotal} target=${page.targetSpeciesName}${page.targetAspects} methods=${page.methods.map { it.requirementText }}")
+        }
+        if (outgoing.isEmpty()) sender.send("  §7(empty list)")
+
+        sender.send("§6buildEvolutionRecipesInto($normalized) (incoming, what the Evolution tab calls):")
+        val incoming = RecipeBuilder.buildEvolutionRecipesInto(normalized)
+        for (page in incoming) {
+            sender.send("  §fsource=${page.sourceSpeciesName}${page.sourceAspects} target=${page.targetSpeciesName}${page.targetAspects} methods=${page.methods.map { it.requirementText }}")
+        }
+        if (incoming.isEmpty()) sender.send("  §7(empty list)")
+
+        sender.send("§6getSpeciesInfo($normalized):")
+        val info = queries.getSpeciesInfo(normalized)
+        if (info == null) sender.send("  §7(null - not in speciesInfo)")
+        else sender.send("  §fname=${info.name} baseSpeciesName=${info.baseSpeciesName} formAspects=${info.formAspects} isForm=${info.isForm}")
+
+        // Direct raw map lookup, bypassing RecipeBuilder entirely - and every
+        // key in the whole snapshot that starts with the same prefix, in case
+        // the real stored key differs subtly from what we expect (missing
+        // underscore, different casing survives normalize, etc).
+        val snapshot = SpawnDataIndex.currentSnapshot()
+        sender.send("§6Raw snapshot.evolutionsBySpecies[$normalized]:")
+        val raw = snapshot.evolutionsBySpecies[normalized]
+        if (raw == null) sender.send("  §7(key not present in map)")
+        else if (raw.isEmpty()) sender.send("  §7(key present, empty list)")
+        else for (evo in raw) sender.send("  §ffrom=${evo.fromSpecies}${evo.fromAspects} to=${evo.toSpecies}${evo.toAspects} variant=${evo.variant} id=${evo.id}")
+
+        val prefix = normalized.substringBefore('_')
+        val matchingKeys = snapshot.evolutionsBySpecies.keys.filter { it.startsWith(prefix) }.sorted()
+        sender.send("§6All evolutionsBySpecies keys starting with '$prefix': $matchingKeys")
+
+        // showRawForms looks up the species via PokemonSpecies.getByName, but
+        // EvolutionDataLoader.loadFromRuntime() (which actually populates
+        // evolutionsBySpecies) iterates PokemonSpecies.implemented instead.
+        // If those two return different Species/FormData instances for the
+        // same species (e.g. a stale duplicate left behind by a runtime data
+        // reload), buildFormEntryKey could compute two different keys for
+        // what looks like "the same" form in showRawForms vs here - this
+        // replicates loadFromRuntime()'s exact lookup path to check for that.
+        sender.send("§6Via PokemonSpecies.implemented (what loadFromRuntime iterates):")
+        try {
+            val implementedSpecies = com.cobblemon.mod.common.api.pokemon.PokemonSpecies.implemented
+                .filter { it.name.equals(prefix, ignoreCase = true) }
+            sender.send("  §fmatching species instances: ${implementedSpecies.size}")
+            for (sp in implementedSpecies) {
+                val spEvos = try { sp.evolutions } catch (_: Exception) { emptyList() }
+                sender.send("  §fspecies instance ${System.identityHashCode(sp)}: species.evolutions=${spEvos.size}")
+                val forms = try { sp.forms } catch (_: Exception) { emptyList() }
+                sender.send("  §f  ${forms.size} forms")
+                for (form in forms) {
+                    val fEvos = try { form.evolutions } catch (_: Exception) { emptyList() }
+                    val computedKey = EvolutionDataLoader.buildFormEntryKey(prefix, form, sp)
+                    val lvlCount = try { form.moves.levelUpMoves.values.sumOf { it.size } } catch (_: Exception) { -1 }
+                    val eggCount = try { form.moves.eggMoves.size } catch (_: Exception) { -1 }
+                    val tutorCount = try { form.moves.tutorMoves.size } catch (_: Exception) { -1 }
+                    val tmCount = try { form.moves.tmMoves.size } catch (_: Exception) { -1 }
+                    sender.send("    §fname=\"${form.name}\" aspects=${form.aspects} evolutions=${fEvos.size} computedKey=$computedKey")
+                    sender.send("      §7moves: levelUp=$lvlCount egg=$eggCount tutor=$tutorCount tm=$tmCount primaryType=${try { form.primaryType } catch (_: Exception) { "?" }}")
+                }
+            }
+        } catch (e: Exception) {
+            sender.send("  §c${e.message}")
+        }
+
+        // Broader net: any TOP-LEVEL species (not form) whose own .name
+        // contains our prefix - e.g. if a mod registered "Fomantis Lunar" as
+        // its own separate species (not just a form/aspect of "Fomantis"),
+        // its species.evolutions would get keyed by its raw (space-containing)
+        // name, and SpeciesNameNormalizer strips spaces without inserting a
+        // separator - "fomantis lunar" -> "fomantislunar". That would explain
+        // an evolutionsBySpecies key with no underscore that showRawForms
+        // (which only looks at the real "Fomantis" species's own forms) would
+        // never see, since it's a completely separate species registration.
+        sender.send("§6All top-level species whose name contains '$prefix' (not exact match):")
+        try {
+            val containing = com.cobblemon.mod.common.api.pokemon.PokemonSpecies.implemented
+                .filter { it.name.contains(prefix, ignoreCase = true) && !it.name.equals(prefix, ignoreCase = true) }
+            if (containing.isEmpty()) sender.send("  §7(none found)")
+            for (sp in containing) {
+                val spEvos = try { sp.evolutions } catch (_: Exception) { emptyList() }
+                sender.send("  §fname=\"${sp.name}\" species.evolutions=${spEvos.size} normalizedKey=${SpeciesNameNormalizer.normalize(sp.name)}")
+                for (evo in spEvos) {
+                    val resultSpecies = try { evo.result.species } catch (_: Exception) { null }
+                    sender.send("    §fevo id=${evo.id} result.species=$resultSpecies result.aspects=${try { evo.result.aspects } catch (_: Exception) { null }}")
+                }
+            }
+        } catch (e: Exception) {
+            sender.send("  §c${e.message}")
+        }
+
+        sender.send("§6shouldSurfaceSpecies($normalized): ${queries.shouldSurfaceSpecies(normalized)}")
+        return 1
+    }
+
     fun showMissing(sender: MessageSender): Int {
         val index = SpawnDataIndex
         

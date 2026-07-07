@@ -116,6 +116,16 @@ class CobbleDexFabricClient : ClientModInitializer {
                             }
                         )
                     )
+                    .then(ClientCommandManager.literal("evo")
+                        .then(ClientCommandManager.argument("formKey", com.mojang.brigadier.arguments.StringArgumentType.word())
+                            .executes { ctx ->
+                                val formKey = com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "formKey")
+                                DiagnosticService.showEvoPages(formKey) { msg ->
+                                    ctx.source.sendFeedback(Component.literal(msg))
+                                }
+                            }
+                        )
+                    )
                     .then(ClientCommandManager.literal("reload")
                         .executes { ctx ->
                             DiagnosticService.reloadData { msg ->
