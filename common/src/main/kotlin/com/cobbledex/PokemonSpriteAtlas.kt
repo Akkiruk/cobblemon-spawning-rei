@@ -13,7 +13,13 @@ import java.nio.file.Path
 import javax.imageio.ImageIO
 
 object PokemonSpriteAtlas {
-    private const val ATLAS_VERSION = 2
+    // Bump whenever a change would make an already-cached atlas render
+    // something wrong (not just add new content) - a mismatched version
+    // number is what makes ensureAtlas() below treat an existing player's
+    // on-disk cache as stale and silently rebuild it once, instead of them
+    // being stuck with an old incorrect render (e.g. Fungalith's Substitute-
+    // doll bug) until they think to run /cobbledex sprites build themselves.
+    private const val ATLAS_VERSION = 3
     private const val SPRITE_SIZE = 64
     private const val ATLAS_COLUMNS = 32
     private const val CACHE_DIR = "cobbledex-sprites"
@@ -79,6 +85,38 @@ object PokemonSpriteAtlas {
     @Volatile private var loadedAtlas: LoadedAtlas? = null
     @Volatile private var loadAttempted = false
     @Volatile private var buildInProgress = false
+    private val ensureAttempted = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    // Called once per session (see CobbleDexMod.tickReloadCheck) right after
+    // spawn/species data finishes loading, so players never have to know
+    // /cobbledex sprites build exists just to see correct icons/renders. If
+    // a cached atlas already exists and matches ATLAS_VERSION it's left
+    // alone (instant, no rebuild); otherwise a fresh one is built silently
+    // in the background - this is the only path that makes an ATLAS_VERSION
+    // bump (e.g. after a render-affecting fix) actually reach existing
+    // players instead of them staying stuck on their old cached PNG.
+    fun ensureAtlas() {
+        if (!ensureAttempted.compareAndSet(false, true)) return
+        // Checked directly against the cache (not getLoadedAtlas/tryLoadAtlas,
+        // which would silently accept the jar-bundled default atlas as "good
+        // enough") - the bundled atlas is a fixed snapshot baked at build
+        // time that can't reflect this modpack's own fakemons/fixes, so
+        // treating it as sufficient here would mean the auto-build never
+        // fires and players stay on a wrong/incomplete atlas forever.
+        val cached = tryLoadCacheAtlas()
+        if (cached != null) {
+            loadedAtlas = cached
+            loadAttempted = true
+            return
+        }
+        DebugLog.info("No up-to-date cached Pokemon sprite atlas found - building automatically in the background")
+        buildAtlas { msg -> DebugLog.info(msg) }
+    }
+
+    /** Allows ensureAtlas() to check again after reconnecting (e.g. to a different server/pack setup). */
+    fun resetEnsureAttempt() {
+        ensureAttempted.set(false)
+    }
 
     fun resolve(species: String, explicitAspects: Set<String> = emptySet()): ResolvedSpriteKey {
         val normalized = SpeciesNameNormalizer.normalize(species)

@@ -39,7 +39,14 @@ object CobbleDexMod {
     fun tickReloadCheck() {
         RecipeViewerReloader.tick()
 
-        if (SpawnDataIndex.isFullyLoaded()) return
+        if (SpawnDataIndex.isFullyLoaded()) {
+            // Fires exactly once per session, right as data finishes
+            // loading - builds the icon/render atlas automatically if no
+            // valid cache exists yet, so players never have to know
+            // /cobbledex sprites build exists (see PokemonSpriteAtlas.ensureAtlas).
+            PokemonSpriteAtlas.ensureAtlas()
+            return
+        }
 
         reloadTickCounter++
         if (reloadTickCounter <= 2 || reloadTickCounter % 100 == 0) {
@@ -49,6 +56,7 @@ object CobbleDexMod {
 
     fun resetReloadTimer() {
         reloadTickCounter = 0
+        PokemonSpriteAtlas.resetEnsureAttempt()
         SpawnDataIndex.ensureLoadedAsync()
     }
 }
