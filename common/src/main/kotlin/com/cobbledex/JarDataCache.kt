@@ -782,13 +782,23 @@ object JarDataCache {
         // literal aspect string instead of extracting "overgrown" produced
         // a target key that matched no real form, silently falling back to
         // the base (non-Overgrown) Boldore.
+        //
+        // A boolean SPECIES FEATURE can also be toggled this way -
+        // "flaaffy rlm=true" (confirmed via Cobblemon RLM's Mareep->Flaaffy
+        // evolution, whose species_additions declares "features": ["rlm"])
+        // sets the boolean feature "rlm" to true, which itself contributes
+        // an aspect of the same name ("rlm") - unlike "aspect=X" the aspect
+        // name here IS the key, not the value, so this needs its own case.
         val resultParts = resultStr.split(" ").filter { it.isNotBlank() }
         val toSpecies = resultParts.first().lowercase()
         val toAspects = resultParts.drop(1).mapNotNull { token ->
             val lower = token.lowercase()
             when {
                 lower.startsWith("aspect=") -> lower.removePrefix("aspect=").ifBlank { null }
-                "=" in lower -> null // other properties (level=, gender=, shiny=, etc.) aren't aspects
+                "=" in lower -> {
+                    val (key, value) = lower.split("=", limit = 2)
+                    if (value == "true") key.ifBlank { null } else null
+                }
                 else -> lower
             }
         }.toSet()
