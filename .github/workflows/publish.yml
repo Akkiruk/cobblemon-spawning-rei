@@ -45,10 +45,13 @@ jobs:
           cd cobblemon-spawning-rei
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             VERSION="${{ github.event.inputs.version }}"
+            TAG="v$VERSION"
           else
             VERSION=$(grep "^mod_version=" gradle.properties | cut -d'=' -f2)
+            TAG="${{ github.ref_name }}"
           fi
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "TAG=$TAG" >> $GITHUB_OUTPUT
           echo "Publishing version: $VERSION"
           
       - name: Get changelog for this version
@@ -63,7 +66,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ steps.get_version.outputs.TAG }}
           name: "v${{ steps.get_version.outputs.VERSION }}"
           body_path: cobblemon-spawning-rei/current_changelog.txt
           files: |
@@ -142,15 +145,15 @@ jobs:
         with:
           name: cobbledex-rei-emi-jei-fabric-${{ steps.get_version.outputs.VERSION }}
           path: |
-            fabric/build/libs/cobbledex-rei-emi-jei-fabric-*.jar
-            !fabric/build/libs/*-dev*.jar
-            !fabric/build/libs/*-sources.jar
+            cobblemon-spawning-rei/fabric/build/libs/cobbledex-rei-emi-jei-fabric-*.jar
+            !cobblemon-spawning-rei/fabric/build/libs/*-dev*.jar
+            !cobblemon-spawning-rei/fabric/build/libs/*-sources.jar
           
       - name: Upload NeoForge artifacts
         uses: actions/upload-artifact@v4
         with:
           name: cobbledex-rei-emi-jei-neoforge-${{ steps.get_version.outputs.VERSION }}
           path: |
-            neoforge/build/libs/cobbledex-rei-emi-jei-neoforge-*.jar
-            !neoforge/build/libs/*-dev*.jar
-            !neoforge/build/libs/*-sources.jar
+            cobblemon-spawning-rei/neoforge/build/libs/cobbledex-rei-emi-jei-neoforge-*.jar
+            !cobblemon-spawning-rei/neoforge/build/libs/*-dev*.jar
+            !cobblemon-spawning-rei/neoforge/build/libs/*-sources.jar

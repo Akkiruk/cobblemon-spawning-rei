@@ -47,14 +47,6 @@ subprojects {
         maven("https://maven.blamejared.com/")
         exclusiveContent {
             forRepository {
-                maven("https://maven.terraformersmc.com/") {
-                    name = "TerraformersMC"
-                }
-            }
-            filter { includeModule("net.fabricmc", "fabric-language-kotlin") }
-        }
-        exclusiveContent {
-            forRepository {
                 maven("https://api.modrinth.com/maven") {
                     name = "Modrinth"
                 }
