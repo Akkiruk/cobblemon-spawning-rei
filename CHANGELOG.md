@@ -2,6 +2,14 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.0.3] - 2026-07-21
+
+### Fixed
+- Fixed evolution chains double-counting base species evolutions: "Normal" form entries (which carry no aspects) are now skipped during form-level evolution loading, so base-species evolutions are only added once
+- Fixed duplicate alternate-form entries when two eligible forms share the same aspect set; the shortest/cleanest name is kept and the rest are silently dropped (logged as cosmetic-skin duplicates)
+- Added `SIGNIFICANT_ASPECT_MARKERS` detection so regional and mega forms flagged by aspect string (e.g. `gmax`, `alolan`) are correctly identified even when a mod overrides the form's flavor labels without changing the aspect
+- Fixed `feature=true` boolean evolution results (e.g. `flaaffy rlm=true`) being discarded as unrecognised properties; these are now parsed as aspects alongside existing `aspect=X` handling, restoring correct evolution chains for mods like Cobblemon RLM
+
 ## [2.0.2] - 2026-05-14
 
 ### Fixed
