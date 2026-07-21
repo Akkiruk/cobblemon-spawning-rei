@@ -106,6 +106,26 @@ class CobbleDexFabricClient : ClientModInitializer {
                             }
                         }
                     )
+                    .then(ClientCommandManager.literal("forms")
+                        .then(ClientCommandManager.argument("species", com.mojang.brigadier.arguments.StringArgumentType.word())
+                            .executes { ctx ->
+                                val species = com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "species")
+                                DiagnosticService.showRawForms(species) { msg ->
+                                    ctx.source.sendFeedback(Component.literal(msg))
+                                }
+                            }
+                        )
+                    )
+                    .then(ClientCommandManager.literal("evo")
+                        .then(ClientCommandManager.argument("formKey", com.mojang.brigadier.arguments.StringArgumentType.word())
+                            .executes { ctx ->
+                                val formKey = com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "formKey")
+                                DiagnosticService.showEvoPages(formKey) { msg ->
+                                    ctx.source.sendFeedback(Component.literal(msg))
+                                }
+                            }
+                        )
+                    )
                     .then(ClientCommandManager.literal("reload")
                         .executes { ctx ->
                             DiagnosticService.reloadData { msg ->
@@ -134,6 +154,21 @@ class CobbleDexFabricClient : ClientModInitializer {
                                 ctx.source.sendFeedback(Component.literal(if (loaded) "§aCobbleDex sprite atlas reloaded." else "§eNo CobbleDex sprite atlas found."))
                                 1
                             }
+                        )
+                        .then(ClientCommandManager.literal("export")
+                            .executes { ctx ->
+                                PokemonSpriteAtlas.exportWebsiteSprites(512) { msg ->
+                                    ctx.source.sendFeedback(Component.literal(msg))
+                                }
+                            }
+                            .then(ClientCommandManager.argument("size", com.mojang.brigadier.arguments.IntegerArgumentType.integer(32, 1024))
+                                .executes { ctx ->
+                                    val size = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "size")
+                                    PokemonSpriteAtlas.exportWebsiteSprites(size) { msg ->
+                                        ctx.source.sendFeedback(Component.literal(msg))
+                                    }
+                                }
+                            )
                         )
                     )
             )

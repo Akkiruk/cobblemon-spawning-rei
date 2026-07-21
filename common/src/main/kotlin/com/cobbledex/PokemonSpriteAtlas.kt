@@ -13,7 +13,13 @@ import java.nio.file.Path
 import javax.imageio.ImageIO
 
 object PokemonSpriteAtlas {
-    private const val ATLAS_VERSION = 2
+    // Bump whenever a change would make an already-cached atlas render
+    // something wrong (not just add new content) - a mismatched version
+    // number is what makes ensureAtlas() below treat an existing player's
+    // on-disk cache as stale and silently rebuild it once, instead of them
+    // being stuck with an old incorrect render (e.g. Fungalith's Substitute-
+    // doll bug) until they think to run /cobbledex sprites build themselves.
+    private const val ATLAS_VERSION = 3
     private const val SPRITE_SIZE = 64
     private const val ATLAS_COLUMNS = 32
     private const val CACHE_DIR = "cobbledex-sprites"
@@ -79,6 +85,38 @@ object PokemonSpriteAtlas {
     @Volatile private var loadedAtlas: LoadedAtlas? = null
     @Volatile private var loadAttempted = false
     @Volatile private var buildInProgress = false
+    private val ensureAttempted = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    // Called once per session (see CobbleDexMod.tickReloadCheck) right after
+    // spawn/species data finishes loading, so players never have to know
+    // /cobbledex sprites build exists just to see correct icons/renders. If
+    // a cached atlas already exists and matches ATLAS_VERSION it's left
+    // alone (instant, no rebuild); otherwise a fresh one is built silently
+    // in the background - this is the only path that makes an ATLAS_VERSION
+    // bump (e.g. after a render-affecting fix) actually reach existing
+    // players instead of them staying stuck on their old cached PNG.
+    fun ensureAtlas() {
+        if (!ensureAttempted.compareAndSet(false, true)) return
+        // Checked directly against the cache (not getLoadedAtlas/tryLoadAtlas,
+        // which would silently accept the jar-bundled default atlas as "good
+        // enough") - the bundled atlas is a fixed snapshot baked at build
+        // time that can't reflect this modpack's own fakemons/fixes, so
+        // treating it as sufficient here would mean the auto-build never
+        // fires and players stay on a wrong/incomplete atlas forever.
+        val cached = tryLoadCacheAtlas()
+        if (cached != null) {
+            loadedAtlas = cached
+            loadAttempted = true
+            return
+        }
+        DebugLog.info("No up-to-date cached Pokemon sprite atlas found - building automatically in the background")
+        buildAtlas { msg -> DebugLog.info(msg) }
+    }
+
+    /** Allows ensureAtlas() to check again after reconnecting (e.g. to a different server/pack setup). */
+    fun resetEnsureAttempt() {
+        ensureAttempted.set(false)
+    }
 
     fun resolve(species: String, explicitAspects: Set<String> = emptySet()): ResolvedSpriteKey {
         val normalized = SpeciesNameNormalizer.normalize(species)
@@ -95,7 +133,29 @@ object PokemonSpriteAtlas {
             }
         )
 
-        return ResolvedSpriteKey(SpriteKey(renderSpecies, aspects), renderSpecies, aspects)
+        // Most species' bedrock resolvers have a model variation that matches
+        // with no gender aspect at all, so this normally doesn't matter - but
+        // some (e.g. Lively Mons' Fungalith) define ONLY "male"/"female"
+        // variations with no genderless fallback. Requesting a render with
+        // neither aspect then matches nothing, and Cobblemon silently falls
+        // back to the "Substitute" placeholder doll instead of the species'
+        // own model. Default to a gender aspect whenever the species isn't
+        // genderless (maleRatio == -1), same convention Cobblemon's own box/
+        // party UI uses when showing a species with no live Pokemon instance
+        // to pull an actual gender from. Kept OUT of the SpriteKey/id itself
+        // (only affects the actual render call) so the atlas/website
+        // filenames stay exactly as every other lookup already expects them -
+        // this is purely "which pose Cobblemon renders", not a new identity.
+        val renderAspects = if ("male" in aspects || "female" in aspects) {
+            aspects
+        } else {
+            val maleRatio = info?.maleRatio
+            if (maleRatio != null && maleRatio != -1f) {
+                aspects + if (maleRatio == 0f) "female" else "male"
+            } else aspects
+        }
+
+        return ResolvedSpriteKey(SpriteKey(renderSpecies, aspects), renderSpecies, renderAspects)
     }
 
     fun renderIfAvailable(
@@ -217,6 +277,57 @@ object PokemonSpriteAtlas {
         )
 
         return BuildResult(atlasPath, manifestPath, keys.size, images.size, failed)
+    }
+
+    // For the companion Pokedex website: full-size individual PNGs (not the
+    // small REI atlas) named exactly by SpriteKey.id, so an external pipeline
+    // can match them against its own normalized species+aspects without any
+    // coupling to this mod's internal file layout.
+    fun exportWebsiteSprites(size: Int, sender: DiagnosticService.MessageSender): Int {
+        if (buildInProgress) {
+            sender.send("§eA CobbleDex sprite build/export is already running.")
+            return 0
+        }
+        if (!SpawnDataIndex.hasData()) {
+            sender.send(tr("cobbledex-rei-emi-jei.cmd.no_data_short"))
+            return 0
+        }
+
+        buildInProgress = true
+        sender.send("§7Exporting $size" + "x" + "$size Pokemon sprites for the website...")
+        Minecraft.getInstance().execute {
+            try {
+                val keys = collectSpriteKeys()
+                val outputDir = cacheDir().resolve("website-sprites")
+                Files.createDirectories(outputDir)
+                IconCapture.init()
+                var captured = 0
+                var failed = 0
+                keys.forEachIndexed { index, resolved ->
+                    val png = IconCapture.captureSpeciesToPng(resolved.renderSpecies, resolved.renderAspects, size)
+                    if (png != null) {
+                        Files.write(outputDir.resolve("${resolved.key.id}.png"), png)
+                        captured++
+                    } else {
+                        failed++
+                    }
+                    val completed = index + 1
+                    if (completed == keys.size || completed % 50 == 0) {
+                        sender.send("§7Exported: $completed/${keys.size}")
+                    }
+                }
+                sender.send("§aWebsite sprite export done: $captured/${keys.size} captured, $failed failed")
+                sender.send("§7${outputDir.toAbsolutePath()}")
+            } catch (t: Throwable) {
+                sender.send("§cWebsite sprite export failed: ${t.message ?: t.javaClass.simpleName}")
+                DebugLog.warn("Website sprite export failed: ${t.message}")
+                t.printStackTrace()
+            } finally {
+                buildInProgress = false
+                IconCapture.cleanup()
+            }
+        }
+        return 1
     }
 
     private fun collectSpriteKeys(): List<ResolvedSpriteKey> {

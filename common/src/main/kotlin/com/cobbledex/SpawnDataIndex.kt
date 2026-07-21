@@ -272,11 +272,44 @@ object SpawnDataIndex {
                 evolutionSourceTier = DataSourceTier.UNKNOWN
             }
 
-            // Fall back to JarDataCache evolutions if runtime is empty
-            if (evolutionsBySpecies.isEmpty() && JarDataCache.hasCachedEvolutions()) {
-                DebugLog.info("Using JarDataCache evolutions (${JarDataCache.getCachedEvolutions().size} species)")
-                evolutionsBySpecies = normalizeMapKeys(JarDataCache.getCachedEvolutions())
-                evolutionSourceTier = DataSourceTier.JAR_OR_DATAPACK
+            // Fall back to JarDataCache evolutions wholesale if runtime is
+            // completely empty (e.g. evolution access itself failed), then
+            // merge in any form-specific edges the runtime API is missing
+            // even when it did return data overall - Cobblemon's client-side
+            // FormData for a species_additions-nested form's own "evolutions"
+            // routinely comes back empty at runtime even though the mod's
+            // JSON defines a real one (confirmed via /cobbledex evo: Fanmade
+            // Form Funfair's Roggenrola/Boldore "Overgrown" forms both define
+            // a real level_up/trade evolution in their species_additions
+            // file, but Cobblemon's runtime form.evolutions exposed none of
+            // it, so only the aspectless base Roggenrola->Boldore edge ever
+            // reached RecipeBuilder).
+            if (JarDataCache.hasCachedEvolutions()) {
+                if (evolutionsBySpecies.isEmpty()) {
+                    DebugLog.info("Using JarDataCache evolutions (${JarDataCache.getCachedEvolutions().size} species)")
+                    evolutionsBySpecies = normalizeMapKeys(JarDataCache.getCachedEvolutions())
+                    evolutionSourceTier = DataSourceTier.JAR_OR_DATAPACK
+                } else {
+                    val merged = evolutionsBySpecies.mapValues { it.value.toMutableList() }.toMutableMap()
+                    var addedCount = 0
+                    for ((key, jarEvos) in normalizeMapKeys(JarDataCache.getCachedEvolutions())) {
+                        val existing = merged[key].orEmpty()
+                        for (evo in jarEvos) {
+                            val alreadyPresent = existing.any {
+                                it.fromAspects == evo.fromAspects &&
+                                    SpeciesNameNormalizer.normalize(it.toSpecies) == SpeciesNameNormalizer.normalize(evo.toSpecies)
+                            }
+                            if (!alreadyPresent) {
+                                merged.getOrPut(key) { mutableListOf() }.add(evo)
+                                addedCount++
+                            }
+                        }
+                    }
+                    if (addedCount > 0) {
+                        evolutionsBySpecies = merged
+                        DebugLog.info("Merged $addedCount form-specific evolution edges from JarDataCache (runtime API didn't provide them)")
+                    }
+                }
             }
 
             try {
@@ -459,17 +492,30 @@ object SpawnDataIndex {
     /**
      * Fill in missing move data from JarDataCache when the runtime API
      * didn't provide egg/tutor/tm/level-up moves (common on dedicated-server clients).
+     *
+     * A form's own move data is checked first (formJarMoves, keyed by the same
+     * form key as speciesInfo) before falling back to the base species' moves
+     * (jarMoves, bare-name keyed) - Cobblemon's client-side FormData for a
+     * species_additions-nested form routinely only syncs its LEVEL-UP moves,
+     * silently dropping any egg/tutor/tm moves the form defines on its own
+     * (confirmed via /cobbledex evo: Laser's Fakemon Pack's Fomantis Lunar
+     * form defines 102 moves of its own, but Cobblemon's runtime form.moves
+     * only exposed the 13 level-up ones). Falling back straight to the base
+     * species' moves in that case would silently substitute the wrong
+     * Pokemon's moveset instead of the form's own (missing) one.
      */
     private fun enrichWithJarMoves() {
-        if (!JarDataCache.hasCachedMoves()) return
+        if (!JarDataCache.hasCachedMoves() && !JarDataCache.hasCachedFormMoves()) return
         if (speciesInfo.isEmpty()) return
         val jarMoves = JarDataCache.getCachedMoves()
+        val formJarMoves = JarDataCache.getCachedFormMoves()
 
         val enriched = speciesInfo.toMutableMap()
         var enrichCount = 0
 
         for ((species, info) in enriched) {
-            val jarData = jarMoves[species] ?: continue
+            val baseKey = info.baseSpeciesName ?: species
+            val jarData = formJarMoves[species] ?: jarMoves[baseKey] ?: continue
             val needsEnrichment = info.levelUpMoves == null || info.eggMoves == null ||
                 info.tutorMoves == null || info.tmMoves == null
             if (!needsEnrichment) continue

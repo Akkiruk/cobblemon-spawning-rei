@@ -278,13 +278,6 @@ object PokemonInfoPageBuilder {
             height += SpawnDisplayHelper.wrapText(font, bstText, valueWidth).size.coerceAtLeast(1) * PanelLayout.LINE_HEIGHT
         }
 
-        if (data.differenceReasons.isNotEmpty()) {
-            height += 3 + PanelLayout.LINE_HEIGHT
-            height += data.differenceReasons.sumOf { reason ->
-                SpawnDisplayHelper.wrapText(font, "• $reason", width - (padding + 6)).size.coerceAtLeast(1) * PanelLayout.LINE_HEIGHT
-            }
-        }
-
         height += 1 + 4 + font.lineHeight + padding
         return height
     }
@@ -315,15 +308,28 @@ object PokemonInfoPageBuilder {
         layout.fill(padding, 36, right, 37, 0x50FFFFFF)
         layout.skipTo(43)
 
-        info?.description?.takeIf { it.isNotBlank() }?.let { description ->
-            val lines = SpawnDisplayHelper.wrapText(font, description, right - indentX).take(3)
-            lines.forEach { line ->
-                layout.clipped(indentX, line, right - indentX, 0xCCCCCC)
-                layout.line()
+        info?.description?.takeIf { it.isNotBlank() }?.let { descriptionKey ->
+            // info.description stores a translation KEY (e.g.
+            // "cobblemon.species.sableye_bloodmoon.desc1"), not resolved
+            // text - the separate "Pokemon Description" REI category
+            // correctly calls tr() on it (SpawnDisplayHelper.
+            // buildPokemonDescriptionLayout), but this inline overview
+            // snippet never did, so it rendered the raw key literally
+            // whenever a species reached this page before that other
+            // category (confirmed via Fai's Mythical Monstrosities' Sableye
+            // Bloodmoon, whose Overview page showed
+            // "cobblemon.species.sableye_bloodmoon.desc1" as-is).
+            val description = tr(descriptionKey)
+            if (description != descriptionKey && description.isNotBlank()) {
+                val lines = SpawnDisplayHelper.wrapText(font, description, right - indentX).take(3)
+                lines.forEach { line ->
+                    layout.clipped(indentX, line, right - indentX, 0xCCCCCC)
+                    layout.line()
+                }
+                layout.gap(3)
+                layout.separator(0x18FFFFFF)
+                layout.gap(4)
             }
-            layout.gap(3)
-            layout.separator(0x18FFFFFF)
-            layout.gap(4)
         }
 
         drawOverviewSection(layout, tr("cobbledex-rei-emi-jei.overview.profile"))

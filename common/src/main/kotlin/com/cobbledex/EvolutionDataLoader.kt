@@ -70,6 +70,15 @@ object EvolutionDataLoader {
                 val formEvos = try { form.evolutions } catch (_: Exception) { continue }
                 if (formEvos.isEmpty()) continue
                 val formAspects = form.aspects.toSet()
+                // Cobblemon registers every species' own baseline look as a form
+                // in its own right (typically named "Normal", with no aspect tag
+                // of its own) alongside genuinely distinct forms like Gmax/Alolan.
+                // Without this check that "Normal" form was being treated as a
+                // real alternate form - creating a bogus "<species>_normal" entry
+                // for essentially every species with any registered form, and
+                // double-counting the base species' own evolutions (added once
+                // from species.evolutions above, then again here).
+                if (formAspects.isEmpty()) continue
                 val formKey = buildFormEntryKey(baseName, form, species)
 
                 for (evo in formEvos) {
@@ -539,11 +548,25 @@ object EvolutionDataLoader {
         // Load alternate forms as separate entries
         if (com.cobbledex.config.CobbleDexConfig.get().showAlternateForms) {
             var formCount = 0
+            var skippedDuplicateAspectCount = 0
             for (species in implemented) {
                 val baseName = species.name.lowercase()
                 val baseForm = try { species.standardForm } catch (_: Exception) { null }
-                for (form in try { species.forms } catch (_: Exception) { emptyList() }) {
-                    if (!shouldIncludeForm(species, form, baseForm)) continue
+                // shouldIncludeForm already drops cosmetic "-costume" forms (see
+                // its comment). This grouping is just a safety net in case two
+                // eligible forms still end up sharing one aspect set for some
+                // other reason - keep the shortest/cleanest name in that case.
+                val eligibleForms = try { species.forms } catch (_: Exception) { emptyList() }
+                    .filter { form -> shouldIncludeForm(species, form, baseForm) }
+                val winningForms = eligibleForms
+                    .groupBy { form -> form.aspects.map { it.lowercase() }.toSet() }
+                    .flatMap { (aspectKey, candidates) ->
+                        if (aspectKey.isEmpty() || candidates.size <= 1) candidates
+                        else listOf(candidates.minBy { it.name.length })
+                    }
+                skippedDuplicateAspectCount += eligibleForms.size - winningForms.size
+
+                for (form in winningForms) {
                     try {
                         val formKey = buildFormEntryKey(baseName, form, species)
                         val info = buildFormSpeciesInfo(formKey, species, form, baseForm)
@@ -560,7 +583,7 @@ object EvolutionDataLoader {
                     }
                 }
             }
-            DebugLog.info("Loaded ${result.size} species from runtime API ($dropSpeciesCount with drops, $formCount alternate forms)")
+            DebugLog.info("Loaded ${result.size} species from runtime API ($dropSpeciesCount with drops, $formCount alternate forms, $skippedDuplicateAspectCount cosmetic-skin duplicates skipped)")
         } else {
             DebugLog.info("Loaded ${result.size} species from runtime API ($dropSpeciesCount with drops, alternate forms disabled)")
         }
@@ -573,6 +596,25 @@ object EvolutionDataLoader {
         "alolan_form", "galarian_form", "hisuian_form", "paldean_form"
     )
 
+    // Same idea as SIGNIFICANT_LABELS, but matched against the form's own
+    // ASPECT instead of its labels - some packs (or a species_additions patch
+    // from a different mod) ship a form whose labels don't carry the
+    // "gmax"/"mega"/etc marker at all (e.g. this modpack's live Eevee Gmax
+    // form reports labels=[gen1], not [gen8, gmax], even though its aspect is
+    // still plainly "gmax") - relying on labels alone silently dropped these.
+    // Aspects are the more reliable signal since Cobblemon itself keys pose/
+    // texture resolution off them, so a mod overriding flavor labels is much
+    // less likely to also break the aspect string.
+    private val SIGNIFICANT_ASPECT_MARKERS = setOf(
+        "mega", "primal", "ultra_burst", "gmax", "gigantamax",
+        "alolan", "galarian", "hisuian", "paldean", "alola", "galar", "hisui", "paldea"
+    )
+
+    private fun hasSignificantAspect(aspects: Set<String>): Boolean = aspects.any { aspect ->
+        val lower = aspect.lowercase()
+        SIGNIFICANT_ASPECT_MARKERS.any { marker -> lower == marker || lower.startsWith("${marker}_") || lower.startsWith("${marker}-") }
+    }
+
     private val REGIONAL_LABEL_TO_SUFFIX = mapOf(
         "alolan_form" to "alolan",
         "galarian_form" to "galarian",
@@ -580,11 +622,53 @@ object EvolutionDataLoader {
         "paldean_form" to "paldean"
     )
 
-    private fun shouldIncludeForm(species: com.cobblemon.mod.common.pokemon.Species, form: com.cobblemon.mod.common.pokemon.FormData, baseForm: com.cobblemon.mod.common.pokemon.FormData?): Boolean {
+    // Same regional suffixes, keyed by the form's own ASPECT instead of its
+    // labels - a form's labels can end up wrong at runtime for reasons
+    // outside any mod's own JSON (confirmed via /cobbledex forms: Farfetch'd
+    // Galar's own species_additions file and Cobblemon's base file both
+    // correctly declare labels=[gen8, galarian_form], but Cobblemon's
+    // runtime FormData reported labels=[gen1, kantonian_form] instead - a
+    // stale/conflicting value from elsewhere in the load pipeline). The
+    // aspect ("galarian") was still correct, so checking it as a fallback
+    // keeps the computed key ("farfetchdgalarian") matching what
+    // JarDataCache's raw-JSON-based key builder computes from the (correct)
+    // source labels, instead of silently falling back to the generic
+    // underscore scheme and breaking JAR-move-fallback lookups.
+    private val REGIONAL_ASPECT_TO_SUFFIX = mapOf(
+        "alolan" to "alolan",
+        "galarian" to "galarian",
+        "hisuian" to "hisuian",
+        "paldean" to "paldean"
+    )
+
+    // Not private: DiagnosticService.showRawForms calls this directly to show
+    // exactly why a given form was or wasn't surfaced as an alternate form.
+    fun shouldIncludeForm(species: com.cobblemon.mod.common.pokemon.Species, form: com.cobblemon.mod.common.pokemon.FormData, baseForm: com.cobblemon.mod.common.pokemon.FormData?): Boolean {
         if (baseForm != null && form == baseForm) return false
         if (form.name.isBlank()) return false
 
+        // Cobblemon's cosmetic-item system (wardrobe costumes granted via
+        // consumable items, e.g. data/cobblemon/cosmetic_items/*.json) tags
+        // every aspect it contributes with a "-costume" suffix (confirmed via
+        // /cobbledex forms: Lucario has real forms like "Mega" aspects=[mega]
+        // alongside cosmetic ones like "Mega-Chef-Costume" aspects=[chef-costume, mega]
+        // and standalone "Cafe-Costume" aspects=[cafe-costume]). These ARE genuine
+        // FormData entries registered by Cobblemon at runtime - not a bug in
+        // another mod - but they're purely cosmetic reskins, not gameplay forms,
+        // so they must never surface as alternate forms or evolution outcomes.
+        if (form.aspects.any { it.endsWith("-costume", ignoreCase = true) }) return false
+
         if (form.labels.any { it in SIGNIFICANT_LABELS }) return true
+        if (hasSignificantAspect(form.aspects.toSet())) return true
+
+        // A form with no distinguishing aspect can't meaningfully differ from
+        // the species' own look (same "empty aspects = same as base" convention
+        // used elsewhere for evolution data). Some species_additions patches
+        // register their own copy of the base/"Normal" form that isn't
+        // reference-equal to species.standardForm, so the check above alone
+        // doesn't catch it - this is what was surfacing as a bogus
+        // "<species> Normal" alternate form for most of the dex.
+        if (form.aspects.isEmpty()) return false
 
         val base = baseForm ?: return false
         val typeDiffers = form.primaryType != base.primaryType || form.secondaryType != base.secondaryType
@@ -598,12 +682,18 @@ object EvolutionDataLoader {
         return typeDiffers || statsDiffer || abilitiesDiffer
     }
 
-    private fun buildFormEntryKey(baseName: String, form: com.cobblemon.mod.common.pokemon.FormData, species: com.cobblemon.mod.common.pokemon.Species): String {
+    // Not private: DiagnosticService.showRawForms uses the real key so its
+    // "surfaced"/"in speciesInfo" checks match production exactly.
+    fun buildFormEntryKey(baseName: String, form: com.cobblemon.mod.common.pokemon.FormData, species: com.cobblemon.mod.common.pokemon.Species): String {
         // Regional forms reuse SpeciesNameNormalizer's pattern for dedup with spawn data (O3)
         val regionalLabel = form.labels.firstOrNull { it in REGIONAL_LABEL_TO_SUFFIX }
-        if (regionalLabel != null) {
-            val suffix = REGIONAL_LABEL_TO_SUFFIX[regionalLabel]!!
-            return "${SpeciesNameNormalizer.normalize(baseName)}$suffix"
+        val regionalSuffix = if (regionalLabel != null) {
+            REGIONAL_LABEL_TO_SUFFIX[regionalLabel]!!
+        } else {
+            form.aspects.map { it.lowercase() }.firstNotNullOfOrNull { REGIONAL_ASPECT_TO_SUFFIX[it] }
+        }
+        if (regionalSuffix != null) {
+            return "${SpeciesNameNormalizer.normalize(baseName)}$regionalSuffix"
         }
         // Non-regional: underscore-separated normalized key (O12)
         val normalizedFormName = form.name.lowercase().replace(Regex("[^a-z0-9]"), "")
@@ -646,7 +736,18 @@ object EvolutionDataLoader {
         } catch (_: Exception) { Pair(null, null) }
 
         val primaryType = try { form.primaryType?.name?.lowercase() ?: species.primaryType?.name?.lowercase() ?: "normal" } catch (_: Exception) { "normal" }
-        val secondaryType = try { form.secondaryType?.name?.lowercase() ?: species.secondaryType?.name?.lowercase() } catch (_: Exception) { null }
+        // form.secondaryType being null is a real, meaningful value - "this
+        // form is mono-typed" - not "not specified, inherit the base
+        // species' type". Cobblemon fully resolves every form's own type at
+        // data-load time (unlike abilities/moves, which use an empty list as
+        // "no override" since a real Pokemon can't have zero abilities),
+        // so falling back to species.secondaryType here silently re-added a
+        // secondary type the form deliberately dropped - confirmed via
+        // Fai's Mythical Monstrosities' Sableye (Bloodmoon), whose form JSON
+        // sets primaryType=dark with no secondaryType at all (intentionally
+        // mono-type), but showed as Dark/Ghost (inheriting base Sableye's
+        // Ghost typing) until this fallback was removed.
+        val secondaryType = try { form.secondaryType?.name?.lowercase() } catch (_: Exception) { null }
 
         val eggGroups = try {
             val groups = form.eggGroups.ifEmpty { species.eggGroups }
@@ -681,8 +782,17 @@ object EvolutionDataLoader {
             yieldMap.ifEmpty { null }
         } catch (_: Exception) { null }
 
+        // A form's moves being empty is Cobblemon's convention for "inherit the
+        // base form's moveset", not "this form learns nothing" - confirmed via
+        // vanilla Cobblemon's own gimmighoul.json, whose "Roaming" form has
+        // "moves": [] on purpose (Roaming and Chest Gimmighoul learn the same
+        // moves as base Gimmighoul). abilities/eggGroups a few lines below
+        // already fall back to baseForm when the form's own value is empty;
+        // the four move lists here didn't, so any form relying on this
+        // convention (rather than genuinely overriding its moveset) silently
+        // lost its entire learnset with no fallback.
         val levelUpMoves = try {
-            val moves = form.moves.levelUpMoves
+            val moves = form.moves.levelUpMoves.ifEmpty { baseForm?.moves?.levelUpMoves ?: emptyMap() }
             if (moves.isNotEmpty()) {
                 val grouped = mutableMapOf<Int, MutableList<MoveDetail>>()
                 for ((level, moveList) in moves) {
@@ -697,15 +807,18 @@ object EvolutionDataLoader {
         } catch (_: Exception) { null }
 
         val eggMoves = try {
-            form.moves.eggMoves.map { toMoveDetail(it) }.ifEmpty { null }
+            form.moves.eggMoves.ifEmpty { baseForm?.moves?.eggMoves ?: emptyList() }
+                .map { toMoveDetail(it) }.ifEmpty { null }
         } catch (_: Exception) { null }
 
         val tutorMoves = try {
-            form.moves.tutorMoves.map { toMoveDetail(it) }.ifEmpty { null }
+            form.moves.tutorMoves.ifEmpty { baseForm?.moves?.tutorMoves ?: emptyList() }
+                .map { toMoveDetail(it) }.ifEmpty { null }
         } catch (_: Exception) { null }
 
         val tmMoves = try {
-            form.moves.tmMoves.map { toMoveDetail(it) }.ifEmpty { null }
+            form.moves.tmMoves.ifEmpty { baseForm?.moves?.tmMoves ?: emptyList() }
+                .map { toMoveDetail(it) }.ifEmpty { null }
         } catch (_: Exception) { null }
 
         // Build the form name for i18n: preserve original casing with hyphens (e.g. "mega-x", "therian")

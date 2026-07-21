@@ -28,6 +28,8 @@ object JarDataCache {
     @Volatile
     private var cachedMoves: Map<String, JarMoveData> = emptyMap()
     @Volatile
+    private var cachedFormMoves: Map<String, JarMoveData> = emptyMap()
+    @Volatile
     private var cachedFossils: Map<String, List<FossilCombo>> = emptyMap()
 
     /** Raw move data parsed from species JSON in mod JARs. */
@@ -51,6 +53,8 @@ object JarDataCache {
     fun hasCachedSpawns(): Boolean = cachedSpawns.isNotEmpty()
     fun hasCachedMoves(): Boolean = cachedMoves.isNotEmpty()
     fun getCachedMoves(): Map<String, JarMoveData> = cachedMoves
+    fun hasCachedFormMoves(): Boolean = cachedFormMoves.isNotEmpty()
+    fun getCachedFormMoves(): Map<String, JarMoveData> = cachedFormMoves
     fun hasCachedFossils(): Boolean = cachedFossils.isNotEmpty()
     fun getCachedFossils(): Map<String, List<FossilCombo>> = cachedFossils
 
@@ -82,6 +86,7 @@ object JarDataCache {
             val evoAndMoves = parseEvolutionsAndMovesFromJars(modRoots)
             cachedEvolutions = evoAndMoves.first
             cachedMoves = evoAndMoves.second
+            cachedFormMoves = evoAndMoves.third
             cachedFossils = parseFossilsFromJars(modRoots)
 
             val elapsed = System.currentTimeMillis() - startTime
@@ -494,125 +499,309 @@ object JarDataCache {
 
     // ==================== Evolution Parsing ====================
 
-    private fun parseEvolutionsAndMovesFromJars(modRoots: List<Path>): Pair<Map<String, List<EvolutionInfo>>, Map<String, JarMoveData>> {
-        val result = mutableMapOf<String, MutableList<EvolutionInfo>>()
-        val movesResult = mutableMapOf<String, JarMoveData>()
+    private class EvoMoveParseCounters {
         var fileCount = 0
         var failCount = 0
         var baseEvoCount = 0
         var formEvoCount = 0
+    }
 
+    private fun parseEvolutionsAndMovesFromJars(modRoots: List<Path>): Triple<Map<String, List<EvolutionInfo>>, Map<String, JarMoveData>, Map<String, JarMoveData>> {
+        val result = mutableMapOf<String, MutableList<EvolutionInfo>>()
+        val movesResult = mutableMapOf<String, JarMoveData>()
+        val formMovesResult = mutableMapOf<String, JarMoveData>()
+        val counters = EvoMoveParseCounters()
+
+        // "species/*.json" files declare a species outright via a "name" field.
+        // "species_additions/*.json" files patch an *existing* species (added by
+        // another mod/base game) and identify their target via a "target" field
+        // instead (e.g. "cobblemon:eevee") - no "name" field at all. Addon packs
+        // like Extra Eeveelutions/Kazeran Eeveelutions add their evolution
+        // branches this way, so both folders must be scanned or those branches
+        // are silently invisible even though the base species' own evolutions
+        // (from "species/") parse fine.
         for (root in modRoots) {
             try {
-                val dataDir = root.resolve("data")
-                if (!Files.exists(dataDir) || !Files.isDirectory(dataDir)) continue
+                scanLooseSpeciesDataDir(root.resolve("data"), result, movesResult, formMovesResult, counters)
+            } catch (_: Exception) {}
+        }
 
-                Files.list(dataDir).use { namespaces ->
-                    namespaces.filter { Files.isDirectory(it) }.forEach { namespace ->
-                        val speciesDir = namespace.resolve("species")
-                        if (!Files.exists(speciesDir) || !Files.isDirectory(speciesDir)) return@forEach
+        // modRoots only enumerates Fabric-registered mod jars - content
+        // shipped as a loose/zipped datapack or resourcepack (e.g. Fanmade
+        // Form Funfair ships as a resourcepack zip, relying on the
+        // ResourcePackOverrides mod to also apply its data/ folder as real
+        // game data) never showed up here at all, even on setups where
+        // Cobblemon's own runtime *did* load that content correctly - so
+        // this raw-JSON fallback had nothing to merge in for it (confirmed
+        // via /cobbledex evo: Fanmade Form Funfair's Roggenrola/Boldore
+        // "Overgrown" species_additions files were invisible to JarDataCache
+        // entirely, not just misparsed).
+        try {
+            val gameDir = com.cobbledex.platform.PlatformHelper.getGameDir()
+            // Global datapacks (via the Globalpacks mod) apply unconditionally,
+            // but resourcepacks are opt-in per options.txt's "resourcePacks"
+            // list - the folder itself commonly holds disabled packs too (this
+            // modpack keeps several "DO NOT ENABLE, credits only" packs sitting
+            // right next to active ones, with hundreds of their own species
+            // files). Scanning those unconditionally would silently blend in
+            // evolution/move data for content the player never actually
+            // enabled, so resourcepacks are filtered to the enabled set;
+            // datapacks are not.
+            val enabledResourcePackFiles = readEnabledResourcePackFileNames(gameDir)
+            for (folderName in listOf("datapacks", "resourcepacks")) {
+                val dir = gameDir.resolve(folderName)
+                if (!Files.exists(dir) || !Files.isDirectory(dir)) continue
+                val isResourcePacks = folderName == "resourcepacks"
 
-                        Files.walk(speciesDir, 10).use { files ->
-                            files.filter { it.toString().endsWith(".json") && Files.isRegularFile(it) }.forEach { file ->
+                Files.list(dir).use { entries ->
+                    entries.filter { Files.isDirectory(it) }
+                        .filter { !isResourcePacks || it.fileName.toString() in enabledResourcePackFiles }
+                        .forEach { pack ->
+                            scanLooseSpeciesDataDir(pack.resolve("data"), result, movesResult, formMovesResult, counters)
+                        }
+                }
+
+                val zipFilter: (Path) -> Boolean = { path ->
+                    !isResourcePacks || path.fileName.toString() in enabledResourcePackFiles
+                }
+                for ((subFolder, isAddition) in listOf("species" to false, "species_additions" to true)) {
+                    scanZipDatapacks(dir, subFolder, zipFilter) { _, _, json ->
+                        processSpeciesJsonObject(json, isAddition, result, movesResult, formMovesResult, counters)
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+
+        DebugLog.info("JarDataCache: parsed ${counters.baseEvoCount} base + ${counters.formEvoCount} form evolutions from ${counters.fileCount} species files (${counters.failCount} failed)")
+        return Triple(result, movesResult, formMovesResult)
+    }
+
+    private fun scanLooseSpeciesDataDir(
+        dataDir: Path,
+        result: MutableMap<String, MutableList<EvolutionInfo>>,
+        movesResult: MutableMap<String, JarMoveData>,
+        formMovesResult: MutableMap<String, JarMoveData>,
+        counters: EvoMoveParseCounters,
+    ) {
+        if (!Files.exists(dataDir) || !Files.isDirectory(dataDir)) return
+
+        Files.list(dataDir).use { namespaces ->
+            namespaces.filter { Files.isDirectory(it) }.forEach { namespace ->
+                for ((folderName, isAddition) in listOf("species" to false, "species_additions" to true)) {
+                    val speciesDir = namespace.resolve(folderName)
+                    if (!Files.exists(speciesDir) || !Files.isDirectory(speciesDir)) continue
+
+                    Files.walk(speciesDir, 10).use { files ->
+                        files.filter { it.toString().endsWith(".json") && Files.isRegularFile(it) }.forEach { file ->
+                            try {
+                                val obj = InputStreamReader(Files.newInputStream(file), Charsets.UTF_8).use { reader ->
+                                    JsonParser.parseReader(reader).asJsonObject
+                                }
+                                processSpeciesJsonObject(obj, isAddition, result, movesResult, formMovesResult, counters)
+                            } catch (_: Exception) { counters.failCount++ }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun processSpeciesJsonObject(
+        obj: JsonObject,
+        isAddition: Boolean,
+        result: MutableMap<String, MutableList<EvolutionInfo>>,
+        movesResult: MutableMap<String, JarMoveData>,
+        formMovesResult: MutableMap<String, JarMoveData>,
+        counters: EvoMoveParseCounters,
+    ) {
+        try {
+            val rawName = if (isAddition) {
+                obj.optString("target")?.substringAfter(':')?.lowercase()
+            } else {
+                obj.optString("name")?.lowercase()
+            } ?: return
+            // Species' own "name" field is a display name and can contain
+            // spaces/punctuation (e.g. "Great Tusk", "Iron Treads", "Ting-Lu",
+            // "Mime Jr.") - every other map in the pipeline is keyed by
+            // SpeciesNameNormalizer.normalize()'d ids, so leaving this one
+            // unnormalized meant movesResult["great tusk"] (with a space)
+            // never matched enrichWithJarMoves's lookup by the real
+            // normalized key "greattusk", silently losing that species' TM/
+            // tutor/egg move fallback entirely (confirmed via the exported
+            // CobbleDex spreadsheet: Great Tusk showed only its 17 level-up
+            // moves, none of its 53 TM + 25 tutor moves).
+            val name = SpeciesNameNormalizer.normalize(rawName)
+            counters.fileCount++
+
+            // Parse moves
+            val movesArray = obj.optArray("moves")
+            if (movesArray != null) {
+                parseMovesArray(movesArray)?.let { movesResult[name] = it }
+            }
+
+            // Base evolutions
+            val evolutions = obj.optArray("evolutions")
+            if (evolutions != null) {
+                for (evoElem in evolutions) {
+                    try {
+                        val info = parseEvolutionFromJson(name, null, evoElem.asJsonObject)
+                        if (info != null) {
+                            result.getOrPut(name) { mutableListOf() }.add(info)
+                            counters.baseEvoCount++
+                        }
+                    } catch (_: Exception) {}
+                }
+            }
+
+            // Form evolutions + moves. Cobblemon's own client-side FormData
+            // only reliably syncs a species_additions form's LEVEL-UP moves -
+            // egg/tutor/tm entries nested inside "forms[].moves" routinely
+            // come back empty at runtime (confirmed via /cobbledex evo:
+            // Laser's Fakemon Pack's Fomantis Lunar form defines 102 moves in
+            // its JSON, but Cobblemon's runtime form.moves only exposed the
+            // 13 level-up ones, losing all 59 TM/20 tutor/10 egg moves).
+            // Parsed here from the raw JSON as a fallback source, keyed
+            // identically to the runtime form key so enrichWithJarMoves can
+            // fill the gap per-form instead of only for the bare base
+            // species.
+            val forms = obj.optArray("forms")
+            if (forms != null) {
+                for (formElem in forms) {
+                    try {
+                        val form = formElem.asJsonObject
+                        val aspects = form.optStringArray("aspects").toSet()
+                        val formKey = if (aspects.isEmpty()) name
+                            else buildJsonFormEntryKey(name, form)
+
+                        val formMovesArray = form.optArray("moves")
+                        if (formMovesArray != null) {
+                            parseMovesArray(formMovesArray)?.let { formMovesResult[formKey] = it }
+                        }
+
+                        val formEvos = form.optArray("evolutions")
+                        if (formEvos != null && !formEvos.isEmpty) {
+                            for (evoElem in formEvos) {
                                 try {
-                                    val obj = InputStreamReader(Files.newInputStream(file), Charsets.UTF_8).use { reader ->
-                                        JsonParser.parseReader(reader).asJsonObject
-                                    }
-
-                                    val name = obj.optString("name")?.lowercase() ?: return@forEach
-                                    fileCount++
-
-                                    // Parse moves
-                                    val movesArray = obj.optArray("moves")
-                                    if (movesArray != null) {
-                                        val levelUp = mutableMapOf<Int, MutableList<String>>()
-                                        val egg = mutableListOf<String>()
-                                        val tutor = mutableListOf<String>()
-                                        val tm = mutableListOf<String>()
-                                        for (elem in movesArray) {
-                                            try {
-                                                val str = elem.asString
-                                                val colonIdx = str.indexOf(':')
-                                                if (colonIdx < 1) continue
-                                                val prefix = str.substring(0, colonIdx)
-                                                val moveName = str.substring(colonIdx + 1)
-                                                when (prefix) {
-                                                    "egg" -> egg.add(moveName)
-                                                    "tm" -> tm.add(moveName)
-                                                    "tutor" -> tutor.add(moveName)
-                                                    else -> prefix.toIntOrNull()?.let { level ->
-                                                        levelUp.getOrPut(level) { mutableListOf() }.add(moveName)
-                                                    }
-                                                }
-                                            } catch (_: Exception) {}
+                                    val info = parseEvolutionFromJson(name, aspects, evoElem.asJsonObject)
+                                    if (info != null) {
+                                        result.getOrPut(formKey) { mutableListOf() }.add(info)
+                                        if (formKey != name) {
+                                            result.getOrPut(name) { mutableListOf() }.add(info)
                                         }
-                                        if (levelUp.isNotEmpty() || egg.isNotEmpty() || tutor.isNotEmpty() || tm.isNotEmpty()) {
-                                            movesResult[name] = JarMoveData(levelUp, egg, tutor, tm)
-                                        }
+                                        counters.formEvoCount++
                                     }
-
-                                    // Base evolutions
-                                    val evolutions = obj.optArray("evolutions")
-                                    if (evolutions != null) {
-                                        for (evoElem in evolutions) {
-                                            try {
-                                                val info = parseEvolutionFromJson(name, null, evoElem.asJsonObject)
-                                                if (info != null) {
-                                                    result.getOrPut(name) { mutableListOf() }.add(info)
-                                                    baseEvoCount++
-                                                }
-                                            } catch (_: Exception) {}
-                                        }
-                                    }
-
-                                    // Form evolutions
-                                    val forms = obj.optArray("forms")
-                                    if (forms != null) {
-                                        for (formElem in forms) {
-                                            try {
-                                                val form = formElem.asJsonObject
-                                                val formEvos = form.optArray("evolutions") ?: continue
-                                                if (formEvos.isEmpty) continue
-
-                                                val aspects = form.optStringArray("aspects").toSet()
-                                                val formKey = if (aspects.isEmpty()) name
-                                                    else "$name ${aspects.sorted().joinToString(" ")}"
-
-                                                for (evoElem in formEvos) {
-                                                    try {
-                                                        val info = parseEvolutionFromJson(name, aspects, evoElem.asJsonObject)
-                                                        if (info != null) {
-                                                            result.getOrPut(formKey) { mutableListOf() }.add(info)
-                                                            if (formKey != name) {
-                                                                result.getOrPut(name) { mutableListOf() }.add(info)
-                                                            }
-                                                            formEvoCount++
-                                                        }
-                                                    } catch (_: Exception) {}
-                                                }
-                                            } catch (_: Exception) {}
-                                        }
-                                    }
-                                } catch (_: Exception) { failCount++ }
+                                } catch (_: Exception) {}
                             }
                         }
+                    } catch (_: Exception) {}
+                }
+            }
+        } catch (_: Exception) { counters.failCount++ }
+    }
+
+    private fun parseMovesArray(movesArray: JsonArray): JarMoveData? {
+        val levelUp = mutableMapOf<Int, MutableList<String>>()
+        val egg = mutableListOf<String>()
+        val tutor = mutableListOf<String>()
+        val tm = mutableListOf<String>()
+        for (elem in movesArray) {
+            try {
+                val str = elem.asString
+                val colonIdx = str.indexOf(':')
+                if (colonIdx < 1) continue
+                val prefix = str.substring(0, colonIdx)
+                val moveName = str.substring(colonIdx + 1)
+                when (prefix) {
+                    "egg" -> egg.add(moveName)
+                    "tm" -> tm.add(moveName)
+                    "tutor" -> tutor.add(moveName)
+                    else -> prefix.toIntOrNull()?.let { level ->
+                        levelUp.getOrPut(level) { mutableListOf() }.add(moveName)
                     }
                 }
             } catch (_: Exception) {}
         }
+        if (levelUp.isEmpty() && egg.isEmpty() && tutor.isEmpty() && tm.isEmpty()) return null
+        return JarMoveData(levelUp, egg, tutor, tm)
+    }
 
-        DebugLog.info("JarDataCache: parsed $baseEvoCount base + $formEvoCount form evolutions from $fileCount species files ($failCount failed)")
-        return Pair(result, movesResult)
+    // Mirrors EvolutionDataLoader.buildFormEntryKey's scheme exactly (underscore-
+    // joined, regional forms suffixed with no separator) so a form's evolution
+    // ends up keyed identically whether it was read from Cobblemon's live API
+    // or from this raw-JSON fallback. The two used to diverge - this path
+    // joined "$name ${aspects...}" with a SPACE, which normalizeMapKeys' key
+    // normalizer (SpeciesNameNormalizer.normalize) then stripped entirely
+    // (space isn't a permitted character) instead of turning into a separator,
+    // collapsing e.g. "fomantis lunar" into "fomantislunar" - a key that
+    // matched nothing else in the pipeline, silently breaking that form's own
+    // evolution lookup and leaving a phantom, data-less duplicate species key.
+    private val REGIONAL_LABEL_TO_SUFFIX = mapOf(
+        "alolan_form" to "alolan",
+        "galarian_form" to "galarian",
+        "hisuian_form" to "hisuian",
+        "paldean_form" to "paldean"
+    )
+
+    // Mirrors EvolutionDataLoader.REGIONAL_ASPECT_TO_SUFFIX - falls back to
+    // the form's aspect when its labels don't carry a recognized regional
+    // marker, in case a mod's own JSON omits/misdeclares "labels" the way
+    // Cobblemon's runtime FormData was found to for Farfetch'd Galar
+    // (aspect stayed correct even when the runtime label didn't).
+    private val REGIONAL_ASPECT_TO_SUFFIX = mapOf(
+        "alolan" to "alolan",
+        "galarian" to "galarian",
+        "hisuian" to "hisuian",
+        "paldean" to "paldean"
+    )
+
+    private fun buildJsonFormEntryKey(name: String, form: JsonObject): String {
+        val labels = form.optStringArray("labels")
+        val regionalLabel = labels.firstOrNull { it in REGIONAL_LABEL_TO_SUFFIX }
+        val regionalSuffix = if (regionalLabel != null) {
+            REGIONAL_LABEL_TO_SUFFIX[regionalLabel]
+        } else {
+            form.optStringArray("aspects").map { it.lowercase() }.firstNotNullOfOrNull { REGIONAL_ASPECT_TO_SUFFIX[it] }
+        }
+        if (regionalSuffix != null) {
+            return "${SpeciesNameNormalizer.normalize(name)}$regionalSuffix"
+        }
+        val formName = form.optString("name")?.lowercase()?.replace(Regex("[^a-z0-9]"), "")
+        if (formName.isNullOrBlank()) return name
+        return "${SpeciesNameNormalizer.normalize(name)}_$formName"
     }
 
     private fun parseEvolutionFromJson(fromSpecies: String, fromAspects: Set<String>?, evo: JsonObject): EvolutionInfo? {
         val id = evo.optString("id") ?: return null
         val resultStr = evo.optString("result") ?: return null
 
-        // Result can be "species" or "species aspect1 aspect2"
-        val resultParts = resultStr.split(" ")
+        // Result can be "species", "species aspect1 aspect2", or use
+        // Cobblemon's PokemonProperties key=value syntax for the aspect,
+        // e.g. "boldore aspect=overgrown" (confirmed via /cobbledex evo:
+        // Fanmade Form Funfair's Roggenrola->Boldore Overgrown evolution
+        // uses this form) - naively treating "aspect=overgrown" as the
+        // literal aspect string instead of extracting "overgrown" produced
+        // a target key that matched no real form, silently falling back to
+        // the base (non-Overgrown) Boldore.
+        //
+        // A boolean SPECIES FEATURE can also be toggled this way -
+        // "flaaffy rlm=true" (confirmed via Cobblemon RLM's Mareep->Flaaffy
+        // evolution, whose species_additions declares "features": ["rlm"])
+        // sets the boolean feature "rlm" to true, which itself contributes
+        // an aspect of the same name ("rlm") - unlike "aspect=X" the aspect
+        // name here IS the key, not the value, so this needs its own case.
+        val resultParts = resultStr.split(" ").filter { it.isNotBlank() }
         val toSpecies = resultParts.first().lowercase()
-        val toAspects = if (resultParts.size > 1) resultParts.drop(1).map { it.lowercase() }.toSet() else emptySet()
+        val toAspects = resultParts.drop(1).mapNotNull { token ->
+            val lower = token.lowercase()
+            when {
+                lower.startsWith("aspect=") -> lower.removePrefix("aspect=").ifBlank { null }
+                "=" in lower -> {
+                    val (key, value) = lower.split("=", limit = 2)
+                    if (value == "true") key.ifBlank { null } else null
+                }
+                else -> lower
+            }
+        }.toSet()
 
         val variant = evo.optString("variant") ?: "level_up"
         val consumeHeldItem = evo.optBool("consumeHeldItem") ?: false
@@ -816,14 +1005,36 @@ object JarDataCache {
 
     // ==================== ZIP Datapack Scanning ====================
 
+    // options.txt's "resourcePacks" line is a JSON array where each active
+    // resourcepack file is listed as "file/<name>.zip" (built-in packs like
+    // "vanilla" or namespaced ones like "cobblemon:uniqueshinyforms" aren't
+    // files on disk, so they're irrelevant here). Returns just the bare
+    // filenames, matching Path.fileName.toString() for the resourcepacks/
+    // folder.
+    private fun readEnabledResourcePackFileNames(gameDir: Path): Set<String> {
+        return try {
+            val optionsFile = gameDir.resolve("options.txt")
+            if (!Files.exists(optionsFile)) return emptySet()
+            val line = Files.readAllLines(optionsFile, Charsets.UTF_8)
+                .firstOrNull { it.startsWith("resourcePacks:") } ?: return emptySet()
+            val arrayJson = line.substringAfter("resourcePacks:")
+            val array = JsonParser.parseString(arrayJson).asJsonArray
+            array.mapNotNull { it.asString.takeIf { s -> s.startsWith("file/") }?.removePrefix("file/") }.toSet()
+        } catch (e: Exception) {
+            DebugLog.once("resourcepack-enabled-list") { "Failed to read enabled resourcepacks from options.txt: ${e.message}" }
+            emptySet()
+        }
+    }
+
     private fun scanZipDatapacks(
         datapacksDir: Path,
         subDir: String,
+        packFilter: (Path) -> Boolean = { true },
         handler: (namespace: String, entryName: String, json: JsonObject) -> Unit
     ) {
         try {
             Files.list(datapacksDir).use { packs ->
-                packs.filter { it.toString().endsWith(".zip") && Files.isRegularFile(it) }.forEach { zipPath ->
+                packs.filter { it.toString().endsWith(".zip") && Files.isRegularFile(it) && packFilter(it) }.forEach { zipPath ->
                     try {
                         ZipFile(zipPath.toFile()).use { zip ->
                             val pattern = Regex("^data/([^/]+)/${subDir}/.+\\.json\$")
