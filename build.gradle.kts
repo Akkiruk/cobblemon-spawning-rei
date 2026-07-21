@@ -45,7 +45,14 @@ subprojects {
         maven("https://oss.sonatype.org/content/repositories/snapshots")
         maven("https://maven.shedaniel.me/")
         maven("https://maven.blamejared.com/")
-        maven("https://maven.terraformersmc.com/")
+        exclusiveContent {
+            forRepository {
+                maven("https://maven.terraformersmc.com/") {
+                    name = "TerraformersMC"
+                }
+            }
+            filter { includeModule("net.fabricmc", "fabric-language-kotlin") }
+        }
         exclusiveContent {
             forRepository {
                 maven("https://api.modrinth.com/maven") {
