@@ -14,7 +14,12 @@ base {
 }
 
 repositories {
-    maven("https://thedarkcolour.github.io/KotlinForForge/")
+    exclusiveContent {
+        forRepository {
+            maven("https://thedarkcolour.github.io/KotlinForForge/")
+        }
+        filter { includeGroup("thedarkcolour") }
+    }
 }
 
 architectury {
