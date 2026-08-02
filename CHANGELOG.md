@@ -2,6 +2,16 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.0.4] - 2026-08-02
+
+### Added
+- Added optional CobbleRegions integration that shows the regions where a Pokemon can spawn under its configured roster rules, synchronized from the server for REI, JEI, and EMI.
+
+### Fixed
+- Fixed blank extra-information tooltips in REI and EMI by registering panel hover content through each viewer's native tooltip layer.
+- Delayed server data synchronization until Cobblemon's runtime spawn and evolution data is ready, with bounded retries so datapack-provided spawns and server-only evolutions appear on first join.
+- Aligned the Kotlin build toolchain with Kotlin-for-Forge 5.11 so both Fabric and NeoForge builds compile reliably.
+
 ## [2.0.3] - 2026-07-21
 
 ### Fixed

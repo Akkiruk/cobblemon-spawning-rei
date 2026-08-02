@@ -1,7 +1,7 @@
 plugins {
     id("architectury-plugin") version "3.4-SNAPSHOT"
     id("dev.architectury.loom") version "1.9.424" apply false
-    kotlin("jvm") version "2.1.0" apply false
+    kotlin("jvm") version "2.3.0" apply false
     java
 }
 
@@ -19,9 +19,9 @@ allprojects {
 
     configurations.all {
         resolutionStrategy {
-            force("org.jetbrains.kotlin:kotlin-stdlib:2.1.0")
-            force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.1.0")
-            force("org.jetbrains.kotlin:kotlin-reflect:2.1.0")
+            force("org.jetbrains.kotlin:kotlin-stdlib:2.3.0")
+            force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.3.0")
+            force("org.jetbrains.kotlin:kotlin-reflect:2.3.0")
         }
     }
 }

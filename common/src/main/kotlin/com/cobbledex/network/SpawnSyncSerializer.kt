@@ -13,12 +13,18 @@ import java.io.ByteArrayOutputStream
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
+data class SpawnRegionInfo(
+    val id: String,
+    val displayName: String,
+)
+
 data class SyncBundle(
     val spawns: Map<String, List<SpawnInfo>>,
     val evolutions: Map<String, List<EvolutionInfo>>,
     val speciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo>,
     val jobRules: List<JobRule>? = null,
     val fossils: Map<String, List<FossilCombo>>? = null,
+    val spawnRegions: Map<String, List<SpawnRegionInfo>>? = null,
 )
 
 object SpawnSyncSerializer {

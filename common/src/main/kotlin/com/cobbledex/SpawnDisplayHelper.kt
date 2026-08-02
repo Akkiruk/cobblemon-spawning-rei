@@ -211,6 +211,10 @@ object SpawnDisplayHelper {
 
     fun buildSpecials(spawn: SpawnInfo): List<String> {
         val list = mutableListOf<String>()
+        val regions = SpawnDataIndex.spawnRegionsForSpecies(spawn.pokemon)
+        if (regions.isNotEmpty()) {
+            list.add(tr("cobbledex-rei-emi-jei.spawn.special.regions", regions.joinToString(", ") { it.displayName }))
+        }
         val structNames = spawn.structures.map { formatStructureName(it) }.toSet()
         if (structNames.isNotEmpty()) {
             list.add(tr("cobbledex-rei-emi-jei.spawn.special.structure", structNames.joinToString(", ")))

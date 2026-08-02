@@ -305,6 +305,7 @@
 
   "cobbledex-rei-emi-jei.spawn.special.structure": "Structure: %s",
   "cobbledex-rei-emi-jei.spawn.special.dimension": "Dimension: %s",
+  "cobbledex-rei-emi-jei.spawn.special.regions": "Regions: %s",
   "cobbledex-rei-emi-jei.spawn.special.in_fluid": "In fluid: %s",
   "cobbledex-rei-emi-jei.spawn.special.spawns_on": "Spawns on: %s",
   "cobbledex-rei-emi-jei.spawn.special.near": "Near: %s",

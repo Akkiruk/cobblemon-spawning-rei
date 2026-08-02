@@ -1,5 +1,7 @@
 package com.cobbledex
 
+import com.cobbledex.network.SpawnRegionInfo
+
 data class CobbleDexDataSnapshot(
     val loadState: SpawnDataIndex.LoadState = SpawnDataIndex.LoadState.NOT_LOADED,
     val spawnsBySpecies: Map<String, List<SpawnInfo>> = emptyMap(),
@@ -12,6 +14,7 @@ data class CobbleDexDataSnapshot(
     val speciesByTmMove: Map<String, List<String>> = emptyMap(),
     val jobRules: List<JobRule> = emptyList(),
     val ridingBySpecies: Map<String, RidingInfo> = emptyMap(),
+    val spawnRegionsBySpecies: Map<String, List<SpawnRegionInfo>> = emptyMap(),
     val allSpeciesNames: List<String> = emptyList(),
     val spawnSourceTier: DataSourceTier = DataSourceTier.UNKNOWN,
     val evolutionSourceTier: DataSourceTier = DataSourceTier.UNKNOWN,

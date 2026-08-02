@@ -2,6 +2,7 @@ package com.cobbledex
 
 import com.cobblemon.mod.common.api.moves.Moves
 import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
+import com.cobbledex.network.SpawnRegionInfo
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
@@ -72,6 +73,10 @@ object SpawnDataIndex {
         get() = snapshot.ridingBySpecies
         private set(value) { snapshot = snapshot.copy(ridingBySpecies = value) }
 
+    var spawnRegionsBySpecies: Map<String, List<SpawnRegionInfo>>
+        get() = snapshot.spawnRegionsBySpecies
+        private set(value) { snapshot = snapshot.copy(spawnRegionsBySpecies = value) }
+
     var allSpeciesNames: List<String>
         get() = snapshot.allSpeciesNames
         private set(value) { snapshot = snapshot.copy(allSpeciesNames = value) }
@@ -116,6 +121,9 @@ object SpawnDataIndex {
     fun isFullyLoaded(): Boolean = loadState == LoadState.FULLY_LOADED
 
     fun hasData(): Boolean = allSpeciesNames.isNotEmpty()
+
+    fun spawnRegionsForSpecies(speciesId: String): List<SpawnRegionInfo> =
+        spawnRegionsBySpecies[SpeciesNameNormalizer.normalize(speciesId)].orEmpty()
 
     fun currentSnapshot(): CobbleDexDataSnapshot = snapshot
 
@@ -419,6 +427,7 @@ object SpawnDataIndex {
         emptyEvoRetries = 0
         hasServerSync = false
         jobRules = emptyList()
+        spawnRegionsBySpecies = emptyMap()
 
         dataLock.withLock {
             loadState = LoadState.NOT_LOADED
@@ -431,7 +440,8 @@ object SpawnDataIndex {
                         syncedEvolutions: Map<String, List<EvolutionInfo>>,
                         syncedSpeciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo>,
                         syncedJobRules: List<JobRule>? = null,
-                        syncedFossils: Map<String, List<FossilCombo>>? = null) {
+                        syncedFossils: Map<String, List<FossilCombo>>? = null,
+                        syncedSpawnRegions: Map<String, List<SpawnRegionInfo>>? = null) {
         dataLock.withLock {
             PokemonItemCache.reset()
             spawnsBySpecies = normalizeMapKeys(syncedSpawns)
@@ -439,6 +449,9 @@ object SpawnDataIndex {
             speciesInfo = normalizeMapKeys(syncedSpeciesInfo)
             jobRules = syncedJobRules ?: emptyList()
             if (syncedFossils != null) fossilsBySpecies = normalizeMapKeys(syncedFossils)
+            spawnRegionsBySpecies = syncedSpawnRegions
+                ?.mapKeys { SpeciesNameNormalizer.normalize(it.key) }
+                ?: emptyMap()
             spawnSourceTier = DataSourceTier.SERVER_SYNC
             evolutionSourceTier = DataSourceTier.SERVER_SYNC
             speciesInfoSourceTier = DataSourceTier.SERVER_SYNC
