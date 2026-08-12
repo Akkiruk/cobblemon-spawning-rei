@@ -941,59 +941,58 @@ object JarDataCache {
             result.getOrPut(species) { mutableListOf() }.add(FossilCombo(species, items, extraTags))
         }
 
+        fun scanFossilDataDir(dataDir: Path) {
+            if (!Files.exists(dataDir) || !Files.isDirectory(dataDir)) return
+            Files.list(dataDir).use { namespaces ->
+                namespaces.filter { Files.isDirectory(it) }.forEach { namespace ->
+                    val fossilDir = namespace.resolve("fossils")
+                    if (!Files.exists(fossilDir) || !Files.isDirectory(fossilDir)) return@forEach
+                    Files.walk(fossilDir, 5).use { files ->
+                        files.filter { it.toString().endsWith(".json") && Files.isRegularFile(it) }.forEach { file ->
+                            try {
+                                val json = InputStreamReader(Files.newInputStream(file), Charsets.UTF_8).use { reader ->
+                                    JsonParser.parseReader(reader).asJsonObject
+                                }
+                                processFossilJson(json)
+                            } catch (_: Exception) {}
+                        }
+                    }
+                }
+            }
+        }
+
         // Scan mod JARs
         for (root in modRoots) {
             try {
-                val dataDir = root.resolve("data")
-                if (!Files.exists(dataDir) || !Files.isDirectory(dataDir)) continue
-                Files.list(dataDir).use { namespaces ->
-                    namespaces.filter { Files.isDirectory(it) }.forEach { namespace ->
-                        val fossilDir = namespace.resolve("fossils")
-                        if (!Files.exists(fossilDir) || !Files.isDirectory(fossilDir)) return@forEach
-                        Files.walk(fossilDir, 5).use { files ->
-                            files.filter { it.toString().endsWith(".json") && Files.isRegularFile(it) }.forEach { file ->
-                                try {
-                                    val json = InputStreamReader(Files.newInputStream(file), Charsets.UTF_8).use { reader ->
-                                        JsonParser.parseReader(reader).asJsonObject
-                                    }
-                                    processFossilJson(json)
-                                } catch (_: Exception) {}
-                            }
-                        }
-                    }
-                }
+                scanFossilDataDir(root.resolve("data"))
             } catch (_: Exception) {}
         }
 
-        // Scan local datapacks (directories)
+        // modRoots only enumerates Fabric-registered mod jars, so fossils
+        // shipped as a loose/zipped datapack or resourcepack were invisible -
+        // Cobblemon Fossil Hybrids ships its fossils as a resourcepack zip
+        // (its Pawleo/Anobuto/etc. work in game but never showed a combination
+        // here). Same scan the evolution/species parser already does: both
+        // folders, resourcepacks filtered to the set enabled in options.txt so
+        // "do not enable" credit-only packs don't blend in.
         try {
-            val datapacksDir = com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
-            if (Files.exists(datapacksDir) && Files.isDirectory(datapacksDir)) {
-                Files.list(datapacksDir).use { packs ->
-                    packs.filter { Files.isDirectory(it) }.forEach { pack ->
-                        val dataDir = pack.resolve("data")
-                        if (!Files.exists(dataDir)) return@forEach
-                        Files.list(dataDir).use { namespaces ->
-                            namespaces.filter { Files.isDirectory(it) }.forEach { namespace ->
-                                val fossilDir = namespace.resolve("fossils")
-                                if (!Files.exists(fossilDir) || !Files.isDirectory(fossilDir)) return@forEach
-                                Files.walk(fossilDir, 5).use { files ->
-                                    files.filter { it.toString().endsWith(".json") && Files.isRegularFile(it) }.forEach { file ->
-                                        try {
-                                            val json = InputStreamReader(Files.newInputStream(file), Charsets.UTF_8).use { reader ->
-                                                JsonParser.parseReader(reader).asJsonObject
-                                            }
-                                            processFossilJson(json)
-                                        } catch (_: Exception) {}
-                                    }
-                                }
-                            }
-                        }
-                    }
+            val gameDir = com.cobbledex.platform.PlatformHelper.getGameDir()
+            val enabledResourcePackFiles = readEnabledResourcePackFileNames(gameDir)
+            for (folderName in listOf("datapacks", "resourcepacks")) {
+                val dir = gameDir.resolve(folderName)
+                if (!Files.exists(dir) || !Files.isDirectory(dir)) continue
+                val isResourcePacks = folderName == "resourcepacks"
+
+                Files.list(dir).use { entries ->
+                    entries.filter { Files.isDirectory(it) }
+                        .filter { !isResourcePacks || it.fileName.toString() in enabledResourcePackFiles }
+                        .forEach { pack -> scanFossilDataDir(pack.resolve("data")) }
                 }
 
-                // Scan ZIP datapacks
-                scanZipDatapacks(datapacksDir, "fossils") { _, _, json ->
+                val zipFilter: (Path) -> Boolean = { path ->
+                    !isResourcePacks || path.fileName.toString() in enabledResourcePackFiles
+                }
+                scanZipDatapacks(dir, "fossils", zipFilter) { _, _, json ->
                     processFossilJson(json)
                 }
             }
