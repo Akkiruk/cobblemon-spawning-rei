@@ -286,6 +286,8 @@
 
   "cobbledex-rei-emi-jei.spawn.level": "Lv. %s",
   "cobbledex-rei-emi-jei.spawn.weight": "Wt: %s",
+  "cobbledex-rei-emi-jei.spawn.best_biome": "★ Best odds: %s (~%s)",
+  "cobbledex-rei-emi-jei.spawn.best_biome.tooltip": "Approximate chance a spawn roll in that biome is this species, from its weight against the others of its rarity there. Ignores time, weather and block conditions.",
   "cobbledex-rei-emi-jei.spawn.forms": "Forms: %s",
   "cobbledex-rei-emi-jei.spawn.form": "Form: %s",
 

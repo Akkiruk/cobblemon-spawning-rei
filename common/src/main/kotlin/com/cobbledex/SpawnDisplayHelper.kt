@@ -283,6 +283,18 @@ object SpawnDisplayHelper {
     fun formatWeight(weight: Float): String =
         if (weight == weight.toLong().toFloat()) weight.toLong().toString() else "%.1f".format(weight)
 
+    /** A [0,1] spawn probability as a short percentage: "12%", "1.2%", "<0.1%". */
+    fun formatChance(chance: Double): String {
+        val pct = chance * 100.0
+        return when {
+            pct >= 10.0 -> "${Math.round(pct)}%"
+            pct >= 1.0 -> "%.1f%%".format(pct)
+            pct >= 0.1 -> "%.1f%%".format(pct)
+            pct > 0.0 -> "<0.1%"
+            else -> "0%"
+        }
+    }
+
     fun formatDimension(dim: String): String = when (dim.lowercase()) {
         "minecraft:overworld" -> tr("cobbledex-rei-emi-jei.dimension.overworld")
         "minecraft:the_nether" -> tr("cobbledex-rei-emi-jei.dimension.nether")
@@ -640,13 +652,21 @@ object SpawnDisplayHelper {
         val wtText = if (showWeights) weightText(spawn.weight) else ""
         val footerText = "$bucketText $bucketIndex/$bucketTotal"
 
+        // Where this species has its best odds overall (a per-species summary,
+        // so it's the same on every one of its spawn panels).
+        val bestBiome = if (CobbleDexConfig.get().showBiomeChance) SpawnChanceIndex.bestBiomeFor(speciesName) else null
+        val bestBiomeText = bestBiome?.let {
+            tr("cobbledex-rei-emi-jei.spawn.best_biome", formatBiomeName(it.biomeToken), formatChance(it.chance))
+        }
+
         val nameWidth = PanelLayout.TEXT_START_X + font.width(formatSpeciesName(speciesName)) + padding
         val lvBucketWidth = padding + font.width(lvText) + 6 + font.width(bucketText) + padding
         val ctxRowWidth = if (ctxText.isNotEmpty() || wtText.isNotEmpty()) {
             padding + 4 + font.width(ctxText) + (if (wtText.isNotEmpty()) 6 + font.width(wtText) else 0) + padding
         } else 0
+        val bestBiomeWidth = bestBiomeText?.let { padding + 4 + font.width(it) + padding } ?: 0
         val footerWidth = padding + font.width(footerText) + padding
-        val width = maxOf(nameWidth, lvBucketWidth, ctxRowWidth, footerWidth, PanelLayout.MIN_WIDTH).coerceAtMost(PanelLayout.MAX_WIDTH)
+        val width = maxOf(nameWidth, lvBucketWidth, ctxRowWidth, bestBiomeWidth, footerWidth, PanelLayout.MIN_WIDTH).coerceAtMost(PanelLayout.MAX_WIDTH)
 
         val layout = PanelLayout(width)
         val right = layout.right
@@ -659,6 +679,16 @@ object SpawnDisplayHelper {
         layout.textRightAt(22, bucketText, color)
         layout.fill(padding, 36, right, 37, 0x50FFFFFF)
         layout.skipTo(42)
+
+        if (bestBiomeText != null) {
+            val startY = layout.y
+            layout.wrapped(padding + 4, bestBiomeText, right - padding - 4, 0xFFE9B84A.toInt())
+            layout.gap(4)
+            layout.addTooltipZone(
+                padding + 4, startY, right - (padding + 4) * 2, layout.y - startY,
+                listOf(Component.literal(tr("cobbledex-rei-emi-jei.spawn.best_biome.tooltip")).withStyle { it.withColor(0xBBBBBB) })
+            )
+        }
 
         if (showWeights) {
             layout.textRight(wtText, 0xBBBBBB)

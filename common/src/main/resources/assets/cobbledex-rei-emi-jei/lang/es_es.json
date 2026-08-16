@@ -127,6 +127,8 @@
   "cobbledex-rei-emi-jei.spawn.section.weight_mods": "▲ Modificadores de peso",
   "cobbledex-rei-emi-jei.spawn.level": "Nv. %s",
   "cobbledex-rei-emi-jei.spawn.weight": "Peso: %s",
+  "cobbledex-rei-emi-jei.spawn.best_biome": "★ Mayor probabilidad: %s (~%s)",
+  "cobbledex-rei-emi-jei.spawn.best_biome.tooltip": "Probabilidad aproximada de que una aparición en ese bioma sea este Pokémon, según su peso frente a los demás de su rareza. No considera hora, clima ni bloques.",
   "cobbledex-rei-emi-jei.spawn.forms": "Formas: %s",
   "cobbledex-rei-emi-jei.spawn.form": "Forma: %s",
   "cobbledex-rei-emi-jei.spawn.cond.open_sky": "Cielo abierto",
