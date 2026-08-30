@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.9.0] - 2026-08-30
+
+### Fixed
+- The clickable move name on the Moves page now works on **JEI and EMI**, not just REI. Added parallel move-ingredient types for both (`MoveIngredient` for JEI, `MoveEmiStack` for EMI) and wired the name-link click to each viewer's recipe navigation. All three viewers now reach the move-learner grid identically, with no dependency on any TM mod.
+
 ## [2.8.0] - 2026-08-30
 
 ### Changed

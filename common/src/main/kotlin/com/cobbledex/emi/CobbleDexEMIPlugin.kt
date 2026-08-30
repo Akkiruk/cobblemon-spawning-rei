@@ -115,7 +115,8 @@ open class CobbleDexEMIPlugin : EmiPlugin {
                 val stack = SpawnDisplayHelper.resolveItemStack(itemId)
                 if (!stack.isEmpty) EmiStack.of(stack) else null
             }
-            pokemon + items
+            val move = handle.slots.moveKey?.let { listOf(MoveEmiStack.of(it)) } ?: emptyList()
+            pokemon + items + move
         }
 
         private val cachedOutputs: List<EmiStack> by lazy(LazyThreadSafetyMode.NONE) {
@@ -166,11 +167,45 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             widgets.addDrawable(0, 0, w, h) { gfx, _, _, _ ->
                 handle.layout.render(gfx)
             }
+
+            // Move-name links: an invisible clickable over each name → that move's learner grid.
+            for (link in slots.moveLinks) {
+                widgets.add(
+                    MoveLinkEmiWidget(
+                        dev.emi.emi.api.widget.Bounds(link.x, link.y, link.width, link.height),
+                        link.moveName,
+                    )
+                )
+            }
+
             for (zone in handle.layout.tooltipZones) {
                 if (zone.lines.isNotEmpty()) {
                     widgets.addTooltipText(zone.lines, zone.x, zone.y, zone.width, zone.height)
                 }
             }
+        }
+    }
+
+    /** Invisible click target laid over a move name; faint highlight on hover. */
+    private class MoveLinkEmiWidget(
+        private val bounds: dev.emi.emi.api.widget.Bounds,
+        private val move: String,
+    ) : dev.emi.emi.api.widget.Widget() {
+
+        override fun getBounds(): dev.emi.emi.api.widget.Bounds = bounds
+
+        override fun render(graphics: net.minecraft.client.gui.GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {
+            if (bounds.contains(mouseX, mouseY)) {
+                graphics.fill(bounds.x(), bounds.y(), bounds.right(), bounds.bottom(), 0x30FFFFFF)
+            }
+        }
+
+        override fun mouseClicked(mouseX: Int, mouseY: Int, button: Int): Boolean {
+            if (button == 0 && bounds.contains(mouseX, mouseY)) {
+                dev.emi.emi.api.EmiApi.displayRecipes(MoveEmiStack.of(move))
+                return true
+            }
+            return false
         }
     }
 }

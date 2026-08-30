@@ -129,16 +129,22 @@ open class CobbleDexJEIPlugin : IModPlugin {
         )
         val formCount = allPokemon.count { queries.isForm(it.species) }
         DebugLog.info("JEI: Registered ${allPokemon.size - formCount} Pokémon + $formCount form ingredients")
+
+        // Moves as (never-shown) ingredients so the Moves-page name links can focus-navigate to
+        // "who can learn this move". Also makes moves searchable.
+        val moves = SpawnDataIndex.speciesByMove.keys.sorted().map { MoveIngredient(it) }
+        registration.register(MoveIngredientType, moves, MoveIngredientHelper(), MoveIngredientRenderer())
+        DebugLog.info("JEI: Registered ${moves.size} move ingredients")
     }
 
     override fun registerCategories(registration: IRecipeCategoryRegistration) {
-        val guiHelper = registration.jeiHelpers.guiHelper
+        val helpers = registration.jeiHelpers
         val config = CobbleDexConfig.get()
         val registered = mutableListOf<String>()
 
         for (def in DexCategory.ALL) {
             if (!def.isEnabled(config)) continue
-            registration.addRecipeCategories(GenericCategory(def, guiHelper))
+            registration.addRecipeCategories(GenericCategory(def, helpers))
             registered.add(def.id)
         }
         DebugLog.info("JEI categories registered (${registered.joinToString(" + ")})")
@@ -184,9 +190,10 @@ open class CobbleDexJEIPlugin : IModPlugin {
     @Suppress("DEPRECATION")
     class GenericCategory(
         private val def: DexCategory,
-        guiHelper: IGuiHelper,
+        private val helpers: mezz.jei.api.helpers.IJeiHelpers,
     ) : IRecipeCategory<GenericRecipe> {
 
+        private val guiHelper: IGuiHelper = helpers.guiHelper
         private val recipeArrow: IDrawable = guiHelper.getRecipeArrow()
         private val background: IDrawable = guiHelper.createBlankDrawable(
             def.maxSize().width,
@@ -248,6 +255,22 @@ open class CobbleDexJEIPlugin : IModPlugin {
                     if (!stack.isEmpty) invisible.addItemStack(stack)
                 }
             }
+
+            // Learner grid: declare the move as an (invisible) input so a name-link focus finds it.
+            slots.moveKey?.let { move ->
+                builder.addInvisibleIngredients(RecipeIngredientRole.INPUT)
+                    .addIngredient(MoveIngredientType, MoveIngredient(move))
+            }
+        }
+
+        override fun createRecipeExtras(
+            builder: mezz.jei.api.gui.widgets.IRecipeExtrasBuilder,
+            recipe: GenericRecipe,
+            focuses: IFocusGroup,
+        ) {
+            for (link in recipe.handle.slots.moveLinks) {
+                builder.addInputHandler(MoveLinkInputHandler(link, helpers.focusFactory))
+            }
         }
 
         override fun draw(recipe: GenericRecipe, recipeSlotsView: IRecipeSlotsView, guiGraphics: GuiGraphics, mouseX: Double, mouseY: Double) {
@@ -263,6 +286,30 @@ open class CobbleDexJEIPlugin : IModPlugin {
 
         override fun getTooltipStrings(recipe: GenericRecipe, recipeSlotsView: IRecipeSlotsView, mouseX: Double, mouseY: Double): List<Component> {
             return recipe.handle.layout.getTooltipAt(mouseX.toInt(), mouseY.toInt()) ?: emptyList()
+        }
+    }
+
+    /** Turns a move-name region on the Moves page into a click → "who can learn this move". */
+    private class MoveLinkInputHandler(
+        link: com.cobbledex.MoveLinkDef,
+        private val focusFactory: mezz.jei.api.recipe.IFocusFactory,
+    ) : mezz.jei.api.gui.inputs.IJeiInputHandler {
+
+        private val move = link.moveName
+        private val area = net.minecraft.client.gui.navigation.ScreenRectangle(link.x, link.y, link.width, link.height)
+
+        override fun getArea(): net.minecraft.client.gui.navigation.ScreenRectangle = area
+
+        override fun handleInput(
+            mouseX: Double, mouseY: Double, input: mezz.jei.api.gui.inputs.IJeiUserInput,
+        ): Boolean {
+            if (input.key.value != 0) return false // left mouse only
+            if (!input.isSimulate) {
+                runtime?.recipesGui?.show(
+                    focusFactory.createFocus(RecipeIngredientRole.INPUT, MoveIngredientType, MoveIngredient(move))
+                )
+            }
+            return true
         }
     }
 }

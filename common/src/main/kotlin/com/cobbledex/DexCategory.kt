@@ -54,6 +54,8 @@ class RecipeHandle(
         val hasArrow: Boolean = false,
         val catalogInputIds: List<String> = emptyList(),
         val moveLinks: List<MoveLinkDef> = emptyList(),
+        /** Set on a move-learner grid: the move it lists learners for, so viewers can key nav on it. */
+        val moveKey: String? = null,
     )
 
     val layout: PanelLayout by lazy(LazyThreadSafetyMode.NONE) {
@@ -438,6 +440,7 @@ object MovesDex : DexCategory {
                 RecipeHandle.Slots(
                     pokemon = res().pokemonSlots,
                     catalogInputIds = TmItemUtils.tmItemIds(d.moveName),
+                    moveKey = d.moveName,
                 )
             },
         )
