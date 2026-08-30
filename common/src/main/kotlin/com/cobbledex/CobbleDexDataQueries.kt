@@ -88,8 +88,8 @@ class CobbleDexDataQueries(private val snapshot: CobbleDexDataSnapshot) {
     fun getBaseOf(formSpecies: String): String? =
         getSpeciesInfo(formSpecies)?.baseSpeciesName
 
-    fun getSpeciesWithTmMove(moveName: String): List<String> =
-        snapshot.speciesByTmMove[moveName.lowercase()] ?: emptyList()
+    fun getSpeciesWithMove(moveName: String): List<String> =
+        snapshot.speciesByMove[moveName.lowercase()] ?: emptyList()
 
     fun getRidingFor(species: String): RidingInfo? =
         snapshot.ridingBySpecies[SpeciesNameNormalizer.normalize(species)]

@@ -378,14 +378,14 @@ object MovesDex : DexCategory {
 
     override fun buildAllRecipes() =
         RecipeBuilder.buildAllMovesRecipes().map(::toHandle) +
-            RecipeBuilder.buildAllTmLearnerRecipes().map(::toTmLearnersHandle)
+            RecipeBuilder.buildAllMoveLearnerRecipes().map(::toMoveLearnersHandle)
 
     override fun buildRecipesFor(species: String) =
         RecipeBuilder.buildMovesFor(species).map(::toHandle)
 
     override fun buildRecipesForItem(itemId: String): List<RecipeHandle> {
         if (!TmItemUtils.isTmItem(itemId)) return emptyList()
-        return RecipeBuilder.buildTmLearnersForItem(itemId).map(::toTmLearnersHandle)
+        return RecipeBuilder.buildMoveLearnersForItem(itemId).map(::toMoveLearnersHandle)
     }
 
     private fun toHandle(d: MovesRecipeData): RecipeHandle {
@@ -405,16 +405,16 @@ object MovesDex : DexCategory {
         )
     }
 
-    private fun toTmLearnersHandle(d: TmMoveLearnersRecipeData): RecipeHandle {
-        var result: SpawnDisplayHelper.TmLearnersLayoutResult? = null
-        fun res() = result ?: MovePageBuilder.buildTmLearners(d).also { result = it }
+    private fun toMoveLearnersHandle(d: MoveLearnersRecipeData): RecipeHandle {
+        var result: SpawnDisplayHelper.MoveLearnersLayoutResult? = null
+        fun res() = result ?: MovePageBuilder.buildMoveLearners(d).also { result = it }
         return RecipeHandle(
-            recipeIdPath = "moves/tm_learners_${sanitizePath(d.moveName)}_${d.pageIndex}",
+            recipeIdPath = "moves/move_learners_${sanitizePath(d.moveName)}_${d.pageIndex}",
             inputSpecies = emptyList(),
             outputSpecies = emptyList(),
             layoutFactory = { res().layout },
-            _width = { SpawnDisplayHelper.tmLearnersPanelSize(d).width },
-            _height = { SpawnDisplayHelper.tmLearnersPanelSize(d).height },
+            _width = { SpawnDisplayHelper.moveLearnersPanelSize(d).width },
+            _height = { SpawnDisplayHelper.moveLearnersPanelSize(d).height },
             _slots = {
                 RecipeHandle.Slots(
                     pokemon = res().pokemonSlots,

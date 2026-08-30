@@ -11,7 +11,7 @@ data class CobbleDexDataSnapshot(
     val obtainmentBySpecies: Map<String, List<ObtainmentInfo>> = emptyMap(),
     val fossilsBySpecies: Map<String, List<FossilCombo>> = emptyMap(),
     val dropsByItem: Map<String, List<String>> = emptyMap(),
-    val speciesByTmMove: Map<String, List<String>> = emptyMap(),
+    val speciesByMove: Map<String, List<String>> = emptyMap(),
     val jobRules: List<JobRule> = emptyList(),
     val ridingBySpecies: Map<String, RidingInfo> = emptyMap(),
     val spawnRegionsBySpecies: Map<String, List<SpawnRegionInfo>> = emptyMap(),

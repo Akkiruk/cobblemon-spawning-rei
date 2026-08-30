@@ -1452,6 +1452,23 @@ object SpawnDisplayHelper {
     private fun moveLevelText(levels: List<Int>): String =
         levels.joinToString(", ") { if (it <= 0) tr("cobbledex-rei-emi-jei.moves.evo") else it.toString() }
 
+    /**
+     * The disc item to seat in a move row's gutter. tmcraft/simpletms register a disc per move for
+     * every category, so this normally resolves; the marker just prefers a disc whose art matches
+     * the move's primary learn method. null → no disc for this move (rare), so no gutter slot.
+     */
+    private fun moveDiscItemId(entry: MoveEntry): String? {
+        val marker = when {
+            entry.tm -> "tm_"
+            entry.tutor -> "tutor_"
+            entry.egg -> "egg_"
+            else -> "tm_"
+        }
+        val all = TmItemUtils.tmItemIds(entry.move.name)
+        val preferred = all.filter { it.substringAfter(':').startsWith(marker) }
+        return (preferred + (all - preferred.toSet())).firstOrNull { !resolveItemStack(it).isEmpty }
+    }
+
     private fun moveLevelBadge(entry: MoveEntry): String {
         if (!entry.isLevelUp) return ""
         val min = entry.levelUpLevels.min()
@@ -1501,17 +1518,16 @@ object SpawnDisplayHelper {
             buildMoveTooltip(move, entry),
         )
 
-        // TM disc in the left gutter — clicking it opens the "every Pokémon that can learn this
-        // move" grid (same view as looking the TM item up directly). Only when a real TM item exists.
-        if (entry.tm) {
-            val tmId = TmItemUtils.tmItemIds(move.name).firstOrNull { !resolveItemStack(it).isEmpty }
-            if (tmId != null) {
-                itemSlots.add(ItemSlotDef(tmId, padding, rowY, SlotRole.INPUT, MOVE_SLOT_SIZE))
-                layout.addTooltipZone(
-                    padding, rowY, MOVE_ICON_GUTTER, MOVE_ROW_H,
-                    listOf(Component.literal("§7" + tr("cobbledex-rei-emi-jei.moves.learners_hint"))),
-                )
-            }
+        // Move disc in the left gutter — clicking it opens the "every Pokémon that can learn this
+        // move (by any method)" grid. Shown for every move that tmcraft/simpletms has a disc item
+        // for (≈ all of them); the disc variant just picks the move's primary method for its look.
+        val discId = moveDiscItemId(entry)
+        if (discId != null) {
+            itemSlots.add(ItemSlotDef(discId, padding, rowY, SlotRole.INPUT, MOVE_SLOT_SIZE))
+            layout.addTooltipZone(
+                padding, rowY, MOVE_ICON_GUTTER, MOVE_ROW_H,
+                listOf(Component.literal("§7" + tr("cobbledex-rei-emi-jei.moves.learners_hint"))),
+            )
         }
 
         layout.skipTo(rowY + MOVE_ROW_H)
@@ -1882,43 +1898,44 @@ object SpawnDisplayHelper {
         return layout
     }
 
-    // --- TM learner grid layout builder ---
+    // --- Move learner grid layout builder ---
     //
-    // Shown when a TM item is looked up. Instead of one page per learner, every Pok\u00e9mon that can
-    // learn the move is rendered as a grid of clickable icons; hovering a cell names the Pok\u00e9mon
-    // and the method(s) by which it learns the move.
+    // Shown when a move's disc is looked up, or its Moves-page row is clicked. Instead of one page
+    // per learner, every Pok\u00e9mon that can learn the move by any method (level-up / egg / tutor /
+    // TM) is rendered as a grid of clickable icons; hovering a cell names the Pok\u00e9mon and the
+    // method(s) by which it learns the move.
 
-    const val TM_LEARNERS_PER_PAGE = 96
-    private const val TM_LEARNERS_COLS = 12
-    private const val TM_LEARNERS_CELL = 20
+    const val MOVE_LEARNERS_PER_PAGE = 96
+    private const val MOVE_LEARNERS_COLS = 12
+    private const val MOVE_LEARNERS_CELL = 20
 
-    data class TmLearnersLayoutResult(
+    data class MoveLearnersLayoutResult(
         val layout: PanelLayout,
         val pokemonSlots: List<PokemonSlotDef>,
     )
 
-    private fun tmLearnersPanelWidth(): Int =
-        (PanelLayout.PADDING * 2 + TM_LEARNERS_COLS * TM_LEARNERS_CELL)
+    private fun moveLearnersPanelWidth(): Int =
+        (PanelLayout.PADDING * 2 + MOVE_LEARNERS_COLS * MOVE_LEARNERS_CELL)
             .coerceIn(PanelLayout.MIN_WIDTH, PanelLayout.MAX_WIDTH)
 
     /**
-     * Exact panel geometry for the TM-learner grid, derived without building the layout so
+     * Exact panel geometry for the move-learner grid, derived without building the layout so
      * CategorySizer/RecipeHandle can size the frame cheaply (and identically to the rendered panel).
      */
-    fun tmLearnersPanelSize(data: TmMoveLearnersRecipeData): CategorySizer.PanelSize {
-        val width = tmLearnersPanelWidth()
+    fun moveLearnersPanelSize(data: MoveLearnersRecipeData): CategorySizer.PanelSize {
+        val width = moveLearnersPanelWidth()
         var gridTop = 24 + 2 // skipTo(24) + gap(2)
         if (data.moveDetail != null) gridTop += PanelLayout.LINE_HEIGHT // split row + line()
         gridTop += PanelLayout.LINE_HEIGHT + 1 // section text + line() + gap(1)
-        val rows = (data.learners.size + TM_LEARNERS_COLS - 1) / TM_LEARNERS_COLS
-        val height = gridTop + rows * TM_LEARNERS_CELL + PanelLayout.PADDING
+        val rows = (data.learners.size + MOVE_LEARNERS_COLS - 1) / MOVE_LEARNERS_COLS
+        val height = gridTop + rows * MOVE_LEARNERS_CELL + PanelLayout.PADDING
         return CategorySizer.PanelSize(width, height)
     }
 
-    private fun buildTmLearnerCellTooltip(learner: TmMoveLearner): List<Component> {
+    private fun buildMoveLearnerCellTooltip(learner: MoveLearner): List<Component> {
         val lines = mutableListOf<Component>()
         lines.add(Component.literal("\u00a7f\u00a7l" + formatSpeciesName(learner.speciesName)))
-        val methods = learner.learnMethods.ifEmpty { listOf(LearnMethod("TM", null)) }
+        val methods = learner.learnMethods.ifEmpty { listOf(LearnMethod("Can learn", null)) }
         for (method in methods) {
             val label = if (method.detail != null) method.label + " (" + method.detail + ")" else method.label
             lines.add(Component.literal("\u00a7a\u2726 \u00a77" + label))
@@ -1926,9 +1943,9 @@ object SpawnDisplayHelper {
         return lines
     }
 
-    fun buildTmMoveLearnersLayout(data: TmMoveLearnersRecipeData): TmLearnersLayoutResult {
+    fun buildMoveLearnersLayout(data: MoveLearnersRecipeData): MoveLearnersLayoutResult {
         val padding = PanelLayout.PADDING
-        val layout = PanelLayout(tmLearnersPanelWidth())
+        val layout = PanelLayout(moveLearnersPanelWidth())
         val right = layout.right
 
         val moveKey = "cobblemon.move." + data.moveName
@@ -1950,16 +1967,16 @@ object SpawnDisplayHelper {
 
         layout.gap(2)
         val sectionY = layout.y
-        layout.text(padding, tr("cobbledex-rei-emi-jei.moves.tm_learners"), 0xFFEEEEEE.toInt())
+        layout.text(padding, tr("cobbledex-rei-emi-jei.moves.move_learners"), 0xFFEEEEEE.toInt())
         layout.line()
         layout.gap(1)
 
         val gridTop = layout.y
         val slots = ArrayList<PokemonSlotDef>(data.learners.size)
         data.learners.forEachIndexed { i, learner ->
-            val cx = padding + (i % TM_LEARNERS_COLS) * TM_LEARNERS_CELL
-            val cy = gridTop + (i / TM_LEARNERS_COLS) * TM_LEARNERS_CELL
-            layout.addTooltipZone(cx, cy, TM_LEARNERS_CELL, TM_LEARNERS_CELL, buildTmLearnerCellTooltip(learner))
+            val cx = padding + (i % MOVE_LEARNERS_COLS) * MOVE_LEARNERS_CELL
+            val cy = gridTop + (i / MOVE_LEARNERS_COLS) * MOVE_LEARNERS_CELL
+            layout.addTooltipZone(cx, cy, MOVE_LEARNERS_CELL, MOVE_LEARNERS_CELL, buildMoveLearnerCellTooltip(learner))
             slots.add(
                 PokemonSlotDef(
                     learner.speciesName, emptySet(), cx, cy, SlotRole.INPUT,
@@ -1967,13 +1984,13 @@ object SpawnDisplayHelper {
                 )
             )
         }
-        val rows = (data.learners.size + TM_LEARNERS_COLS - 1) / TM_LEARNERS_COLS
+        val rows = (data.learners.size + MOVE_LEARNERS_COLS - 1) / MOVE_LEARNERS_COLS
         layout.addTooltipZone(
             padding, sectionY, right - padding, PanelLayout.LINE_HEIGHT,
-            listOf(Component.literal("\u00a77" + tr("cobbledex-rei-emi-jei.moves.tm_learners_hint"))),
+            listOf(Component.literal("\u00a77" + tr("cobbledex-rei-emi-jei.moves.move_learners_hint"))),
         )
-        layout.skipTo(gridTop + rows * TM_LEARNERS_CELL + padding)
-        return TmLearnersLayoutResult(layout, slots)
+        layout.skipTo(gridTop + rows * MOVE_LEARNERS_CELL + padding)
+        return MoveLearnersLayoutResult(layout, slots)
     }
 
     // --- Item-dropper grid layout builder ---

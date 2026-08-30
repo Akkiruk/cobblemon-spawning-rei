@@ -37,8 +37,9 @@ class DerivedDataBuilderTest {
     }
 
     @Test
-    fun buildsDropAndTmIndexesFromTheSameSnapshot() {
+    fun buildsDropAndMoveLearnerIndexesFromTheSameSnapshot() {
         val shadowBall = MoveDetail("Shadow Ball", "ghost", "SPECIAL", 80, 100, 15)
+        val lick = MoveDetail("Lick", "ghost", "PHYSICAL", 30, 100, 30)
         val snapshot = CobbleDexDataSnapshot(
             speciesInfo = mapOf(
                 "gengar" to speciesInfo(
@@ -46,6 +47,7 @@ class DerivedDataBuilderTest {
                     nationalDexNumber = 94,
                     drops = listOf(DropEntryInfo("minecraft:phantom_membrane", 25f, 1)),
                     tmMoves = listOf(shadowBall),
+                    levelUpMoves = listOf(LevelUpMove(1, listOf(lick))),
                 )
             )
         )
@@ -53,7 +55,9 @@ class DerivedDataBuilderTest {
         val result = DerivedDataBuilder.rebuild(snapshot) { emptyList() }
 
         assertEquals(listOf("gengar"), result.snapshot.dropsByItem["minecraft:phantom_membrane"])
-        assertEquals(listOf("gengar"), result.snapshot.speciesByTmMove["shadow ball"])
+        // The learner index covers every method, not just TM.
+        assertEquals(listOf("gengar"), result.snapshot.speciesByMove["shadow ball"])
+        assertEquals(listOf("gengar"), result.snapshot.speciesByMove["lick"])
     }
 
     @Test
@@ -82,6 +86,7 @@ class DerivedDataBuilderTest {
         secondaryType: String? = null,
         drops: List<DropEntryInfo>? = null,
         tmMoves: List<MoveDetail>? = null,
+        levelUpMoves: List<LevelUpMove>? = null,
         baseSpeciesName: String? = null,
         formAspects: Set<String> = emptySet(),
     ) = EvolutionDataLoader.SpeciesBasicInfo(
@@ -96,6 +101,7 @@ class DerivedDataBuilderTest {
         abilities = listOf("Run Away"),
         drops = drops,
         tmMoves = tmMoves,
+        levelUpMoves = levelUpMoves,
         baseSpeciesName = baseSpeciesName,
         formAspects = formAspects,
     )

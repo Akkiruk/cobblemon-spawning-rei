@@ -61,9 +61,9 @@ object SpawnDataIndex {
         get() = snapshot.dropsByItem
         private set(value) { snapshot = snapshot.copy(dropsByItem = value) }
 
-    var speciesByTmMove: Map<String, List<String>>
-        get() = snapshot.speciesByTmMove
-        private set(value) { snapshot = snapshot.copy(speciesByTmMove = value) }
+    var speciesByMove: Map<String, List<String>>
+        get() = snapshot.speciesByMove
+        private set(value) { snapshot = snapshot.copy(speciesByMove = value) }
 
     var jobRules: List<JobRule>
         get() = snapshot.jobRules
@@ -625,7 +625,7 @@ object SpawnDataIndex {
 
     fun getBaseOf(formSpecies: String): String? = currentQueries().getBaseOf(formSpecies)
 
-    fun getSpeciesWithTmMove(moveName: String): List<String> = currentQueries().getSpeciesWithTmMove(moveName)
+    fun getSpeciesWithMove(moveName: String): List<String> = currentQueries().getSpeciesWithMove(moveName)
 
     fun getRidingFor(species: String): RidingInfo? = currentQueries().getRidingFor(species)
 }

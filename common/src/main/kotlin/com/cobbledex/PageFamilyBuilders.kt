@@ -412,8 +412,8 @@ object PokemonInfoPageBuilder {
 object MovePageBuilder {
     fun buildMoves(data: MovesRecipeData): SpawnDisplayHelper.MovesLayoutResult =
         SpawnDisplayHelper.buildMovesLayout(data)
-    fun buildTmLearners(data: TmMoveLearnersRecipeData): SpawnDisplayHelper.TmLearnersLayoutResult =
-        SpawnDisplayHelper.buildTmMoveLearnersLayout(data)
+    fun buildMoveLearners(data: MoveLearnersRecipeData): SpawnDisplayHelper.MoveLearnersLayoutResult =
+        SpawnDisplayHelper.buildMoveLearnersLayout(data)
 }
 
 object MechanicPageBuilder {

@@ -122,13 +122,18 @@ object DerivedDataBuilder {
             }
         }
 
-        val tmIndex = mutableMapOf<String, MutableList<String>>()
+        // Reverse index: move name -> every species that can learn it by ANY method (level-up, egg,
+        // tutor or TM). Drives the "who can learn this move" learner grid, so it must match the data
+        // shown on the per-species Moves page rather than TM-only.
+        val moveIndex = mutableMapOf<String, MutableSet<String>>()
         for ((species, info) in enriched) {
-            val tms = info.tmMoves ?: continue
-            for (move in tms) {
-                tmIndex.getOrPut(move.name.lowercase()) { mutableListOf() }.add(species)
-            }
+            fun add(name: String) { moveIndex.getOrPut(name.lowercase()) { linkedSetOf() }.add(species) }
+            info.levelUpMoves?.forEach { lum -> lum.moves.forEach { add(it.name) } }
+            info.eggMoves?.forEach { add(it.name) }
+            info.tutorMoves?.forEach { add(it.name) }
+            info.tmMoves?.forEach { add(it.name) }
         }
+        val moveLearnerIndex = moveIndex.mapValues { (_, v) -> v.toList() }
 
         val sortedSpecies = allNames.sortedWith(
             compareBy<String> {
@@ -143,7 +148,7 @@ object DerivedDataBuilder {
                 evolutionsToSpecies = reverseMap,
                 speciesInfo = enriched,
                 dropsByItem = dropIndex,
-                speciesByTmMove = tmIndex,
+                speciesByMove = moveLearnerIndex,
                 allSpeciesNames = sortedSpecies,
             ),
             backfilledSpeciesInfoCount = backfilled,

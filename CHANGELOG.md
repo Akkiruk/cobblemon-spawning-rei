@@ -2,6 +2,15 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.7.0] - 2026-08-30
+
+### Fixed
+- The move-learner grid now lists every Pokemon that can learn the move by **any** method (level-up, egg, tutor or TM), matching the per-species Moves page. It was previously built from the TM list only, so a move learnt by level-up or breeding showed a short, wrong list of learners.
+- The clickable disc now appears on **every** move row, not just TM-learnable ones (tmcraft registers a disc per move for every category; the disc art just follows the move's primary method). Clicking any row's disc opens that move's full learner grid.
+
+### Changed
+- Internally renamed the "TM learner" system to "move learner" (index, builders, data classes, layout) since it is no longer TM-specific.
+
 ## [2.6.0] - 2026-08-30
 
 ### Added

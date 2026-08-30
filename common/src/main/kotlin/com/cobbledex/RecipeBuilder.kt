@@ -540,22 +540,23 @@ object RecipeBuilder {
         return matches.map { JobRecipeData(speciesName, it) }
     }
 
-    // --- TM learner lookup ---
+    // --- Move learner lookup ---
     //
-    // Looking up a TM item shows a grid of every Pokémon that can learn its move. The learner
-    // list is paginated into grids rather than one page per Pokémon (some moves have 200+ learners).
+    // Looking up a move (via its TM/egg/tutor disc, or from the Moves page) shows a grid of every
+    // Pokémon that can learn it by ANY method — level-up, egg, tutor or TM — matching the data on the
+    // per-species Moves page. Paginated into grids rather than one page per Pokémon (200+ learners).
 
-    fun buildTmLearnersForItem(itemId: String): List<TmMoveLearnersRecipeData> {
+    fun buildMoveLearnersForItem(itemId: String): List<MoveLearnersRecipeData> {
         val moveName = TmItemUtils.extractMove(itemId) ?: return emptyList()
-        return buildTmLearnersForMove(moveName)
+        return buildMoveLearnersForMove(moveName)
     }
 
-    /** Every TM-learner grid, one family per TM move — used for "view all" browsing and panel sizing. */
-    fun buildAllTmLearnerRecipes(): List<TmMoveLearnersRecipeData> =
-        SpawnDataIndex.speciesByTmMove.keys.sorted().flatMap { buildTmLearnersForMove(it) }
+    /** Every move-learner grid, one family per move — used for "view all" browsing and panel sizing. */
+    fun buildAllMoveLearnerRecipes(): List<MoveLearnersRecipeData> =
+        SpawnDataIndex.speciesByMove.keys.sorted().flatMap { buildMoveLearnersForMove(it) }
 
-    fun buildTmLearnersForMove(moveName: String): List<TmMoveLearnersRecipeData> {
-        val species = SpawnDataIndex.getSpeciesWithTmMove(moveName)
+    fun buildMoveLearnersForMove(moveName: String): List<MoveLearnersRecipeData> {
+        val species = SpawnDataIndex.getSpeciesWithMove(moveName)
             .distinct()
             .filter { SpawnDataIndex.shouldSurfaceSpecies(it) && PokemonItemCache.canRender(it) }
             .sortedBy { SpawnDataIndex.getSpeciesInfo(it)?.nationalDexNumber?.takeIf { n -> n > 0 } ?: Int.MAX_VALUE }
@@ -585,12 +586,12 @@ object RecipeBuilder {
                 methods.add(LearnMethod("Tutor", null))
             }
 
-            TmMoveLearner(sp, methods)
+            MoveLearner(sp, methods)
         }
 
-        val pages = learners.chunked(SpawnDisplayHelper.TM_LEARNERS_PER_PAGE)
+        val pages = learners.chunked(SpawnDisplayHelper.MOVE_LEARNERS_PER_PAGE)
         return pages.mapIndexed { i, chunk ->
-            TmMoveLearnersRecipeData(moveName, sharedDetail, chunk, i + 1, pages.size)
+            MoveLearnersRecipeData(moveName, sharedDetail, chunk, i + 1, pages.size)
         }
     }
 
