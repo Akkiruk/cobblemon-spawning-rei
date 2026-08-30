@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.8.0] - 2026-08-30
+
+### Changed
+- The move-learner grid no longer depends on TM Craft (or any TM mod). On a Pokemon's Moves page the **move name itself is now the link** — click it to open the grid of every Pokemon that can learn that move. No disc icon, and the move rows are back to their compact height. (Text-link click is REI; on JEI/EMI, and everywhere, the learner grids are still reachable by browsing the Moves category. Looking up a TM Craft / SimpleTMs disc still works too when those mods are installed.)
+- Added a lightweight `MoveEntry` recipe-viewer type (REI) so a move can be a click target in its own right.
+
 ## [2.7.0] - 2026-08-30
 
 ### Fixed

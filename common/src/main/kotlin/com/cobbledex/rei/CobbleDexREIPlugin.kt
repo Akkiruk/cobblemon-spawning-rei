@@ -10,6 +10,9 @@ import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpawnDisplayHelper
 import com.cobbledex.ViewerParityGuard
 import com.cobbledex.config.CobbleDexConfig
+import com.cobbledex.rei.entry.MoveEntry
+import com.cobbledex.rei.entry.MoveEntryDefinition
+import com.cobbledex.rei.entry.MoveEntryType
 import com.cobbledex.rei.entry.PokemonEntry
 import com.cobbledex.rei.entry.PokemonEntryDefinition
 import com.cobbledex.rei.entry.PokemonEntryType
@@ -56,20 +59,26 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         if (emiActive) return
         try {
             registry.register(PokemonEntryType.POKEMON.id, PokemonEntryDefinition())
-            DebugLog.info("Pokémon entry type registered")
+            registry.register(MoveEntryType.MOVE.id, MoveEntryDefinition())
+            DebugLog.info("Pokémon + move entry types registered")
         } catch (e: Exception) {
             DebugLog.warn("registerEntryTypes failed: ${e.message}")
         }
     }
 
     private fun ensureEntryTypeAvailable() {
-        try {
-            PokemonEntryType.POKEMON.definition
-        } catch (_: Exception) {
+        try { PokemonEntryType.POKEMON.definition } catch (_: Exception) {
             try {
                 EntryTypeRegistry.getInstance().register(PokemonEntryType.POKEMON.id, PokemonEntryDefinition())
             } catch (e: Exception) {
-                DebugLog.warnOnce("rei-entry-type") { "Failed to register PokemonEntryType: ${e.message}" }
+                DebugLog.warnOnce("rei-entry-type-pokemon") { "Failed to register PokemonEntryType: ${e.message}" }
+            }
+        }
+        try { MoveEntryType.MOVE.definition } catch (_: Exception) {
+            try {
+                EntryTypeRegistry.getInstance().register(MoveEntryType.MOVE.id, MoveEntryDefinition())
+            } catch (e: Exception) {
+                DebugLog.warnOnce("rei-entry-type-move") { "Failed to register MoveEntryType: ${e.message}" }
             }
         }
     }
@@ -230,6 +239,17 @@ open class CobbleDexREIPlugin : REIClientPlugin {
                 gfx.pose().popPose()
             })
 
+            // Move-name links: an invisible button over each name that opens the move's learner grid.
+            for (link in slots.moveLinks) {
+                val move = link.moveName
+                val button = MoveLinkButton(px + link.x, py + link.y, link.width, link.height) {
+                    ViewSearchBuilder.builder()
+                        .addRecipesFor(EntryStack.of(MoveEntryType.MOVE, MoveEntry(move)))
+                        .open()
+                }
+                widgets.add(Widgets.wrapVanillaWidget(button))
+            }
+
             for (zone in handle.layout.tooltipZones) {
                 if (zone.lines.isNotEmpty()) {
                     widgets.add(Widgets.createTooltip(
@@ -250,38 +270,32 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         @Volatile private var cachedVersion = -1L
         @Volatile private var cachedDisplays: List<GenericDisplay>? = null
 
+        private fun forValue(handles: List<RecipeHandle>): Optional<List<GenericDisplay>> {
+            if (handles.isEmpty()) return Optional.empty()
+            ViewerParityGuard.warn(def, handles, "REI")
+            return Optional.of(handles.map { GenericDisplay(it, def) })
+        }
+
         override fun getRecipeFor(entry: EntryStack<*>): Optional<List<GenericDisplay>> {
-            val value = entry.value ?: return Optional.empty()
-            if (value is PokemonEntry) {
-                val handles = def.buildRecipesFor(value.species)
-                if (handles.isEmpty()) return Optional.empty()
-                ViewerParityGuard.warn(def, handles, "REI")
-                return Optional.of(handles.map { GenericDisplay(it, def) })
-            }
-            if (value is net.minecraft.world.item.ItemStack) {
-                val itemId = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(value.item).toString()
-                val handles = def.buildRecipesForItem(itemId)
-                if (handles.isEmpty()) return Optional.empty()
-                ViewerParityGuard.warn(def, handles, "REI")
-                return Optional.of(handles.map { GenericDisplay(it, def) })
+            when (val value = entry.value ?: return Optional.empty()) {
+                is PokemonEntry -> return forValue(def.buildRecipesFor(value.species))
+                is MoveEntry -> return forValue(def.buildRecipesForMove(value.moveName))
+                is net.minecraft.world.item.ItemStack -> {
+                    val itemId = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(value.item).toString()
+                    return forValue(def.buildRecipesForItem(itemId))
+                }
             }
             return Optional.empty()
         }
 
         override fun getUsageFor(entry: EntryStack<*>): Optional<List<GenericDisplay>> {
-            val value = entry.value ?: return Optional.empty()
-            if (value is PokemonEntry) {
-                val handles = def.buildUsagesFor(value.species)
-                if (handles.isEmpty()) return Optional.empty()
-                ViewerParityGuard.warn(def, handles, "REI")
-                return Optional.of(handles.map { GenericDisplay(it, def) })
-            }
-            if (value is net.minecraft.world.item.ItemStack) {
-                val itemId = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(value.item).toString()
-                val handles = def.buildRecipesForItem(itemId)
-                if (handles.isEmpty()) return Optional.empty()
-                ViewerParityGuard.warn(def, handles, "REI")
-                return Optional.of(handles.map { GenericDisplay(it, def) })
+            when (val value = entry.value ?: return Optional.empty()) {
+                is PokemonEntry -> return forValue(def.buildUsagesFor(value.species))
+                is MoveEntry -> return forValue(def.buildRecipesForMove(value.moveName))
+                is net.minecraft.world.item.ItemStack -> {
+                    val itemId = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(value.item).toString()
+                    return forValue(def.buildRecipesForItem(itemId))
+                }
             }
             return Optional.empty()
         }
@@ -304,5 +318,23 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             cachedVersion = version
             return if (all.isEmpty()) Optional.empty() else Optional.of(all)
         }
+    }
+
+    /** Invisible click target laid over a move name; faint highlight on hover. */
+    private class MoveLinkButton(
+        x: Int, y: Int, w: Int, h: Int,
+        private val onPress: () -> Unit,
+    ) : net.minecraft.client.gui.components.AbstractWidget(x, y, w, h, Component.empty()) {
+
+        override fun renderWidget(
+            graphics: net.minecraft.client.gui.GuiGraphics,
+            mouseX: Int, mouseY: Int, delta: Float,
+        ) {
+            if (isHovered) graphics.fill(x, y, x + width, y + height, 0x30FFFFFF)
+        }
+
+        override fun onClick(mouseX: Double, mouseY: Double) = onPress()
+
+        override fun updateWidgetNarration(output: net.minecraft.client.gui.narration.NarrationElementOutput) {}
     }
 }

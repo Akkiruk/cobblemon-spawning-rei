@@ -25,6 +25,18 @@ data class ItemSlotDef(
     val size: Int = 18,
 )
 
+/**
+ * A clickable text region bound to a move — the viewer plugin turns it into a click target that
+ * opens the "every Pokémon that can learn this move" grid. Requires no external mod.
+ */
+data class MoveLinkDef(
+    val moveName: String,
+    val x: Int,
+    val y: Int,
+    val width: Int,
+    val height: Int,
+)
+
 class RecipeHandle(
     val recipeIdPath: String,
     val inputSpecies: List<String>,
@@ -41,6 +53,7 @@ class RecipeHandle(
         val arrowY: Int = 0,
         val hasArrow: Boolean = false,
         val catalogInputIds: List<String> = emptyList(),
+        val moveLinks: List<MoveLinkDef> = emptyList(),
     )
 
     val layout: PanelLayout by lazy(LazyThreadSafetyMode.NONE) {
@@ -106,6 +119,9 @@ interface DexCategory {
     fun buildRecipesFor(species: String): List<RecipeHandle>
     fun buildUsagesFor(species: String): List<RecipeHandle> = emptyList()
     fun buildRecipesForItem(itemId: String): List<RecipeHandle> = emptyList()
+
+    /** Displays to show when a [MoveLinkDef] for [moveName] is clicked (viewer-agnostic). */
+    fun buildRecipesForMove(moveName: String): List<RecipeHandle> = emptyList()
 
     companion object {
         val ALL: List<DexCategory> = listOf(
@@ -388,6 +404,9 @@ object MovesDex : DexCategory {
         return RecipeBuilder.buildMoveLearnersForItem(itemId).map(::toMoveLearnersHandle)
     }
 
+    override fun buildRecipesForMove(moveName: String): List<RecipeHandle> =
+        RecipeBuilder.buildMoveLearnersForMove(moveName).map(::toMoveLearnersHandle)
+
     private fun toHandle(d: MovesRecipeData): RecipeHandle {
         var result: SpawnDisplayHelper.MovesLayoutResult? = null
         fun res() = result ?: MovePageBuilder.buildMoves(d).also { result = it }
@@ -399,7 +418,7 @@ object MovesDex : DexCategory {
             _slots = {
                 RecipeHandle.Slots(
                     pokemon = listOf(pokemonInput(d.speciesName)),
-                    items = res().itemSlots,
+                    moveLinks = res().moveLinks,
                 )
             },
         )

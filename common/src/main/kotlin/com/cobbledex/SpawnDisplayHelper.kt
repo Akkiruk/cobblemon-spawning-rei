@@ -1407,22 +1407,16 @@ object SpawnDisplayHelper {
     // Fixed column geometry for the unified move list. Columns are anchored from the right edge so
     // a given method always sits at the same x — reading "every TM move" is then a straight
     // vertical scan of one column, with no duplicated rows.
-    private const val MOVES_PANEL_WIDTH = 274
+    private const val MOVES_PANEL_WIDTH = 256
     private const val MOVE_SUFFIX_RESERVE = 62
     private const val MOVE_GLYPH_COL_W = 11
     private const val MOVE_LEVEL_COL_W = 24
     private const val MOVE_COL_GAP = 3
 
-    // Rows are tall enough to carry a clickable slot (the TM disc, which opens the move's learner
-    // grid). The left gutter holds that slot; text sits vertically centred in the row.
-    private const val MOVE_ROW_H = 16
-    private const val MOVE_ICON_GUTTER = 18
-    private const val MOVE_TEXT_DY = 4
-    private const val MOVE_SLOT_SIZE = 16
-
     data class MovesLayoutResult(
         val layout: PanelLayout,
-        val itemSlots: List<ItemSlotDef>,
+        /** Clickable move-name regions — each opens that move's learner grid (viewer-dependent). */
+        val moveLinks: List<MoveLinkDef>,
     )
 
     private val METHOD_GLYPHS = mapOf(
@@ -1445,29 +1439,12 @@ object SpawnDisplayHelper {
         val tutorX = tmX - MOVE_GLYPH_COL_W
         val eggX = tutorX - MOVE_GLYPH_COL_W
         val levelX = eggX - MOVE_COL_GAP - MOVE_LEVEL_COL_W
-        val nameX = PanelLayout.PADDING + 4 + MOVE_ICON_GUTTER
+        val nameX = PanelLayout.PADDING + 4
         return MoveColumns(nameX, (levelX - nameX - 4).coerceAtLeast(1), levelX, eggX, tutorX, tmX)
     }
 
     private fun moveLevelText(levels: List<Int>): String =
         levels.joinToString(", ") { if (it <= 0) tr("cobbledex-rei-emi-jei.moves.evo") else it.toString() }
-
-    /**
-     * The disc item to seat in a move row's gutter. tmcraft/simpletms register a disc per move for
-     * every category, so this normally resolves; the marker just prefers a disc whose art matches
-     * the move's primary learn method. null → no disc for this move (rare), so no gutter slot.
-     */
-    private fun moveDiscItemId(entry: MoveEntry): String? {
-        val marker = when {
-            entry.tm -> "tm_"
-            entry.tutor -> "tutor_"
-            entry.egg -> "egg_"
-            else -> "tm_"
-        }
-        val all = TmItemUtils.tmItemIds(entry.move.name)
-        val preferred = all.filter { it.substringAfter(':').startsWith(marker) }
-        return (preferred + (all - preferred.toSet())).firstOrNull { !resolveItemStack(it).isEmpty }
-    }
 
     private fun moveLevelBadge(entry: MoveEntry): String {
         if (!entry.isLevelUp) return ""
@@ -1480,30 +1457,30 @@ object SpawnDisplayHelper {
         layout: PanelLayout,
         entry: MoveEntry,
         cols: MoveColumns,
-        itemSlots: MutableList<ItemSlotDef>,
+        moveLinks: MutableList<MoveLinkDef>,
     ) {
         val padding = PanelLayout.PADDING
         val right = layout.right
         val font = layout.font
         val rowY = layout.y
-        val textY = rowY + MOVE_TEXT_DY
         val move = entry.move
 
         val moveKey = "cobblemon.move.${move.name}"
         val displayName = tr(moveKey).let { if (it == moveKey) titleCase(move.name) else it }
-        layout.clippedAt(cols.nameX, textY, displayName, cols.nameMax, typeColor(move.type))
+        val clippedName = clipToWidth(font, displayName, cols.nameMax)
+        layout.textAt(cols.nameX, rowY, clippedName, typeColor(move.type))
 
         val levelBadge = moveLevelBadge(entry)
         if (levelBadge.isNotEmpty()) {
             layout.textAt(
-                cols.levelX, textY,
+                cols.levelX, rowY,
                 clipToWidth(font, levelBadge, MOVE_LEVEL_COL_W + MOVE_COL_GAP),
                 MOVE_LEVEL_COLOR,
             )
         }
 
         fun glyph(x: Int, method: String, present: Boolean) {
-            if (present) layout.textAt(x, textY, METHOD_GLYPHS.getValue(method), METHOD_GLYPH_COLOR)
+            if (present) layout.textAt(x, rowY, METHOD_GLYPHS.getValue(method), METHOD_GLYPH_COLOR)
         }
         glyph(cols.eggX, "egg", entry.egg)
         glyph(cols.tutorX, "tutor", entry.tutor)
@@ -1511,26 +1488,24 @@ object SpawnDisplayHelper {
 
         val suffix = formatMoveSuffix(move)
         val suffixColor = CATEGORY_ICONS[move.category]?.second ?: 0xFFBBBBBB.toInt()
-        layout.textRightAt(textY, suffix, suffixColor)
+        layout.textRightAt(rowY, suffix, suffixColor)
 
+        // The move name is a link: clicking it opens the grid of every Pokémon that can learn the
+        // move. Needs no external mod — the viewer plugin turns this region into a clickable label.
+        val nameW = font.width(clippedName)
+        moveLinks.add(MoveLinkDef(move.name, cols.nameX, rowY, nameW.coerceAtLeast(8), PanelLayout.LINE_HEIGHT))
         layout.addTooltipZone(
-            padding, rowY, right - padding, MOVE_ROW_H,
+            cols.nameX, rowY, nameW.coerceAtLeast(8), PanelLayout.LINE_HEIGHT,
+            buildMoveTooltip(move, entry) +
+                Component.literal("§8" + tr("cobbledex-rei-emi-jei.moves.learners_hint")),
+        )
+        // Rest of the row keeps the plain move detail tooltip.
+        layout.addTooltipZone(
+            cols.nameX + nameW + 2, rowY, right - (cols.nameX + nameW + 2), PanelLayout.LINE_HEIGHT,
             buildMoveTooltip(move, entry),
         )
 
-        // Move disc in the left gutter — clicking it opens the "every Pokémon that can learn this
-        // move (by any method)" grid. Shown for every move that tmcraft/simpletms has a disc item
-        // for (≈ all of them); the disc variant just picks the move's primary method for its look.
-        val discId = moveDiscItemId(entry)
-        if (discId != null) {
-            itemSlots.add(ItemSlotDef(discId, padding, rowY, SlotRole.INPUT, MOVE_SLOT_SIZE))
-            layout.addTooltipZone(
-                padding, rowY, MOVE_ICON_GUTTER, MOVE_ROW_H,
-                listOf(Component.literal("§7" + tr("cobbledex-rei-emi-jei.moves.learners_hint"))),
-            )
-        }
-
-        layout.skipTo(rowY + MOVE_ROW_H)
+        layout.line()
     }
 
     fun buildMovesLayout(data: MovesRecipeData): MovesLayoutResult {
@@ -1563,7 +1538,7 @@ object SpawnDisplayHelper {
         )
         layout.skipTo(35)
 
-        val itemSlots = mutableListOf<ItemSlotDef>()
+        val moveLinks = mutableListOf<MoveLinkDef>()
         if (data.grouped) {
             var prevMethod: String? = null
             for (entry in data.moves) {
@@ -1574,14 +1549,14 @@ object SpawnDisplayHelper {
                     layout.line()
                     prevMethod = method
                 }
-                moveRow(layout, entry, cols, itemSlots)
+                moveRow(layout, entry, cols, moveLinks)
             }
         } else {
-            for (entry in data.moves) moveRow(layout, entry, cols, itemSlots)
+            for (entry in data.moves) moveRow(layout, entry, cols, moveLinks)
         }
 
         layout.gap(padding)
-        return MovesLayoutResult(layout, itemSlots)
+        return MovesLayoutResult(layout, moveLinks)
     }
 
     // --- Fossil layout builder ---
