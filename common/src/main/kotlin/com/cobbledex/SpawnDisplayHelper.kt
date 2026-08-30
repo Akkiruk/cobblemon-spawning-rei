@@ -1799,57 +1799,84 @@ object SpawnDisplayHelper {
         return layout
     }
 
-    // --- TM learner layout builder ---
+    // --- TM learner grid layout builder ---
+    //
+    // Shown when a TM item is looked up. Instead of one page per learner, every Pok\u00e9mon that can
+    // learn the move is rendered as a grid of clickable icons; hovering a cell names the Pok\u00e9mon
+    // and the method(s) by which it learns the move.
 
-    fun buildTmLearnerLayout(data: TmLearnerRecipeData): PanelLayout {
-        val pageText = if (data.pageTotal > 1) "${data.pageIndex}/${data.pageTotal}" else ""
-        val width = computePanelWidth(
-            measureHeaderWidth(Minecraft.getInstance().font, formatSpeciesName(data.speciesName), pageText),
-            200
-        )
-        val layout = PanelLayout(width)
+    const val TM_LEARNERS_PER_PAGE = 96
+    private const val TM_LEARNERS_COLS = 12
+    private const val TM_LEARNERS_CELL = 20
+
+    data class TmLearnersLayoutResult(
+        val layout: PanelLayout,
+        val pokemonSlots: List<PokemonSlotDef>,
+    )
+
+    private fun tmLearnersPanelWidth(): Int =
+        (PanelLayout.PADDING * 2 + TM_LEARNERS_COLS * TM_LEARNERS_CELL)
+            .coerceIn(PanelLayout.MIN_WIDTH, PanelLayout.MAX_WIDTH)
+
+    private fun buildTmLearnerCellTooltip(learner: TmMoveLearner): List<Component> {
+        val lines = mutableListOf<Component>()
+        lines.add(Component.literal("\u00a7f\u00a7l" + formatSpeciesName(learner.speciesName)))
+        val methods = learner.learnMethods.ifEmpty { listOf(LearnMethod("TM", null)) }
+        for (method in methods) {
+            val label = if (method.detail != null) method.label + " (" + method.detail + ")" else method.label
+            lines.add(Component.literal("\u00a7a\u2726 \u00a77" + label))
+        }
+        return lines
+    }
+
+    fun buildTmMoveLearnersLayout(data: TmMoveLearnersRecipeData): TmLearnersLayoutResult {
         val padding = PanelLayout.PADDING
+        val layout = PanelLayout(tmLearnersPanelWidth())
         val right = layout.right
 
-        drawHeader(layout, formatSpeciesName(data.speciesName), pageText, 0xFF888888.toInt(), dividerY = 20)
+        val moveKey = "cobblemon.move." + data.moveName
+        val displayName = tr(moveKey).let { if (it == moveKey) titleCase(data.moveName) else it }
+        val pageText = if (data.pageTotal > 1) data.pageIndex.toString() + "/" + data.pageTotal else ""
+
+        drawHeader(layout, displayName, pageText, 0xFF888888.toInt(), dividerY = 20, leftX = padding)
         layout.skipTo(24)
 
-        // Move info
-        val moveKey = "cobblemon.move.${data.moveName}"
-        val displayName = tr(moveKey).let { if (it == moveKey) titleCase(data.moveName) else it }
         val detail = data.moveDetail
         if (detail != null) {
             val suffix = formatMoveSuffix(detail)
             val suffixColor = CATEGORY_ICONS[detail.category]?.second ?: 0xFFBBBBBB.toInt()
-            drawSplitRow(layout, padding, displayName, suffix, typeColor(detail.type), suffixColor)
+            val rowY = layout.y
+            drawSplitRow(layout, padding, titleCase(detail.type), suffix, typeColor(detail.type), suffixColor)
+            layout.addTooltipZone(padding, rowY, right - padding, PanelLayout.LINE_HEIGHT, buildMoveTooltip(detail))
             layout.line()
-
-            val ppText = "PP: ${detail.pp}"
-            layout.text(padding + 4, ppText, 0xFFAAAAAA.toInt())
-            layout.line()
-        } else {
-            layout.wrapped(padding, displayName, right - padding, 0xFFFFFF)
         }
 
-        layout.gap(3)
-        layout.separator()
-        layout.gap(3)
-
-        layout.text(padding, "Learn Methods", 0xFFDDCC99.toInt())
-        layout.line()
         layout.gap(2)
+        val sectionY = layout.y
+        layout.text(padding, tr("cobbledex-rei-emi-jei.moves.tm_learners"), 0xFFEEEEEE.toInt())
+        layout.line()
+        layout.gap(1)
 
-        for (method in data.learnMethods) {
-            val label = if (method.detail != null) "${method.label} (${method.detail})" else method.label
-            layout.wrapped(padding + 6, "\u2726 $label", right - (padding + 6), 0xFF88DD88.toInt())
+        val gridTop = layout.y
+        val slots = ArrayList<PokemonSlotDef>(data.learners.size)
+        data.learners.forEachIndexed { i, learner ->
+            val cx = padding + (i % TM_LEARNERS_COLS) * TM_LEARNERS_CELL
+            val cy = gridTop + (i / TM_LEARNERS_COLS) * TM_LEARNERS_CELL
+            layout.addTooltipZone(cx, cy, TM_LEARNERS_CELL, TM_LEARNERS_CELL, buildTmLearnerCellTooltip(learner))
+            slots.add(
+                PokemonSlotDef(
+                    learner.speciesName, emptySet(), cx, cy, SlotRole.INPUT,
+                    disableBackground = false, disableHighlight = false,
+                )
+            )
         }
-
-        if (data.learnMethods.isEmpty()) {
-            layout.wrapped(padding + 6, "\u2726 TM", right - (padding + 6), 0xFF88DD88.toInt())
-        }
-
-        layout.gap(padding)
-        return layout
+        val rows = (data.learners.size + TM_LEARNERS_COLS - 1) / TM_LEARNERS_COLS
+        layout.addTooltipZone(
+            padding, sectionY, right - padding, PanelLayout.LINE_HEIGHT,
+            listOf(Component.literal("\u00a77" + tr("cobbledex-rei-emi-jei.moves.tm_learners_hint"))),
+        )
+        layout.skipTo(gridTop + rows * TM_LEARNERS_CELL + padding)
+        return TmLearnersLayoutResult(layout, slots)
     }
 
     // --- Alternate Forms layout ---

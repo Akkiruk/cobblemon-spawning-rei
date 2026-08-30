@@ -520,46 +520,56 @@ object RecipeBuilder {
     }
 
     // --- TM learner lookup ---
+    //
+    // Looking up a TM item shows a grid of every Pokémon that can learn its move. The learner
+    // list is paginated into grids rather than one page per Pokémon (some moves have 200+ learners).
 
-    fun buildTmLearnersForItem(itemId: String): List<TmLearnerRecipeData> {
+    fun buildTmLearnersForItem(itemId: String): List<TmMoveLearnersRecipeData> {
         val moveName = TmItemUtils.extractMove(itemId) ?: return emptyList()
+        return buildTmLearnersForMove(moveName)
+    }
+
+    /** Every TM-learner grid, one family per TM move — used for "view all" browsing and panel sizing. */
+    fun buildAllTmLearnerRecipes(): List<TmMoveLearnersRecipeData> =
+        SpawnDataIndex.speciesByTmMove.keys.sorted().flatMap { buildTmLearnersForMove(it) }
+
+    fun buildTmLearnersForMove(moveName: String): List<TmMoveLearnersRecipeData> {
         val species = SpawnDataIndex.getSpeciesWithTmMove(moveName)
-            .filter { SpawnDataIndex.shouldSurfaceSpecies(it) }
+            .distinct()
+            .filter { SpawnDataIndex.shouldSurfaceSpecies(it) && PokemonItemCache.canRender(it) }
+            .sortedBy { SpawnDataIndex.getSpeciesInfo(it)?.nationalDexNumber?.takeIf { n -> n > 0 } ?: Int.MAX_VALUE }
         if (species.isEmpty()) return emptyList()
 
-        val total = species.size
-        return species.mapIndexed { i, sp ->
+        var sharedDetail: MoveDetail? = null
+        val learners = species.map { sp ->
             val info = SpawnDataIndex.getSpeciesInfo(sp)
             val methods = mutableListOf<LearnMethod>()
-            var moveDetail: MoveDetail? = null
 
-            // Check level-up
             info?.levelUpMoves?.forEach { entry ->
                 entry.moves.firstOrNull { it.name.equals(moveName, ignoreCase = true) }?.let {
-                    moveDetail = moveDetail ?: it
+                    sharedDetail = sharedDetail ?: it
                     methods.add(LearnMethod("Level Up", "Lv. ${entry.level}"))
                 }
             }
-
-            // Check TM
             info?.tmMoves?.firstOrNull { it.name.equals(moveName, ignoreCase = true) }?.let {
-                moveDetail = moveDetail ?: it
+                sharedDetail = sharedDetail ?: it
                 methods.add(LearnMethod("TM", null))
             }
-
-            // Check egg
             info?.eggMoves?.firstOrNull { it.name.equals(moveName, ignoreCase = true) }?.let {
-                moveDetail = moveDetail ?: it
+                sharedDetail = sharedDetail ?: it
                 methods.add(LearnMethod("Egg Move", null))
             }
-
-            // Check tutor
             info?.tutorMoves?.firstOrNull { it.name.equals(moveName, ignoreCase = true) }?.let {
-                moveDetail = moveDetail ?: it
+                sharedDetail = sharedDetail ?: it
                 methods.add(LearnMethod("Tutor", null))
             }
 
-            TmLearnerRecipeData(sp, moveName, moveDetail, methods, i + 1, total)
+            TmMoveLearner(sp, methods)
+        }
+
+        val pages = learners.chunked(SpawnDisplayHelper.TM_LEARNERS_PER_PAGE)
+        return pages.mapIndexed { i, chunk ->
+            TmMoveLearnersRecipeData(moveName, sharedDetail, chunk, i + 1, pages.size)
         }
     }
 

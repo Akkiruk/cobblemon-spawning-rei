@@ -354,14 +354,15 @@ object MovesDex : DexCategory {
     override fun isEnabled(config: CobbleDexConfig) = config.showMoves
 
     override fun buildAllRecipes() =
-        RecipeBuilder.buildAllMovesRecipes().map(::toHandle)
+        RecipeBuilder.buildAllMovesRecipes().map(::toHandle) +
+            RecipeBuilder.buildAllTmLearnerRecipes().map(::toTmLearnersHandle)
 
     override fun buildRecipesFor(species: String) =
         RecipeBuilder.buildMovesFor(species).map(::toHandle)
 
     override fun buildRecipesForItem(itemId: String): List<RecipeHandle> {
         if (!TmItemUtils.isTmItem(itemId)) return emptyList()
-        return RecipeBuilder.buildTmLearnersForItem(itemId).map(::toTmLearnerHandle)
+        return RecipeBuilder.buildTmLearnersForItem(itemId).map(::toTmLearnersHandle)
     }
 
     private fun toHandle(d: MovesRecipeData) = RecipeHandle(
@@ -372,18 +373,24 @@ object MovesDex : DexCategory {
         _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
     )
 
-    private fun toTmLearnerHandle(d: TmLearnerRecipeData) = RecipeHandle(
-        recipeIdPath = "moves/tm_${sanitizePath(d.moveName)}_${sanitizePath(d.speciesName)}",
-        inputSpecies = listOf(d.speciesName),
-        outputSpecies = emptyList(),
-        layoutFactory = { MovePageBuilder.buildTmLearner(d) },
-        _slots = {
-            RecipeHandle.Slots(
-                pokemon = listOf(pokemonInput(d.speciesName)),
-                catalogInputIds = TmItemUtils.tmItemIds(d.moveName),
-            )
-        },
-    )
+    private fun toTmLearnersHandle(d: TmMoveLearnersRecipeData): RecipeHandle {
+        var result: SpawnDisplayHelper.TmLearnersLayoutResult? = null
+        fun res() = result ?: MovePageBuilder.buildTmLearners(d).also { result = it }
+        return RecipeHandle(
+            recipeIdPath = "moves/tm_learners_${sanitizePath(d.moveName)}_${d.pageIndex}",
+            inputSpecies = emptyList(),
+            outputSpecies = emptyList(),
+            layoutFactory = { res().layout },
+            _width = { res().layout.width },
+            _height = { res().layout.height },
+            _slots = {
+                RecipeHandle.Slots(
+                    pokemon = res().pokemonSlots,
+                    catalogInputIds = TmItemUtils.tmItemIds(d.moveName),
+                )
+            },
+        )
+    }
 }
 
 // ----- Pokédex Info -----

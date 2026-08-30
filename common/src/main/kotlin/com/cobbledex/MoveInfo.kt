@@ -26,11 +26,20 @@ data class MovesRecipeData(
 
 data class LearnMethod(val label: String, val detail: String?)
 
-data class TmLearnerRecipeData(
+/** One Pokémon that can learn a given TM move, plus every method by which it learns it. */
+data class TmMoveLearner(
     val speciesName: String,
+    val learnMethods: List<LearnMethod>
+)
+
+/**
+ * A single page of the "which Pokémon can learn this TM move" grid. Shown when a TM item is
+ * looked up in a recipe viewer. Learners are rendered as a grid of clickable Pokémon icons.
+ */
+data class TmMoveLearnersRecipeData(
     val moveName: String,
     val moveDetail: MoveDetail?,
-    val learnMethods: List<LearnMethod>,
+    val learners: List<TmMoveLearner>,
     val pageIndex: Int,
     val pageTotal: Int
 )

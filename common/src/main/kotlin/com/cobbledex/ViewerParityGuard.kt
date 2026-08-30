@@ -38,7 +38,8 @@ object ViewerParityGuard {
 
             val inputSpecies = handle.lookupInputSpecies()
             val outputSpecies = handle.lookupOutputSpecies()
-            if (!allowGlobalHandles && inputSpecies.isEmpty() && outputSpecies.isEmpty()) {
+            val hasItemKeys = handle.lookupInputItemIds().isNotEmpty() || handle.lookupOutputItemIds().isNotEmpty()
+            if (!allowGlobalHandles && inputSpecies.isEmpty() && outputSpecies.isEmpty() && !hasItemKeys) {
                 issue("no species lookup keys")
             }
 

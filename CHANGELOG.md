@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.1.0] - 2026-08-29
+
+### Improved
+- Reworked the TM learner view: looking up a TM item now shows every Pokemon that can learn its move as a grid of clickable icons (dex-ordered, ~96 per page), instead of one page per Pokemon. Hovering an icon names the Pokemon and every method it learns the move by; clicking drills into that Pokemon's own move list. TM learner grids also appear when browsing the Moves category.
+
 ## [2.0.4] - 2026-08-02
 
 ### Added
