@@ -1868,6 +1868,20 @@ object SpawnDisplayHelper {
         (PanelLayout.PADDING * 2 + TM_LEARNERS_COLS * TM_LEARNERS_CELL)
             .coerceIn(PanelLayout.MIN_WIDTH, PanelLayout.MAX_WIDTH)
 
+    /**
+     * Exact panel geometry for the TM-learner grid, derived without building the layout so
+     * CategorySizer/RecipeHandle can size the frame cheaply (and identically to the rendered panel).
+     */
+    fun tmLearnersPanelSize(data: TmMoveLearnersRecipeData): CategorySizer.PanelSize {
+        val width = tmLearnersPanelWidth()
+        var gridTop = 24 + 2 // skipTo(24) + gap(2)
+        if (data.moveDetail != null) gridTop += PanelLayout.LINE_HEIGHT // split row + line()
+        gridTop += PanelLayout.LINE_HEIGHT + 1 // section text + line() + gap(1)
+        val rows = (data.learners.size + TM_LEARNERS_COLS - 1) / TM_LEARNERS_COLS
+        val height = gridTop + rows * TM_LEARNERS_CELL + PanelLayout.PADDING
+        return CategorySizer.PanelSize(width, height)
+    }
+
     private fun buildTmLearnerCellTooltip(learner: TmMoveLearner): List<Component> {
         val lines = mutableListOf<Component>()
         lines.add(Component.literal("\u00a7f\u00a7l" + formatSpeciesName(learner.speciesName)))
@@ -1927,6 +1941,88 @@ object SpawnDisplayHelper {
         )
         layout.skipTo(gridTop + rows * TM_LEARNERS_CELL + padding)
         return TmLearnersLayoutResult(layout, slots)
+    }
+
+    // --- Item-dropper grid layout builder ---
+    //
+    // Shown when an item is looked up. Instead of one page per dropping Pokémon, every Pokémon that
+    // drops the item is rendered as a grid of clickable icons; hovering a cell names the Pokémon and
+    // its drop chance / quantity for that item.
+
+    const val ITEM_DROPPERS_PER_PAGE = 96
+    private const val ITEM_DROPPERS_COLS = 12
+    private const val ITEM_DROPPERS_CELL = 20
+
+    data class ItemDroppersLayoutResult(
+        val layout: PanelLayout,
+        val pokemonSlots: List<PokemonSlotDef>,
+    )
+
+    /**
+     * Exact panel geometry for the dropper grid, derived without building the layout so
+     * CategorySizer/RecipeHandle can size the frame cheaply (and identically to the rendered panel).
+     * Width tracks the actual column count so a 3-dropper grid gets a small panel, not a full-width one.
+     */
+    fun itemDroppersPanelSize(data: ItemDroppersRecipeData): CategorySizer.PanelSize {
+        val padding = PanelLayout.PADDING
+        val cols = data.droppers.size.coerceIn(1, ITEM_DROPPERS_COLS)
+        val gridWidth = padding * 2 + cols * ITEM_DROPPERS_CELL
+        val font = Minecraft.getInstance().font
+        val pageText = if (data.pageTotal > 1) "${data.pageIndex}/${data.pageTotal}" else ""
+        val headerWidth = padding + 22 + font.width(resolveItemName(data.itemId)) + 8 + font.width(pageText) + padding
+        val sectionWidth = padding + font.width(tr("cobbledex-rei-emi-jei.drops.droppers")) + padding
+        val width = maxOf(gridWidth, headerWidth, sectionWidth, PanelLayout.MIN_WIDTH)
+            .coerceAtMost(PanelLayout.MAX_WIDTH)
+        val rows = (data.droppers.size + ITEM_DROPPERS_COLS - 1) / ITEM_DROPPERS_COLS
+        val height = 44 + rows * ITEM_DROPPERS_CELL
+        return CategorySizer.PanelSize(width, height)
+    }
+
+    private fun buildItemDropperCellTooltip(dropper: ItemDropper): List<Component> {
+        val lines = mutableListOf<Component>()
+        lines.add(Component.literal("§f§l" + formatSpeciesName(dropper.speciesName)))
+        for (entry in dropper.entries) {
+            lines.add(Component.literal("§e◆ §7" + entry.displayPercentage + " ×" + entry.displayQuantity))
+        }
+        return lines
+    }
+
+    fun buildItemDroppersLayout(data: ItemDroppersRecipeData): ItemDroppersLayoutResult {
+        val padding = PanelLayout.PADDING
+        val layout = PanelLayout(itemDroppersPanelSize(data).width)
+        val right = layout.right
+
+        val itemName = resolveItemName(data.itemId)
+        val pageText = if (data.pageTotal > 1) data.pageIndex.toString() + "/" + data.pageTotal else ""
+        drawHeader(layout, itemName, pageText, 0xFF888888.toInt(), dividerY = 20)
+        layout.skipTo(24)
+
+        layout.gap(2)
+        val sectionY = layout.y
+        layout.text(padding, tr("cobbledex-rei-emi-jei.drops.droppers"), 0xFFEEEEEE.toInt())
+        layout.line()
+        layout.gap(1)
+
+        val gridTop = layout.y
+        val slots = ArrayList<PokemonSlotDef>(data.droppers.size)
+        data.droppers.forEachIndexed { i, dropper ->
+            val cx = padding + (i % ITEM_DROPPERS_COLS) * ITEM_DROPPERS_CELL
+            val cy = gridTop + (i / ITEM_DROPPERS_COLS) * ITEM_DROPPERS_CELL
+            layout.addTooltipZone(cx, cy, ITEM_DROPPERS_CELL, ITEM_DROPPERS_CELL, buildItemDropperCellTooltip(dropper))
+            slots.add(
+                PokemonSlotDef(
+                    dropper.speciesName, emptySet(), cx, cy, SlotRole.INPUT,
+                    disableBackground = false, disableHighlight = false,
+                )
+            )
+        }
+        val rows = (data.droppers.size + ITEM_DROPPERS_COLS - 1) / ITEM_DROPPERS_COLS
+        layout.addTooltipZone(
+            padding, sectionY, right - padding, PanelLayout.LINE_HEIGHT,
+            listOf(Component.literal("§7" + tr("cobbledex-rei-emi-jei.drops.droppers_hint"))),
+        )
+        layout.skipTo(gridTop + rows * ITEM_DROPPERS_CELL + padding)
+        return ItemDroppersLayoutResult(layout, slots)
     }
 
     // --- Alternate Forms layout ---

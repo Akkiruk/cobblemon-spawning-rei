@@ -1,5 +1,6 @@
 package com.cobbledex
 
+import com.cobbledex.config.CobbleDexConfig
 import net.minecraft.client.Minecraft
 
 object CategorySizer {
@@ -19,6 +20,25 @@ object CategorySizer {
             cachedLang = lang
         }
         return cache.getOrPut(category.id) { computeBounds(category) }
+    }
+
+    /**
+     * Pre-computes one not-yet-cached category's bounds per call. Driven off the client tick after
+     * data + the sprite atlas are ready, it spreads the one-time `buildAllRecipes()` measurement cost
+     * (otherwise paid as a visible hitch the first time each category is opened in REI/JEI/EMI) over a
+     * handful of ticks during idle time instead. No-op once every enabled category is warm.
+     */
+    fun warmOneCategory() {
+        if (!SpawnDataIndex.hasData()) return
+        val config = try { CobbleDexConfig.get() } catch (_: Exception) { return }
+        val next = DexCategory.ALL.firstOrNull { it.isEnabled(config) && getBoundsIfCached(it.id) == null }
+            ?: return
+        try { getBounds(next) } catch (_: Exception) {}
+    }
+
+    private fun getBoundsIfCached(id: String): PanelSize? {
+        if (SpawnDataIndex.dataVersion != cachedVersion) return null
+        return cache[id]
     }
 
     fun invalidateCache() {

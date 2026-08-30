@@ -14,47 +14,20 @@ data class PokemonPageProjection(
     val forms: List<EvolutionDataLoader.SpeciesBasicInfo>,
     val materialFormDecision: MaterialFormPolicy.Decision?,
 ) {
+    // Only genuine "special" obtainment routes (altar / shrine / resurrection / raid / gift / quest …)
+    // are surfaced here. Wild spawns, fossils and evolution-into used to be folded in too, but those
+    // only ever restated what the dedicated Spawn / Fossil / Evolution pages already show, so a
+    // species with no special route now produces no Obtainment page at all.
     val obtainmentRoutes: List<ObtainmentRoute> by lazy(LazyThreadSafetyMode.NONE) {
-        buildList {
-            if (sortedSpawns.isNotEmpty()) add(ObtainmentRoute.WildSpawns(speciesName, sortedSpawns))
-            specialObtainments.forEach { add(ObtainmentRoute.Special(speciesName, it)) }
-            fossils.forEach { add(ObtainmentRoute.Fossil(speciesName, it)) }
-            evolutionsTo.forEach { add(ObtainmentRoute.Evolution(speciesName, it)) }
-        }
+        specialObtainments.map { ObtainmentRoute(speciesName, it) }
     }
 }
 
-sealed class ObtainmentRoute {
-    abstract val speciesName: String
-    abstract val itemIds: List<String>
-
-    data class WildSpawns(
-        override val speciesName: String,
-        val entries: List<SpawnDisplayHelper.SortedSpawnEntry>,
-    ) : ObtainmentRoute() {
-        override val itemIds: List<String> = emptyList()
-    }
-
-    data class Special(
-        override val speciesName: String,
-        val obtainment: ObtainmentInfo,
-    ) : ObtainmentRoute() {
-        override val itemIds: List<String> = (obtainment.items + listOfNotNull(obtainment.block)).distinct()
-    }
-
-    data class Fossil(
-        override val speciesName: String,
-        val combo: FossilCombo,
-    ) : ObtainmentRoute() {
-        override val itemIds: List<String> = combo.fossilItems.distinct()
-    }
-
-    data class Evolution(
-        override val speciesName: String,
-        val evolution: EvolutionInfo,
-    ) : ObtainmentRoute() {
-        override val itemIds: List<String> = evolution.itemRequirements.map { it.itemId }.distinct()
-    }
+data class ObtainmentRoute(
+    val speciesName: String,
+    val obtainment: ObtainmentInfo,
+) {
+    val itemIds: List<String> = (obtainment.items + listOfNotNull(obtainment.block)).distinct()
 }
 
 object PageProjectionBuilder {

@@ -349,6 +349,8 @@
 
   "cobbledex-rei-emi-jei.drops.header": "\u25C6 Dropped Items",
   "cobbledex-rei-emi-jei.drops.count": "%d item(s)",
+  "cobbledex-rei-emi-jei.drops.droppers": "◆ Dropped by",
+  "cobbledex-rei-emi-jei.drops.droppers_hint": "Click an icon for that Pokémon's drops",
 
   "cobbledex-rei-emi-jei.source.builtin": "Built-in",
   "cobbledex-rei-emi-jei.source.datapack": "Datapack",

@@ -237,10 +237,41 @@ object RecipeBuilder {
     }
 
     fun buildDropRecipesForItem(itemId: String): List<DropRecipeData> {
-        val species = SpawnDataIndex.getSpeciesDroppingItem(itemId)
+        val species = SpawnDataIndex.getSpeciesDroppingItem(itemId).distinct()
         if (species.isEmpty()) return emptyList()
         return species.mapNotNull { buildDropsFor(it).firstOrNull() }
     }
+
+    // --- Item-dropper lookup ---
+    //
+    // Looking up an item shows a grid of every Pokémon that drops it, paginated into grids rather
+    // than one page per Pokémon (common items like leather or bones have dozens of droppers).
+
+    fun buildItemDroppersForItem(itemId: String): List<ItemDroppersRecipeData> {
+        val species = SpawnDataIndex.getSpeciesDroppingItem(itemId)
+            .distinct()
+            .filter { SpawnDataIndex.shouldSurfaceSpecies(it) && PokemonItemCache.canRender(it) }
+            .sortedBy { SpawnDataIndex.getSpeciesInfo(it)?.nationalDexNumber?.takeIf { n -> n > 0 } ?: Int.MAX_VALUE }
+        if (species.isEmpty()) return emptyList()
+
+        val droppers = species.mapNotNull { sp ->
+            val entries = SpawnDataIndex.getSpeciesInfo(sp)?.drops
+                ?.filter { it.itemId.equals(itemId, ignoreCase = true) }
+                ?.takeIf { it.isNotEmpty() }
+                ?: return@mapNotNull null
+            ItemDropper(sp, entries)
+        }
+        if (droppers.isEmpty()) return emptyList()
+
+        val pages = droppers.chunked(SpawnDisplayHelper.ITEM_DROPPERS_PER_PAGE)
+        return pages.mapIndexed { i, chunk ->
+            ItemDroppersRecipeData(itemId, chunk, i + 1, pages.size, droppers.size)
+        }
+    }
+
+    /** Every item-dropper grid, one family per dropped item — used for "view all" browsing and panel sizing. */
+    fun buildAllItemDropperRecipes(): List<ItemDroppersRecipeData> =
+        SpawnDataIndex.dropsByItem.keys.sorted().flatMap { buildItemDroppersForItem(it) }
 
     private fun paginateDrops(speciesName: String, drops: List<DropEntryInfo>): List<DropRecipeData> {
         val pages = MeasuredPagePlanner.paginate(

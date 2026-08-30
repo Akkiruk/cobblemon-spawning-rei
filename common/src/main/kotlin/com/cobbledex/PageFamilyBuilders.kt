@@ -79,7 +79,7 @@ object ObtainmentPageBuilder {
         layout.skipTo(27)
 
         if (data.routes.isEmpty()) {
-            layout.wrapped(indentX, "No known spawn, fossil, evolution, or special obtainment route in the current data snapshot.", right - indentX, 0xBBBBBB)
+            layout.wrapped(indentX, "No special obtainment route for this Pokémon.", right - indentX, 0xBBBBBB)
         } else {
             data.routes.forEachIndexed { index, route ->
                 drawRoute(layout, route, indentX, detailX, detailWidth)
@@ -124,13 +124,7 @@ object ObtainmentPageBuilder {
     }
 
     private fun drawRoute(layout: PanelLayout, route: ObtainmentRoute, indentX: Int, detailX: Int, detailWidth: Int) {
-        val color = when (route) {
-            is ObtainmentRoute.WildSpawns -> 0x88DD88
-            is ObtainmentRoute.Special -> 0xDDCC99
-            is ObtainmentRoute.Fossil -> 0xCCAAFF
-            is ObtainmentRoute.Evolution -> 0xFFCC66
-        }
-        layout.text(indentX, routeTitle(route), color)
+        layout.text(indentX, route.obtainment.displayMethodName, 0xDDCC99)
         layout.line()
         for (line in routeLines(route)) {
             layout.wrapped(detailX, line, detailWidth, 0xDDDDDD)
@@ -142,56 +136,13 @@ object ObtainmentPageBuilder {
         }
     }
 
-    private fun routeTitle(route: ObtainmentRoute): String = when (route) {
-        is ObtainmentRoute.WildSpawns -> "Wild spawns"
-        is ObtainmentRoute.Special -> route.obtainment.displayMethodName
-        is ObtainmentRoute.Fossil -> "Fossil restoration"
-        is ObtainmentRoute.Evolution -> "Evolution"
-    }
-
-    private fun routeLines(route: ObtainmentRoute): List<String> = when (route) {
-        is ObtainmentRoute.WildSpawns -> wildSpawnLines(route)
-        is ObtainmentRoute.Special -> specialLines(route.obtainment)
-        is ObtainmentRoute.Fossil -> fossilLines(route.combo)
-        is ObtainmentRoute.Evolution -> evolutionLines(route.evolution)
-    }
-
-    private fun wildSpawnLines(route: ObtainmentRoute.WildSpawns): List<String> {
-        val entries = route.entries
-        val bucketText = entries
-            .groupingBy { it.spawn.bucket.lowercase() }
-            .eachCount()
-            .entries
-            .sortedWith(compareBy<Map.Entry<String, Int>> { SpawnDisplayHelper.bucketSortOrder(it.key) }.thenBy { it.key })
-            .joinToString(", ") { "${SpawnDisplayHelper.bucketLabel(it.key)} ${it.value}" }
-        val contexts = entries.map { it.spawn.displayContext }.distinct().take(4)
-        val dimensions = entries.flatMap { it.spawn.dimensions }.distinct().take(3)
-        val biomeCount = entries.flatMap { it.spawn.biomes }.distinct().size
-        return buildList {
-            add("${entries.size} spawn table entr${if (entries.size == 1) "y" else "ies"}${if (bucketText.isNotBlank()) ": $bucketText" else ""}")
-            if (contexts.isNotEmpty()) add("Contexts: ${contexts.joinToString(", ")}")
-            if (dimensions.isNotEmpty()) add("Dimensions: ${dimensions.joinToString(", ") { SpawnDisplayHelper.formatDimension(it) }}")
-            if (biomeCount > 0) add("Biome coverage: $biomeCount biome${if (biomeCount == 1) "" else "s"}")
-        }
-    }
-
-    private fun specialLines(obtainment: ObtainmentInfo): List<String> = buildList {
+    private fun routeLines(route: ObtainmentRoute): List<String> = buildList {
+        val obtainment = route.obtainment
         add(obtainment.displayDescription)
         obtainment.displayBlock?.let { add(obtainmentUseText(it)) }
         obtainment.displayStructure?.let { add(obtainmentStructureText(it)) }
         obtainment.displayDimension?.let { add(obtainmentDimensionText(it)) }
         addAll(obtainment.displayNotes)
-    }
-
-    private fun fossilLines(combo: FossilCombo): List<String> = buildList {
-        add("Restore from ${combo.fossilItems.joinToString(", ") { SpawnDisplayHelper.resolveItemName(it) }}.")
-        combo.extraTags?.takeIf { it.isNotBlank() }?.let { add("Extra tags: $it") }
-    }
-
-    private fun evolutionLines(evolution: EvolutionInfo): List<String> = buildList {
-        add("Evolve from ${evolution.displayFromName}: ${evolution.displayRequirements}")
-        val textOnly = evolution.textOnlyRequirements
-        if (textOnly.isNotBlank() && textOnly != evolution.displayRequirements) add(textOnly)
     }
 }
 
@@ -224,6 +175,9 @@ object DropPageBuilder {
 
     fun measureHeight(data: DropRecipeData): Int =
         measureFixedHeight() + data.drops.sumOf(::measureEntryHeight)
+
+    fun buildItemDroppers(data: ItemDroppersRecipeData): SpawnDisplayHelper.ItemDroppersLayoutResult =
+        SpawnDisplayHelper.buildItemDroppersLayout(data)
 }
 
 object PokemonInfoPageBuilder {

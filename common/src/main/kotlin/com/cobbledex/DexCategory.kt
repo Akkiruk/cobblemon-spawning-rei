@@ -290,13 +290,34 @@ object DropDex : DexCategory {
     override fun isEnabled(config: CobbleDexConfig) = config.showDrops
 
     override fun buildAllRecipes() =
-        RecipeBuilder.buildAllDropRecipes().map(::toHandle)
+        RecipeBuilder.buildAllDropRecipes().map(::toHandle) +
+            RecipeBuilder.buildAllItemDropperRecipes().map(::toItemDroppersHandle)
 
     override fun buildRecipesFor(species: String) =
         RecipeBuilder.buildDropsFor(species).map(::toHandle)
 
     override fun buildRecipesForItem(itemId: String) =
-        RecipeBuilder.buildDropRecipesForItem(itemId).map(::toHandle)
+        RecipeBuilder.buildItemDroppersForItem(itemId).map(::toItemDroppersHandle)
+
+    private fun toItemDroppersHandle(d: ItemDroppersRecipeData): RecipeHandle {
+        var result: SpawnDisplayHelper.ItemDroppersLayoutResult? = null
+        fun res() = result ?: DropPageBuilder.buildItemDroppers(d).also { result = it }
+        return RecipeHandle(
+            recipeIdPath = "drops/droppers_${sanitizePath(d.itemId.replace(':', '_').replace('/', '_'))}_${d.pageIndex}",
+            inputSpecies = emptyList(),
+            outputSpecies = emptyList(),
+            layoutFactory = { res().layout },
+            _width = { SpawnDisplayHelper.itemDroppersPanelSize(d).width },
+            _height = { SpawnDisplayHelper.itemDroppersPanelSize(d).height },
+            _slots = {
+                RecipeHandle.Slots(
+                    pokemon = res().pokemonSlots,
+                    items = listOf(ItemSlotDef(d.itemId, PanelLayout.PADDING, 4, SlotRole.INPUT)),
+                    catalogInputIds = listOf(d.itemId),
+                )
+            },
+        )
+    }
 
     private fun toHandle(d: DropRecipeData) = RecipeHandle(
         recipeIdPath = "drops/${sanitizePath(d.speciesName)}_${d.pageIndex}",
@@ -381,8 +402,8 @@ object MovesDex : DexCategory {
             inputSpecies = emptyList(),
             outputSpecies = emptyList(),
             layoutFactory = { res().layout },
-            _width = { res().layout.width },
-            _height = { res().layout.height },
+            _width = { SpawnDisplayHelper.tmLearnersPanelSize(d).width },
+            _height = { SpawnDisplayHelper.tmLearnersPanelSize(d).height },
             _slots = {
                 RecipeHandle.Slots(
                     pokemon = res().pokemonSlots,

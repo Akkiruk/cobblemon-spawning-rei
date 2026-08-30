@@ -45,6 +45,9 @@ object CobbleDexMod {
             // valid cache exists yet, so players never have to know
             // /cobbledex sprites build exists (see PokemonSpriteAtlas.ensureAtlas).
             PokemonSpriteAtlas.ensureAtlas()
+            // Spread the per-category panel-measurement cost over idle ticks so the
+            // first open of each REI/JEI/EMI category isn't a visible hitch.
+            CategorySizer.warmOneCategory()
             return
         }
 

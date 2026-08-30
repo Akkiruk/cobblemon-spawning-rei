@@ -7,21 +7,14 @@ import kotlin.test.assertTrue
 
 class PageProjectionBuilderTest {
     @Test
-    fun buildsUnifiedObtainmentRoutesFromSnapshotSources() {
-        val evolution = EvolutionInfo(
-            id = "test:omastar",
-            fromSpecies = "omanyte",
-            toSpecies = "omastar",
-            variant = "level_up",
-            requirements = listOf(EvolutionRequirement("level", mapOf("minLevel" to 40))),
-            requiredContext = null,
-            consumeHeldItem = false,
-        )
+    fun obtainmentRoutesAreSpecialOnly() {
         val snapshot = CobbleDexDataSnapshot(
             speciesInfo = mapOf(
                 "omastar" to speciesInfo("omastar", nationalDexNumber = 139),
                 "omanyte" to speciesInfo("omanyte", nationalDexNumber = 138),
             ),
+            // Wild spawns, fossils and evolution-into are deliberately NOT surfaced as obtainment
+            // routes any more - they only restated the dedicated Spawn / Fossil / Evolution pages.
             spawnsBySpecies = mapOf("omastar" to listOf(spawn("omastar"))),
             obtainmentBySpecies = mapOf(
                 "omastar" to listOf(
@@ -34,18 +27,16 @@ class PageProjectionBuilderTest {
                 )
             ),
             fossilsBySpecies = mapOf("omastar" to listOf(FossilCombo("omastar", listOf("cobblemon:helix_fossil")))),
-            evolutionsToSpecies = mapOf("omastar" to listOf(evolution)),
             allSpeciesNames = listOf("omanyte", "omastar"),
         )
 
-        val projection = PageProjectionBuilder.pokemon("omastar", snapshot)
+        val omastar = PageProjectionBuilder.pokemon("omastar", snapshot)?.obtainmentRoutes.orEmpty()
+        assertEquals(1, omastar.size)
+        assertEquals("altar", omastar.single().obtainment.method)
+        assertTrue("minecraft:nether_star" in omastar.single().itemIds)
 
-        val routes = projection?.obtainmentRoutes.orEmpty()
-        assertTrue(routes.any { it is ObtainmentRoute.WildSpawns })
-        assertTrue(routes.any { it is ObtainmentRoute.Special && "minecraft:nether_star" in it.itemIds })
-        assertTrue(routes.any { it is ObtainmentRoute.Fossil && "cobblemon:helix_fossil" in it.itemIds })
-        assertTrue(routes.any { it is ObtainmentRoute.Evolution && it.evolution.fromSpecies == "omanyte" })
-        assertEquals(listOf("WildSpawns", "Special", "Fossil", "Evolution"), routes.map { routeName(it) })
+        // A species with only spawn data and no special route produces no obtainment page.
+        assertTrue(PageProjectionBuilder.pokemon("omanyte", snapshot)?.obtainmentRoutes.orEmpty().isEmpty())
     }
 
     @Test
@@ -116,11 +107,4 @@ class PageProjectionBuilderTest {
         baseStats = mapOf("hp" to 70, "attack" to 60, "defence" to 125),
         abilities = listOf("Swift Swim"),
     )
-
-    private fun routeName(route: ObtainmentRoute): String = when (route) {
-        is ObtainmentRoute.WildSpawns -> "WildSpawns"
-        is ObtainmentRoute.Special -> "Special"
-        is ObtainmentRoute.Fossil -> "Fossil"
-        is ObtainmentRoute.Evolution -> "Evolution"
-    }
 }

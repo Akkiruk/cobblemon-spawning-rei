@@ -2,6 +2,18 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.5.0] - 2026-08-30
+
+### Improved
+- Reworked the item-drop lookup: looking up an item now shows every Pokemon that drops it as a grid of clickable icons (dex-ordered, ~96 per page), instead of one page per Pokemon. Hovering an icon names the Pokemon and its drop chance and quantity for that item; clicking drills into that Pokemon's full drop table. Dropper grids also appear when browsing the Item Drops category.
+
+### Changed
+- The Special Obtainment page is now special-only. It previously folded in wild-spawn, fossil and evolution-into summaries that just restated the dedicated Spawn / Fossil / Evolution pages, so it appeared on almost every Pokemon with nothing unique to say. It now shows only genuine special routes (altar / shrine / resurrection / raid / gift / quest / NPC / event), so a Pokemon with no such route no longer has an Obtainment page at all.
+
+### Fixed
+- The TM-learner and item-dropper grid panels are now measured without building the layout, so the panel frame always matches the grid (small grids get small panels instead of overflowing a too-narrow frame) and opening one for the first time no longer stutters.
+- Category panel sizes are pre-computed over idle ticks after data loads, removing the one-time hitch the first time each REI/JEI/EMI category (Pokemon info, moves, etc.) is opened.
+
 ## [2.2.0] - 2026-08-30
 
 ### Improved
