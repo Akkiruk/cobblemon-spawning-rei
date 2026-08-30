@@ -523,7 +523,7 @@ object SpawnDisplayHelper {
         return lines
     }
 
-    private fun buildMoveTooltip(move: MoveDetail): List<Component> {
+    private fun buildMoveTooltip(move: MoveDetail, entry: MoveEntry? = null): List<Component> {
         val lines = mutableListOf<Component>()
         val moveKey = "cobblemon.move.${move.name}"
         val displayName = tr(moveKey).let { if (it == moveKey) titleCase(move.name) else it }
@@ -532,6 +532,12 @@ object SpawnDisplayHelper {
         val pow = if (move.power > 0) "${move.power}" else "\u2014"
         val acc = if (move.accuracy > 0) "${move.accuracy}" else "\u2014"
         lines.add(Component.literal("§7Power: §f$pow §7| Acc: §f$acc §7| PP: §f${move.pp}"))
+        if (entry != null) {
+            if (entry.isLevelUp) lines.add(Component.literal("§a⚔ §7" + tr("cobbledex-rei-emi-jei.moves.tt_level", moveLevelText(entry.levelUpLevels))))
+            if (entry.egg) lines.add(Component.literal("§a◇ §7" + tr("cobbledex-rei-emi-jei.moves.tt_egg")))
+            if (entry.tutor) lines.add(Component.literal("§a★ §7" + tr("cobbledex-rei-emi-jei.moves.tt_tutor")))
+            if (entry.tm) lines.add(Component.literal("§a■ §7" + tr("cobbledex-rei-emi-jei.moves.tt_tm")))
+        }
         val descKey = "cobblemon.move.${move.name}.desc"
         val desc = tr(descKey)
         if (desc != descKey) {
@@ -1398,31 +1404,85 @@ object SpawnDisplayHelper {
         return "$icon $pow | $acc"
     }
 
-    private fun moveRow(layout: PanelLayout, move: MoveDetail, prefix: String? = null) {
+    // Fixed column geometry for the unified move list. Columns are anchored from the right edge so
+    // a given method always sits at the same x — reading "every TM move" is then a straight
+    // vertical scan of one column, with no duplicated rows.
+    private const val MOVES_PANEL_WIDTH = 256
+    private const val MOVE_SUFFIX_RESERVE = 62
+    private const val MOVE_GLYPH_COL_W = 11
+    private const val MOVE_LEVEL_COL_W = 24
+    private const val MOVE_COL_GAP = 3
+
+    private val METHOD_GLYPHS = mapOf(
+        "levelup" to "⚔",
+        "egg" to "◇",
+        "tutor" to "★",
+        "tm" to "■",
+    )
+    private const val METHOD_GLYPH_COLOR = 0xFFCCCCCC.toInt()
+    private const val MOVE_LEVEL_COLOR = 0xFF88CCFF.toInt()
+
+    private data class MoveColumns(
+        val nameX: Int, val nameMax: Int, val levelX: Int,
+        val eggX: Int, val tutorX: Int, val tmX: Int,
+    )
+
+    private fun moveColumns(layout: PanelLayout): MoveColumns {
+        val right = layout.right
+        val tmX = right - MOVE_SUFFIX_RESERVE - MOVE_COL_GAP - MOVE_GLYPH_COL_W
+        val tutorX = tmX - MOVE_GLYPH_COL_W
+        val eggX = tutorX - MOVE_GLYPH_COL_W
+        val levelX = eggX - MOVE_COL_GAP - MOVE_LEVEL_COL_W
+        val nameX = PanelLayout.PADDING + 4
+        return MoveColumns(nameX, (levelX - nameX - 4).coerceAtLeast(1), levelX, eggX, tutorX, tmX)
+    }
+
+    private fun moveLevelText(levels: List<Int>): String =
+        levels.joinToString(", ") { if (it <= 0) tr("cobbledex-rei-emi-jei.moves.evo") else it.toString() }
+
+    private fun moveLevelBadge(entry: MoveEntry): String {
+        if (!entry.isLevelUp) return ""
+        val min = entry.levelUpLevels.min()
+        val base = if (min <= 0) tr("cobbledex-rei-emi-jei.moves.evo") else min.toString()
+        return if (entry.levelUpLevels.size > 1) tr("cobbledex-rei-emi-jei.moves.multi_level", base) else base
+    }
+
+    private fun moveRow(layout: PanelLayout, entry: MoveEntry, cols: MoveColumns) {
         val padding = PanelLayout.PADDING
         val right = layout.right
         val font = layout.font
         val rowY = layout.y
+        val move = entry.move
 
-        var x = padding + 4
-        if (prefix != null) {
-            layout.text(x, prefix, 0xFF88CCFF.toInt())
-            x += font.width(prefix) + 4
+        val moveKey = "cobblemon.move.${move.name}"
+        val displayName = tr(moveKey).let { if (it == moveKey) titleCase(move.name) else it }
+        layout.clipped(cols.nameX, displayName, cols.nameMax, typeColor(move.type))
+
+        val levelBadge = moveLevelBadge(entry)
+        if (levelBadge.isNotEmpty()) {
+            layout.textAt(
+                cols.levelX, rowY,
+                clipToWidth(font, levelBadge, MOVE_LEVEL_COL_W + MOVE_COL_GAP),
+                MOVE_LEVEL_COLOR,
+            )
         }
+
+        fun glyph(x: Int, method: String, present: Boolean) {
+            if (present) layout.textAt(x, rowY, METHOD_GLYPHS.getValue(method), METHOD_GLYPH_COLOR)
+        }
+        glyph(cols.eggX, "egg", entry.egg)
+        glyph(cols.tutorX, "tutor", entry.tutor)
+        glyph(cols.tmX, "tm", entry.tm)
 
         val suffix = formatMoveSuffix(move)
         val suffixColor = CATEGORY_ICONS[move.category]?.second ?: 0xFFBBBBBB.toInt()
-        val suffixWidth = font.width(suffix)
-
-        val nameMaxWidth = right - x - suffixWidth - 4
-        val moveKey = "cobblemon.move.${move.name}"
-        val displayName = tr(moveKey).let { if (it == moveKey) titleCase(move.name) else it }
-        layout.clipped(x, displayName, nameMaxWidth, typeColor(move.type))
         layout.textRight(suffix, suffixColor)
         layout.line()
 
-        val tooltip = buildMoveTooltip(move)
-        layout.addTooltipZone(padding, rowY, right - padding, PanelLayout.LINE_HEIGHT, tooltip)
+        layout.addTooltipZone(
+            padding, rowY, right - padding, PanelLayout.LINE_HEIGHT,
+            buildMoveTooltip(move, entry),
+        )
     }
 
     fun buildMovesLayout(data: MovesRecipeData): PanelLayout {
@@ -1432,53 +1492,43 @@ object SpawnDisplayHelper {
             tr("category.cobbledex-rei-emi-jei.moves")
         val width = computePanelWidth(
             measureHeaderWidth(Minecraft.getInstance().font, formatSpeciesName(data.speciesName), headerText),
-            220
+            MOVES_PANEL_WIDTH
         )
         val layout = PanelLayout(width)
         val padding = PanelLayout.PADDING
         val right = layout.right
+        val cols = moveColumns(layout)
 
         drawHeader(layout, formatSpeciesName(data.speciesName), headerText, 0xDDCC99, dividerY = 20)
-        val colHeader = tr("cobbledex-rei-emi-jei.moves.pow_acc")
-        layout.clippedRightAt(22, colHeader, right - padding - 60, 0xFF888888.toInt())
-        layout.skipTo(33)
 
-        if (data.levelUpMoves.isNotEmpty()) {
-            layout.text(padding, tr("cobbledex-rei-emi-jei.moves.levelup"), 0xEEEEEE)
-            layout.line()
-            for (entry in data.levelUpMoves) {
-                val lvPrefix = tr("cobbledex-rei-emi-jei.moves.level_prefix", entry.level)
-                for (move in entry.moves) {
-                    moveRow(layout, move, lvPrefix)
+        // Column-key row, sitting below the header divider and directly above each data column.
+        val keyColor = 0xFF888888.toInt()
+        val keyY = 23
+        layout.textAt(cols.levelX, keyY, tr("cobbledex-rei-emi-jei.moves.col_level"), keyColor)
+        layout.textAt(cols.eggX, keyY, METHOD_GLYPHS.getValue("egg"), keyColor)
+        layout.textAt(cols.tutorX, keyY, METHOD_GLYPHS.getValue("tutor"), keyColor)
+        layout.textAt(cols.tmX, keyY, METHOD_GLYPHS.getValue("tm"), keyColor)
+        layout.clippedRightAt(keyY, tr("cobbledex-rei-emi-jei.moves.pow_acc"), MOVE_SUFFIX_RESERVE + 6, keyColor)
+        layout.addTooltipZone(
+            padding, keyY, right - padding, PanelLayout.LINE_HEIGHT,
+            listOf(Component.literal("§7" + tr("cobbledex-rei-emi-jei.moves.legend_hint"))),
+        )
+        layout.skipTo(35)
+
+        if (data.grouped) {
+            var prevMethod: String? = null
+            for (entry in data.moves) {
+                val method = entry.primaryMethod()
+                if (method != prevMethod) {
+                    if (prevMethod != null) layout.gap(3)
+                    layout.text(padding, tr("cobbledex-rei-emi-jei.moves.$method"), 0xEEEEEE)
+                    layout.line()
+                    prevMethod = method
                 }
+                moveRow(layout, entry, cols)
             }
-            layout.gap(3)
-        }
-
-        if (data.eggMoves.isNotEmpty()) {
-            layout.text(padding, tr("cobbledex-rei-emi-jei.moves.egg"), 0xEEEEEE)
-            layout.line()
-            for (move in data.eggMoves) {
-                moveRow(layout, move)
-            }
-            layout.gap(3)
-        }
-
-        if (data.tutorMoves.isNotEmpty()) {
-            layout.text(padding, tr("cobbledex-rei-emi-jei.moves.tutor"), 0xEEEEEE)
-            layout.line()
-            for (move in data.tutorMoves) {
-                moveRow(layout, move)
-            }
-            layout.gap(3)
-        }
-
-        if (data.tmMoves.isNotEmpty()) {
-            layout.text(padding, tr("cobbledex-rei-emi-jei.moves.tm"), 0xEEEEEE)
-            layout.line()
-            for (move in data.tmMoves) {
-                moveRow(layout, move)
-            }
+        } else {
+            for (entry in data.moves) moveRow(layout, entry, cols)
         }
 
         layout.gap(padding)

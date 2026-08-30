@@ -1,5 +1,7 @@
 package com.cobbledex
 
+import com.cobbledex.config.CobbleDexConfig
+
 object RecipeBuilder {
     private val FORM_REASON_PRIORITY = listOf(
         "typing",
@@ -314,6 +316,7 @@ object RecipeBuilder {
         )
     }
 
+    // Cost budget per page. Move rows cost 1; a method section header (grouped layout only) costs 1.
     private const val MOVES_PER_PAGE = 14
 
     fun buildAllMovesRecipes(): List<MovesRecipeData> {
@@ -331,91 +334,78 @@ object RecipeBuilder {
         return buildMovesPages(speciesName, info)
     }
 
-    private sealed class MoveLine {
-        data class LevelUpLine(val level: Int, val move: MoveDetail) : MoveLine()
-        data class EggLine(val move: MoveDetail) : MoveLine()
-        data class TutorLine(val move: MoveDetail) : MoveLine()
-        data class TmLine(val move: MoveDetail) : MoveLine()
+    private val GROUPED_METHOD_ORDER = mapOf("levelup" to 0, "egg" to 1, "tutor" to 2, "tm" to 3)
+
+    /**
+     * Collapse the four per-method learn lists into one [MoveEntry] per unique move (keyed by
+     * lower-cased move name), merging every method that reaches it. First-seen [MoveDetail] wins;
+     * all four lists resolve from the same Cobblemon move template, so the stats are identical.
+     */
+    internal fun mergeMoveEntries(info: EvolutionDataLoader.SpeciesBasicInfo): List<MoveEntry> {
+        class Acc(val move: MoveDetail) {
+            val levels = sortedSetOf<Int>()
+            var egg = false
+            var tutor = false
+            var tm = false
+        }
+        val byName = LinkedHashMap<String, Acc>()
+        fun slot(move: MoveDetail): Acc = byName.getOrPut(move.name.lowercase()) { Acc(move) }
+
+        info.levelUpMoves?.forEach { lum -> lum.moves.forEach { slot(it).levels.add(lum.level) } }
+        info.eggMoves?.forEach { slot(it).egg = true }
+        info.tutorMoves?.forEach { slot(it).tutor = true }
+        info.tmMoves?.forEach { slot(it).tm = true }
+
+        return byName.values.map { MoveEntry(it.move, it.levels.toList(), it.egg, it.tutor, it.tm) }
     }
 
+    private fun flatComparator(): Comparator<MoveEntry> =
+        compareBy<MoveEntry>(
+            { if (it.isLevelUp) 0 else 1 },
+            { if (it.isLevelUp) it.levelUpLevels.min() else 0 },
+            { it.move.name.lowercase() },
+        )
+
+    private fun groupedComparator(): Comparator<MoveEntry> =
+        compareBy<MoveEntry>(
+            { GROUPED_METHOD_ORDER[it.primaryMethod()] ?: Int.MAX_VALUE },
+            { if (it.isLevelUp) it.levelUpLevels.min() else 0 },
+            { it.move.name.lowercase() },
+        )
+
     private fun buildMovesPages(species: String, info: EvolutionDataLoader.SpeciesBasicInfo): List<MovesRecipeData> {
-        val levelUp = info.levelUpMoves ?: emptyList()
-        val egg = info.eggMoves ?: emptyList()
-        val tutor = info.tutorMoves ?: emptyList()
-        val tm = info.tmMoves ?: emptyList()
-        if (levelUp.isEmpty() && egg.isEmpty() && tutor.isEmpty() && tm.isEmpty()) return emptyList()
+        val entries = mergeMoveEntries(info)
+        if (entries.isEmpty()) return emptyList()
 
-        val allLines = mutableListOf<MoveLine>()
-        for (entry in levelUp) {
-            for (move in entry.moves) {
-                allLines.add(MoveLine.LevelUpLine(entry.level, move))
-            }
-        }
-        egg.forEach { allLines.add(MoveLine.EggLine(it)) }
-        tutor.forEach { allLines.add(MoveLine.TutorLine(it)) }
-        tm.forEach { allLines.add(MoveLine.TmLine(it)) }
+        val grouped = CobbleDexConfig.get().groupMovesByMethod
+        val ordered = entries.sortedWith(if (grouped) groupedComparator() else flatComparator())
 
-        if (allLines.size <= MOVES_PER_PAGE) {
-            return listOf(MovesRecipeData(species, levelUp, egg, tutor, tm, 1, 1))
-        }
-
-        // Reserve 1 line for each section header that starts on a page
-        val pages = mutableListOf<List<MoveLine>>()
+        // Paginate by cost: every move row costs 1; in grouped mode a section header costs an extra
+        // 1. The renderer re-emits a section header at the top of every page, so pagination charges
+        // for the first group of each page too (prevMethod starts null).
+        val pages = mutableListOf<List<MoveEntry>>()
         var i = 0
-        while (i < allLines.size) {
-            val page = mutableListOf<MoveLine>()
-            var linesUsed = 0
-            // Check if a new section starts on this page (needs header line)
-            var prevType: String? = if (pages.isEmpty()) null else pages.last().lastOrNull()?.let { lineType(it) }
-            while (i < allLines.size && linesUsed < MOVES_PER_PAGE) {
-                val line = allLines[i]
-                val curType = lineType(line)
-                val needsHeader = curType != "levelup" && curType != prevType && !page.any { lineType(it) == curType }
-                val cost = if (needsHeader) 2 else 1  // header + move line
-                if (linesUsed + cost > MOVES_PER_PAGE && page.isNotEmpty()) break
-                page.add(line)
-                linesUsed += cost
-                prevType = curType
+        while (i < ordered.size) {
+            val page = mutableListOf<MoveEntry>()
+            var cost = 0
+            var prevMethod: String? = null
+            while (i < ordered.size) {
+                val entry = ordered[i]
+                val method = entry.primaryMethod()
+                val headerCost = if (grouped && method != prevMethod) 1 else 0
+                if (page.isNotEmpty() && cost + headerCost + 1 > MOVES_PER_PAGE) break
+                page.add(entry)
+                cost += headerCost + 1
+                prevMethod = method
                 i++
             }
             pages.add(page)
         }
 
         val pageCount = pages.size
-        return pages.mapIndexed { idx, pageLines ->
-            val pageLevelUp = mutableListOf<LevelUpMove>()
-            val pageEgg = mutableListOf<MoveDetail>()
-            val pageTutor = mutableListOf<MoveDetail>()
-            val pageTm = mutableListOf<MoveDetail>()
-
-            var currentLevel = -1
-            var currentMoves = mutableListOf<MoveDetail>()
-            for (line in pageLines) {
-                when (line) {
-                    is MoveLine.LevelUpLine -> {
-                        if (line.level != currentLevel) {
-                            if (currentMoves.isNotEmpty()) pageLevelUp.add(LevelUpMove(currentLevel, currentMoves))
-                            currentLevel = line.level
-                            currentMoves = mutableListOf()
-                        }
-                        currentMoves.add(line.move)
-                    }
-                    is MoveLine.EggLine -> pageEgg.add(line.move)
-                    is MoveLine.TutorLine -> pageTutor.add(line.move)
-                    is MoveLine.TmLine -> pageTm.add(line.move)
-                }
-            }
-            if (currentMoves.isNotEmpty()) pageLevelUp.add(LevelUpMove(currentLevel, currentMoves))
-
-            MovesRecipeData(species, pageLevelUp, pageEgg, pageTutor, pageTm, idx + 1, pageCount)
+        return pages.mapIndexed { idx, pageEntries ->
+            MovesRecipeData(species, pageEntries, idx + 1, pageCount, grouped)
         }
-    }
-
-    private fun lineType(line: MoveLine): String = when (line) {
-        is MoveLine.LevelUpLine -> "levelup"
-        is MoveLine.EggLine -> "egg"
-        is MoveLine.TutorLine -> "tutor"
-        is MoveLine.TmLine -> "tm"
     }
 
     // --- Fossil recipes ---

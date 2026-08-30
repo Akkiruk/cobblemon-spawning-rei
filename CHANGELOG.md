@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.2.0] - 2026-08-30
+
+### Improved
+- Reworked the Pokemon Moves page to show one row per move instead of repeating a move once for every way it can be learned. Each row now carries fixed method columns (level, egg, tutor, TM) so a move learnable several ways appears once, and scanning a single column reads out every move of that method. Column keys sit above each column, and hovering a row lists each learn method with the exact level-up levels. The unified list is the default; set `groupMovesByMethod` in the config to restore the old Level-up/Egg/Tutor/TM sections (now also de-duplicated).
+
 ## [2.1.0] - 2026-08-29
 
 ### Improved

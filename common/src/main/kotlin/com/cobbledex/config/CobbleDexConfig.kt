@@ -20,6 +20,8 @@ data class CobbleDexConfig(
     val showJobs: Boolean = true,
     val showAlternateForms: Boolean = true,
     val showRiding: Boolean = true,
+    /** Render the Moves page as separate Level-up/Egg/Tutor/TM sections instead of one unified list. */
+    val groupMovesByMethod: Boolean = false,
     val registerFormEntries: Boolean = true,
     val debugMode: Boolean = false
 ) {
