@@ -1407,11 +1407,23 @@ object SpawnDisplayHelper {
     // Fixed column geometry for the unified move list. Columns are anchored from the right edge so
     // a given method always sits at the same x — reading "every TM move" is then a straight
     // vertical scan of one column, with no duplicated rows.
-    private const val MOVES_PANEL_WIDTH = 256
+    private const val MOVES_PANEL_WIDTH = 274
     private const val MOVE_SUFFIX_RESERVE = 62
     private const val MOVE_GLYPH_COL_W = 11
     private const val MOVE_LEVEL_COL_W = 24
     private const val MOVE_COL_GAP = 3
+
+    // Rows are tall enough to carry a clickable slot (the TM disc, which opens the move's learner
+    // grid). The left gutter holds that slot; text sits vertically centred in the row.
+    private const val MOVE_ROW_H = 16
+    private const val MOVE_ICON_GUTTER = 18
+    private const val MOVE_TEXT_DY = 4
+    private const val MOVE_SLOT_SIZE = 16
+
+    data class MovesLayoutResult(
+        val layout: PanelLayout,
+        val itemSlots: List<ItemSlotDef>,
+    )
 
     private val METHOD_GLYPHS = mapOf(
         "levelup" to "⚔",
@@ -1433,7 +1445,7 @@ object SpawnDisplayHelper {
         val tutorX = tmX - MOVE_GLYPH_COL_W
         val eggX = tutorX - MOVE_GLYPH_COL_W
         val levelX = eggX - MOVE_COL_GAP - MOVE_LEVEL_COL_W
-        val nameX = PanelLayout.PADDING + 4
+        val nameX = PanelLayout.PADDING + 4 + MOVE_ICON_GUTTER
         return MoveColumns(nameX, (levelX - nameX - 4).coerceAtLeast(1), levelX, eggX, tutorX, tmX)
     }
 
@@ -1447,28 +1459,34 @@ object SpawnDisplayHelper {
         return if (entry.levelUpLevels.size > 1) tr("cobbledex-rei-emi-jei.moves.multi_level", base) else base
     }
 
-    private fun moveRow(layout: PanelLayout, entry: MoveEntry, cols: MoveColumns) {
+    private fun moveRow(
+        layout: PanelLayout,
+        entry: MoveEntry,
+        cols: MoveColumns,
+        itemSlots: MutableList<ItemSlotDef>,
+    ) {
         val padding = PanelLayout.PADDING
         val right = layout.right
         val font = layout.font
         val rowY = layout.y
+        val textY = rowY + MOVE_TEXT_DY
         val move = entry.move
 
         val moveKey = "cobblemon.move.${move.name}"
         val displayName = tr(moveKey).let { if (it == moveKey) titleCase(move.name) else it }
-        layout.clipped(cols.nameX, displayName, cols.nameMax, typeColor(move.type))
+        layout.clippedAt(cols.nameX, textY, displayName, cols.nameMax, typeColor(move.type))
 
         val levelBadge = moveLevelBadge(entry)
         if (levelBadge.isNotEmpty()) {
             layout.textAt(
-                cols.levelX, rowY,
+                cols.levelX, textY,
                 clipToWidth(font, levelBadge, MOVE_LEVEL_COL_W + MOVE_COL_GAP),
                 MOVE_LEVEL_COLOR,
             )
         }
 
         fun glyph(x: Int, method: String, present: Boolean) {
-            if (present) layout.textAt(x, rowY, METHOD_GLYPHS.getValue(method), METHOD_GLYPH_COLOR)
+            if (present) layout.textAt(x, textY, METHOD_GLYPHS.getValue(method), METHOD_GLYPH_COLOR)
         }
         glyph(cols.eggX, "egg", entry.egg)
         glyph(cols.tutorX, "tutor", entry.tutor)
@@ -1476,16 +1494,30 @@ object SpawnDisplayHelper {
 
         val suffix = formatMoveSuffix(move)
         val suffixColor = CATEGORY_ICONS[move.category]?.second ?: 0xFFBBBBBB.toInt()
-        layout.textRight(suffix, suffixColor)
-        layout.line()
+        layout.textRightAt(textY, suffix, suffixColor)
 
         layout.addTooltipZone(
-            padding, rowY, right - padding, PanelLayout.LINE_HEIGHT,
+            padding, rowY, right - padding, MOVE_ROW_H,
             buildMoveTooltip(move, entry),
         )
+
+        // TM disc in the left gutter — clicking it opens the "every Pokémon that can learn this
+        // move" grid (same view as looking the TM item up directly). Only when a real TM item exists.
+        if (entry.tm) {
+            val tmId = TmItemUtils.tmItemIds(move.name).firstOrNull { !resolveItemStack(it).isEmpty }
+            if (tmId != null) {
+                itemSlots.add(ItemSlotDef(tmId, padding, rowY, SlotRole.INPUT, MOVE_SLOT_SIZE))
+                layout.addTooltipZone(
+                    padding, rowY, MOVE_ICON_GUTTER, MOVE_ROW_H,
+                    listOf(Component.literal("§7" + tr("cobbledex-rei-emi-jei.moves.learners_hint"))),
+                )
+            }
+        }
+
+        layout.skipTo(rowY + MOVE_ROW_H)
     }
 
-    fun buildMovesLayout(data: MovesRecipeData): PanelLayout {
+    fun buildMovesLayout(data: MovesRecipeData): MovesLayoutResult {
         val headerText = if (data.pageTotal > 1)
             tr("category.cobbledex-rei-emi-jei.moves") + " (" + tr("cobbledex-rei-emi-jei.moves.page", data.pageIndex, data.pageTotal) + ")"
         else
@@ -1515,6 +1547,7 @@ object SpawnDisplayHelper {
         )
         layout.skipTo(35)
 
+        val itemSlots = mutableListOf<ItemSlotDef>()
         if (data.grouped) {
             var prevMethod: String? = null
             for (entry in data.moves) {
@@ -1525,14 +1558,14 @@ object SpawnDisplayHelper {
                     layout.line()
                     prevMethod = method
                 }
-                moveRow(layout, entry, cols)
+                moveRow(layout, entry, cols, itemSlots)
             }
         } else {
-            for (entry in data.moves) moveRow(layout, entry, cols)
+            for (entry in data.moves) moveRow(layout, entry, cols, itemSlots)
         }
 
         layout.gap(padding)
-        return layout
+        return MovesLayoutResult(layout, itemSlots)
     }
 
     // --- Fossil layout builder ---

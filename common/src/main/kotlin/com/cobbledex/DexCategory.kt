@@ -21,6 +21,8 @@ data class ItemSlotDef(
     val x: Int,
     val y: Int,
     val role: SlotRole,
+    /** Slot box size in px. REI honours this; JEI/EMI use their fixed slot size. */
+    val size: Int = 18,
 )
 
 class RecipeHandle(
@@ -386,13 +388,22 @@ object MovesDex : DexCategory {
         return RecipeBuilder.buildTmLearnersForItem(itemId).map(::toTmLearnersHandle)
     }
 
-    private fun toHandle(d: MovesRecipeData) = RecipeHandle(
-        recipeIdPath = "moves/${sanitizePath(d.speciesName)}_${d.pageIndex}",
-        inputSpecies = listOf(d.speciesName),
-        outputSpecies = emptyList(),
-        layoutFactory = { MovePageBuilder.buildMoves(d) },
-        _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
-    )
+    private fun toHandle(d: MovesRecipeData): RecipeHandle {
+        var result: SpawnDisplayHelper.MovesLayoutResult? = null
+        fun res() = result ?: MovePageBuilder.buildMoves(d).also { result = it }
+        return RecipeHandle(
+            recipeIdPath = "moves/${sanitizePath(d.speciesName)}_${d.pageIndex}",
+            inputSpecies = listOf(d.speciesName),
+            outputSpecies = emptyList(),
+            layoutFactory = { res().layout },
+            _slots = {
+                RecipeHandle.Slots(
+                    pokemon = listOf(pokemonInput(d.speciesName)),
+                    items = res().itemSlots,
+                )
+            },
+        )
+    }
 
     private fun toTmLearnersHandle(d: TmMoveLearnersRecipeData): RecipeHandle {
         var result: SpawnDisplayHelper.TmLearnersLayoutResult? = null

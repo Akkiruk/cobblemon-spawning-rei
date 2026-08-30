@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.6.0] - 2026-08-30
+
+### Added
+- Every TM-learnable row on a Pokemon's Moves page now carries a clickable TM disc in the left gutter. Clicking it opens the "every Pokemon that can learn this move" grid — the same dex-ordered icon grid you get from looking the TM item up directly, without having to find the item first. Move rows are a little taller to fit the disc.
+
 ## [2.5.0] - 2026-08-30
 
 ### Improved

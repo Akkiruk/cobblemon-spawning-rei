@@ -348,7 +348,7 @@ object RecipeBuilder {
     }
 
     // Cost budget per page. Move rows cost 1; a method section header (grouped layout only) costs 1.
-    private const val MOVES_PER_PAGE = 14
+    private const val MOVES_PER_PAGE = 10
 
     fun buildAllMovesRecipes(): List<MovesRecipeData> {
         val recipes = mutableListOf<MovesRecipeData>()
