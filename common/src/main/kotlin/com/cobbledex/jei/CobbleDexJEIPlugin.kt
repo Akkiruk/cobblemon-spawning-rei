@@ -206,9 +206,20 @@ open class CobbleDexJEIPlugin : IModPlugin {
         override fun getBackground(): IDrawable = background
         override fun getIcon(): IDrawable = iconDrawable
 
+        // JEI sizes a category to its single largest recipe. Small recipes (a 3-drop Pokémon, a
+        // short learner grid) would otherwise sit top-left in a big void, so centre each recipe's
+        // content in that area and frame it — the same treatment REI/EMI give per recipe.
+        private fun offsetX(handle: RecipeHandle): Int =
+            ((def.maxSize().width - handle.width) / 2).coerceAtLeast(0)
+
+        private fun offsetY(handle: RecipeHandle): Int =
+            ((def.maxSize().height - handle.height) / 2).coerceAtLeast(0)
+
         override fun setRecipe(builder: IRecipeLayoutBuilder, recipe: GenericRecipe, focuses: IFocusGroup) {
             val handle = recipe.handle
             val slots = handle.slots
+            val dx = offsetX(handle)
+            val dy = offsetY(handle)
 
             // Track which Pokémon are already in each role so we can add invisible
             // counterparts — this lets both R (recipe/output) and U (usage/input) find every entry.
@@ -218,7 +229,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
             for (slot in slots.pokemon) {
                 val ingredient = PokemonIngredient(slot.species, slot.aspects)
                 val role = if (slot.role == SlotRole.INPUT) RecipeIngredientRole.INPUT else RecipeIngredientRole.OUTPUT
-                builder.addSlot(role, slot.x, slot.y)
+                builder.addSlot(role, slot.x + dx, slot.y + dy)
                     .setSlotName(slot.species)
                     .addIngredient(PokemonIngredientType, ingredient)
                 if (slot.role == SlotRole.INPUT) inputPokemon.add(ingredient)
@@ -243,7 +254,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
                 val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
                 if (!stack.isEmpty) {
                     val role = if (slot.role == SlotRole.INPUT) RecipeIngredientRole.INPUT else RecipeIngredientRole.OUTPUT
-                    builder.addSlot(role, slot.x, slot.y)
+                    builder.addSlot(role, slot.x + dx, slot.y + dy)
                         .addItemStack(stack)
                 }
             }
@@ -268,35 +279,53 @@ open class CobbleDexJEIPlugin : IModPlugin {
             recipe: GenericRecipe,
             focuses: IFocusGroup,
         ) {
+            val dx = offsetX(recipe.handle)
+            val dy = offsetY(recipe.handle)
             for (link in recipe.handle.slots.moveLinks) {
-                builder.addInputHandler(MoveLinkInputHandler(link, helpers.focusFactory))
+                builder.addInputHandler(MoveLinkInputHandler(link, dx, dy, helpers.focusFactory))
             }
         }
 
         override fun draw(recipe: GenericRecipe, recipeSlotsView: IRecipeSlotsView, guiGraphics: GuiGraphics, mouseX: Double, mouseY: Double) {
             val handle = recipe.handle
             val slots = handle.slots
+            val dx = offsetX(handle)
+            val dy = offsetY(handle)
+            val w = handle.width
+            val h = handle.height
 
-            if (slots.hasArrow) {
-                recipeArrow.draw(guiGraphics, slots.arrowX, slots.arrowY)
-            }
+            // Content-sized frame, centred in JEI's category area.
+            guiGraphics.fill(dx, dy, dx + w, dy + h, 0xE81C1C1C.toInt())
+            val border = 0xFF555555.toInt()
+            guiGraphics.fill(dx, dy, dx + w, dy + 1, border)
+            guiGraphics.fill(dx, dy + h - 1, dx + w, dy + h, border)
+            guiGraphics.fill(dx, dy, dx + 1, dy + h, border)
+            guiGraphics.fill(dx + w - 1, dy, dx + w, dy + h, border)
 
+            guiGraphics.pose().pushPose()
+            guiGraphics.pose().translate(dx.toFloat(), dy.toFloat(), 0f)
+            if (slots.hasArrow) recipeArrow.draw(guiGraphics, slots.arrowX, slots.arrowY)
             handle.layout.render(guiGraphics)
+            guiGraphics.pose().popPose()
         }
 
         override fun getTooltipStrings(recipe: GenericRecipe, recipeSlotsView: IRecipeSlotsView, mouseX: Double, mouseY: Double): List<Component> {
-            return recipe.handle.layout.getTooltipAt(mouseX.toInt(), mouseY.toInt()) ?: emptyList()
+            val dx = offsetX(recipe.handle)
+            val dy = offsetY(recipe.handle)
+            return recipe.handle.layout.getTooltipAt((mouseX - dx).toInt(), (mouseY - dy).toInt()) ?: emptyList()
         }
     }
 
     /** Turns a move-name region on the Moves page into a click → "who can learn this move". */
     private class MoveLinkInputHandler(
         link: com.cobbledex.MoveLinkDef,
+        dx: Int,
+        dy: Int,
         private val focusFactory: mezz.jei.api.recipe.IFocusFactory,
     ) : mezz.jei.api.gui.inputs.IJeiInputHandler {
 
         private val move = link.moveName
-        private val area = net.minecraft.client.gui.navigation.ScreenRectangle(link.x, link.y, link.width, link.height)
+        private val area = net.minecraft.client.gui.navigation.ScreenRectangle(link.x + dx, link.y + dy, link.width, link.height)
 
         override fun getArea(): net.minecraft.client.gui.navigation.ScreenRectangle = area
 

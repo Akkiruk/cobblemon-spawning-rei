@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.10.0] - 2026-08-30
+
+### Fixed
+- On JEI, small recipes (a Pokemon with only a few drops, a short move-learner grid) no longer sit in the top-left corner of a huge empty panel. JEI sizes a category to its largest recipe; each recipe's content is now centred in that area and drawn in its own content-sized frame, matching how REI and EMI already present them.
+
 ## [2.9.0] - 2026-08-30
 
 ### Fixed
