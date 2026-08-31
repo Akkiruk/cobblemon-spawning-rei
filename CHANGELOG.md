@@ -2,6 +2,13 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.11.0] - 2026-08-31
+
+### Fixed
+- Looking up an item in the Item Drops category now shows the same thing on REI, JEI and EMI: just the "which Pokémon drop this" grid. JEI and EMI were also listing every individual species page that happens to drop the item. Species drop pages still show their drop icons, they just no longer register the item as a recipe result. (New `DISPLAY` slot role — render an icon without making it a lookup key.)
+- JEI: the 2.10.0 centring pushed small recipes to the vertical middle of the category area (an evolution page floated near the bottom). Recipes are now centred horizontally but pinned to the top, and the blank background is rebuilt if the category grows after a server sync instead of going stale.
+- EMI: clicking a move name opened the wrong view (recipes-of instead of uses-of), so it found nothing. Fixed.
+
 ## [2.10.0] - 2026-08-30
 
 ### Fixed

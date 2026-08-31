@@ -1,5 +1,6 @@
 package com.cobbledex.jei
 
+import com.cobbledex.CategorySizer
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
@@ -195,25 +196,37 @@ open class CobbleDexJEIPlugin : IModPlugin {
 
         private val guiHelper: IGuiHelper = helpers.guiHelper
         private val recipeArrow: IDrawable = guiHelper.getRecipeArrow()
-        private val background: IDrawable = guiHelper.createBlankDrawable(
-            def.maxSize().width,
-            def.maxSize().height
-        )
         private val iconDrawable: IDrawable = guiHelper.createDrawableItemStack(ItemStack(def.icon))
+
+        // JEI sizes a category to its single largest recipe and keeps that size for every recipe.
+        // The blank background is rebuilt whenever CategorySizer's bounds change (they grow after a
+        // server sync adds data), so it never goes stale.
+        private var bgSize: CategorySizer.PanelSize? = null
+        private var bgDrawable: IDrawable = guiHelper.createBlankDrawable(1, 1)
+
+        private fun background(): IDrawable {
+            val s = def.maxSize()
+            if (s != bgSize) {
+                bgSize = s
+                bgDrawable = guiHelper.createBlankDrawable(s.width, s.height)
+            }
+            return bgDrawable
+        }
 
         override fun getRecipeType(): RecipeType<GenericRecipe> = recipeType(def)
         override fun getTitle(): Component = Component.translatable(def.titleKey)
-        override fun getBackground(): IDrawable = background
+        override fun getBackground(): IDrawable = background()
         override fun getIcon(): IDrawable = iconDrawable
 
-        // JEI sizes a category to its single largest recipe. Small recipes (a 3-drop Pokémon, a
-        // short learner grid) would otherwise sit top-left in a big void, so centre each recipe's
-        // content in that area and frame it — the same treatment REI/EMI give per recipe.
-        private fun offsetX(handle: RecipeHandle): Int =
-            ((def.maxSize().width - handle.width) / 2).coerceAtLeast(0)
+        // Small recipes (a 3-drop Pokémon, a short evolution) would otherwise sit lost in that big
+        // area. Centre them horizontally, keep them at the top, and frame the content — the
+        // per-recipe framing REI (createRecipeBase) and EMI (per-recipe size) already give.
+        private fun offsetX(handle: RecipeHandle): Int {
+            val w = (background().width - handle.width) / 2
+            return w.coerceAtLeast(0)
+        }
 
-        private fun offsetY(handle: RecipeHandle): Int =
-            ((def.maxSize().height - handle.height) / 2).coerceAtLeast(0)
+        private fun offsetY(handle: RecipeHandle): Int = 0
 
         override fun setRecipe(builder: IRecipeLayoutBuilder, recipe: GenericRecipe, focuses: IFocusGroup) {
             val handle = recipe.handle
@@ -253,7 +266,11 @@ open class CobbleDexJEIPlugin : IModPlugin {
             for (slot in slots.items) {
                 val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
                 if (!stack.isEmpty) {
-                    val role = if (slot.role == SlotRole.INPUT) RecipeIngredientRole.INPUT else RecipeIngredientRole.OUTPUT
+                    val role = when (slot.role) {
+                        SlotRole.INPUT -> RecipeIngredientRole.INPUT
+                        SlotRole.OUTPUT -> RecipeIngredientRole.OUTPUT
+                        SlotRole.DISPLAY -> RecipeIngredientRole.RENDER_ONLY
+                    }
                     builder.addSlot(role, slot.x + dx, slot.y + dy)
                         .addItemStack(stack)
                 }

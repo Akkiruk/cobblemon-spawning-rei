@@ -226,7 +226,11 @@ open class CobbleDexREIPlugin : REIClientPlugin {
                 if (!stack.isEmpty) {
                     val s = Widgets.createSlot(Rectangle(px + slot.x, py + slot.y, slot.size, slot.size))
                         .entries(listOf(EntryStacks.of(stack)))
-                    if (slot.role == SlotRole.INPUT) s.markInput() else s.markOutput()
+                    when (slot.role) {
+                        SlotRole.INPUT -> s.markInput()
+                        SlotRole.OUTPUT -> s.markOutput()
+                        SlotRole.DISPLAY -> {}
+                    }
                     s.disableBackground()
                     widgets.add(s)
                 }

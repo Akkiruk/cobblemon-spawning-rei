@@ -4,7 +4,8 @@ import com.cobbledex.config.CobbleDexConfig
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.Items
 
-enum class SlotRole { INPUT, OUTPUT }
+/** INPUT/OUTPUT drive viewer recipe lookup; DISPLAY renders an icon without making it a lookup key. */
+enum class SlotRole { INPUT, OUTPUT, DISPLAY }
 
 data class PokemonSlotDef(
     val species: String,
@@ -332,7 +333,9 @@ object DropDex : DexCategory {
             _slots = {
                 RecipeHandle.Slots(
                     pokemon = res().pokemonSlots,
-                    items = listOf(ItemSlotDef(d.itemId, PanelLayout.PADDING, 4, SlotRole.INPUT)),
+                    // Item as OUTPUT (header icon + "recipes for") and catalog INPUT ("uses of"), so
+                    // every viewer resolves an item lookup to this grid — and nothing else.
+                    items = listOf(ItemSlotDef(d.itemId, PanelLayout.PADDING, 4, SlotRole.OUTPUT)),
                     catalogInputIds = listOf(d.itemId),
                 )
             },
@@ -349,8 +352,10 @@ object DropDex : DexCategory {
         _slots = {
             RecipeHandle.Slots(
                 pokemon = listOf(pokemonInput(d.speciesName)),
+                // DISPLAY: the drop icons are shown & hoverable, but an item lookup should land on
+                // the dropper grid, not on every species that happens to drop the item.
                 items = d.drops.mapIndexed { i, drop ->
-                    ItemSlotDef(drop.itemId, 8, 34 + i * 20, SlotRole.OUTPUT)
+                    ItemSlotDef(drop.itemId, 8, 34 + i * 20, SlotRole.DISPLAY)
                 },
             )
         },

@@ -202,7 +202,8 @@ open class CobbleDexEMIPlugin : EmiPlugin {
 
         override fun mouseClicked(mouseX: Int, mouseY: Int, button: Int): Boolean {
             if (button == 0 && bounds.contains(mouseX, mouseY)) {
-                dev.emi.emi.api.EmiApi.displayRecipes(MoveEmiStack.of(move))
+                // The move is an input on the learner grid, so "uses" is the view that resolves it.
+                dev.emi.emi.api.EmiApi.displayUses(MoveEmiStack.of(move))
                 return true
             }
             return false
