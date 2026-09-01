@@ -84,7 +84,8 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             if (!def.isEnabled(config)) continue
             val cat = emiCategory(def)
             registry.addCategory(cat)
-            registry.addWorkstation(cat, EmiStack.of(def.icon))
+            // No workstation: the category icons are arbitrary markers, not real stations — matches
+            // REI/JEI. The category is still in EMI's category list.
 
             val recipes = def.buildAllRecipes()
             ViewerParityGuard.warn(def, recipes, "EMI")

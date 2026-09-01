@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.12.0] - 2026-08-31
+
+### Fixed
+- JEI Pokemon search now matches the same aliases REI and EMI already had — dex/type/ability/egg-group/form/regional-name and `type:`, `ability:`, `move:` tokens. Previously JEI could only find a Pokemon by its display name. Moves get `move:` / `tm:` search aliases too.
+- Removed the JEI recipe catalysts / EMI workstations for the CobbleDex categories. Their icons (Diamond, Paper, XP Bottle, …) are arbitrary markers, so registering them just made looking up a plain diamond surface the "Item Drops" category. REI never did this; all three now match. Categories are still in each viewer's category list.
+
 ## [2.11.0] - 2026-08-31
 
 ### Fixed

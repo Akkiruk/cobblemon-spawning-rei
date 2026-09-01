@@ -4,6 +4,7 @@ import com.cobbledex.CategorySizer
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
+import com.cobbledex.DiscoveryAliases
 import com.cobbledex.PokemonItemCache
 import com.cobbledex.RecipeHandle
 import com.cobbledex.RecipeViewerReloader
@@ -138,6 +139,28 @@ open class CobbleDexJEIPlugin : IModPlugin {
         DebugLog.info("JEI: Registered ${moves.size} move ingredients")
     }
 
+    override fun registerIngredientAliases(registration: mezz.jei.api.registration.IIngredientAliasRegistration) {
+        SpawnDataIndex.ensureLoaded()
+        val config = CobbleDexConfig.get()
+        val queries = SpawnDataIndex.currentQueries()
+        var count = 0
+        for (species in SpawnDataIndex.allSpeciesNames) {
+            val info = queries.getSpeciesInfo(species) ?: continue
+            if (info.isForm && !config.registerFormEntries) continue
+            if (!queries.shouldSurfaceSpecies(species)) continue
+            if (!PokemonItemCache.canRender(species)) continue
+            val aliases = DiscoveryAliases.pokemonAliasList(species)
+            if (aliases.isNotEmpty()) {
+                registration.addAliases(PokemonIngredientType, PokemonIngredient(species), aliases)
+                count++
+            }
+        }
+        for (move in SpawnDataIndex.speciesByMove.keys) {
+            registration.addAliases(MoveIngredientType, MoveIngredient(move), DiscoveryAliases.moveAliases(move))
+        }
+        DebugLog.info("JEI: Registered search aliases for $count Pokémon + ${SpawnDataIndex.speciesByMove.size} moves")
+    }
+
     override fun registerCategories(registration: IRecipeCategoryRegistration) {
         val helpers = registration.jeiHelpers
         val config = CobbleDexConfig.get()
@@ -174,13 +197,9 @@ open class CobbleDexJEIPlugin : IModPlugin {
         DebugLog.info("JEI: Runtime captured")
     }
 
-    override fun registerRecipeCatalysts(registration: IRecipeCatalystRegistration) {
-        val config = CobbleDexConfig.get()
-        for (def in DexCategory.ALL) {
-            if (!def.isEnabled(config)) continue
-            registration.addRecipeCatalyst(ItemStack(def.icon), recipeType(def))
-        }
-    }
+    // No recipe catalysts: the category icons (Diamond, Paper, XP Bottle, …) are arbitrary markers,
+    // not real workstations, so registering them just makes looking up a diamond surface "Item
+    // Drops". REI omits them too — categories are still reachable from JEI's category list.
 
     // ----- Generic Recipe wrapping RecipeHandle -----
 

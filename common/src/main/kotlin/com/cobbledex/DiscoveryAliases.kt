@@ -32,6 +32,10 @@ object DiscoveryAliases {
         return text
     }
 
+    /** Full alias list for a species (name, dex token, type:/ability:/form:/job aliases, …). */
+    fun pokemonAliasList(species: String): List<String> =
+        pokemonAliases(contextFor(SpeciesNameNormalizer.normalize(species)))
+
     fun pokemonAliases(context: PokemonContext): List<String> {
         val aliases = mutableListOf<String>()
         addAlias(aliases, context.displayName)
