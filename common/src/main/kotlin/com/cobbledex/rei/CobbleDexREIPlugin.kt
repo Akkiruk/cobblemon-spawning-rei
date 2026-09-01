@@ -209,7 +209,15 @@ open class CobbleDexREIPlugin : REIClientPlugin {
 
             for (slot in slots.pokemon) {
                 val entry = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(slot.species, slot.aspects))
-                val s = Widgets.createSlot(Rectangle(px + slot.x, py + slot.y, 20, 20))
+                // REI's slot-background sprite is 18x18; blitting it into a 20x20 box bleeds the
+                // neighbouring texels (an arrow + an adjacent slot edge) and paints those "arrow"
+                // artefacts between framed grid cells. Framed cells → 18x18 inside the 20px cell;
+                // the borderless single-Pokémon slot on detail pages keeps its larger icon.
+                val box = if (slot.disableBackground)
+                    Rectangle(px + slot.x, py + slot.y, 20, 20)
+                else
+                    Rectangle(px + slot.x + 1, py + slot.y + 1, 18, 18)
+                val s = Widgets.createSlot(box)
                     .entries(listOf(entry))
                 if (slot.role == SlotRole.INPUT) s.markInput() else s.markOutput()
                 if (slot.disableBackground) s.disableBackground()

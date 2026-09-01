@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.12.2] - 2026-09-01
+
+### Fixed
+- Removed the stray "arrow" artefacts painted between the icons in the item-dropper and move-learner grids on REI. The framed grid cells were drawing REI's 18x18 slot-background sprite into a 20x20 box, which bled in the neighbouring texels (an arrow and an adjacent slot edge). Framed Pokémon cells are now 18x18; the single large Pokémon icon on detail pages is unchanged.
+
 ## [2.12.1] - 2026-08-31
 
 ### Fixed
