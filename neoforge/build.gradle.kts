@@ -59,7 +59,7 @@ dependencies {
     modCompileOnly("mezz.jei:jei-1.21.1-neoforge-api:$jeiVersion")
 
     // EMI NeoForge (Modrinth maven)
-    modCompileOnly("maven.modrinth:emi:$emiVersion")
+    modCompileOnly("dev.emi:emi-neoforge:$emiVersion")
 }
 
 tasks.processResources {

@@ -21,7 +21,7 @@ dependencies {
     modCompileOnly("mezz.jei:jei-1.21.1-common-api:$jeiVersion")
 
     // EMI API (Modrinth maven)
-    modCompileOnly("maven.modrinth:emi:$emiVersion")
+    modCompileOnly("dev.emi:emi-fabric:$emiVersion")
 
     testImplementation(kotlin("test-junit5"))
 }

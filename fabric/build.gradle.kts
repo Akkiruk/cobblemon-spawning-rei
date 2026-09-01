@@ -52,7 +52,7 @@ dependencies {
     modCompileOnly("mezz.jei:jei-1.21.1-fabric-api:$jeiVersion")
 
     // EMI Fabric (Modrinth maven)
-    modCompileOnly("maven.modrinth:emi:$emiVersion")
+    modCompileOnly("dev.emi:emi-fabric:$emiVersion")
 }
 
 tasks.processResources {
