@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.12.1] - 2026-08-31
+
+### Fixed
+- The item-dropper and move-learner icon grids (shown when you look up an item or a move) no longer spill out both sides of the REI recipe panel. REI sizes that panel to a blend of every visible category's width, so when the lookup also matched a vanilla recipe the frame shrank below the grid. The grids are now 8 columns instead of 12, keeping them inside REI's minimum panel width; JEI and EMI (which size exactly to the panel) just get a slightly narrower grid.
+
 ## [2.12.0] - 2026-08-31
 
 ### Fixed

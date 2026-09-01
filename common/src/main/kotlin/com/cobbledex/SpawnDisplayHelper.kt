@@ -1880,9 +1880,17 @@ object SpawnDisplayHelper {
     // TM) is rendered as a grid of clickable icons; hovering a cell names the Pok\u00e9mon and the
     // method(s) by which it learns the move.
 
+    // Grid column count is deliberately conservative. REI does NOT size the recipe panel to our
+    // getDisplayWidth — it sizes it to a blend (mode/median) of every visible category's max display
+    // width (DefaultDisplayViewingScreen#bestWidthDisplay), so when an item/move lookup also matches
+    // vanilla recipes the panel collapses toward ~190px and anything wider than that spills out both
+    // sides of the frame. 8 cols * 20px + 12px padding = 172px, which stays inside REI's minimum
+    // panel width. JEI/EMI size exactly to the panel, so they just get a slightly narrower grid.
     const val MOVE_LEARNERS_PER_PAGE = 96
-    private const val MOVE_LEARNERS_COLS = 12
+    private const val MOVE_LEARNERS_COLS = 8
     private const val MOVE_LEARNERS_CELL = 20
+    /** Hard cap for grid panels — see the column-count note above. */
+    private const val GRID_PANEL_MAX_WIDTH = 176
 
     data class MoveLearnersLayoutResult(
         val layout: PanelLayout,
@@ -1891,7 +1899,7 @@ object SpawnDisplayHelper {
 
     private fun moveLearnersPanelWidth(): Int =
         (PanelLayout.PADDING * 2 + MOVE_LEARNERS_COLS * MOVE_LEARNERS_CELL)
-            .coerceIn(PanelLayout.MIN_WIDTH, PanelLayout.MAX_WIDTH)
+            .coerceIn(PanelLayout.MIN_WIDTH, GRID_PANEL_MAX_WIDTH)
 
     /**
      * Exact panel geometry for the move-learner grid, derived without building the layout so
@@ -1975,7 +1983,7 @@ object SpawnDisplayHelper {
     // its drop chance / quantity for that item.
 
     const val ITEM_DROPPERS_PER_PAGE = 96
-    private const val ITEM_DROPPERS_COLS = 12
+    private const val ITEM_DROPPERS_COLS = 8 // see the grid column-count note above MOVE_LEARNERS_COLS
     private const val ITEM_DROPPERS_CELL = 20
 
     data class ItemDroppersLayoutResult(
@@ -1996,8 +2004,10 @@ object SpawnDisplayHelper {
         val pageText = if (data.pageTotal > 1) "${data.pageIndex}/${data.pageTotal}" else ""
         val headerWidth = padding + 22 + font.width(resolveItemName(data.itemId)) + 8 + font.width(pageText) + padding
         val sectionWidth = padding + font.width(tr("cobbledex-rei-emi-jei.drops.droppers")) + padding
+        // Clamp to GRID_PANEL_MAX_WIDTH, not MAX_WIDTH: a long item name in the header must clip
+        // (drawSplitRow already does) rather than widen the panel past what REI's frame will be.
         val width = maxOf(gridWidth, headerWidth, sectionWidth, PanelLayout.MIN_WIDTH)
-            .coerceAtMost(PanelLayout.MAX_WIDTH)
+            .coerceAtMost(GRID_PANEL_MAX_WIDTH)
         val rows = (data.droppers.size + ITEM_DROPPERS_COLS - 1) / ITEM_DROPPERS_COLS
         val height = 44 + rows * ITEM_DROPPERS_CELL
         return CategorySizer.PanelSize(width, height)
