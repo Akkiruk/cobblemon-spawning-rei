@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.12.3] - 2026-09-01
+
+### Changed
+- Item-dropper and move-learner grids are now 9 columns × up to 10 rows per page (was 8 × 12). Now that the arrow artefacts are gone the wider grid fits, and it's shorter so it stops running off the bottom of the screen. Large moves/items just get one extra page.
+
 ## [2.12.2] - 2026-09-01
 
 ### Fixed

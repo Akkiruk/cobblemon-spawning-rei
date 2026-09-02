@@ -1884,13 +1884,13 @@ object SpawnDisplayHelper {
     // getDisplayWidth — it sizes it to a blend (mode/median) of every visible category's max display
     // width (DefaultDisplayViewingScreen#bestWidthDisplay), so when an item/move lookup also matches
     // vanilla recipes the panel collapses toward ~190px and anything wider than that spills out both
-    // sides of the frame. 8 cols * 20px + 12px padding = 172px, which stays inside REI's minimum
-    // panel width. JEI/EMI size exactly to the panel, so they just get a slightly narrower grid.
-    const val MOVE_LEARNERS_PER_PAGE = 96
-    private const val MOVE_LEARNERS_COLS = 8
+    // sides of the frame. 9 cols * 20px + 12px padding = 192px, right at REI's minimum panel width.
+    // JEI/EMI size exactly to the panel, so they just get a slightly narrower grid.
+    const val MOVE_LEARNERS_PER_PAGE = 90 // 9 cols x 10 rows
+    private const val MOVE_LEARNERS_COLS = 9
     private const val MOVE_LEARNERS_CELL = 20
     /** Hard cap for grid panels — see the column-count note above. */
-    private const val GRID_PANEL_MAX_WIDTH = 176
+    private const val GRID_PANEL_MAX_WIDTH = 192
 
     data class MoveLearnersLayoutResult(
         val layout: PanelLayout,
@@ -1982,8 +1982,8 @@ object SpawnDisplayHelper {
     // drops the item is rendered as a grid of clickable icons; hovering a cell names the Pokémon and
     // its drop chance / quantity for that item.
 
-    const val ITEM_DROPPERS_PER_PAGE = 96
-    private const val ITEM_DROPPERS_COLS = 8 // see the grid column-count note above MOVE_LEARNERS_COLS
+    const val ITEM_DROPPERS_PER_PAGE = 90 // 9 cols x 10 rows
+    private const val ITEM_DROPPERS_COLS = 9 // see the grid column-count note above MOVE_LEARNERS_COLS
     private const val ITEM_DROPPERS_CELL = 20
 
     data class ItemDroppersLayoutResult(
