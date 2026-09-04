@@ -1,8 +1,6 @@
 package com.cobbledex
 
-import com.cobblemon.mod.common.api.moves.Moves
 import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
-import com.cobbledex.network.SpawnRegionInfo
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
@@ -109,15 +107,6 @@ object SpawnDataIndex {
         get() = snapshot.dataVersion
         private set(value) { snapshot = snapshot.copy(dataVersion = value) }
 
-    /** Tracks local load attempts where species exist but evolutions are empty */
-    @Volatile
-    private var emptyEvoRetries = 0
-    private const val MAX_EMPTY_EVO_RETRIES = 5
-
-    /** True when spawn data was received from the server via networking */
-    @Volatile
-    private var hasServerSync = false
-
     fun isFullyLoaded(): Boolean = loadState == LoadState.FULLY_LOADED
 
     fun hasData(): Boolean = allSpeciesNames.isNotEmpty()
@@ -139,32 +128,20 @@ object SpawnDataIndex {
         return queries
     }
 
+    /** Load now on the calling thread if nothing has been loaded yet. */
     fun ensureLoaded() {
-        when (loadState) {
-            LoadState.FULLY_LOADED -> return
-            LoadState.PARTIAL -> {
-                val count = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
-                if (count > 0) {
-                    DebugLog.info("Runtime API now has $count species, reloading")
-                    loadAll()
-                }
-            }
-            LoadState.NOT_LOADED -> loadAll()
-        }
+        if (loadState == LoadState.NOT_LOADED) loadAll()
     }
 
-    fun ensureLoadedAsync() {
-        when (loadState) {
-            LoadState.FULLY_LOADED -> return
-            LoadState.PARTIAL -> {
-                val count = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
-                if (count > 0) {
-                    DebugLog.info("Runtime API now has $count species, reloading async")
-                    loadAllAsync()
-                }
-            }
-            LoadState.NOT_LOADED -> loadAllAsync()
-        }
+    /**
+     * Rebuild off the current Cobblemon data, on the background loader thread.
+     *
+     * Called by [CobbleDexMod.tickClient] when [CobblemonDataSignal] reports Cobblemon's registries
+     * actually changed — which is both the initial `species_sync` landing and any later reload.
+     * There is no retry loop: if nothing changed there is nothing to rebuild.
+     */
+    fun rebuildAsync() {
+        loadAllAsync()
     }
 
     fun loadAll() {
@@ -202,230 +179,254 @@ object SpawnDataIndex {
         loadFuture = null
     }
 
+    /**
+     * Rebuild the whole index from the sources available on this client.
+     *
+     * CobbleDex sends no packets of its own. There is exactly one load path, and it merges
+     * **per field** from three sources, best first:
+     *
+     *  1. [DataSourceTier.COBBLEMON] — Cobblemon's own client registries. On a server these are
+     *     what Cobblemon's `species_sync` delivered, so they already reflect the server's
+     *     datapacks. This covers base stats, types, abilities, learnsets, drops, forms, riding,
+     *     dex numbers and dex-entry keys.
+     *  2. [DataSourceTier.LOCAL_FILES] — this client's mod JARs, `datapacks/` and resource packs
+     *     ([JarDataCache]). Consulted **only** for what Cobblemon does not put on the wire:
+     *     evolutions, pre-evolutions, egg groups/cycles, catch rate, base friendship, EV yield,
+     *     base experience yield, spawn pools, and fossil item predicates. (Verified against
+     *     Cobblemon 1.7's `Species.encode`/`FormData.encode`: none of those fields are encoded.)
+     *  3. [DataSourceTier.BUILT_IN] — tables compiled into CobbleDex (type chart, natures), which
+     *     never need a source at all.
+     *
+     * Fields are never taken from a lower tier when a higher one supplied them, and a lower tier
+     * is never rejected wholesale just because a higher one returned something — each gap is
+     * filled on its own.
+     */
     private fun doLoad() {
         DebugLog.reset()
         PokemonItemCache.reset()
 
-        if (hasServerSync) {
-            // Server already sent spawns, evolutions, species info, and fossils — just load supplementary data
-            spawnSourceTier = DataSourceTier.SERVER_SYNC
-            evolutionSourceTier = DataSourceTier.SERVER_SYNC
-            speciesInfoSourceTier = DataSourceTier.SERVER_SYNC
-            try {
-                obtainmentBySpecies = normalizeMapKeys(ObtainmentDataLoader.loadFromAllSources(
-                    SpawnDataLoader.getModRootPaths()
-                ))
-                obtainmentSourceTier = DataSourcePolicy.preferredSource(obtainmentBySpecies.values.flatten().map { it.source })
-            } catch (e: Exception) {
-                DebugLog.warn("Obtainment data load failed: ${e.message}")
-                obtainmentBySpecies = emptyMap()
-                obtainmentSourceTier = DataSourceTier.UNKNOWN
-            }
-
-            // Fossils from server sync; fall back to JarDataCache if sync had none
-            if (fossilsBySpecies.isEmpty() && JarDataCache.hasCachedFossils()) {
-                DebugLog.info("Using JarDataCache fossils (${JarDataCache.getCachedFossils().size} species)")
-                fossilsBySpecies = normalizeMapKeys(JarDataCache.getCachedFossils())
-                fossilSourceTier = DataSourceTier.JAR_OR_DATAPACK
-            } else if (fossilsBySpecies.isNotEmpty()) {
-                fossilSourceTier = DataSourceTier.SERVER_SYNC
-            } else {
-                fossilSourceTier = DataSourceTier.UNKNOWN
-            }
-
-            rebuildDerivedData()
-            if (loadState != LoadState.FULLY_LOADED) {
-                loadState = LoadState.FULLY_LOADED
-            }
-            dataVersion++
-
-            DebugLog.info(
-                "Load complete (server-synced, ${loadState.name}): ${allSpeciesNames.size} species " +
-                "(${speciesInfo.count { it.value.nationalDexNumber > 0 }} with dex, " +
-                "${spawnsBySpecies.size} with spawns, ${evolutionsBySpecies.size} with evolutions, " +
-                "${obtainmentBySpecies.size} with obtainment)"
-            )
-            return
-        }
-
-        // --- Baseline: start with JarDataCache (loaded on game launch) ---
-        // Wait briefly for cache if it's still initializing
+        // The local-file layer is read once at launch on a background thread; give it a moment if
+        // a very early rebuild beat it.
         JarDataCache.awaitReady(5_000)
 
-        // Try Cobblemon's runtime spawn pool (populated in singleplayer or by server)
-        SpawnDataLoader.invalidateCache()
-        val runtimeSpawns = normalizeMapKeys(SpawnDataLoader.loadFromRuntime())
-        spawnsBySpecies = if (runtimeSpawns.isNotEmpty()) {
-            spawnSourceTier = DataSourceTier.RUNTIME
-            runtimeSpawns
-        } else if (JarDataCache.hasCachedSpawns()) {
-            DebugLog.info("Using JarDataCache spawns (${JarDataCache.getCachedSpawns().size} species)")
-            spawnSourceTier = DataSourceTier.JAR_OR_DATAPACK
-            normalizeMapKeys(JarDataCache.getCachedSpawns())
-        } else {
-            spawnSourceTier = DataSourceTier.UNKNOWN
-            emptyMap()
-        }
+        val speciesCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
 
-        val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
-
-        if (runtimeCount > 0) {
-            // Try runtime evolutions (works in singleplayer, empty on dedicated servers)
-            try {
-                evolutionsBySpecies = normalizeMapKeys(EvolutionDataLoader.loadFromRuntime())
-                evolutionSourceTier = if (evolutionsBySpecies.isNotEmpty()) DataSourceTier.RUNTIME else DataSourceTier.UNKNOWN
-            } catch (e: Exception) {
-                DebugLog.warn("Runtime evolution load failed: ${e.message}")
-                evolutionsBySpecies = emptyMap()
-                evolutionSourceTier = DataSourceTier.UNKNOWN
-            }
-
-            // Fall back to JarDataCache evolutions wholesale if runtime is
-            // completely empty (e.g. evolution access itself failed), then
-            // merge in any form-specific edges the runtime API is missing
-            // even when it did return data overall - Cobblemon's client-side
-            // FormData for a species_additions-nested form's own "evolutions"
-            // routinely comes back empty at runtime even though the mod's
-            // JSON defines a real one (confirmed via /cobbledex evo: Fanmade
-            // Form Funfair's Roggenrola/Boldore "Overgrown" forms both define
-            // a real level_up/trade evolution in their species_additions
-            // file, but Cobblemon's runtime form.evolutions exposed none of
-            // it, so only the aspectless base Roggenrola->Boldore edge ever
-            // reached RecipeBuilder).
-            if (JarDataCache.hasCachedEvolutions()) {
-                if (evolutionsBySpecies.isEmpty()) {
-                    DebugLog.info("Using JarDataCache evolutions (${JarDataCache.getCachedEvolutions().size} species)")
-                    evolutionsBySpecies = normalizeMapKeys(JarDataCache.getCachedEvolutions())
-                    evolutionSourceTier = DataSourceTier.JAR_OR_DATAPACK
-                } else {
-                    val merged = evolutionsBySpecies.mapValues { it.value.toMutableList() }.toMutableMap()
-                    var addedCount = 0
-                    for ((key, jarEvos) in normalizeMapKeys(JarDataCache.getCachedEvolutions())) {
-                        val existing = merged[key].orEmpty()
-                        for (evo in jarEvos) {
-                            val alreadyPresent = existing.any {
-                                it.fromAspects == evo.fromAspects &&
-                                    SpeciesNameNormalizer.normalize(it.toSpecies) == SpeciesNameNormalizer.normalize(evo.toSpecies)
-                            }
-                            if (!alreadyPresent) {
-                                merged.getOrPut(key) { mutableListOf() }.add(evo)
-                                addedCount++
-                            }
-                        }
-                    }
-                    if (addedCount > 0) {
-                        evolutionsBySpecies = merged
-                        DebugLog.info("Merged $addedCount form-specific evolution edges from JarDataCache (runtime API didn't provide them)")
-                    }
-                }
-            }
-
-            try {
-                speciesInfo = normalizeMapKeys(EvolutionDataLoader.loadSpeciesBasicInfoFromRuntime())
-                speciesInfoSourceTier = if (speciesInfo.isNotEmpty()) DataSourceTier.RUNTIME else DataSourceTier.UNKNOWN
-            } catch (e: Exception) {
-                DebugLog.warn("Runtime species info load failed: ${e.message}")
-                speciesInfo = emptyMap()
-                speciesInfoSourceTier = DataSourceTier.UNKNOWN
-            }
-        } else {
-            DebugLog.warn("PokemonSpecies.implemented empty, spawn data only")
-            // Still use cached evolutions even without runtime species
-            if (JarDataCache.hasCachedEvolutions()) {
-                evolutionsBySpecies = normalizeMapKeys(JarDataCache.getCachedEvolutions())
-                evolutionSourceTier = DataSourceTier.JAR_OR_DATAPACK
-            } else {
-                evolutionsBySpecies = emptyMap()
-                evolutionSourceTier = DataSourceTier.UNKNOWN
-            }
-            speciesInfo = emptyMap()
-            speciesInfoSourceTier = DataSourceTier.UNKNOWN
-        }
-
-        try {
-            obtainmentBySpecies = normalizeMapKeys(ObtainmentDataLoader.loadFromAllSources(
-                SpawnDataLoader.getModRootPaths()
-            ))
-            obtainmentSourceTier = DataSourcePolicy.preferredSource(obtainmentBySpecies.values.flatten().map { it.source })
-        } catch (e: Exception) {
-            DebugLog.warn("Obtainment data load failed: ${e.message}")
-            obtainmentBySpecies = emptyMap()
-            obtainmentSourceTier = DataSourceTier.UNKNOWN
-        }
-
-        // Cobblemon's client-side Fossils.all() has empty ingredient lists due to
-        // FossilRegistrySyncPacket.decodeEntry() not syncing ItemPredicates — use JarDataCache instead
-        if (JarDataCache.hasCachedFossils()) {
-            fossilsBySpecies = normalizeMapKeys(JarDataCache.getCachedFossils())
-            fossilSourceTier = DataSourceTier.JAR_OR_DATAPACK
-        } else {
-            fossilsBySpecies = emptyMap()
-            fossilSourceTier = DataSourceTier.UNKNOWN
-        }
-
-        // Enrich speciesInfo with JAR-cached moves when runtime API returned null
-        enrichWithJarMoves()
-
-        // Load riding data from Cobblemon runtime API
-        try {
-            ridingBySpecies = RidingDataLoader.loadFromRuntime()
-            ridingSourceTier = if (ridingBySpecies.isNotEmpty()) DataSourceTier.RUNTIME else DataSourceTier.UNKNOWN
-        } catch (e: Exception) {
-            DebugLog.warn("Riding data load failed: ${e.message}")
-            ridingBySpecies = emptyMap()
-            ridingSourceTier = DataSourceTier.UNKNOWN
-        }
+        loadSpawns()
+        loadSpeciesInfo(speciesCount)
+        loadEvolutions(speciesCount)
+        loadObtainment()
+        loadFossils()
+        loadRiding()
+        loadSpawnRegions()
 
         rebuildDerivedData()
 
-        val hasEvolutions = evolutionsBySpecies.isNotEmpty()
-        val hasSpawns = spawnsBySpecies.isNotEmpty()
-        loadState = when {
-            runtimeCount == 0 && !hasEvolutions && !hasSpawns -> LoadState.PARTIAL
-            runtimeCount == 0 -> {
-                // Have cached data but no runtime species yet
-                LoadState.PARTIAL
-            }
-            !hasEvolutions && emptyEvoRetries < MAX_EMPTY_EVO_RETRIES -> {
-                emptyEvoRetries++
-                DebugLog.info("Species loaded ($runtimeCount) but no evolutions found (attempt $emptyEvoRetries/$MAX_EMPTY_EVO_RETRIES) — staying PARTIAL for retry")
-                LoadState.PARTIAL
-            }
-            !hasEvolutions -> {
-                DebugLog.warn("Species loaded ($runtimeCount) but evolutions still empty after $MAX_EMPTY_EVO_RETRIES retries — accepting as final state")
-                LoadState.FULLY_LOADED
-            }
-            else -> {
-                emptyEvoRetries = 0
-                LoadState.FULLY_LOADED
-            }
+        // Cobblemon populates its species registry in one shot, so any species at all means the
+        // sync (or the singleplayer datapack load) has completed. No retry bookkeeping: if more
+        // data arrives later, CobblemonDataSignal notices and calls us again.
+        loadState = if (speciesCount > 0 || allSpeciesNames.isNotEmpty()) {
+            LoadState.FULLY_LOADED
+        } else {
+            LoadState.PARTIAL
         }
         dataVersion++
 
-        // Diagnostic: report species with spawns but no species info entry
-        if (spawnsBySpecies.isNotEmpty() && speciesInfo.isNotEmpty()) {
-            val orphanSpawns = spawnsBySpecies.keys.filter { it !in speciesInfo }
-            if (orphanSpawns.isNotEmpty()) {
-                DebugLog.info("Spawn-only species (no speciesInfo): ${orphanSpawns.take(20).joinToString(", ")}${if (orphanSpawns.size > 20) " (+${orphanSpawns.size - 20} more)" else ""}")
-            }
-        }
+        // REI reads live data through its dynamic generator, but JEI and EMI register their
+        // recipes statically — they must be told the index changed or they keep showing the
+        // previous version (or nothing, on the first load).
+        RecipeViewerReloader.scheduleReload()
 
         DebugLog.info(
             "Load complete (${loadState.name}): ${allSpeciesNames.size} species " +
             "(${speciesInfo.count { it.value.nationalDexNumber > 0 }} with dex, " +
-            "${spawnsBySpecies.size} with spawns, ${evolutionsBySpecies.size} with evolutions, " +
+            "${spawnsBySpecies.size} with spawns [${spawnSourceTier.displayName}], " +
+            "${evolutionsBySpecies.size} with evolutions [${evolutionSourceTier.displayName}], " +
             "${obtainmentBySpecies.size} with obtainment)"
         )
     }
 
-    /** Mark data stale on disconnect. Cached JAR data is preserved —
-     *  only runtime/server data is cleared. */
+    /**
+     * Spawns. Cobblemon never syncs `WORLD_SPAWN_POOL` to clients (it has no packet at all), so
+     * the runtime read only succeeds in singleplayer/LAN. On a dedicated server this falls to the
+     * local files, which are right whenever the client carries the same spawn packs as the server.
+     */
+    private fun loadSpawns() {
+        SpawnDataLoader.invalidateCache()
+        val runtime = normalizeMapKeys(SpawnDataLoader.loadFromRuntime())
+        if (runtime.isNotEmpty()) {
+            spawnsBySpecies = runtime
+            spawnSourceTier = DataSourceTier.COBBLEMON
+            return
+        }
+        if (JarDataCache.hasCachedSpawns()) {
+            val local = normalizeMapKeys(JarDataCache.getCachedSpawns())
+            DebugLog.info("Spawns from local files (${local.size} species) — Cobblemon syncs no spawn pool")
+            spawnsBySpecies = local
+            spawnSourceTier = DataSourceTier.LOCAL_FILES
+            return
+        }
+        spawnsBySpecies = emptyMap()
+        spawnSourceTier = DataSourceTier.UNAVAILABLE
+    }
+
+    /**
+     * Species facts. The bulk comes straight from Cobblemon; [SpeciesTraitMerger] then fills the
+     * individual fields Cobblemon's `Species.encode` leaves out, per species, from local files.
+     */
+    private fun loadSpeciesInfo(speciesCount: Int) {
+        if (speciesCount <= 0) {
+            DebugLog.warn("Cobblemon has no species yet — species info deferred")
+            speciesInfo = emptyMap()
+            speciesInfoSourceTier = DataSourceTier.UNAVAILABLE
+            return
+        }
+
+        val runtime = try {
+            normalizeMapKeys(EvolutionDataLoader.loadSpeciesBasicInfoFromRuntime())
+        } catch (e: Exception) {
+            DebugLog.warn("Cobblemon species info read failed: ${e.message}")
+            emptyMap()
+        }
+
+        if (runtime.isEmpty()) {
+            speciesInfo = emptyMap()
+            speciesInfoSourceTier = DataSourceTier.UNAVAILABLE
+            return
+        }
+
+        val merged = SpeciesTraitMerger.fillGaps(runtime)
+        speciesInfo = merged.speciesInfo
+        speciesInfoSourceTier = DataSourceTier.COBBLEMON
+        if (merged.filledFieldCount > 0) {
+            DebugLog.info(
+                "Filled ${merged.filledFieldCount} species fields from local files across " +
+                "${merged.filledSpeciesCount} species (not carried by Cobblemon's species sync)"
+            )
+        }
+    }
+
+    /**
+     * Evolutions. `Species.encode` carries no `evolutions`/`preEvolution`, so on a dedicated
+     * server Cobblemon's client registry has none and local files are the only source. In
+     * singleplayer the runtime has them, but even then a form's own nested evolutions are
+     * routinely missing from `FormData`, so local edges are merged in on top rather than skipped.
+     */
+    private fun loadEvolutions(speciesCount: Int) {
+        val runtime = if (speciesCount > 0) {
+            try {
+                normalizeMapKeys(EvolutionDataLoader.loadFromRuntime())
+            } catch (e: Exception) {
+                DebugLog.warn("Cobblemon evolution read failed: ${e.message}")
+                emptyMap()
+            }
+        } else emptyMap()
+
+        val local = if (JarDataCache.hasCachedEvolutions()) {
+            normalizeMapKeys(JarDataCache.getCachedEvolutions())
+        } else emptyMap()
+
+        if (runtime.isEmpty() && local.isEmpty()) {
+            evolutionsBySpecies = emptyMap()
+            evolutionSourceTier = DataSourceTier.UNAVAILABLE
+            return
+        }
+
+        if (runtime.isEmpty()) {
+            DebugLog.info("Evolutions from local files (${local.size} species) — Cobblemon's species sync omits them")
+            evolutionsBySpecies = local
+            evolutionSourceTier = DataSourceTier.LOCAL_FILES
+            return
+        }
+
+        // Runtime had data: keep it and add any edge local files know about that it is missing.
+        // Cobblemon's client-side FormData for a species_additions-nested form routinely exposes
+        // no evolutions even when the JSON defines a real one (confirmed via /cobbledex evo:
+        // Form Funfair's Roggenrola/Boldore "Overgrown" forms define level_up/trade evolutions
+        // that never reached the runtime API).
+        val merged = runtime.mapValues { it.value.toMutableList() }.toMutableMap()
+        var added = 0
+        for ((key, localEvos) in local) {
+            val existing = merged[key].orEmpty()
+            for (evo in localEvos) {
+                val alreadyPresent = existing.any {
+                    it.fromAspects == evo.fromAspects &&
+                        SpeciesNameNormalizer.normalize(it.toSpecies) == SpeciesNameNormalizer.normalize(evo.toSpecies)
+                }
+                if (!alreadyPresent) {
+                    merged.getOrPut(key) { mutableListOf() }.add(evo)
+                    added++
+                }
+            }
+        }
+        evolutionsBySpecies = merged
+        evolutionSourceTier = DataSourceTier.COBBLEMON
+        if (added > 0) {
+            DebugLog.info("Merged $added evolution edges from local files that Cobblemon's runtime didn't expose")
+        }
+    }
+
+    /** Special obtainment methods, defined by addon mods and datapacks — never a Cobblemon concept. */
+    private fun loadObtainment() {
+        try {
+            obtainmentBySpecies = normalizeMapKeys(
+                ObtainmentDataLoader.loadFromAllSources(SpawnDataLoader.getModRootPaths())
+            )
+            obtainmentSourceTier = if (obtainmentBySpecies.isEmpty()) DataSourceTier.UNAVAILABLE
+                else DataSourcePolicy.preferredSource(obtainmentBySpecies.values.flatten().map { it.source })
+        } catch (e: Exception) {
+            DebugLog.warn("Obtainment data load failed: ${e.message}")
+            obtainmentBySpecies = emptyMap()
+            obtainmentSourceTier = DataSourceTier.UNAVAILABLE
+        }
+    }
+
+    /**
+     * Fossils. Cobblemon does sync its fossil registry, but `FossilRegistrySyncPacket.decodeEntry`
+     * drops the `ItemPredicate`s, so the client's copy has empty ingredient lists and the local
+     * files are the only place the material requirements survive.
+     */
+    private fun loadFossils() {
+        if (JarDataCache.hasCachedFossils()) {
+            fossilsBySpecies = normalizeMapKeys(JarDataCache.getCachedFossils())
+            fossilSourceTier = DataSourceTier.LOCAL_FILES
+        } else {
+            fossilsBySpecies = emptyMap()
+            fossilSourceTier = DataSourceTier.UNAVAILABLE
+        }
+    }
+
+    /** Riding properties — fully carried by Cobblemon's species sync. */
+    private fun loadRiding() {
+        try {
+            ridingBySpecies = RidingDataLoader.loadFromRuntime()
+            ridingSourceTier = if (ridingBySpecies.isNotEmpty()) DataSourceTier.COBBLEMON
+                else DataSourceTier.UNAVAILABLE
+        } catch (e: Exception) {
+            DebugLog.warn("Riding data load failed: ${e.message}")
+            ridingBySpecies = emptyMap()
+            ridingSourceTier = DataSourceTier.UNAVAILABLE
+        }
+    }
+
+    /** Optional CobbleRegions region names — that mod exposes them to the client itself. */
+    private fun loadSpawnRegions() {
+        spawnRegionsBySpecies = try {
+            CobbleRegionsIntegration.regionsBySpecies(spawnsBySpecies.keys)
+        } catch (e: Exception) {
+            DebugLog.warn("Spawn region lookup failed: ${e.message}")
+            emptyMap()
+        }
+    }
+
+    /**
+     * Mark data stale on disconnect. The local-file layer is preserved (it is per-client and
+     * doesn't change with the session); everything read out of Cobblemon's registries is dropped,
+     * because the next world may have entirely different datapacks.
+     */
     fun onDisconnect() {
         cancelPendingLoad()
         PokemonItemCache.reset()
         RecipeViewerReloader.reset()
-        emptyEvoRetries = 0
-        hasServerSync = false
         jobRules = emptyList()
         spawnRegionsBySpecies = emptyMap()
 
@@ -434,53 +435,6 @@ object SpawnDataIndex {
         }
         DebugLog.info("Marked data stale on disconnect (${allSpeciesNames.size} species cached)")
     }
-
-    /** Accept all data synced from the server via networking */
-    fun applyServerSync(syncedSpawns: Map<String, List<SpawnInfo>>,
-                        syncedEvolutions: Map<String, List<EvolutionInfo>>,
-                        syncedSpeciesInfo: Map<String, EvolutionDataLoader.SpeciesBasicInfo>,
-                        syncedJobRules: List<JobRule>? = null,
-                        syncedFossils: Map<String, List<FossilCombo>>? = null,
-                        syncedSpawnRegions: Map<String, List<SpawnRegionInfo>>? = null) {
-        dataLock.withLock {
-            PokemonItemCache.reset()
-            spawnsBySpecies = normalizeMapKeys(syncedSpawns)
-            evolutionsBySpecies = normalizeMapKeys(syncedEvolutions)
-            speciesInfo = normalizeMapKeys(syncedSpeciesInfo)
-            jobRules = syncedJobRules ?: emptyList()
-            if (syncedFossils != null) fossilsBySpecies = normalizeMapKeys(syncedFossils)
-            spawnRegionsBySpecies = syncedSpawnRegions
-                ?.mapKeys { SpeciesNameNormalizer.normalize(it.key) }
-                ?: emptyMap()
-            spawnSourceTier = DataSourceTier.SERVER_SYNC
-            evolutionSourceTier = DataSourceTier.SERVER_SYNC
-            speciesInfoSourceTier = DataSourceTier.SERVER_SYNC
-            fossilSourceTier = if (syncedFossils != null) DataSourceTier.SERVER_SYNC else fossilSourceTier
-            hasServerSync = true
-            rebuildDerivedData()
-            dataVersion++
-
-            loadState = if (spawnsBySpecies.isNotEmpty() || evolutionsBySpecies.isNotEmpty()) {
-                LoadState.FULLY_LOADED
-            } else {
-                LoadState.PARTIAL
-            }
-        }
-        val jobMsg = if (jobRules.isNotEmpty()) ", ${jobRules.size} job rules" else ""
-        val totalSpawnEntries = syncedSpawns.values.sumOf { it.size }
-        CobbleDexMod.LOGGER.info("[CobbleDex] Server sync received: ${syncedSpawns.size} species ($totalSpawnEntries spawn entries), " +
-            "${syncedEvolutions.size} evolutions, ${syncedSpeciesInfo.size} species info$jobMsg — scheduling recipe viewer reload")
-        DebugLog.info("Applied server sync: ${syncedSpawns.size} species with spawns, " +
-            "${syncedEvolutions.size} with evolutions, ${syncedSpeciesInfo.size} with info$jobMsg " +
-            "(loadState=${loadState.name}, dataVersion=$dataVersion)")
-
-        RecipeViewerReloader.scheduleReload()
-
-        if (loadState != LoadState.FULLY_LOADED) {
-            ensureLoadedAsync()
-        }
-    }
-
     /** Accept job rules from Cobbleworkers' own network packet (independent of CobbleDex server sync) */
     fun applyJobRules(rules: List<JobRule>) {
         dataLock.withLock {
@@ -502,84 +456,6 @@ object SpawnDataIndex {
         }
     }
 
-    /**
-     * Fill in missing move data from JarDataCache when the runtime API
-     * didn't provide egg/tutor/tm/level-up moves (common on dedicated-server clients).
-     *
-     * A form's own move data is checked first (formJarMoves, keyed by the same
-     * form key as speciesInfo) before falling back to the base species' moves
-     * (jarMoves, bare-name keyed) - Cobblemon's client-side FormData for a
-     * species_additions-nested form routinely only syncs its LEVEL-UP moves,
-     * silently dropping any egg/tutor/tm moves the form defines on its own
-     * (confirmed via /cobbledex evo: Laser's Fakemon Pack's Fomantis Lunar
-     * form defines 102 moves of its own, but Cobblemon's runtime form.moves
-     * only exposed the 13 level-up ones). Falling back straight to the base
-     * species' moves in that case would silently substitute the wrong
-     * Pokemon's moveset instead of the form's own (missing) one.
-     */
-    private fun enrichWithJarMoves() {
-        if (!JarDataCache.hasCachedMoves() && !JarDataCache.hasCachedFormMoves()) return
-        if (speciesInfo.isEmpty()) return
-        val jarMoves = JarDataCache.getCachedMoves()
-        val formJarMoves = JarDataCache.getCachedFormMoves()
-
-        val enriched = speciesInfo.toMutableMap()
-        var enrichCount = 0
-
-        for ((species, info) in enriched) {
-            val baseKey = info.baseSpeciesName ?: species
-            val jarData = formJarMoves[species] ?: jarMoves[baseKey] ?: continue
-            val needsEnrichment = info.levelUpMoves == null || info.eggMoves == null ||
-                info.tutorMoves == null || info.tmMoves == null
-            if (!needsEnrichment) continue
-
-            val resolvedLevelUp = if (info.levelUpMoves == null && jarData.levelUp.isNotEmpty()) {
-                jarData.levelUp.entries.sortedBy { it.key }.mapNotNull { (level, names) ->
-                    val moves = names.mapNotNull { resolveMoveByName(it) }
-                    if (moves.isEmpty()) null else LevelUpMove(level, moves)
-                }.ifEmpty { null }
-            } else info.levelUpMoves
-
-            val resolvedEgg = if (info.eggMoves == null && jarData.egg.isNotEmpty()) {
-                jarData.egg.mapNotNull { resolveMoveByName(it) }.ifEmpty { null }
-            } else info.eggMoves
-
-            val resolvedTutor = if (info.tutorMoves == null && jarData.tutor.isNotEmpty()) {
-                jarData.tutor.mapNotNull { resolveMoveByName(it) }.ifEmpty { null }
-            } else info.tutorMoves
-
-            val resolvedTm = if (info.tmMoves == null && jarData.tm.isNotEmpty()) {
-                jarData.tm.mapNotNull { resolveMoveByName(it) }.ifEmpty { null }
-            } else info.tmMoves
-
-            enriched[species] = info.copy(
-                levelUpMoves = resolvedLevelUp,
-                eggMoves = resolvedEgg,
-                tutorMoves = resolvedTutor,
-                tmMoves = resolvedTm,
-            )
-            enrichCount++
-        }
-
-        if (enrichCount > 0) {
-            speciesInfo = enriched
-            DebugLog.info("Enriched $enrichCount species with JAR-cached move data")
-        }
-    }
-
-    private fun resolveMoveByName(name: String): MoveDetail? {
-        return try {
-            val template = Moves.getByName(name) ?: return null
-            MoveDetail(
-                name = template.name,
-                type = try { template.elementalType.name.lowercase() } catch (_: Exception) { "normal" },
-                category = try { template.damageCategory.name } catch (_: Exception) { "PHYSICAL" },
-                power = try { template.power.toInt() } catch (_: Exception) { 0 },
-                accuracy = try { template.accuracy.toInt() } catch (_: Exception) { 0 },
-                pp = try { template.pp } catch (_: Exception) { 0 },
-            )
-        } catch (_: Exception) { null }
-    }
 
     private fun <T> normalizeMapKeys(map: Map<String, T>): Map<String, T> {
         val result = mutableMapOf<String, T>()

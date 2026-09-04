@@ -53,14 +53,6 @@ object ObtainmentPageBuilder {
         return height
     }
 
-    fun measureUnifiedWidth(speciesName: String): Int = unifiedWidth(speciesName)
-
-    fun measureUnifiedHeight(data: UnifiedObtainmentRecipeData): Int {
-        val routeHeight = data.routes.sumOf { route -> measureUnifiedRouteHeight(data.speciesName, route) }
-        val spacing = ObtainmentPageBuilder.UNIFIED_ROUTE_SPACING * (data.routes.size - 1).coerceAtLeast(0)
-        return measureUnifiedFixedHeight() + routeHeight + spacing
-    }
-
     fun buildUnified(data: UnifiedObtainmentRecipeData): PanelLayout {
         val font = Minecraft.getInstance().font
         val padding = PanelLayout.PADDING
@@ -108,11 +100,10 @@ object ObtainmentPageBuilder {
         val padding = PanelLayout.PADDING
         val headerTag = "How to Obtain"
         val displayName = formatSpeciesName(speciesName)
-        return maxOf(
+        return SpawnDisplayHelper.computePanelWidth(
             PanelLayout.TEXT_START_X + font.width(displayName) + 8 + font.width(headerTag) + padding,
             236,
-            PanelLayout.MIN_WIDTH,
-        ).coerceAtMost(PanelLayout.MAX_WIDTH)
+        )
     }
 
     private fun unifiedDetailWidth(speciesName: String): Int {
@@ -158,83 +149,11 @@ object DropPageBuilder {
 
     fun measureEntryHeight(drop: DropEntryInfo): Int = DROP_ROW_HEIGHT
 
-    fun measureWidth(data: DropRecipeData): Int {
-        val font = Minecraft.getInstance().font
-        val padding = PanelLayout.PADDING
-        val nameWidth = PanelLayout.TEXT_START_X + font.width(formatSpeciesName(data.speciesName)) + padding
-        val headerBase = tr("category.cobbledex-rei-emi-jei.drops")
-        val headerTag = if (data.pageTotal > 1) "$headerBase (${data.pageIndex}/${data.pageTotal})" else headerBase
-        val headerWidth = nameWidth + 6 + font.width(headerTag) + padding
-        val maxItemRowWidth = data.drops.maxOfOrNull { drop ->
-            val itemName = SpawnDisplayHelper.resolveItemName(drop.itemId)
-            val rightText = "${drop.displayPercentage} \u00D7${drop.displayQuantity}"
-            padding + 22 + font.width(itemName) + 8 + font.width(rightText) + padding
-        } ?: 0
-        return maxOf(headerWidth, maxItemRowWidth, PanelLayout.MIN_WIDTH).coerceAtMost(PanelLayout.MAX_WIDTH)
-    }
-
-    fun measureHeight(data: DropRecipeData): Int =
-        measureFixedHeight() + data.drops.sumOf(::measureEntryHeight)
-
     fun buildItemDroppers(data: ItemDroppersRecipeData): SpawnDisplayHelper.ItemDroppersLayoutResult =
         SpawnDisplayHelper.buildItemDroppersLayout(data)
 }
 
 object PokemonInfoPageBuilder {
-    fun measureFormsFixedHeight(): Int = 30 + PanelLayout.LINE_HEIGHT * 3 + 8 + PanelLayout.PADDING
-
-    fun measureFormsWidth(data: FormRecipeData): Int {
-        val font = Minecraft.getInstance().font
-        val padding = PanelLayout.PADDING
-        val formDisplay = data.form.formDisplayName
-        val headerBase = tr("category.cobbledex-rei-emi-jei.forms")
-        val headerTag = if (data.pageTotal > 1) "$headerBase (${data.pageIndex}/${data.pageTotal})" else headerBase
-        val headerWidth = PanelLayout.TEXT_START_X + font.width(formDisplay) + 8 + font.width(headerTag) + padding
-        return maxOf(headerWidth, 220, PanelLayout.MIN_WIDTH).coerceAtMost(PanelLayout.MAX_WIDTH)
-    }
-
-    fun measureFormsHeight(data: FormRecipeData): Int {
-        val font = Minecraft.getInstance().font
-        val width = measureFormsWidth(data)
-        val padding = PanelLayout.PADDING
-        val labelWidth = 68
-        val valueX = padding + labelWidth
-        val valueWidth = width - padding - valueX
-        var height = measureFormsFixedHeight()
-
-        val abilityText = data.form.abilities.joinToString(", ") { formatAbilityName(it) }
-        val hiddenText = data.form.hiddenAbility?.let(::formatAbilityName).orEmpty()
-        val bstText = data.form.baseStatTotal?.let { bst ->
-            val delta = data.baseInfo?.baseStatTotal?.let { baseBst ->
-                val change = bst - baseBst
-                when {
-                    change > 0 -> " (+$change vs base)"
-                    change < 0 -> " ($change vs base)"
-                    else -> " (same as base)"
-                }
-            }.orEmpty()
-            tr("cobbledex-rei-emi-jei.stats.bst", bst) + delta
-        }.orEmpty()
-
-        height += SpawnDisplayHelper.wrapText(font, formatSpeciesName(data.baseSpeciesName), valueWidth).size.coerceAtLeast(1) * PanelLayout.LINE_HEIGHT
-        height += SpawnDisplayHelper.wrapText(
-            font,
-            buildTypeText(data.form.primaryType, data.form.secondaryType),
-            valueWidth,
-        ).size.coerceAtLeast(1) * PanelLayout.LINE_HEIGHT
-        if (abilityText.isNotBlank()) {
-            height += SpawnDisplayHelper.wrapText(font, abilityText, valueWidth).size.coerceAtLeast(1) * PanelLayout.LINE_HEIGHT
-        }
-        if (hiddenText.isNotBlank()) {
-            height += SpawnDisplayHelper.wrapText(font, hiddenText, valueWidth).size.coerceAtLeast(1) * PanelLayout.LINE_HEIGHT
-        }
-        if (bstText.isNotBlank()) {
-            height += SpawnDisplayHelper.wrapText(font, bstText, valueWidth).size.coerceAtLeast(1) * PanelLayout.LINE_HEIGHT
-        }
-
-        height += 1 + 4 + font.lineHeight + padding
-        return height
-    }
 
     fun buildOverview(data: PokemonOverviewRecipeData): PanelLayout {
         val projection = data.projection
@@ -246,7 +165,7 @@ object PokemonInfoPageBuilder {
         val dexNumber = info?.nationalDexNumber?.takeIf { it > 0 }?.let { "#$it" }
         val typeText = info?.let { buildTypeText(it.primaryType, it.secondaryType) }
         val headerWidth = PanelLayout.TEXT_START_X + font.width(displayName) + 8 + font.width(headerTag) + padding
-        val width = maxOf(headerWidth, 252, PanelLayout.MIN_WIDTH).coerceAtMost(PanelLayout.MAX_WIDTH)
+        val width = SpawnDisplayHelper.computePanelWidth(headerWidth, 252)
         val layout = PanelLayout(width)
         val right = layout.right
         val indentX = padding + 4

@@ -87,7 +87,7 @@ object PokemonSpriteAtlas {
     @Volatile private var buildInProgress = false
     private val ensureAttempted = java.util.concurrent.atomic.AtomicBoolean(false)
 
-    // Called once per session (see CobbleDexMod.tickReloadCheck) right after
+    // Called once per session (see CobbleDexMod.tickClient) right after
     // spawn/species data finishes loading, so players never have to know
     // /cobbledex sprites build exists just to see correct icons/renders. If
     // a cached atlas already exists and matches ATLAS_VERSION it's left

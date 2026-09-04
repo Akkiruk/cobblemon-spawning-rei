@@ -36,8 +36,20 @@ object DiagnosticService {
         sender.send(tr("cobbledex-rei-emi-jei.cmd.with_evolutions", withEvolutions.size))
         sender.send(tr("cobbledex-rei-emi-jei.cmd.with_obtainment", withObtainment.size))
         sender.send(tr("cobbledex-rei-emi-jei.cmd.load_state", index.loadState.name))
+
+        // Where each category's data actually came from, and whether it can be trusted for the
+        // world you're in. Anything marked local-only is read from this client's files while
+        // connected to a server that may not share them.
+        sender.send("§7Sources §8(§a✔§8 verified / §e▲§8 local-only / §c✖§8 missing)")
+        sender.send(DataAvailability.describe("Spawns", index.spawnSourceTier))
+        sender.send(DataAvailability.describe("Evolutions", index.evolutionSourceTier))
+        sender.send(DataAvailability.describe("Species info", index.speciesInfoSourceTier))
+        sender.send(DataAvailability.describe("Obtainment", index.obtainmentSourceTier))
+        sender.send(DataAvailability.describe("Fossils", index.fossilSourceTier))
+        sender.send(DataAvailability.describe("Riding", index.ridingSourceTier))
+
         sender.send(tr("cobbledex-rei-emi-jei.cmd.dump_hint"))
-        
+
         return 1
     }
     

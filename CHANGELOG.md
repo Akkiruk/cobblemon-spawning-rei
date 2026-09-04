@@ -2,6 +2,20 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.13.0] - 2026-09-03
+
+### Changed
+- CobbleDex is now fully client-side and no longer runs anything on the server. It reads the Pokémon data Cobblemon and Minecraft already send to your client, plus your own installed files, so it works the same whether or not the server has the mod. The old custom data-sync (which caused problems on some setups) has been removed.
+- Data now updates when Cobblemon's data actually changes, so a `/reload` or a later change is picked up instead of only what was loaded at first join.
+
+### Fixed
+- On dedicated servers, Pokédex Info now shows egg groups, egg cycles, catch rate, base friendship, EV yield and base experience yield, which were previously blank.
+- Evolution and spawn pages now warn (on hover) when their data could only come from your local files and might not match the server, instead of silently showing possibly-wrong info. `/cobbledex stats` shows where each category's data came from.
+- EMI now shows the correct sprite for alternate forms in its browse list.
+- Spawn region names (CobbleRegions) now show in singleplayer, not only on servers.
+- Riding and spawn-region data no longer go missing after other data loads.
+- Fixed a stray artefact and some internal cleanup.
+
 ## [2.12.3] - 2026-09-01
 
 ### Changed

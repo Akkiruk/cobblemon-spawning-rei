@@ -8,7 +8,15 @@ object CobbleDexMod {
     const val NEOFORGE_MOD_ID = "cobbledex_rei_emi_jei"
     val LOGGER = LoggerFactory.getLogger(MOD_ID)
 
-    private var reloadTickCounter = 0
+    /**
+     * Ticks between fingerprint samples. Cobblemon's species sync lands within the first second or
+     * two of login, so a one-second cadence picks it up promptly without the old "retry forever"
+     * loop. Unlike that loop this keeps sampling after the first successful load, so a later
+     * Cobblemon reload is picked up too.
+     */
+    private const val SAMPLE_INTERVAL_TICKS = 20
+
+    private var tickCounter = 0
 
     val dataLoaded: Boolean
         get() = SpawnDataIndex.loadState != SpawnDataIndex.LoadState.NOT_LOADED
@@ -21,7 +29,9 @@ object CobbleDexMod {
             DebugLog.warn("Config load deferred: ${e.message}")
         }
 
-        // Pre-cache spawn + evolution data from mod JARs in background
+        // Pre-cache the local-file layer (mod JARs + this client's datapacks) in the background.
+        // It supplies only the fields Cobblemon does not sync — see LocalFileSource notes in
+        // SpawnDataIndex.doLoad.
         Thread({
             try {
                 val modRoots = SpawnDataLoader.getModRootPaths()
@@ -36,30 +46,43 @@ object CobbleDexMod {
         }, "CobbleDex-CacheInit").apply { isDaemon = true }.start()
     }
 
-    fun tickReloadCheck() {
+    /**
+     * Client tick. Rebuilds only when Cobblemon's data actually changed, so a steady state costs
+     * one cheap fingerprint per second and nothing else.
+     */
+    fun tickClient() {
         RecipeViewerReloader.tick()
 
-        if (SpawnDataIndex.isFullyLoaded()) {
-            // Fires exactly once per session, right as data finishes
-            // loading - builds the icon/render atlas automatically if no
-            // valid cache exists yet, so players never have to know
-            // /cobbledex sprites build exists (see PokemonSpriteAtlas.ensureAtlas).
-            PokemonSpriteAtlas.ensureAtlas()
-            // Spread the per-category panel-measurement cost over idle ticks so the
-            // first open of each REI/JEI/EMI category isn't a visible hitch.
-            CategorySizer.warmOneCategory()
+        if (++tickCounter < SAMPLE_INTERVAL_TICKS) return
+        tickCounter = 0
+
+        if (CobblemonDataSignal.consumeChange()) {
+            SpawnDataIndex.rebuildAsync()
             return
         }
 
-        reloadTickCounter++
-        if (reloadTickCounter <= 2 || reloadTickCounter % 100 == 0) {
-            SpawnDataIndex.ensureLoadedAsync()
+        if (SpawnDataIndex.isFullyLoaded()) {
+            // Fires once per session, right as data finishes loading — builds the icon/render
+            // atlas automatically if no valid cache exists yet, so players never have to know
+            // /cobbledex sprites build exists (see PokemonSpriteAtlas.ensureAtlas).
+            PokemonSpriteAtlas.ensureAtlas()
+            // Spread the per-category panel-measurement cost over idle ticks so the first open of
+            // each REI/JEI/EMI category isn't a visible hitch.
+            CategorySizer.warmOneCategory()
         }
     }
 
-    fun resetReloadTimer() {
-        reloadTickCounter = 0
+    /** Joined a world/server — Cobblemon's own data sync is inbound, so start watching for it. */
+    fun onJoinedWorld() {
+        tickCounter = 0
+        CobblemonDataSignal.reset()
         PokemonSpriteAtlas.resetEnsureAttempt()
-        SpawnDataIndex.ensureLoadedAsync()
+    }
+
+    /** Left the world — drop the sample so the next session re-reads from scratch. */
+    fun onLeftWorld() {
+        tickCounter = 0
+        CobblemonDataSignal.reset()
+        PokemonSpriteAtlas.resetEnsureAttempt()
     }
 }

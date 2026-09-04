@@ -1,17 +1,12 @@
 package com.cobbledex.fabric
 
 import com.cobbledex.CobbleDexMod
-import com.cobbledex.DebugLog
 import com.cobbledex.DiagnosticService
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpreadsheetExporter
 import com.cobbledex.PokemonSpriteAtlas
 import com.cobbledex.TmTooltipHandler
-import com.cobbledex.network.ChunkAssembler
-import com.cobbledex.network.ChunkedSpawnSyncPayload
 import com.cobbledex.network.CobbleworkersJobSyncPayload
-import com.cobbledex.network.SpawnSyncPayload
-import com.cobbledex.network.SpawnSyncSerializer
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
@@ -26,32 +21,6 @@ class CobbleDexFabricClient : ClientModInitializer {
     override fun onInitializeClient() {
         CobbleDexMod.init()
         CobbleDexMod.LOGGER.info("[CobbleDex] Fabric client initialized")
-
-        ClientPlayNetworking.registerGlobalReceiver(SpawnSyncPayload.TYPE) { payload, context ->
-            context.client().execute {
-                try {
-                    val bundle = SpawnSyncSerializer.deserialize(payload.data)
-                    SpawnDataIndex.applyServerSync(bundle.spawns, bundle.evolutions, bundle.speciesInfo, bundle.jobRules, bundle.fossils, bundle.spawnRegions)
-                    DebugLog.info("Received sync from server: ${bundle.spawns.size} spawns, ${bundle.evolutions.size} evolutions, ${bundle.fossils?.size ?: 0} fossils")
-                } catch (e: Exception) {
-                    CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process sync: ${e.message}")
-                }
-            }
-        }
-
-        ClientPlayNetworking.registerGlobalReceiver(ChunkedSpawnSyncPayload.TYPE) { payload, context ->
-            context.client().execute {
-                try {
-                    val assembled = ChunkAssembler.receiveChunk(payload) ?: return@execute
-                    val bundle = SpawnSyncSerializer.deserialize(assembled)
-                    SpawnDataIndex.applyServerSync(bundle.spawns, bundle.evolutions, bundle.speciesInfo, bundle.jobRules, bundle.fossils, bundle.spawnRegions)
-                    DebugLog.info("Received chunked sync from server: ${bundle.spawns.size} spawns, ${bundle.evolutions.size} evolutions, ${bundle.fossils?.size ?: 0} fossils")
-                } catch (e: Exception) {
-                    CobbleDexMod.LOGGER.error("[CobbleDex] Failed to process chunked sync: ${e.message}")
-                    ChunkAssembler.reset()
-                }
-            }
-        }
 
         // Register CobbleCrew job sync packet (sent by CobbleCrew server-side)
         PayloadTypeRegistry.playS2C().register(CobbleworkersJobSyncPayload.TYPE, CobbleworkersJobSyncPayload.CODEC)
@@ -68,8 +37,13 @@ class CobbleDexFabricClient : ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             SpreadsheetExporter.tick()
             if (client.player != null) {
-                CobbleDexMod.tickReloadCheck()
+                CobbleDexMod.tickClient()
             }
+        }
+
+        ClientPlayConnectionEvents.JOIN.register { _, _, _ ->
+            // Cobblemon's own species_sync lands during login; watch for it rather than assume.
+            CobbleDexMod.onJoinedWorld()
         }
 
         ItemTooltipCallback.EVENT.register { stack, _, _, lines ->
@@ -78,8 +52,7 @@ class CobbleDexFabricClient : ClientModInitializer {
 
         ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
             SpawnDataIndex.onDisconnect()
-            ChunkAssembler.reset()
-            CobbleDexMod.resetReloadTimer()
+            CobbleDexMod.onLeftWorld()
         }
 
         ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->

@@ -169,6 +169,15 @@ class PanelLayout(val width: Int) {
         tooltipZones.add(TooltipZone(x, y, width, height, lines))
     }
 
+    /**
+     * Adds a zone that any later overlapping zone wins over (getTooltipAt takes the last
+     * match). For panel-wide backdrops like the data-source caveat, so a clipped-text tooltip
+     * in the same area still takes precedence.
+     */
+    fun addBackgroundTooltipZone(x: Int, y: Int, width: Int, height: Int, lines: List<Component>) {
+        tooltipZones.add(0, TooltipZone(x, y, width, height, lines))
+    }
+
     fun getTooltipAt(mouseX: Int, mouseY: Int): List<Component>? {
         return tooltipZones.lastOrNull { zone ->
             mouseX >= zone.x && mouseX < zone.x + zone.width &&

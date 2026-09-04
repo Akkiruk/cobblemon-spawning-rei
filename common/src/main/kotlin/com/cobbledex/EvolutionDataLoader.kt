@@ -301,11 +301,14 @@ object EvolutionDataLoader {
                     .replace(Regex("([A-Z])"), "_$1")
                     .lowercase()
                     .trimStart('_')
-                    .ifEmpty { "unknown" }
+                    .ifEmpty { EvolutionRequirementSpec.UNKNOWN }
             }
         }
 
-        return EvolutionRequirement(variant, data)
+        // Cobblemon's runtime class names and its JSON schema disagree on a few spellings
+        // ("has_move" vs "move_set"); canonicalise so this reader and the local-file reader in
+        // JarDataCache always emit the same name for the same requirement.
+        return EvolutionRequirement(EvolutionRequirementSpec.canonicalise(variant), data)
     }
 
     private fun formatRegistryCondition(condition: RegistryLikeCondition<*>?): String? {
@@ -408,36 +411,11 @@ object EvolutionDataLoader {
                     DebugLog.once("species-no-form-$name") { "Species '$name' has no standard form, using species-level data" }
                 }
 
-                val stats = try {
-                    val statMap = mutableMapOf<String, Int>()
-                    for (stat in Stats.PERMANENT) {
-                        val value = form?.baseStats?.get(stat) ?: species.baseStats[stat] ?: 0
-                        statMap[stat.showdownId] = value
-                    }
-                    statMap.ifEmpty { null }
-                } catch (_: Exception) { null }
-
+                val stats = extractBaseStats(form, species)
                 val bst = stats?.values?.sum()
-
-                val abilityNames = try {
-                    val common = mutableListOf<String>()
-                    var hidden: String? = null
-                    val abilities = form?.abilities ?: emptyList()
-                    for (ability in abilities) {
-                        val abilityName = titleCase(ability.template.name)
-                        if (ability is HiddenAbility) {
-                            hidden = abilityName
-                        } else {
-                            common.add(abilityName)
-                        }
-                    }
-                    Pair(common.ifEmpty { null }, hidden)
-                } catch (_: Exception) { Pair(null, null) }
-
-                val eggGroups = try {
-                    val groups = (form?.eggGroups ?: emptySet()).ifEmpty { species.eggGroups }
-                    groups.map { it.showdownID }.ifEmpty { null }
-                } catch (_: Exception) { null }
+                // No fallback form: a base species has nothing above it to inherit from.
+                val abilityNames = extractAbilities(form, fallbackForm = null)
+                val eggGroups = extractEggGroups(form, species)
 
                 val labels = try {
                     species.labels.ifEmpty { null }
@@ -452,20 +430,8 @@ object EvolutionDataLoader {
                     if (key != null && key.isNotBlank()) key else null
                 } catch (_: Exception) { null }
 
-                val drops = try {
-                    val entries = (form?.drops?.entries ?: emptyList())
-                        .filterIsInstance<ItemDropEntry>()
-                        .map { entry ->
-                            DropEntryInfo(
-                                itemId = entry.item.toString(),
-                                percentage = entry.percentage,
-                                quantity = entry.quantity,
-                                quantityRange = entry.quantityRange?.let { "${it.first}-${it.last}" }
-                            )
-                        }
-                    if (entries.isNotEmpty()) dropSpeciesCount++
-                    entries.ifEmpty { null }
-                } catch (_: Exception) { null }
+                val drops = extractDrops(form)
+                if (drops != null) dropSpeciesCount++
 
                 val maleRatio = try { species.maleRatio } catch (_: Exception) { null }
                 val eggCycles = try { species.eggCycles } catch (_: Exception) { null }
@@ -473,39 +439,8 @@ object EvolutionDataLoader {
                 val baseExpYield = try { species.baseExperienceYield } catch (_: Exception) { null }
                 val friendship = try { species.baseFriendship } catch (_: Exception) { null }
 
-                val evYield = try {
-                    val yieldMap = mutableMapOf<String, Int>()
-                    for (stat in Stats.PERMANENT) {
-                        val value = form?.evYield?.get(stat) ?: 0
-                        if (value > 0) yieldMap[stat.showdownId] = value
-                    }
-                    yieldMap.ifEmpty { null }
-                } catch (_: Exception) { null }
-
-                val levelUpMoves = try {
-                    val moves = form?.moves?.levelUpMoves ?: emptyMap()
-                    val grouped = mutableMapOf<Int, MutableList<MoveDetail>>()
-                    for ((level, moveList) in moves) {
-                        for (move in moveList) {
-                            grouped.getOrPut(level) { mutableListOf() }.add(toMoveDetail(move))
-                        }
-                    }
-                    grouped.entries.sortedBy { it.key }
-                        .map { LevelUpMove(it.key, it.value) }
-                        .ifEmpty { null }
-                } catch (_: Exception) { null }
-
-                val eggMoves = try {
-                    form?.moves?.eggMoves?.map { toMoveDetail(it) }?.ifEmpty { null }
-                } catch (_: Exception) { null }
-
-                val tutorMoves = try {
-                    form?.moves?.tutorMoves?.map { toMoveDetail(it) }?.ifEmpty { null }
-                } catch (_: Exception) { null }
-
-                val tmMoves = try {
-                    form?.moves?.tmMoves?.map { toMoveDetail(it) }?.ifEmpty { null }
-                } catch (_: Exception) { null }
+                val evYield = extractEvYield(form)
+                val moves = extractMoves(form, fallbackForm = null)
 
                 val shoulderMount = try { species.shoulderMountable } catch (_: Exception) { false }
                 val source = try { species.resourceIdentifier?.namespace } catch (_: Exception) { null }
@@ -533,10 +468,10 @@ object EvolutionDataLoader {
                     experienceGroup = expGroup,
                     baseExperienceYield = baseExpYield,
                     baseFriendship = friendship,
-                    levelUpMoves = levelUpMoves,
-                    eggMoves = eggMoves,
-                    tutorMoves = tutorMoves,
-                    tmMoves = tmMoves,
+                    levelUpMoves = moves.levelUp,
+                    eggMoves = moves.egg,
+                    tutorMoves = moves.tutor,
+                    tmMoves = moves.tm,
                     shoulderMountable = shoulderMount,
                     source = source
                 )
@@ -700,6 +635,130 @@ object EvolutionDataLoader {
         return "${SpeciesNameNormalizer.normalize(baseName)}_$normalizedFormName"
     }
 
+    /**
+     * The four move lists of a learnset, already converted to [MoveDetail].
+     */
+    private data class ExtractedMoves(
+        val levelUp: List<LevelUpMove>?,
+        val egg: List<MoveDetail>?,
+        val tutor: List<MoveDetail>?,
+        val tm: List<MoveDetail>?,
+    )
+
+    // ---- Shared field extraction -------------------------------------------------------------
+    //
+    // The base-species and alternate-form readers below resolve most fields identically; these
+    // helpers hold that shared logic exactly once. Every one takes its fallback form explicitly,
+    // and passing null reproduces the base-species behaviour precisely, so unifying them changes
+    // no resolution order.
+    //
+    // Fields that genuinely differ between the two readers — secondaryType, labels, description,
+    // catchRate/weight/height — are deliberately NOT here. Each encodes a specific past bug (see
+    // the comments at their use sites) and collapsing them would reintroduce it.
+
+    /** Per-stat: the form's value when it has one, else the species'. */
+    private fun extractBaseStats(
+        form: com.cobblemon.mod.common.pokemon.FormData?,
+        species: com.cobblemon.mod.common.pokemon.Species,
+    ): Map<String, Int>? = try {
+        val statMap = mutableMapOf<String, Int>()
+        for (stat in Stats.PERMANENT) {
+            statMap[stat.showdownId] = form?.baseStats?.get(stat) ?: species.baseStats[stat] ?: 0
+        }
+        statMap.ifEmpty { null }
+    } catch (_: Exception) { null }
+
+    /** Common abilities and the hidden one. An empty list on a form means "inherit". */
+    private fun extractAbilities(
+        form: com.cobblemon.mod.common.pokemon.FormData?,
+        fallbackForm: com.cobblemon.mod.common.pokemon.FormData?,
+    ): Pair<List<String>?, String?> = try {
+        val abilities = (form?.abilities?.toList() ?: emptyList())
+            .ifEmpty { fallbackForm?.abilities?.toList() ?: emptyList() }
+        val common = mutableListOf<String>()
+        var hidden: String? = null
+        for (ability in abilities) {
+            val abilityName = titleCase(ability.template.name)
+            if (ability is HiddenAbility) hidden = abilityName else common.add(abilityName)
+        }
+        Pair(common.ifEmpty { null }, hidden)
+    } catch (_: Exception) { Pair(null, null) }
+
+    private fun extractEggGroups(
+        form: com.cobblemon.mod.common.pokemon.FormData?,
+        species: com.cobblemon.mod.common.pokemon.Species,
+    ): List<String>? = try {
+        (form?.eggGroups ?: emptySet()).ifEmpty { species.eggGroups }
+            .map { it.showdownID }
+            .ifEmpty { null }
+    } catch (_: Exception) { null }
+
+    private fun extractDrops(
+        form: com.cobblemon.mod.common.pokemon.FormData?,
+    ): List<DropEntryInfo>? = try {
+        (form?.drops?.entries ?: emptyList())
+            .filterIsInstance<ItemDropEntry>()
+            .map { entry ->
+                DropEntryInfo(
+                    itemId = entry.item.toString(),
+                    percentage = entry.percentage,
+                    quantity = entry.quantity,
+                    quantityRange = entry.quantityRange?.let { "${it.first}-${it.last}" }
+                )
+            }
+            .ifEmpty { null }
+    } catch (_: Exception) { null }
+
+    private fun extractEvYield(
+        form: com.cobblemon.mod.common.pokemon.FormData?,
+    ): Map<String, Int>? = try {
+        val yieldMap = mutableMapOf<String, Int>()
+        for (stat in Stats.PERMANENT) {
+            val value = form?.evYield?.get(stat) ?: 0
+            if (value > 0) yieldMap[stat.showdownId] = value
+        }
+        yieldMap.ifEmpty { null }
+    } catch (_: Exception) { null }
+
+    /**
+     * A form's empty move list is Cobblemon's convention for "inherit the base form's moveset",
+     * not "learns nothing" — confirmed via vanilla gimmighoul.json, whose Roaming form ships
+     * `"moves": []` on purpose. Passing a null [fallbackForm] (the base-species reader) leaves an
+     * empty list empty, which is that reader's existing behaviour.
+     */
+    private fun extractMoves(
+        form: com.cobblemon.mod.common.pokemon.FormData?,
+        fallbackForm: com.cobblemon.mod.common.pokemon.FormData?,
+    ): ExtractedMoves {
+        val levelUp = try {
+            val moves = (form?.moves?.levelUpMoves ?: emptyMap())
+                .ifEmpty { fallbackForm?.moves?.levelUpMoves ?: emptyMap() }
+            val grouped = mutableMapOf<Int, MutableList<MoveDetail>>()
+            for ((level, moveList) in moves) {
+                for (move in moveList) {
+                    grouped.getOrPut(level) { mutableListOf() }.add(toMoveDetail(move))
+                }
+            }
+            grouped.entries.sortedBy { it.key }.map { LevelUpMove(it.key, it.value) }.ifEmpty { null }
+        } catch (_: Exception) { null }
+
+        fun list(
+            pick: (com.cobblemon.mod.common.pokemon.FormData) -> List<com.cobblemon.mod.common.api.moves.MoveTemplate>,
+        ): List<MoveDetail>? = try {
+            (form?.let(pick) ?: emptyList())
+                .ifEmpty { fallbackForm?.let(pick) ?: emptyList() }
+                .map { toMoveDetail(it) }
+                .ifEmpty { null }
+        } catch (_: Exception) { null }
+
+        return ExtractedMoves(
+            levelUp = levelUp,
+            egg = list { it.moves.eggMoves },
+            tutor = list { it.moves.tutorMoves },
+            tm = list { it.moves.tmMoves },
+        )
+    }
+
     private fun buildFormSpeciesInfo(
         formKey: String,
         species: com.cobblemon.mod.common.pokemon.Species,
@@ -708,32 +767,9 @@ object EvolutionDataLoader {
     ): SpeciesBasicInfo {
         val baseName = species.name.lowercase()
 
-        val stats = try {
-            val statMap = mutableMapOf<String, Int>()
-            for (stat in Stats.PERMANENT) {
-                val value = if (form.baseStats.isNotEmpty()) {
-                    form.baseStats[stat] ?: species.baseStats[stat] ?: 0
-                } else {
-                    species.baseStats[stat] ?: 0
-                }
-                statMap[stat.showdownId] = value
-            }
-            statMap.ifEmpty { null }
-        } catch (_: Exception) { null }
-
+        val stats = extractBaseStats(form, species)
         val bst = stats?.values?.sum()
-
-        val abilityNames = try {
-            val common = mutableListOf<String>()
-            var hidden: String? = null
-            val abilities = form.abilities.toList().let { if (it.isNotEmpty()) it else baseForm?.abilities?.toList() ?: emptyList() }
-            for (ability in abilities) {
-                val abilityName = titleCase(ability.template.name)
-                if (ability is HiddenAbility) hidden = abilityName
-                else common.add(abilityName)
-            }
-            Pair(common.ifEmpty { null }, hidden)
-        } catch (_: Exception) { Pair(null, null) }
+        val abilityNames = extractAbilities(form, fallbackForm = baseForm)
 
         val primaryType = try { form.primaryType?.name?.lowercase() ?: species.primaryType?.name?.lowercase() ?: "normal" } catch (_: Exception) { "normal" }
         // form.secondaryType being null is a real, meaningful value - "this
@@ -749,77 +785,18 @@ object EvolutionDataLoader {
         // Ghost typing) until this fallback was removed.
         val secondaryType = try { form.secondaryType?.name?.lowercase() } catch (_: Exception) { null }
 
-        val eggGroups = try {
-            val groups = form.eggGroups.ifEmpty { species.eggGroups }
-            groups.map { it.showdownID }.ifEmpty { null }
-        } catch (_: Exception) { null }
+        val eggGroups = extractEggGroups(form, species)
 
         val description = try {
             val key = form.pokedex.firstOrNull() ?: species.pokedex.firstOrNull()
             if (key != null && key.isNotBlank()) key else null
         } catch (_: Exception) { null }
 
-        val drops = try {
-            val entries = form.drops.entries
-                .filterIsInstance<ItemDropEntry>()
-                .map { entry ->
-                    DropEntryInfo(
-                        itemId = entry.item.toString(),
-                        percentage = entry.percentage,
-                        quantity = entry.quantity,
-                        quantityRange = entry.quantityRange?.let { "${it.first}-${it.last}" }
-                    )
-                }
-            entries.ifEmpty { null }
-        } catch (_: Exception) { null }
+        val drops = extractDrops(form)
+        val evYield = extractEvYield(form)
 
-        val evYield = try {
-            val yieldMap = mutableMapOf<String, Int>()
-            for (stat in Stats.PERMANENT) {
-                val value = form.evYield[stat] ?: 0
-                if (value > 0) yieldMap[stat.showdownId] = value
-            }
-            yieldMap.ifEmpty { null }
-        } catch (_: Exception) { null }
-
-        // A form's moves being empty is Cobblemon's convention for "inherit the
-        // base form's moveset", not "this form learns nothing" - confirmed via
-        // vanilla Cobblemon's own gimmighoul.json, whose "Roaming" form has
-        // "moves": [] on purpose (Roaming and Chest Gimmighoul learn the same
-        // moves as base Gimmighoul). abilities/eggGroups a few lines below
-        // already fall back to baseForm when the form's own value is empty;
-        // the four move lists here didn't, so any form relying on this
-        // convention (rather than genuinely overriding its moveset) silently
-        // lost its entire learnset with no fallback.
-        val levelUpMoves = try {
-            val moves = form.moves.levelUpMoves.ifEmpty { baseForm?.moves?.levelUpMoves ?: emptyMap() }
-            if (moves.isNotEmpty()) {
-                val grouped = mutableMapOf<Int, MutableList<MoveDetail>>()
-                for ((level, moveList) in moves) {
-                    for (move in moveList) {
-                        grouped.getOrPut(level) { mutableListOf() }.add(toMoveDetail(move))
-                    }
-                }
-                grouped.entries.sortedBy { it.key }
-                    .map { LevelUpMove(it.key, it.value) }
-                    .ifEmpty { null }
-            } else null
-        } catch (_: Exception) { null }
-
-        val eggMoves = try {
-            form.moves.eggMoves.ifEmpty { baseForm?.moves?.eggMoves ?: emptyList() }
-                .map { toMoveDetail(it) }.ifEmpty { null }
-        } catch (_: Exception) { null }
-
-        val tutorMoves = try {
-            form.moves.tutorMoves.ifEmpty { baseForm?.moves?.tutorMoves ?: emptyList() }
-                .map { toMoveDetail(it) }.ifEmpty { null }
-        } catch (_: Exception) { null }
-
-        val tmMoves = try {
-            form.moves.tmMoves.ifEmpty { baseForm?.moves?.tmMoves ?: emptyList() }
-                .map { toMoveDetail(it) }.ifEmpty { null }
-        } catch (_: Exception) { null }
+        // Falls back to baseForm when the form's own list is empty — see extractMoves.
+        val moves = extractMoves(form, fallbackForm = baseForm)
 
         // Build the form name for i18n: preserve original casing with hyphens (e.g. "mega-x", "therian")
         val rawFormName = form.name.lowercase()
@@ -850,10 +827,10 @@ object EvolutionDataLoader {
             experienceGroup = try { species.experienceGroup.name } catch (_: Exception) { null },
             baseExperienceYield = try { species.baseExperienceYield } catch (_: Exception) { null },
             baseFriendship = try { species.baseFriendship } catch (_: Exception) { null },
-            levelUpMoves = levelUpMoves,
-            eggMoves = eggMoves,
-            tutorMoves = tutorMoves,
-            tmMoves = tmMoves,
+            levelUpMoves = moves.levelUp,
+            eggMoves = moves.egg,
+            tutorMoves = moves.tutor,
+            tmMoves = moves.tm,
             shoulderMountable = try { species.shoulderMountable } catch (_: Exception) { false },
             formName = rawFormName,
             baseSpeciesName = baseName,

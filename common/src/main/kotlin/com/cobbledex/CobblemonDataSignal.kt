@@ -1,0 +1,57 @@
+package com.cobbledex
+
+import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
+import com.cobblemon.mod.common.api.spawning.CobblemonSpawnPools
+
+/**
+ * Tells CobbleDex when Cobblemon's client-side data has changed, so the index rebuilds off a real
+ * signal instead of a blind retry loop.
+ *
+ * Cobblemon gives us no client-side "data synchronised" callback: `PokemonSpecies.observable` only
+ * fires on the datapack-load path (server / singleplayer), *not* on the network path — its
+ * `reload(Map)` used by `SpeciesRegistrySyncPacket` swaps the registry maps and emits nothing. So
+ * the only reliable signal is the registry contents themselves. This takes a cheap fingerprint of
+ * them and reports transitions.
+ *
+ * Both reads are O(registry size) over ~1-2k entries and only run on the sample interval, which is
+ * far cheaper than the rebuild it guards.
+ */
+object CobblemonDataSignal {
+
+    /** Sentinel for "nothing sampled yet" — distinct from a real all-zero fingerprint. */
+    private const val NO_SAMPLE = -1L
+
+    @Volatile
+    private var lastFingerprint: Long = NO_SAMPLE
+
+    /**
+     * Cobblemon's client registries as one comparable value.
+     *
+     * Species count moves when `species_sync` lands (and on any later Cobblemon reload); spawn-pool
+     * size moves when a singleplayer/LAN world finishes loading its spawn files. On a dedicated
+     * server the pool stays at 0 forever, which is correct — it is never synced.
+     */
+    private fun fingerprint(): Long {
+        val speciesCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
+        val spawnCount = try { CobblemonSpawnPools.WORLD_SPAWN_POOL.details.size } catch (_: Exception) { 0 }
+        return speciesCount.toLong() * 1_000_003L + spawnCount.toLong()
+    }
+
+    /** True when Cobblemon's data differs from the last sample. Records the new sample. */
+    fun consumeChange(): Boolean {
+        val current = fingerprint()
+        if (current == lastFingerprint) return false
+        val previous = lastFingerprint
+        lastFingerprint = current
+        DebugLog.info(
+            if (previous == NO_SAMPLE) "Cobblemon data available (fingerprint $current)"
+            else "Cobblemon data changed ($previous -> $current)"
+        )
+        return true
+    }
+
+    /** Forget the last sample so the next [consumeChange] reports a change. */
+    fun reset() {
+        lastFingerprint = NO_SAMPLE
+    }
+}

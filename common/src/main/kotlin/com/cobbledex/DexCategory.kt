@@ -50,9 +50,6 @@ class RecipeHandle(
     data class Slots(
         val pokemon: List<PokemonSlotDef> = emptyList(),
         val items: List<ItemSlotDef> = emptyList(),
-        val arrowX: Int = 0,
-        val arrowY: Int = 0,
-        val hasArrow: Boolean = false,
         val catalogInputIds: List<String> = emptyList(),
         val moveLinks: List<MoveLinkDef> = emptyList(),
         /** Set on a move-learner grid: the move it lists learners for, so viewers can key nav on it. */
@@ -114,7 +111,13 @@ interface DexCategory {
     val id: String
     val titleKey: String
     val icon: Item
-    val maxSize: () -> CategorySizer.PanelSize
+    /**
+     * Panel bounds for this category, measured across all its recipes and cached per data
+     * version ([CategorySizer.getBounds]). Every category measures itself the same way, so this
+     * is a computed default rather than fifteen identical overrides.
+     */
+    val maxSize: CategorySizer.PanelSize
+        get() = CategorySizer.getBounds(this)
     val supportsRecipeTree: Boolean get() = false
 
     fun isEnabled(config: CobbleDexConfig): Boolean
@@ -147,7 +150,6 @@ object PokemonOverviewDex : DexCategory {
     override val id = "overview"
     override val titleKey = "category.cobbledex-rei-emi-jei.overview"
     override val icon: Item = Items.COMPASS
-    override val maxSize: () -> CategorySizer.PanelSize = { CategorySizer.getBounds(this) }
     override val supportsRecipeTree = true
     override fun isEnabled(config: CobbleDexConfig) = true
 
@@ -174,7 +176,6 @@ object SpawnDex : DexCategory {
     override val id = "spawns"
     override val titleKey = "category.cobbledex-rei-emi-jei.spawn"
     override val icon: Item = Items.GRASS_BLOCK
-    override val maxSize: () -> CategorySizer.PanelSize = { CategorySizer.getBounds(this) }
     override fun isEnabled(config: CobbleDexConfig) = true
 
     override fun buildAllRecipes(): List<RecipeHandle> {
@@ -209,7 +210,6 @@ object EvolutionDex : DexCategory {
     override val id = "evolution"
     override val titleKey = "category.cobbledex-rei-emi-jei.evolution"
     override val icon: Item = Items.EXPERIENCE_BOTTLE
-    override val maxSize: () -> CategorySizer.PanelSize = { CategorySizer.getBounds(this) }
     override fun isEnabled(config: CobbleDexConfig) = config.showEvolutions
 
     override fun buildAllRecipes(): List<RecipeHandle> =
@@ -271,7 +271,6 @@ object ObtainmentDex : DexCategory {
     override val id = "obtainment"
     override val titleKey = "category.cobbledex-rei-emi-jei.obtainment"
     override val icon: Item = Items.NETHER_STAR
-    override val maxSize: () -> CategorySizer.PanelSize = { CategorySizer.getBounds(this) }
     override val supportsRecipeTree = true
     override fun isEnabled(config: CobbleDexConfig) = config.showObtainment
 
@@ -289,8 +288,6 @@ object ObtainmentDex : DexCategory {
         inputSpecies = emptyList(),
         outputSpecies = listOf(d.speciesName),
         layoutFactory = { ObtainmentPageBuilder.buildUnified(d) },
-        _width = { ObtainmentPageBuilder.measureUnifiedWidth(d.speciesName) },
-        _height = { ObtainmentPageBuilder.measureUnifiedHeight(d) },
         _slots = {
             RecipeHandle.Slots(
                 pokemon = listOf(pokemonOutput(d.speciesName, 8, 3)),
@@ -306,7 +303,6 @@ object DropDex : DexCategory {
     override val id = "drops"
     override val titleKey = "category.cobbledex-rei-emi-jei.drops"
     override val icon: Item = Items.DIAMOND
-    override val maxSize: () -> CategorySizer.PanelSize = { CategorySizer.getBounds(this) }
     override val supportsRecipeTree = true
     override fun isEnabled(config: CobbleDexConfig) = config.showDrops
 
@@ -347,8 +343,6 @@ object DropDex : DexCategory {
         inputSpecies = listOf(d.speciesName),
         outputSpecies = emptyList(),
         layoutFactory = { DropPageBuilder.build(d) },
-        _width = { DropPageBuilder.measureWidth(d) },
-        _height = { DropPageBuilder.measureHeight(d) },
         _slots = {
             RecipeHandle.Slots(
                 pokemon = listOf(pokemonInput(d.speciesName)),
@@ -368,7 +362,6 @@ object StatsDex : DexCategory {
     override val id = "stats"
     override val titleKey = "category.cobbledex-rei-emi-jei.stats"
     override val icon: Item = Items.BOOK
-    override val maxSize: () -> CategorySizer.PanelSize = { CategorySizer.getBounds(this) }
     override val supportsRecipeTree = true
     override fun isEnabled(config: CobbleDexConfig) = config.showStats
 
@@ -395,7 +388,6 @@ object MovesDex : DexCategory {
     override val id = "moves"
     override val titleKey = "category.cobbledex-rei-emi-jei.moves"
     override val icon: Item = Items.PAPER
-    override val maxSize: () -> CategorySizer.PanelSize = { CategorySizer.getBounds(this) }
     override val supportsRecipeTree = true
     override fun isEnabled(config: CobbleDexConfig) = config.showMoves
 
@@ -458,7 +450,6 @@ object PokedexInfoDex : DexCategory {
     override val id = "pokedex_info"
     override val titleKey = "category.cobbledex-rei-emi-jei.pokedex_info"
     override val icon: Item = Items.WRITABLE_BOOK
-    override val maxSize: () -> CategorySizer.PanelSize = { CategorySizer.getBounds(this) }
     override val supportsRecipeTree = true
     override fun isEnabled(config: CobbleDexConfig) = config.showPokedexInfo
 
@@ -485,7 +476,6 @@ object PokemonDescriptionDex : DexCategory {
     override val id = "pokemon_description"
     override val titleKey = "category.cobbledex-rei-emi-jei.pokemon_description"
     override val icon: Item = Items.BOOK
-    override val maxSize: () -> CategorySizer.PanelSize = { CategorySizer.getBounds(this) }
     override val supportsRecipeTree = true
     override fun isEnabled(config: CobbleDexConfig) = config.showPokemonDescription
 
@@ -512,7 +502,6 @@ object FossilDex : DexCategory {
     override val id = "fossils"
     override val titleKey = "category.cobbledex-rei-emi-jei.fossils"
     override val icon: Item = Items.BONE
-    override val maxSize: () -> CategorySizer.PanelSize = { CategorySizer.getBounds(this) }
     override val supportsRecipeTree = true
     override fun isEnabled(config: CobbleDexConfig) = config.showFossils
 
@@ -547,7 +536,6 @@ object TypeChartDex : DexCategory {
     override val id = "type_chart"
     override val titleKey = "category.cobbledex-rei-emi-jei.type_chart"
     override val icon: Item = Items.SHIELD
-    override val maxSize: () -> CategorySizer.PanelSize = { CategorySizer.getBounds(this) }
     override val supportsRecipeTree = true
     override fun isEnabled(config: CobbleDexConfig) = config.showTypeChart
 
@@ -574,7 +562,6 @@ object NatureDex : DexCategory {
     override val id = "natures"
     override val titleKey = "category.cobbledex-rei-emi-jei.natures"
     override val icon: Item = Items.WRITABLE_BOOK
-    override val maxSize: () -> CategorySizer.PanelSize = { CategorySizer.getBounds(this) }
     override fun isEnabled(config: CobbleDexConfig) = config.showNatures
 
     override fun buildAllRecipes() =
@@ -596,7 +583,6 @@ object JobsDex : DexCategory {
     override val id = "jobs"
     override val titleKey = "category.cobbledex-rei-emi-jei.jobs"
     override val icon: Item = Items.IRON_PICKAXE
-    override val maxSize: () -> CategorySizer.PanelSize = { CategorySizer.getBounds(this) }
     override val supportsRecipeTree = true
     override fun isEnabled(config: CobbleDexConfig) = config.showJobs
 
@@ -625,7 +611,6 @@ object FormsDex : DexCategory {
     override val id = "forms"
     override val titleKey = "category.cobbledex-rei-emi-jei.forms"
     override val icon: Item = Items.AMETHYST_SHARD
-    override val maxSize: () -> CategorySizer.PanelSize = { CategorySizer.getBounds(this) }
     override val supportsRecipeTree = true
     override fun isEnabled(config: CobbleDexConfig) = config.showAlternateForms
 
@@ -651,8 +636,6 @@ object FormsDex : DexCategory {
                 formResult = r
                 r.layout
             },
-            _width = { PokemonInfoPageBuilder.measureFormsWidth(d) },
-            _height = { PokemonInfoPageBuilder.measureFormsHeight(d) },
             _slots = {
                 val r = formResult ?: PokemonInfoPageBuilder.buildForms(d).also { formResult = it }
                 RecipeHandle.Slots(pokemon = r.pokemonSlots)
@@ -667,7 +650,6 @@ object RidingDex : DexCategory {
     override val id = "riding"
     override val titleKey = "category.cobbledex-rei-emi-jei.riding"
     override val icon: Item = Items.SADDLE
-    override val maxSize: () -> CategorySizer.PanelSize = { CategorySizer.getBounds(this) }
     override val supportsRecipeTree = true
     override fun isEnabled(config: CobbleDexConfig) = config.showRiding
 

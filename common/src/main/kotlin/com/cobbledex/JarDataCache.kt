@@ -31,6 +31,10 @@ object JarDataCache {
     private var cachedFormMoves: Map<String, JarMoveData> = emptyMap()
     @Volatile
     private var cachedFossils: Map<String, List<FossilCombo>> = emptyMap()
+    @Volatile
+    private var cachedTraits: Map<String, JarTraitData> = emptyMap()
+    @Volatile
+    private var cachedFormTraits: Map<String, JarTraitData> = emptyMap()
 
     /** Raw move data parsed from species JSON in mod JARs. */
     data class JarMoveData(
@@ -39,6 +43,29 @@ object JarDataCache {
         val tutor: List<String>,
         val tm: List<String>,
     )
+
+    /**
+     * The species fields Cobblemon's network sync does not carry.
+     *
+     * Verified against Cobblemon 1.7's `Species.encode` / `FormData.encode`: neither writes
+     * `catchRate`, `eggGroups`, `eggCycles`, `baseFriendship`, `evYield`, `baseExperienceYield` or
+     * `labels`, so a client connected to a dedicated server has none of them. Parsed here from the
+     * same species JSON so [SpeciesTraitMerger] can fill each gap individually.
+     */
+    data class JarTraitData(
+        val catchRate: Int? = null,
+        val eggGroups: List<String>? = null,
+        val eggCycles: Int? = null,
+        val baseFriendship: Int? = null,
+        val baseExperienceYield: Int? = null,
+        val evYield: Map<String, Int>? = null,
+        val labels: Set<String>? = null,
+    ) {
+        val isEmpty: Boolean
+            get() = catchRate == null && eggGroups == null && eggCycles == null &&
+                baseFriendship == null && baseExperienceYield == null && evYield == null &&
+                labels == null
+    }
 
     private val initialized = AtomicBoolean(false)
     private val loading = AtomicBoolean(false)
@@ -57,6 +84,9 @@ object JarDataCache {
     fun getCachedFormMoves(): Map<String, JarMoveData> = cachedFormMoves
     fun hasCachedFossils(): Boolean = cachedFossils.isNotEmpty()
     fun getCachedFossils(): Map<String, List<FossilCombo>> = cachedFossils
+    fun hasCachedTraits(): Boolean = cachedTraits.isNotEmpty() || cachedFormTraits.isNotEmpty()
+    fun getCachedTraits(): Map<String, JarTraitData> = cachedTraits
+    fun getCachedFormTraits(): Map<String, JarTraitData> = cachedFormTraits
 
     /**
      * Wait for the cache to finish initializing (up to timeout).
@@ -83,10 +113,12 @@ object JarDataCache {
             DebugLog.info("JarDataCache: loaded ${presets.size} spawn presets")
 
             cachedSpawns = parseSpawnsFromJars(modRoots, presets)
-            val evoAndMoves = parseEvolutionsAndMovesFromJars(modRoots)
-            cachedEvolutions = evoAndMoves.first
-            cachedMoves = evoAndMoves.second
-            cachedFormMoves = evoAndMoves.third
+            val scan = parseEvolutionsAndMovesFromJars(modRoots)
+            cachedEvolutions = scan.evolutions
+            cachedMoves = scan.moves
+            cachedFormMoves = scan.formMoves
+            cachedTraits = scan.traits
+            cachedFormTraits = scan.formTraits
             cachedFossils = parseFossilsFromJars(modRoots)
 
             val elapsed = System.currentTimeMillis() - startTime
@@ -94,6 +126,7 @@ object JarDataCache {
                 "${cachedSpawns.size} species with spawns, " +
                 "${cachedEvolutions.size} species with evolutions, " +
                 "${cachedMoves.size} species with moves, " +
+                "${cachedTraits.size} species with breeding/dex traits, " +
                 "${cachedFossils.values.sumOf { it.size }} fossils for ${cachedFossils.size} species")
 
             initialized.set(true)
@@ -506,11 +539,23 @@ object JarDataCache {
         var formEvoCount = 0
     }
 
-    private fun parseEvolutionsAndMovesFromJars(modRoots: List<Path>): Triple<Map<String, List<EvolutionInfo>>, Map<String, JarMoveData>, Map<String, JarMoveData>> {
-        val result = mutableMapOf<String, MutableList<EvolutionInfo>>()
-        val movesResult = mutableMapOf<String, JarMoveData>()
-        val formMovesResult = mutableMapOf<String, JarMoveData>()
+    /**
+     * Everything one pass over the species JSON yields. Held as a single object so adding a field
+     * doesn't mean widening four method signatures.
+     */
+    private class SpeciesJsonScan {
+        val evolutions = mutableMapOf<String, MutableList<EvolutionInfo>>()
+        val moves = mutableMapOf<String, JarMoveData>()
+        val formMoves = mutableMapOf<String, JarMoveData>()
+        val traits = mutableMapOf<String, JarTraitData>()
+        val formTraits = mutableMapOf<String, JarTraitData>()
         val counters = EvoMoveParseCounters()
+    }
+
+    private fun parseEvolutionsAndMovesFromJars(modRoots: List<Path>): SpeciesJsonScan {
+        val scan = SpeciesJsonScan()
+        val result = scan.evolutions
+        val counters = scan.counters
 
         // "species/*.json" files declare a species outright via a "name" field.
         // "species_additions/*.json" files patch an *existing* species (added by
@@ -522,7 +567,7 @@ object JarDataCache {
         // (from "species/") parse fine.
         for (root in modRoots) {
             try {
-                scanLooseSpeciesDataDir(root.resolve("data"), result, movesResult, formMovesResult, counters)
+                scanLooseSpeciesDataDir(root.resolve("data"), scan)
             } catch (_: Exception) {}
         }
 
@@ -557,7 +602,7 @@ object JarDataCache {
                     entries.filter { Files.isDirectory(it) }
                         .filter { !isResourcePacks || it.fileName.toString() in enabledResourcePackFiles }
                         .forEach { pack ->
-                            scanLooseSpeciesDataDir(pack.resolve("data"), result, movesResult, formMovesResult, counters)
+                            scanLooseSpeciesDataDir(pack.resolve("data"), scan)
                         }
                 }
 
@@ -566,23 +611,18 @@ object JarDataCache {
                 }
                 for ((subFolder, isAddition) in listOf("species" to false, "species_additions" to true)) {
                     scanZipDatapacks(dir, subFolder, zipFilter) { _, _, json ->
-                        processSpeciesJsonObject(json, isAddition, result, movesResult, formMovesResult, counters)
+                        processSpeciesJsonObject(json, isAddition, scan)
                     }
                 }
             }
         } catch (_: Exception) {}
 
         DebugLog.info("JarDataCache: parsed ${counters.baseEvoCount} base + ${counters.formEvoCount} form evolutions from ${counters.fileCount} species files (${counters.failCount} failed)")
-        return Triple(result, movesResult, formMovesResult)
+        return scan
     }
 
-    private fun scanLooseSpeciesDataDir(
-        dataDir: Path,
-        result: MutableMap<String, MutableList<EvolutionInfo>>,
-        movesResult: MutableMap<String, JarMoveData>,
-        formMovesResult: MutableMap<String, JarMoveData>,
-        counters: EvoMoveParseCounters,
-    ) {
+    private fun scanLooseSpeciesDataDir(dataDir: Path, scan: SpeciesJsonScan) {
+        val counters = scan.counters
         if (!Files.exists(dataDir) || !Files.isDirectory(dataDir)) return
 
         Files.list(dataDir).use { namespaces ->
@@ -597,7 +637,7 @@ object JarDataCache {
                                 val obj = InputStreamReader(Files.newInputStream(file), Charsets.UTF_8).use { reader ->
                                     JsonParser.parseReader(reader).asJsonObject
                                 }
-                                processSpeciesJsonObject(obj, isAddition, result, movesResult, formMovesResult, counters)
+                                processSpeciesJsonObject(obj, isAddition, scan)
                             } catch (_: Exception) { counters.failCount++ }
                         }
                     }
@@ -606,14 +646,11 @@ object JarDataCache {
         }
     }
 
-    private fun processSpeciesJsonObject(
-        obj: JsonObject,
-        isAddition: Boolean,
-        result: MutableMap<String, MutableList<EvolutionInfo>>,
-        movesResult: MutableMap<String, JarMoveData>,
-        formMovesResult: MutableMap<String, JarMoveData>,
-        counters: EvoMoveParseCounters,
-    ) {
+    private fun processSpeciesJsonObject(obj: JsonObject, isAddition: Boolean, scan: SpeciesJsonScan) {
+        val result = scan.evolutions
+        val movesResult = scan.moves
+        val formMovesResult = scan.formMoves
+        val counters = scan.counters
         try {
             val rawName = if (isAddition) {
                 obj.optString("target")?.substringAfter(':')?.lowercase()
@@ -625,7 +662,7 @@ object JarDataCache {
             // "Mime Jr.") - every other map in the pipeline is keyed by
             // SpeciesNameNormalizer.normalize()'d ids, so leaving this one
             // unnormalized meant movesResult["great tusk"] (with a space)
-            // never matched enrichWithJarMoves's lookup by the real
+            // never matched SpeciesTraitMerger's lookup by the real
             // normalized key "greattusk", silently losing that species' TM/
             // tutor/egg move fallback entirely (confirmed via the exported
             // CobbleDex spreadsheet: Great Tusk showed only its 17 level-up
@@ -638,6 +675,11 @@ object JarDataCache {
             if (movesArray != null) {
                 parseMovesArray(movesArray)?.let { movesResult[name] = it }
             }
+
+            // Breeding/dex traits Cobblemon's species sync leaves out entirely. species_additions
+            // files patch an existing species, so their traits are merged over any already parsed
+            // for that name rather than replacing them wholesale.
+            parseTraits(obj)?.let { scan.traits[name] = scan.traits[name]?.overlaidWith(it) ?: it }
 
             // Base evolutions
             val evolutions = obj.optArray("evolutions")
@@ -661,7 +703,7 @@ object JarDataCache {
             // its JSON, but Cobblemon's runtime form.moves only exposed the
             // 13 level-up ones, losing all 59 TM/20 tutor/10 egg moves).
             // Parsed here from the raw JSON as a fallback source, keyed
-            // identically to the runtime form key so enrichWithJarMoves can
+            // identically to the runtime form key so SpeciesTraitMerger can
             // fill the gap per-form instead of only for the bare base
             // species.
             val forms = obj.optArray("forms")
@@ -676,6 +718,10 @@ object JarDataCache {
                         val formMovesArray = form.optArray("moves")
                         if (formMovesArray != null) {
                             parseMovesArray(formMovesArray)?.let { formMovesResult[formKey] = it }
+                        }
+
+                        parseTraits(form)?.let {
+                            scan.formTraits[formKey] = scan.formTraits[formKey]?.overlaidWith(it) ?: it
                         }
 
                         val formEvos = form.optArray("evolutions")
@@ -698,6 +744,46 @@ object JarDataCache {
             }
         } catch (_: Exception) { counters.failCount++ }
     }
+
+    /**
+     * Reads the breeding/dex fields out of a species or form JSON object. Returns null when the
+     * object declares none of them, so a form that only overrides (say) its typing doesn't shadow
+     * its base species' traits with a row of nulls.
+     */
+    private fun parseTraits(obj: JsonObject): JarTraitData? {
+        val evYield = obj.optObject("evYield")?.let { yields ->
+            val parsed = mutableMapOf<String, Int>()
+            for ((stat, value) in yields.entrySet()) {
+                try {
+                    val amount = value.asInt
+                    if (amount != 0) parsed[stat.lowercase()] = amount
+                } catch (_: Exception) {}
+            }
+            parsed.ifEmpty { null }
+        }
+        val labels = obj.optStringArray("labels").takeIf { it.isNotEmpty() }?.map { it.lowercase() }?.toSet()
+        val data = JarTraitData(
+            catchRate = obj.optInt("catchRate"),
+            eggGroups = obj.optStringArray("eggGroups").takeIf { it.isNotEmpty() }?.map { it.lowercase() },
+            eggCycles = obj.optInt("eggCycles"),
+            baseFriendship = obj.optInt("baseFriendship"),
+            baseExperienceYield = obj.optInt("baseExperienceYield"),
+            evYield = evYield,
+            labels = labels,
+        )
+        return if (data.isEmpty) null else data
+    }
+
+    /** Field-wise overlay: values present in [other] win, everything else is kept. */
+    private fun JarTraitData.overlaidWith(other: JarTraitData): JarTraitData = JarTraitData(
+        catchRate = other.catchRate ?: catchRate,
+        eggGroups = other.eggGroups ?: eggGroups,
+        eggCycles = other.eggCycles ?: eggCycles,
+        baseFriendship = other.baseFriendship ?: baseFriendship,
+        baseExperienceYield = other.baseExperienceYield ?: baseExperienceYield,
+        evYield = other.evYield ?: evYield,
+        labels = other.labels ?: labels,
+    )
 
     private fun parseMovesArray(movesArray: JsonArray): JarMoveData? {
         val levelUp = mutableMapOf<Int, MutableList<String>>()
@@ -833,87 +919,55 @@ object JarDataCache {
         )
     }
 
-    private fun parseRequirementFromJson(req: JsonObject): EvolutionRequirement {
-        val variant = req.optString("variant") ?: "unknown"
-        val data = mutableMapOf<String, Any>()
+    /**
+     * Reads one evolution requirement out of species JSON.
+     *
+     * Table-driven off [EvolutionRequirementSpec] rather than a branch per variant: the variant
+     * names and their field names live in exactly one place, shared with the runtime reader in
+     * [EvolutionDataLoader], so the two cannot drift apart.
+     */
+    internal fun parseRequirementFromJson(req: JsonObject): EvolutionRequirement {
+        val variant = req.optString("variant") ?: EvolutionRequirementSpec.UNKNOWN
+        val spec = EvolutionRequirementSpec.forVariant(variant)
 
-        when (variant) {
-            "level" -> req.optInt("minLevel")?.let { data["minLevel"] = it }
-            "friendship" -> req.optInt("amount")?.let { data["amount"] = it }
-            "time_range" -> req.optString("range")?.let { data["range"] = it }
-            "held_item" -> req.optString("itemCondition")?.let { data["itemCondition"] = it }
-            "owner_holds_item" -> req.optString("itemCondition")?.let { data["itemCondition"] = it }
-            "has_move_type", "move_type" -> req.optString("type")?.let { data["type"] = it }
-            "move_set", "has_move" -> req.optString("move")?.let { data["move"] = it }
-            "biome" -> {
-                req.optString("biomeCondition")?.let { data["biomeCondition"] = it }
-                req.optString("biomeAnticondition")?.let { data["biomeAnticondition"] = it }
+        // "any" is a wrapper: show the first possibility rather than the wrapper itself.
+        if (spec?.variant == EvolutionRequirementSpec.ANY) {
+            val possibilities = req.optArray("possibilities")
+            if (possibilities != null && !possibilities.isEmpty) {
+                try {
+                    return parseRequirementFromJson(possibilities[0].asJsonObject)
+                } catch (_: Exception) {}
             }
-            "structure" -> {
-                req.optString("structureCondition")?.let { data["structureCondition"] = it }
-                req.optString("structureAnticondition")?.let { data["structureAnticondition"] = it }
-            }
-            "stat_compare" -> {
-                req.optString("highStat")?.let { data["highStat"] = it }
-                req.optString("lowStat")?.let { data["lowStat"] = it }
-            }
-            "stat_equal" -> {
-                req.optString("statOne")?.let { data["statOne"] = it }
-                req.optString("statTwo")?.let { data["statTwo"] = it }
-            }
-            "pokemon_properties", "properties" -> {
-                req.optString("target")?.let { data["target"] = it }
-            }
-            "property_range" -> {
-                req.optString("range")?.let { data["range"] = it }
-                req.optString("feature")?.let { data["feature"] = it }
-            }
-            "blocks_traveled" -> req.optInt("amount")?.let { data["amount"] = it }
-            "use_move" -> {
-                req.optString("move")?.let { data["move"] = it }
-                req.optInt("amount")?.let { data["amount"] = it }
-            }
-            "defeat" -> {
-                req.optString("target")?.let { data["target"] = it }
-                req.optInt("amount")?.let { data["amount"] = it }
-            }
-            "recoil" -> req.optInt("amount")?.let { data["amount"] = it }
-            "damage_taken" -> req.optInt("amount")?.let { data["amount"] = it }
-            "battle_critical_hits" -> req.optInt("amount")?.let { data["amount"] = it }
-            "party_member" -> {
-                req.optString("target")?.let { data["target"] = it }
-                req.optBool("contains")?.let { data["contains"] = it }
-            }
-            "moon_phase" -> req.optString("moonPhase")?.let { data["moonPhase"] = it }
-            "weather" -> req.optBool("isRaining")?.let { data["isRaining"] = it }
-            "advancement" -> req.optString("requiredAdvancement")?.let { data["requiredAdvancement"] = it }
-            "world" -> req.optString("identifier")?.let { data["identifier"] = it }
-            "attack_defence_ratio" -> req.optString("ratio")?.let { data["ratio"] = it }
-            "any" -> {
-                val possibilities = req.optArray("possibilities")
-                if (possibilities != null && !possibilities.isEmpty) {
-                    try {
-                        return parseRequirementFromJson(possibilities[0].asJsonObject)
-                    } catch (_: Exception) {}
-                }
-            }
-            else -> {
-                // Generic: copy all non-variant primitive fields
-                for ((key, value) in req.entrySet()) {
-                    if (key == "variant") continue
-                    if (value.isJsonPrimitive) {
-                        val prim = value.asJsonPrimitive
-                        when {
-                            prim.isNumber -> data[key] = prim.asNumber
-                            prim.isBoolean -> data[key] = prim.asBoolean
-                            prim.isString -> data[key] = prim.asString
-                        }
-                    }
-                }
-            }
+            return EvolutionRequirement(EvolutionRequirementSpec.ANY, emptyMap())
         }
 
-        return EvolutionRequirement(variant, data)
+        if (spec == null) {
+            // Unrecognised variant — keep whatever primitives it carries so the page can still say
+            // something useful, rather than dropping the requirement entirely.
+            val data = mutableMapOf<String, Any>()
+            for ((key, value) in req.entrySet()) {
+                if (key == "variant") continue
+                val prim = value.takeIf { it.isJsonPrimitive }?.asJsonPrimitive ?: continue
+                when {
+                    prim.isNumber -> data[key] = prim.asNumber
+                    prim.isBoolean -> data[key] = prim.asBoolean
+                    prim.isString -> data[key] = prim.asString
+                }
+            }
+            return EvolutionRequirement(variant, data)
+        }
+
+        val data = mutableMapOf<String, Any>()
+        for (field in spec.fields) {
+            val value: Any? = when (field.type) {
+                EvolutionRequirementSpec.FieldType.STRING -> req.optString(field.key)
+                EvolutionRequirementSpec.FieldType.INT -> req.optInt(field.key)
+                EvolutionRequirementSpec.FieldType.BOOLEAN -> req.optBool(field.key)
+            }
+            if (value != null) data[field.key] = value
+        }
+        // Always report the canonical name, so an alias like "has_move" renders as "move_set".
+        return EvolutionRequirement(spec.variant, data)
     }
 
     // ==================== Fossil Parsing ====================

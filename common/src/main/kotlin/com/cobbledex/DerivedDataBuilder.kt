@@ -34,9 +34,13 @@ object DerivedDataBuilder {
         // species' own evolution chain too, not just its separate "Otras
         // formas/Megas" panel. Mirrors the equivalent fix in the companion
         // Pokedex website's pipeline (pokedex-site/pipeline/src/index.ts).
-        val baseSpeciesNames = try {
-            com.cobblemon.mod.common.api.pokemon.PokemonSpecies.implemented.map { it.name.lowercase() }
-        } catch (_: Exception) { emptyList() }
+        // Every Cobblemon species name, read once via the same injectable seam addRuntimeSpecies
+        // uses (the un-injected direct call here was why the unit test hit NoClassDefFoundError
+        // with Cobblemon off the test classpath), then reused for enumeration below.
+        val runtimeSpeciesList: List<String> = try {
+            runtimeSpeciesNames().toList()
+        } catch (_: Throwable) { emptyList() }
+        val baseSpeciesNames = runtimeSpeciesList.map { it.lowercase() }
         val fusionIndicator = Regex("""\b(fusion|fusing|fused|absorbed?|absorbs)\b""", RegexOption.IGNORE_CASE)
         val mutableEvolutionsBySpecies = snapshot.evolutionsBySpecies.mapValues { it.value.toMutableList() }.toMutableMap()
         var fusionEdgeCount = 0
@@ -112,7 +116,7 @@ object DerivedDataBuilder {
         allNames.addAll(snapshot.fossilsBySpecies.keys)
         allNames.addAll(snapshot.ridingBySpecies.keys)
 
-        val speciesEnumerationError = addRuntimeSpecies(allNames, runtimeSpeciesNames)
+        val speciesEnumerationError = addRuntimeSpecies(allNames) { runtimeSpeciesList }
 
         val dropIndex = mutableMapOf<String, MutableList<String>>()
         for ((species, info) in enriched) {
@@ -157,7 +161,7 @@ object DerivedDataBuilder {
     }
 
     private fun loadRuntimeSpeciesNames(): Iterable<String> {
-        val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
+        val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Throwable) { 0 }
         if (runtimeCount <= 0) return emptyList()
         return PokemonSpecies.implemented.map { it.name }
     }

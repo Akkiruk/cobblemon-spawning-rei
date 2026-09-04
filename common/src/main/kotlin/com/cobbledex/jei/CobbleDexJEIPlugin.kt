@@ -214,7 +214,6 @@ open class CobbleDexJEIPlugin : IModPlugin {
     ) : IRecipeCategory<GenericRecipe> {
 
         private val guiHelper: IGuiHelper = helpers.guiHelper
-        private val recipeArrow: IDrawable = guiHelper.getRecipeArrow()
         private val iconDrawable: IDrawable = guiHelper.createDrawableItemStack(ItemStack(def.icon))
 
         // JEI sizes a category to its single largest recipe and keeps that size for every recipe.
@@ -224,7 +223,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
         private var bgDrawable: IDrawable = guiHelper.createBlankDrawable(1, 1)
 
         private fun background(): IDrawable {
-            val s = def.maxSize()
+            val s = def.maxSize
             if (s != bgSize) {
                 bgSize = s
                 bgDrawable = guiHelper.createBlankDrawable(s.width, s.height)
@@ -340,7 +339,6 @@ open class CobbleDexJEIPlugin : IModPlugin {
 
             guiGraphics.pose().pushPose()
             guiGraphics.pose().translate(dx.toFloat(), dy.toFloat(), 0f)
-            if (slots.hasArrow) recipeArrow.draw(guiGraphics, slots.arrowX, slots.arrowY)
             handle.layout.render(guiGraphics)
             guiGraphics.pose().popPose()
         }

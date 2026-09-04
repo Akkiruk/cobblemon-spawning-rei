@@ -5,23 +5,23 @@ import kotlin.test.assertEquals
 
 class DataSourcePolicyTest {
     @Test
-    fun serverSyncWinsOverEveryFallback() {
-        val preferred = DataSourcePolicy.preferredSource(listOf("bundled", "datapack", "runtime", "server_sync"))
+    fun cobblemonWinsOverEveryFallback() {
+        val preferred = DataSourcePolicy.preferredSource(listOf("bundled", "datapack", "runtime"))
 
-        assertEquals(DataSourceTier.SERVER_SYNC, preferred)
+        assertEquals(DataSourceTier.COBBLEMON, preferred)
     }
 
     @Test
-    fun bundledDefaultsAreBelowDatapacks() {
+    fun builtInDefaultsAreBelowLocalFiles() {
         val ordered = DataSourcePolicy.sortByPrecedence(listOf("bundled", "datapack"))
 
-        assertEquals(listOf(DataSourceTier.JAR_OR_DATAPACK, DataSourceTier.BUNDLED_DEFAULT), ordered)
+        assertEquals(listOf(DataSourceTier.LOCAL_FILES, DataSourceTier.BUILT_IN), ordered)
     }
 
     @Test
     fun unknownSourcesSortLast() {
         val ordered = DataSourcePolicy.sortByPrecedence(listOf("mystery", "runtime"))
 
-        assertEquals(listOf(DataSourceTier.RUNTIME, DataSourceTier.UNKNOWN), ordered)
+        assertEquals(listOf(DataSourceTier.COBBLEMON, DataSourceTier.UNAVAILABLE), ordered)
     }
 }

@@ -1,7 +1,6 @@
 package com.cobbledex
 
 import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
-import com.cobbledex.network.SpawnRegionInfo
 
 /** Optional CobbleRegions integration with no compile-time dependency. */
 object CobbleRegionsIntegration {

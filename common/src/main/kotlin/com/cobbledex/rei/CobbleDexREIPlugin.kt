@@ -16,7 +16,6 @@ import com.cobbledex.rei.entry.MoveEntryType
 import com.cobbledex.rei.entry.PokemonEntry
 import com.cobbledex.rei.entry.PokemonEntryDefinition
 import com.cobbledex.rei.entry.PokemonEntryType
-import me.shedaniel.math.Point
 import me.shedaniel.math.Rectangle
 import me.shedaniel.rei.api.client.plugins.REIClientPlugin
 import me.shedaniel.rei.api.client.gui.Renderer
@@ -190,7 +189,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         override fun getCategoryIdentifier(): CategoryIdentifier<out GenericDisplay> = categoryId(def)
         override fun getTitle(): Component = Component.translatable(def.titleKey)
         override fun getIcon(): Renderer = EntryStacks.of(def.icon)
-        override fun getDisplayHeight(): Int = def.maxSize().height
+        override fun getDisplayHeight(): Int = def.maxSize.height
         override fun getFixedDisplaysPerPage(): Int = 1
         override fun getDisplayWidth(display: GenericDisplay): Int = display.handle.width
 
@@ -223,10 +222,6 @@ open class CobbleDexREIPlugin : REIClientPlugin {
                 if (slot.disableBackground) s.disableBackground()
                 if (slot.disableHighlight) s.disableHighlight()
                 widgets.add(s)
-            }
-
-            if (slots.hasArrow) {
-                widgets.add(Widgets.createArrow(Point(px + slots.arrowX, py + slots.arrowY)))
             }
 
             for (slot in slots.items) {

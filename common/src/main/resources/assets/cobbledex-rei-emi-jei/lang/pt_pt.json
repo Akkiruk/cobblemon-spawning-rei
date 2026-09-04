@@ -410,5 +410,6 @@
   "cobbledex-rei-emi-jei.evo.form_change.primal": "Primal Reversion",
   "cobbledex-rei-emi-jei.evo.form_change.ultra_burst": "Ultra Burst",
   "cobbledex-rei-emi-jei.evo.form_change.gmax": "Gigantamax",
-  "cobbledex-rei-emi-jei.evo.form_change.regional": "%1$s Form"
+  "cobbledex-rei-emi-jei.evo.form_change.regional": "%1$s Form",
+  "cobbledex-rei-emi-jei.source.local_only": "From your local files \u2014 may differ from this server"
 }

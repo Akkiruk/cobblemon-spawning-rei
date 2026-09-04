@@ -6,7 +6,6 @@ import com.cobbledex.PokemonSpriteAtlas
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpreadsheetExporter
 import com.cobbledex.TmTooltipHandler
-import com.cobbledex.network.ChunkAssembler
 import net.minecraft.client.Minecraft
 import net.minecraft.commands.Commands
 import net.minecraft.network.chat.Component
@@ -20,6 +19,7 @@ object CobbleDexNeoForgeClient {
 
     fun register() {
         NeoForge.EVENT_BUS.addListener(::onClientTick)
+        NeoForge.EVENT_BUS.addListener(::onJoin)
         NeoForge.EVENT_BUS.addListener(::onDisconnect)
         NeoForge.EVENT_BUS.addListener(::onRegisterCommands)
         NeoForge.EVENT_BUS.addListener(::onItemTooltip)
@@ -28,14 +28,18 @@ object CobbleDexNeoForgeClient {
     private fun onClientTick(event: ClientTickEvent.Post) {
         SpreadsheetExporter.tick()
         if (Minecraft.getInstance().player != null) {
-            CobbleDexMod.tickReloadCheck()
+            CobbleDexMod.tickClient()
         }
+    }
+
+    private fun onJoin(event: ClientPlayerNetworkEvent.LoggingIn) {
+        // Cobblemon's own species_sync lands during login; watch for it rather than assume.
+        CobbleDexMod.onJoinedWorld()
     }
 
     private fun onDisconnect(event: ClientPlayerNetworkEvent.LoggingOut) {
         SpawnDataIndex.onDisconnect()
-        ChunkAssembler.reset()
-        CobbleDexMod.resetReloadTimer()
+        CobbleDexMod.onLeftWorld()
     }
 
     private fun onItemTooltip(event: ItemTooltipEvent) {

@@ -353,7 +353,8 @@ object SpawnDisplayHelper {
         return if (lines.isEmpty()) listOf(text) else lines
     }
 
-    private fun computePanelWidth(vararg candidates: Int): Int {
+    /** The one place panel width gets clamped: max of the candidates, held within the viewer bounds. */
+    internal fun computePanelWidth(vararg candidates: Int): Int {
         return (candidates.maxOrNull() ?: PanelLayout.MIN_WIDTH)
             .coerceIn(PanelLayout.MIN_WIDTH, PanelLayout.MAX_WIDTH)
     }
@@ -393,6 +394,22 @@ object SpawnDisplayHelper {
 
         layout.clippedAt(leftX, yPos, leftText, leftMaxWidth, leftColor)
         layout.clippedRightAt(yPos, rightText, maxRightWidth, rightColor)
+    }
+
+    /**
+     * Marks a panel whose data came only from this client's files while connected to a server that
+     * may not share them.
+     *
+     * Attached as a hover zone over the panel header rather than a printed line: tooltip zones cost
+     * no vertical space, so this cannot desynchronise a page's built height from its measured
+     * height â the failure mode that produces panels overflowing their frame.
+     */
+    private fun addSourceCaveat(layout: PanelLayout, tier: DataSourceTier, width: Int) {
+        val caveat = DataAvailability.caveatFor(tier) ?: return
+        layout.addBackgroundTooltipZone(
+            0, 0, width, 36,
+            listOf(Component.literal("§e▲ §7$caveat")),
+        )
     }
 
     private fun drawHeader(
@@ -490,18 +507,18 @@ object SpawnDisplayHelper {
         val pretty = formatBiomeName(biomeId)
 
         if (biomeId.startsWith("#")) {
-            lines.add(Component.literal("§e§l$pretty"))
+            lines.add(Component.literal("Â§eÂ§l$pretty"))
             val resolved = resolveBiomeTag(biomeId)
             if (resolved.isNotEmpty()) {
                 for (id in resolved) {
-                    lines.add(Component.literal("  §7${translateBiomeId(id)}"))
+                    lines.add(Component.literal("  Â§7${translateBiomeId(id)}"))
                 }
             } else {
-                lines.add(Component.literal("  §8${biomeId.removePrefix("#")}"))
+                lines.add(Component.literal("  Â§8${biomeId.removePrefix("#")}"))
             }
         } else {
-            lines.add(Component.literal("§f${translateBiomeId(biomeId)}"))
-            lines.add(Component.literal("§8$biomeId"))
+            lines.add(Component.literal("Â§f${translateBiomeId(biomeId)}"))
+            lines.add(Component.literal("Â§8$biomeId"))
         }
 
         return lines
@@ -515,11 +532,11 @@ object SpawnDisplayHelper {
     private fun buildAbilityTooltip(ability: String, hidden: Boolean = false): List<Component> {
         val lines = mutableListOf<Component>()
         val displayName = formatAbilityName(ability)
-        val label = if (hidden) "$displayName §7(${tr("cobbledex-rei-emi-jei.info.hidden_ability")})" else displayName
-        lines.add(Component.literal("§b§l$label"))
+        val label = if (hidden) "$displayName Â§7(${tr("cobbledex-rei-emi-jei.info.hidden_ability")})" else displayName
+        lines.add(Component.literal("Â§bÂ§l$label"))
         val descKey = abilityDescKey(ability)
         val desc = tr(descKey)
-        if (desc != descKey) lines.add(Component.literal("§7$desc"))
+        if (desc != descKey) lines.add(Component.literal("Â§7$desc"))
         return lines
     }
 
@@ -527,16 +544,16 @@ object SpawnDisplayHelper {
         val lines = mutableListOf<Component>()
         val moveKey = "cobblemon.move.${move.name}"
         val displayName = tr(moveKey).let { if (it == moveKey) titleCase(move.name) else it }
-        lines.add(Component.literal("§f§l$displayName"))
-        lines.add(Component.literal("§e${titleCase(move.type)} §7\u2022 §e${titleCase(move.category)}"))
+        lines.add(Component.literal("Â§fÂ§l$displayName"))
+        lines.add(Component.literal("Â§e${titleCase(move.type)} Â§7\u2022 Â§e${titleCase(move.category)}"))
         val pow = if (move.power > 0) "${move.power}" else "\u2014"
         val acc = if (move.accuracy > 0) "${move.accuracy}" else "\u2014"
-        lines.add(Component.literal("§7Power: §f$pow §7| Acc: §f$acc §7| PP: §f${move.pp}"))
+        lines.add(Component.literal("Â§7Power: Â§f$pow Â§7| Acc: Â§f$acc Â§7| PP: Â§f${move.pp}"))
         if (entry != null) {
-            if (entry.isLevelUp) lines.add(Component.literal("§a⚔ §7" + tr("cobbledex-rei-emi-jei.moves.tt_level", moveLevelText(entry.levelUpLevels))))
-            if (entry.egg) lines.add(Component.literal("§a◇ §7" + tr("cobbledex-rei-emi-jei.moves.tt_egg")))
-            if (entry.tutor) lines.add(Component.literal("§a★ §7" + tr("cobbledex-rei-emi-jei.moves.tt_tutor")))
-            if (entry.tm) lines.add(Component.literal("§a■ §7" + tr("cobbledex-rei-emi-jei.moves.tt_tm")))
+            if (entry.isLevelUp) lines.add(Component.literal("Â§aâ Â§7" + tr("cobbledex-rei-emi-jei.moves.tt_level", moveLevelText(entry.levelUpLevels))))
+            if (entry.egg) lines.add(Component.literal("Â§aâ Â§7" + tr("cobbledex-rei-emi-jei.moves.tt_egg")))
+            if (entry.tutor) lines.add(Component.literal("Â§aâ Â§7" + tr("cobbledex-rei-emi-jei.moves.tt_tutor")))
+            if (entry.tm) lines.add(Component.literal("Â§aâ  Â§7" + tr("cobbledex-rei-emi-jei.moves.tt_tm")))
         }
         val descKey = "cobblemon.move.${move.name}.desc"
         val desc = tr(descKey)
@@ -548,11 +565,11 @@ object SpawnDisplayHelper {
             for (word in words) {
                 val next = if (current.isEmpty()) word else "$current $word"
                 if (next.length > 40 && current.isNotEmpty()) {
-                    lines.add(Component.literal("§7$current"))
+                    lines.add(Component.literal("Â§7$current"))
                     current = word
                 } else current = next
             }
-            if (current.isNotEmpty()) lines.add(Component.literal("§7$current"))
+            if (current.isNotEmpty()) lines.add(Component.literal("Â§7$current"))
         }
         return lines
     }
@@ -652,7 +669,7 @@ object SpawnDisplayHelper {
             padding + 4 + font.width(ctxText) + (if (wtText.isNotEmpty()) 6 + font.width(wtText) else 0) + padding
         } else 0
         val footerWidth = padding + font.width(footerText) + padding
-        val width = maxOf(nameWidth, lvBucketWidth, ctxRowWidth, footerWidth, PanelLayout.MIN_WIDTH).coerceAtMost(PanelLayout.MAX_WIDTH)
+        val width = computePanelWidth(nameWidth, lvBucketWidth, ctxRowWidth, footerWidth)
 
         val layout = PanelLayout(width)
         val right = layout.right
@@ -664,6 +681,7 @@ object SpawnDisplayHelper {
         layout.textAt(padding, 22, lvText, 0x0099FF)
         layout.textRightAt(22, bucketText, color)
         layout.fill(padding, 36, right, 37, 0x50FFFFFF)
+        addSourceCaveat(layout, SpawnDataIndex.spawnSourceTier, width)
         layout.skipTo(42)
 
         if (showWeights) {
@@ -834,7 +852,7 @@ object SpawnDisplayHelper {
 
         val methodText = obtainment.displayMethodName
         val headerWidth = PanelLayout.TEXT_START_X + font.width(formatSpeciesName(speciesName)) + 6 + font.width(methodText) + padding
-        val width = maxOf(headerWidth, PanelLayout.MIN_WIDTH).coerceAtMost(PanelLayout.MAX_WIDTH)
+        val width = computePanelWidth(headerWidth)
 
         val layout = PanelLayout(width)
         val right = layout.right
@@ -908,26 +926,34 @@ object SpawnDisplayHelper {
 
     // --- Drop layout builder ---
 
+    /** Header tag for a drop page, shared by the width calculation and the layout. */
+    private fun dropHeaderTag(data: DropRecipeData): String {
+        val headerBase = tr("category.cobbledex-rei-emi-jei.drops")
+        return if (data.pageTotal > 1) "$headerBase (${data.pageIndex}/${data.pageTotal})" else headerBase
+    }
+
+    /** Panel width for a drop page; [buildDropLayout] is the only caller. */
+    private fun dropPanelWidth(data: DropRecipeData): Int {
+        val font = Minecraft.getInstance().font
+        val padding = PanelLayout.PADDING
+        val nameWidth = PanelLayout.TEXT_START_X + font.width(formatSpeciesName(data.speciesName)) + padding
+        val headerWidth = nameWidth + 6 + font.width(dropHeaderTag(data)) + padding
+        val maxItemRowWidth = data.drops.maxOfOrNull { drop ->
+            val itemName = resolveItemName(drop.itemId)
+            val rightText = "${drop.displayPercentage} \u00D7${drop.displayQuantity}"
+            padding + 22 + font.width(itemName) + 8 + font.width(rightText) + padding
+        } ?: 0
+        return computePanelWidth(headerWidth, maxItemRowWidth)
+    }
+
     fun buildDropLayout(data: DropRecipeData): PanelLayout {
         val font = Minecraft.getInstance().font
         val padding = PanelLayout.PADDING
         val speciesName = data.speciesName
         val drops = data.drops
+        val headerTag = dropHeaderTag(data)
 
-        val nameWidth = PanelLayout.TEXT_START_X + font.width(formatSpeciesName(speciesName)) + padding
-        val headerBase = tr("category.cobbledex-rei-emi-jei.drops")
-        val headerTag = if (data.pageTotal > 1) "$headerBase (${data.pageIndex}/${data.pageTotal})" else headerBase
-        val headerWidth = nameWidth + 6 + font.width(headerTag) + padding
-
-        var maxItemRowWidth = 0
-        for (drop in drops) {
-            val itemName = resolveItemName(drop.itemId)
-            val rightText = "${drop.displayPercentage} \u00D7${drop.displayQuantity}"
-            val rowWidth = padding + 22 + font.width(itemName) + 8 + font.width(rightText) + padding
-            if (rowWidth > maxItemRowWidth) maxItemRowWidth = rowWidth
-        }
-
-        val width = maxOf(headerWidth, maxItemRowWidth, PanelLayout.MIN_WIDTH).coerceAtMost(PanelLayout.MAX_WIDTH)
+        val width = dropPanelWidth(data)
         val layout = PanelLayout(width)
         val right = layout.right
 
@@ -1084,7 +1110,7 @@ object SpawnDisplayHelper {
                     else -> null
                 }
             }.distinct()
-            val moreText = "+$overflow more rows (${ overflowSpecies.size } Pokémon)..."
+            val moreText = "+$overflow more rows (${ overflowSpecies.size } PokÃ©mon)..."
             val moreY = layout.y
             layout.text(indentX, moreText, 0xFF999999.toInt())
             layout.line()
@@ -1126,6 +1152,7 @@ object SpawnDisplayHelper {
 
         pokemonSlots.add(PokemonSlotDef(data.sourceSpeciesName, data.sourceAspects, padding, 2, SlotRole.INPUT))
         drawHeader(layout, sourceDisplay, headerTag, 0xDDCC99, dividerY = 24)
+        addSourceCaveat(layout, SpawnDataIndex.evolutionSourceTier, width)
         layout.skipTo(30)
 
         if (data.isTerminal) {
@@ -1146,7 +1173,7 @@ object SpawnDisplayHelper {
 
             data.methods.forEachIndexed { index, method ->
                 val rowTop = layout.y
-                val prefix = if (data.methods.size > 1) "${index + 1}." else "•"
+                val prefix = if (data.methods.size > 1) "${index + 1}." else "â¢"
                 layout.text(labelX, prefix, 0xFFDD88)
                 val itemCount = method.itemRequirements.size.coerceAtMost(4)
                 val itemSpace = if (itemCount > 0) (itemCount * 18) + 4 else 0
@@ -1283,7 +1310,7 @@ object SpawnDisplayHelper {
 
     private fun typeColor(type: String): Int = TYPE_COLORS[type.lowercase()] ?: 0xFFBBBBBB.toInt()
 
-    // --- Pokédex Info layout builder ---
+    // --- PokÃ©dex Info layout builder ---
 
     fun buildPokedexInfoLayout(data: PokedexInfoRecipeData): PanelLayout {
         val speciesDisplay = formatSpeciesName(data.speciesName)
@@ -1405,7 +1432,7 @@ object SpawnDisplayHelper {
     }
 
     // Fixed column geometry for the unified move list. Columns are anchored from the right edge so
-    // a given method always sits at the same x — reading "every TM move" is then a straight
+    // a given method always sits at the same x â reading "every TM move" is then a straight
     // vertical scan of one column, with no duplicated rows.
     private const val MOVES_PANEL_WIDTH = 256
     private const val MOVE_SUFFIX_RESERVE = 62
@@ -1415,15 +1442,15 @@ object SpawnDisplayHelper {
 
     data class MovesLayoutResult(
         val layout: PanelLayout,
-        /** Clickable move-name regions — each opens that move's learner grid (viewer-dependent). */
+        /** Clickable move-name regions â each opens that move's learner grid (viewer-dependent). */
         val moveLinks: List<MoveLinkDef>,
     )
 
     private val METHOD_GLYPHS = mapOf(
-        "levelup" to "⚔",
-        "egg" to "◇",
-        "tutor" to "★",
-        "tm" to "■",
+        "levelup" to "â",
+        "egg" to "â",
+        "tutor" to "â",
+        "tm" to "â ",
     )
     private const val METHOD_GLYPH_COLOR = 0xFFCCCCCC.toInt()
     private const val MOVE_LEVEL_COLOR = 0xFF88CCFF.toInt()
@@ -1490,14 +1517,14 @@ object SpawnDisplayHelper {
         val suffixColor = CATEGORY_ICONS[move.category]?.second ?: 0xFFBBBBBB.toInt()
         layout.textRightAt(rowY, suffix, suffixColor)
 
-        // The move name is a link: clicking it opens the grid of every Pokémon that can learn the
-        // move. Needs no external mod — the viewer plugin turns this region into a clickable label.
+        // The move name is a link: clicking it opens the grid of every PokÃ©mon that can learn the
+        // move. Needs no external mod â the viewer plugin turns this region into a clickable label.
         val nameW = font.width(clippedName)
         moveLinks.add(MoveLinkDef(move.name, cols.nameX, rowY, nameW.coerceAtLeast(8), PanelLayout.LINE_HEIGHT))
         layout.addTooltipZone(
             cols.nameX, rowY, nameW.coerceAtLeast(8), PanelLayout.LINE_HEIGHT,
             buildMoveTooltip(move, entry) +
-                Component.literal("§8" + tr("cobbledex-rei-emi-jei.moves.learners_hint")),
+                Component.literal("Â§8" + tr("cobbledex-rei-emi-jei.moves.learners_hint")),
         )
         // Rest of the row keeps the plain move detail tooltip.
         layout.addTooltipZone(
@@ -1534,7 +1561,7 @@ object SpawnDisplayHelper {
         layout.clippedRightAt(keyY, tr("cobbledex-rei-emi-jei.moves.pow_acc"), MOVE_SUFFIX_RESERVE + 6, keyColor)
         layout.addTooltipZone(
             padding, keyY, right - padding, PanelLayout.LINE_HEIGHT,
-            listOf(Component.literal("§7" + tr("cobbledex-rei-emi-jei.moves.legend_hint"))),
+            listOf(Component.literal("Â§7" + tr("cobbledex-rei-emi-jei.moves.legend_hint"))),
         )
         layout.skipTo(35)
 
@@ -1678,7 +1705,7 @@ object SpawnDisplayHelper {
             NatureData.NATURES.mapNotNull { it.decreasedStat?.let { s -> font.width(NatureData.statName(s)) } }.maxOrNull() ?: 0
         ) + 6
         val tableWidth = (padding + 2) + nameColWidth + statMaxWidth * 2 + padding
-        val panelWidth = maxOf(tableWidth, PanelLayout.MIN_WIDTH).coerceAtMost(PanelLayout.MAX_WIDTH)
+        val panelWidth = computePanelWidth(tableWidth)
 
         val layout = PanelLayout(panelWidth)
         val right = layout.right
@@ -1881,7 +1908,7 @@ object SpawnDisplayHelper {
     // method(s) by which it learns the move.
 
     // Grid column count is deliberately conservative. REI does NOT size the recipe panel to our
-    // getDisplayWidth — it sizes it to a blend (mode/median) of every visible category's max display
+    // getDisplayWidth â it sizes it to a blend (mode/median) of every visible category's max display
     // width (DefaultDisplayViewingScreen#bestWidthDisplay), so when an item/move lookup also matches
     // vanilla recipes the panel collapses toward ~190px and anything wider than that spills out both
     // sides of the frame. 9 cols * 20px + 12px padding = 192px, right at REI's minimum panel width.
@@ -1889,7 +1916,7 @@ object SpawnDisplayHelper {
     const val MOVE_LEARNERS_PER_PAGE = 90 // 9 cols x 10 rows
     private const val MOVE_LEARNERS_COLS = 9
     private const val MOVE_LEARNERS_CELL = 20
-    /** Hard cap for grid panels — see the column-count note above. */
+    /** Hard cap for grid panels â see the column-count note above. */
     private const val GRID_PANEL_MAX_WIDTH = 192
 
     data class MoveLearnersLayoutResult(
@@ -1978,8 +2005,8 @@ object SpawnDisplayHelper {
 
     // --- Item-dropper grid layout builder ---
     //
-    // Shown when an item is looked up. Instead of one page per dropping Pokémon, every Pokémon that
-    // drops the item is rendered as a grid of clickable icons; hovering a cell names the Pokémon and
+    // Shown when an item is looked up. Instead of one page per dropping PokÃ©mon, every PokÃ©mon that
+    // drops the item is rendered as a grid of clickable icons; hovering a cell names the PokÃ©mon and
     // its drop chance / quantity for that item.
 
     const val ITEM_DROPPERS_PER_PAGE = 90 // 9 cols x 10 rows
@@ -2015,9 +2042,9 @@ object SpawnDisplayHelper {
 
     private fun buildItemDropperCellTooltip(dropper: ItemDropper): List<Component> {
         val lines = mutableListOf<Component>()
-        lines.add(Component.literal("§f§l" + formatSpeciesName(dropper.speciesName)))
+        lines.add(Component.literal("Â§fÂ§l" + formatSpeciesName(dropper.speciesName)))
         for (entry in dropper.entries) {
-            lines.add(Component.literal("§e◆ §7" + entry.displayPercentage + " ×" + entry.displayQuantity))
+            lines.add(Component.literal("Â§eâ Â§7" + entry.displayPercentage + " Ã" + entry.displayQuantity))
         }
         return lines
     }
@@ -2054,7 +2081,7 @@ object SpawnDisplayHelper {
         val rows = (data.droppers.size + ITEM_DROPPERS_COLS - 1) / ITEM_DROPPERS_COLS
         layout.addTooltipZone(
             padding, sectionY, right - padding, PanelLayout.LINE_HEIGHT,
-            listOf(Component.literal("§7" + tr("cobbledex-rei-emi-jei.drops.droppers_hint"))),
+            listOf(Component.literal("Â§7" + tr("cobbledex-rei-emi-jei.drops.droppers_hint"))),
         )
         layout.skipTo(gridTop + rows * ITEM_DROPPERS_CELL + padding)
         return ItemDroppersLayoutResult(layout, slots)
@@ -2067,13 +2094,23 @@ object SpawnDisplayHelper {
         val pokemonSlots: List<PokemonSlotDef>
     )
 
+    private fun formHeaderTag(data: FormRecipeData): String {
+        val headerBase = tr("category.cobbledex-rei-emi-jei.forms")
+        return if (data.pageTotal > 1) "$headerBase (${data.pageIndex}/${data.pageTotal})" else headerBase
+    }
+
+    /** Panel width for an alternate-form page. [buildFormLayout] is the only caller. */
+    private fun formPanelWidth(data: FormRecipeData): Int = computePanelWidth(
+        measureHeaderWidth(Minecraft.getInstance().font, data.form.formDisplayName, formHeaderTag(data)),
+        220,
+    )
+
     fun buildFormLayout(data: FormRecipeData): FormLayoutResult {
         val font = Minecraft.getInstance().font
         val padding = PanelLayout.PADDING
         val form = data.form
-        val headerBase = tr("category.cobbledex-rei-emi-jei.forms")
-        val headerTag = if (data.pageTotal > 1) "$headerBase (${data.pageIndex}/${data.pageTotal})" else headerBase
-        val width = computePanelWidth(measureHeaderWidth(font, form.formDisplayName, headerTag), 220)
+        val headerTag = formHeaderTag(data)
+        val width = formPanelWidth(data)
         val layout = PanelLayout(width)
         val right = layout.right
         val pokemonSlots = mutableListOf<PokemonSlotDef>()
