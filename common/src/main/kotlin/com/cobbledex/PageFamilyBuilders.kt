@@ -27,9 +27,6 @@ object EvolutionPageBuilder {
 object ObtainmentPageBuilder {
     const val UNIFIED_ROUTE_SPACING = 8
 
-    fun buildSpecial(data: ObtainmentRecipeData): PanelLayout =
-        SpawnDisplayHelper.buildObtainmentLayout(data.speciesName, data.obtainment, data.entryIndex, data.entryTotal)
-
     fun measureUnifiedFixedHeight(): Int {
         val font = Minecraft.getInstance().font
         return 27 + 1 + 1 + 4 + font.lineHeight + PanelLayout.PADDING
@@ -68,6 +65,7 @@ object ObtainmentPageBuilder {
         layout.textAt(padding + 22, 6, speciesName, 0xFFFFFF)
         layout.textRightAt(6, headerTag, 0xDDCC99)
         layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        SpawnDisplayHelper.addSourceCaveat(layout, SpawnDataIndex.obtainmentSourceTier, width, headerHeight = 27)
         layout.skipTo(27)
 
         if (data.routes.isEmpty()) {

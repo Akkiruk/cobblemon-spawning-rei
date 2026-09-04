@@ -30,17 +30,37 @@ object SpeciesTraitMerger {
      * off `Species`' no-arg constructor, which is exactly the state a client is left in for the
      * fields `Species.encode` doesn't write.
      *
-     * These are sentinels, not "wrong values": a species whose real catch rate is genuinely 45 is
-     * indistinguishable from one that was never synced, so it gets filled from local files too —
-     * which resolves to 45 again. The fill is therefore safe either way, and never overwrites a
-     * value that differs from the default (i.e. one Cobblemon really did supply).
+     * These are sentinels, not proof of absence: a species whose real catch rate is genuinely 45
+     * is indistinguishable, by value alone, from one that was never synced. That ambiguity is
+     * real **after a network sync** — a dedicated-server client's `Species` object never had these
+     * fields decoded at all, so filling a sentinel-valued field there can only be correct or a
+     * harmless no-op (the local file for a genuinely-45 species also resolves to 45).
+     *
+     * In singleplayer/LAN, though, `Species` is populated straight from the loaded datapacks, not
+     * network decoding — a genuinely-45 species has a *real* 45, not an unset one. If the client's
+     * separately-cached local files (`JarDataCache`, scanned once at launch) are ever stale versus
+     * what actually got loaded this session — a datapack edited without restarting, say — filling
+     * on the sentinel match there would silently swap a real value for a stale one. So [fillGaps]
+     * only applies these four sentinel-gated fields off a network sync ([trustSentinelDefaults]),
+     * never in a local world. The other fields below (`eggGroups`, `evYield`, `labels`, and the
+     * move lists) key off genuine absence (null/empty) rather than a magic value, so they carry no
+     * such ambiguity and fill in both world types.
      */
     private const val UNSET_CATCH_RATE = 45
     private const val UNSET_BASE_EXPERIENCE_YIELD = 10
     private const val UNSET_EGG_CYCLES = 120
     private const val UNSET_BASE_FRIENDSHIP = 0
 
-    fun fillGaps(runtime: Map<String, SpeciesBasicInfo>): Result {
+    /**
+     * @param trustSentinelDefaults Whether a sentinel-valued field (see [UNSET_CATCH_RATE] and
+     * siblings) is safe to treat as "Cobblemon never synced this" and fill from local files.
+     * Defaults to [DataAvailability.isLocalWorld]'s negation — true after a network sync (where
+     * that's guaranteed), false in singleplayer/LAN (where it's merely usually true).
+     */
+    fun fillGaps(
+        runtime: Map<String, SpeciesBasicInfo>,
+        trustSentinelDefaults: Boolean = !DataAvailability.isLocalWorld(),
+    ): Result {
         if (runtime.isEmpty()) return Result(runtime, 0, 0)
 
         val traits = JarDataCache.getCachedTraits()
@@ -69,7 +89,7 @@ object SpeciesTraitMerger {
             var updated = info
 
             if (localTraits != null) {
-                val (withTraits, traitFields) = mergeTraits(updated, localTraits)
+                val (withTraits, traitFields) = mergeTraits(updated, localTraits, trustSentinelDefaults)
                 updated = withTraits
                 fieldsForThisSpecies += traitFields
             }
@@ -120,28 +140,33 @@ object SpeciesTraitMerger {
     fun mergeTraits(
         info: SpeciesBasicInfo,
         local: JarDataCache.JarTraitData,
+        trustSentinelDefaults: Boolean = true,
     ): Pair<SpeciesBasicInfo, Int> {
         var updated = info
         var filled = 0
 
-        if (updated.catchRate == UNSET_CATCH_RATE && local.catchRate != null) {
-            updated = updated.copy(catchRate = local.catchRate); filled++
+        if (trustSentinelDefaults) {
+            if (updated.catchRate == UNSET_CATCH_RATE && local.catchRate != null) {
+                updated = updated.copy(catchRate = local.catchRate); filled++
+            }
+            if ((updated.eggCycles == null || updated.eggCycles == UNSET_EGG_CYCLES) && local.eggCycles != null) {
+                updated = updated.copy(eggCycles = local.eggCycles); filled++
+            }
+            if ((updated.baseFriendship == null || updated.baseFriendship == UNSET_BASE_FRIENDSHIP) &&
+                local.baseFriendship != null
+            ) {
+                updated = updated.copy(baseFriendship = local.baseFriendship); filled++
+            }
+            if ((updated.baseExperienceYield == null || updated.baseExperienceYield == UNSET_BASE_EXPERIENCE_YIELD) &&
+                local.baseExperienceYield != null
+            ) {
+                updated = updated.copy(baseExperienceYield = local.baseExperienceYield); filled++
+            }
         }
+
+        // Unambiguous absence (null/empty), not a magic value — safe to fill regardless of world type.
         if (updated.eggGroups.isNullOrEmpty() && local.eggGroups != null) {
             updated = updated.copy(eggGroups = local.eggGroups); filled++
-        }
-        if ((updated.eggCycles == null || updated.eggCycles == UNSET_EGG_CYCLES) && local.eggCycles != null) {
-            updated = updated.copy(eggCycles = local.eggCycles); filled++
-        }
-        if ((updated.baseFriendship == null || updated.baseFriendship == UNSET_BASE_FRIENDSHIP) &&
-            local.baseFriendship != null
-        ) {
-            updated = updated.copy(baseFriendship = local.baseFriendship); filled++
-        }
-        if ((updated.baseExperienceYield == null || updated.baseExperienceYield == UNSET_BASE_EXPERIENCE_YIELD) &&
-            local.baseExperienceYield != null
-        ) {
-            updated = updated.copy(baseExperienceYield = local.baseExperienceYield); filled++
         }
         if (updated.evYield.isNullOrEmpty() && local.evYield != null) {
             updated = updated.copy(evYield = local.evYield); filled++

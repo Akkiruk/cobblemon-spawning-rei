@@ -32,13 +32,6 @@ data class EvolutionRecipeData(
     val isTerminal: Boolean get() = targetSpeciesName == null
 }
 
-data class ObtainmentRecipeData(
-    val speciesName: String,
-    val obtainment: ObtainmentInfo,
-    val entryIndex: Int = 1,
-    val entryTotal: Int = 1
-)
-
 data class UnifiedObtainmentRecipeData(
     val speciesName: String,
     val routes: List<ObtainmentRoute>,

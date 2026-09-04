@@ -2,6 +2,17 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.13.1] - 2026-09-04
+
+### Fixed
+- More reliable data source detection, including a rare case where local-file data could override server-synced data on singleplayer worlds.
+- Optional CobbleRegions integration now reports a real failure instead of silently going quiet if that mod ever changes its API.
+- Panels that end up taller than the viewer frame now get logged so an overly long page is discoverable instead of just looking cut off.
+
+### Internal
+- Removed a leftover, unused code path from the old per-entry Obtainment page design (replaced by the unified "How to Obtain" page a while back).
+- Updated internal docs to match the fully client-side data model from 2.13.0.
+
 ## [2.13.0] - 2026-09-03
 
 ### Changed

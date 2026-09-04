@@ -21,7 +21,7 @@
 
 ## Data and forms
 
-- [ ] Data precedence follows player-truth order: server sync, runtime, jar/datapack fallback, bundled defaults
+- [ ] Data precedence follows player-truth order: Cobblemon's synced client data, this client's own files, bundled defaults (see docs/DATA_PRECEDENCE.md)
 - [ ] Source/provenance impact is described when relevant
 - [ ] Material-form policy is respected
 - [ ] Texture-only forms are not surfaced as new first-class entries

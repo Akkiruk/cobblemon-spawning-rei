@@ -30,11 +30,29 @@ object CobblemonDataSignal {
      * Species count moves when `species_sync` lands (and on any later Cobblemon reload); spawn-pool
      * size moves when a singleplayer/LAN world finishes loading its spawn files. On a dedicated
      * server the pool stays at 0 forever, which is correct — it is never synced.
+     *
+     * Species *count* alone misses a datapack change that alters an existing species without
+     * adding or removing one — the commonest example being a form added to or removed from a
+     * species that's already implemented. So each species' name and form count are folded into a
+     * running sum too: still O(species count) with only property reads (no per-form/per-ability
+     * traversal), but sensitive to far more than "did the total change". A same-species,
+     * same-form-count stat-only edit still isn't caught by this — genuinely detecting that would
+     * mean hashing the full data CobbleDex reads, which costs about what the rebuild itself does
+     * and defeats the point of sampling cheaply once a second.
      */
     private fun fingerprint(): Long {
-        val speciesCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
+        val species = try { PokemonSpecies.implemented } catch (_: Exception) { return 0L }
+        var structural = 0L
+        var speciesCount = 0
+        for (sp in species) {
+            try {
+                speciesCount++
+                val forms = try { sp.forms.size } catch (_: Exception) { 0 }
+                structural = structural * 31 + sp.name.hashCode() * 31 + forms
+            } catch (_: Exception) {}
+        }
         val spawnCount = try { CobblemonSpawnPools.WORLD_SPAWN_POOL.details.size } catch (_: Exception) { 0 }
-        return speciesCount.toLong() * 1_000_003L + spawnCount.toLong()
+        return structural + speciesCount.toLong() * 1_000_003L + spawnCount.toLong()
     }
 
     /** True when Cobblemon's data differs from the last sample. Records the new sample. */

@@ -18,7 +18,7 @@ Your viewer-native **Cobblemon in-game reference guide** inside **REI**, **JEI**
 
 - **Viewer-native reference first:** features belong in CobbleDex when they improve Cobblemon data collection, interpretation, search, or display through REI, JEI, and EMI.
 - **Parity by default:** REI, JEI, and EMI should expose the same CobbleDex knowledge unless a viewer API makes exact parity impossible.
-- **Player-truth data:** live server-synced or runtime data beats jar/datapack fallback, and bundled defaults are only a last resort.
+- **Player-truth data:** Cobblemon's own synced client data beats this client's jar/datapack fallback, and bundled defaults are only a last resort. CobbleDex sends no packets and runs no server code — see `docs/DATA_PRECEDENCE.md`.
 - **Material forms only:** alternate forms are first-class only when they differ in player-relevant data such as spawns, stats, moves, drops, evolution, obtainment, riding, typing, or abilities. Texture-only variants should stay collapsed.
 - **Export stays secondary:** `/cobbledex export` is a hidden diagnostic/planning tool, not the primary product surface.
 
@@ -65,7 +65,7 @@ CobbleDex adds dedicated viewer pages for:
 - Pure client-side mod: no server install required
 - Works in singleplayer, LAN, and dedicated servers
 - Uses synced data and local fallbacks so spawn, evolution, fossil, and related data still appear even when the server does not have CobbleDex installed
-- Viewer reload handling keeps JEI and EMI up to date after server sync instead of leaving categories empty
+- Viewer reload handling keeps JEI and EMI up to date after the data index rebuilds instead of leaving categories empty
 
 ### Hidden diagnostic export
 - Includes `/cobbledex export`, which generates a multi-sheet `.xlsx` workbook in `cobbledex-export/`

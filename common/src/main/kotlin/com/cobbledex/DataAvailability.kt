@@ -25,8 +25,15 @@ object DataAvailability {
         MISSING,
     }
 
-    /** True in singleplayer or on a LAN world this client is hosting — local files *are* the world. */
-    private fun isLocalWorld(): Boolean = try {
+    /**
+     * True in singleplayer or on a LAN world this client is hosting — local files *are* the world.
+     *
+     * Public so [SpeciesTraitMerger] can use it too: in that world type, Cobblemon populated its
+     * species objects straight from the loaded datapacks rather than `species_sync` decoding, so a
+     * field like `catchRate` is never actually "unset" the way it always is after a network sync —
+     * see the merger's own doc comment for why that distinction matters there.
+     */
+    fun isLocalWorld(): Boolean = try {
         Minecraft.getInstance().hasSingleplayerServer()
     } catch (_: Exception) {
         false

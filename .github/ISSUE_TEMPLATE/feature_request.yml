@@ -60,7 +60,7 @@ body:
     id: data-source
     attributes:
       label: Data Source
-      description: Where should CobbleDex get this information? Server sync, runtime API, datapack/JAR data, bundled defaults, or an optional integration?
+      description: Where should CobbleDex get this information? Cobblemon's synced client data, this client's own files (jar/datapack), bundled defaults, or an optional integration?
       placeholder: "Runtime Cobblemon move data plus SimpleTMs item IDs"
     validations:
       required: false

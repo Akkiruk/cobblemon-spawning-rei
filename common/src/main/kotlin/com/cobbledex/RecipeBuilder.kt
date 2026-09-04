@@ -157,26 +157,6 @@ object RecipeBuilder {
         }
     }
 
-    fun buildAllObtainmentRecipes(): List<ObtainmentRecipeData> {
-        val recipes = mutableListOf<ObtainmentRecipeData>()
-        for ((species, obtainments) in SpawnDataIndex.obtainmentBySpecies) {
-            if (!SpawnDataIndex.shouldSurfaceSpecies(species)) continue
-            if (obtainments.isEmpty()) continue
-            obtainments.forEachIndexed { i, info ->
-                recipes.add(ObtainmentRecipeData(species, info, i + 1, obtainments.size))
-            }
-        }
-        return recipes
-    }
-
-    fun buildObtainmentsFor(species: String, obtainments: List<ObtainmentInfo>): List<ObtainmentRecipeData> {
-        if (!SpawnDataIndex.shouldSurfaceSpecies(species)) return emptyList()
-        if (obtainments.isEmpty()) return emptyList()
-        return obtainments.mapIndexed { i, info ->
-            ObtainmentRecipeData(species, info, i + 1, obtainments.size)
-        }
-    }
-
     fun buildAllUnifiedObtainmentRecipes(): List<UnifiedObtainmentRecipeData> {
         return PageProjectionBuilder.allPokemon()
             .flatMap { projection -> buildUnifiedObtainmentPages(projection.speciesName, projection.obtainmentRoutes) }

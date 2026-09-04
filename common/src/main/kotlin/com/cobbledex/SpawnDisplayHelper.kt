@@ -402,12 +402,15 @@ object SpawnDisplayHelper {
      *
      * Attached as a hover zone over the panel header rather than a printed line: tooltip zones cost
      * no vertical space, so this cannot desynchronise a page's built height from its measured
-     * height â the failure mode that produces panels overflowing their frame.
+     * height - the failure mode that produces panels overflowing their frame. [headerHeight]
+     * should match the header block's own height so the zone doesn't reach into the first content
+     * row and shadow a more specific tooltip there - [PanelLayout.addBackgroundTooltipZone] still
+     * lets a later, more specific zone win either way; this just keeps the zone honest.
      */
-    private fun addSourceCaveat(layout: PanelLayout, tier: DataSourceTier, width: Int) {
+    internal fun addSourceCaveat(layout: PanelLayout, tier: DataSourceTier, width: Int, headerHeight: Int = 36) {
         val caveat = DataAvailability.caveatFor(tier) ?: return
         layout.addBackgroundTooltipZone(
-            0, 0, width, 36,
+            0, 0, width, headerHeight,
             listOf(Component.literal("§e▲ §7$caveat")),
         )
     }
@@ -838,72 +841,6 @@ object SpawnDisplayHelper {
         return layout
     }
 
-    // --- Obtainment layout builder ---
-
-    fun buildObtainmentLayout(
-        speciesName: String,
-        obtainment: ObtainmentInfo,
-        entryIndex: Int,
-        entryTotal: Int
-    ): PanelLayout {
-        val font = Minecraft.getInstance().font
-        val padding = PanelLayout.PADDING
-        val lineHeight = PanelLayout.LINE_HEIGHT
-
-        val methodText = obtainment.displayMethodName
-        val headerWidth = PanelLayout.TEXT_START_X + font.width(formatSpeciesName(speciesName)) + 6 + font.width(methodText) + padding
-        val width = computePanelWidth(headerWidth)
-
-        val layout = PanelLayout(width)
-        val right = layout.right
-        val indentX = padding + 4
-        val indentWidth = right - indentX
-
-        layout.textAt(padding + 22, 6, formatSpeciesName(speciesName), 0xFFFFFF)
-        layout.textRightAt(6, methodText, 0xDDCC99)
-        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
-        layout.skipTo(26)
-
-        layout.wrapped(indentX, obtainment.displayDescription, indentWidth, 0xEEEEEE)
-        layout.gap(4)
-
-        if (obtainment.items.isNotEmpty()) {
-            layout.text(padding, tr("cobbledex-rei-emi-jei.obtainment.required_items"), 0xEEEEEE)
-            layout.line()
-            for (item in obtainment.displayItems) {
-                layout.wrapped(padding + 6, "\u2022 $item", indentWidth, 0xFFCC66)
-            }
-            layout.gap(4)
-        }
-
-        if (obtainment.displayBlock != null || obtainment.displayStructure != null || obtainment.displayDimension != null) {
-            layout.text(padding, tr("cobbledex-rei-emi-jei.spawn.section.location"), 0xEEEEEE)
-            layout.line()
-            obtainment.displayBlock?.let { layout.wrapped(padding + 6, obtainmentUseText(it), indentWidth, 0xDDDDDD) }
-            obtainment.displayStructure?.let { layout.wrapped(padding + 6, obtainmentStructureText(it), indentWidth, 0xDDDDDD) }
-            obtainment.displayDimension?.let { layout.wrapped(padding + 6, obtainmentDimensionText(it), indentWidth, 0xDDDDDD) }
-            layout.gap(4)
-        }
-
-        for (note in obtainment.displayNotes) {
-            layout.wrapped(indentX, "\u2139 $note", indentWidth, 0xBBBBBB)
-        }
-
-        layout.gap(1)
-        layout.separator(0x20FFFFFF)
-        layout.gap(4)
-        if (entryTotal > 1) {
-            layout.text(padding, "$entryIndex/$entryTotal", 0xFFAA00)
-        }
-        val srcLabel = sourceLabel(obtainment.source)
-        if (srcLabel.isNotEmpty()) {
-            layout.textRight(srcLabel, 0xBBBBBB)
-        }
-        layout.gap(font.lineHeight + padding)
-
-        return layout
-    }
-
     // --- Item resolution ---
 
     fun resolveItemStack(itemId: String): ItemStack {
@@ -1152,7 +1089,7 @@ object SpawnDisplayHelper {
 
         pokemonSlots.add(PokemonSlotDef(data.sourceSpeciesName, data.sourceAspects, padding, 2, SlotRole.INPUT))
         drawHeader(layout, sourceDisplay, headerTag, 0xDDCC99, dividerY = 24)
-        addSourceCaveat(layout, SpawnDataIndex.evolutionSourceTier, width)
+        addSourceCaveat(layout, SpawnDataIndex.evolutionSourceTier, width, headerHeight = 30)
         layout.skipTo(30)
 
         if (data.isTerminal) {
@@ -1600,6 +1537,7 @@ object SpawnDisplayHelper {
         val lineHeight = PanelLayout.LINE_HEIGHT
 
         drawHeader(layout, formatSpeciesName(data.speciesName), headerText, 0xDDCC99, dividerY = 20)
+        addSourceCaveat(layout, SpawnDataIndex.fossilSourceTier, width, headerHeight = 26)
         layout.skipTo(26)
 
         layout.text(padding, tr("cobbledex-rei-emi-jei.fossils.required"), 0xEEEEEE)

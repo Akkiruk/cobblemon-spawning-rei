@@ -15,16 +15,26 @@ object CobbleRegionsIntegration {
                 Int::class.javaPrimitiveType,
             )
             instance to method
-        }.getOrNull() ?: return emptyMap()
+        }.getOrElse { e ->
+            // ClassNotFoundException just means CobbleRegions isn't installed - the overwhelming
+            // majority of sessions, and not worth a log line. Anything else means the mod IS
+            // installed but its API doesn't look like we expect (a version bump renamed or
+            // resignatured something) - that's a real, previously silent integration break, so say
+            // so once rather than quietly returning nothing forever.
+            if (e !is ClassNotFoundException) {
+                DebugLog.warnOnce("cobbleregions-api") { "CobbleRegions integration failed: ${e.message}" }
+            }
+            return emptyMap()
+        }
 
         val regionsBySpecies = linkedMapOf<String, List<SpawnRegionInfo>>()
         for (speciesId in speciesIds) {
             val dexNumber = PokemonSpecies.getByName(speciesId)?.nationalPokedexNumber ?: -1
             val rawRegions: Iterable<*> = runCatching {
                 api.second.invoke(api.first, speciesId, dexNumber) as? Iterable<*>
-            }
-                .getOrNull()
-                ?: emptyList<Any>()
+            }.onFailure { e ->
+                DebugLog.warnOnce("cobbleregions-invoke") { "CobbleRegions lookup failed: ${e.message}" }
+            }.getOrNull() ?: emptyList<Any>()
             val regions: List<SpawnRegionInfo> = rawRegions.mapNotNull { region: Any? ->
                 if (region == null) null else toSpawnRegionInfo(region)
             }
@@ -41,5 +51,7 @@ object CobbleRegionsIntegration {
             id = type.getMethod("getId").invoke(region) as String,
             displayName = type.getMethod("getDisplayName").invoke(region) as String,
         )
+    }.onFailure { e ->
+        DebugLog.warnOnce("cobbleregions-shape") { "CobbleRegions region object has an unexpected shape: ${e.message}" }
     }.getOrNull()
 }
