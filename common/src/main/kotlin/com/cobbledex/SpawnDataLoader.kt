@@ -61,6 +61,26 @@ object SpawnDataLoader {
 
     // --- SpawnInfo extraction ---
 
+    /**
+     * Reads the spawn bucket name off [detail] via reflection rather than a direct property
+     * reference, because the field's type changed between Cobblemon versions: pre-1.8.0 it's a
+     * `SpawnBucket` object (read its `name`), 1.8.0+ it's a plain `String`. A direct reference
+     * compiles against only one of those shapes and throws NoSuchMethodError against the other
+     * at runtime, so this stays compatible with both by inspecting the returned value's type.
+     */
+    private fun extractBucketName(detail: SpawnDetail): String {
+        return try {
+            val raw = detail.javaClass.getMethod("getBucket").invoke(detail)
+            when (raw) {
+                null -> "common"
+                is String -> raw.ifBlank { "common" }
+                else -> (raw.javaClass.getMethod("getName").invoke(raw) as? String)?.ifBlank { "common" } ?: "common"
+            }
+        } catch (e: Throwable) {
+            "common"
+        }
+    }
+
     private fun extractSpawnInfo(detail: PokemonSpawnDetail, species: String): SpawnInfo {
         val pokemon = detail.pokemon
         val form = pokemon.form
@@ -71,7 +91,7 @@ object SpawnDataLoader {
             else -> ""
         }
 
-        val bucket = detail.bucket?.name ?: "common"
+        val bucket = extractBucketName(detail)
         val levelRange = detail.levelRange?.let { "${it.first}-${it.last}" } ?: "1-100"
         val context = detail.spawnablePositionType?.name ?: "grounded"
 

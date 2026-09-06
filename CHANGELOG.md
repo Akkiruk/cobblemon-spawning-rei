@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.14.0] - 2026-09-06
+
+### Fixed
+- **Compatibility with Cobblemon 1.8.0.** Cobblemon 1.8.0 removed the `SpawnBucket` class, changing `SpawnDetail.bucket` from an object to a plain string. Spawn bucket names are now read via reflection so the same build works on both pre-1.8.0 and 1.8.0+ Cobblemon without needing separate releases.
+
 ## [2.13.1] - 2026-09-04
 
 ### Fixed
