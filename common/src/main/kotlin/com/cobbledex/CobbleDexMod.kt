@@ -30,7 +30,7 @@ object CobbleDexMod {
         }
 
         // Pre-cache the local-file layer (mod JARs + this client's datapacks) in the background.
-        // It supplies only the fields Cobblemon does not sync — see LocalFileSource notes in
+        // It supplies only the fields Cobblemon does not sync - see LocalFileSource notes in
         // SpawnDataIndex.doLoad.
         Thread({
             try {
@@ -62,7 +62,7 @@ object CobbleDexMod {
         }
 
         if (SpawnDataIndex.isFullyLoaded()) {
-            // Fires once per session, right as data finishes loading — builds the icon/render
+            // Fires once per session, right as data finishes loading - builds the icon/render
             // atlas automatically if no valid cache exists yet, so players never have to know
             // /cobbledex sprites build exists (see PokemonSpriteAtlas.ensureAtlas).
             PokemonSpriteAtlas.ensureAtlas()
@@ -72,14 +72,14 @@ object CobbleDexMod {
         }
     }
 
-    /** Joined a world/server — Cobblemon's own data sync is inbound, so start watching for it. */
+    /** Joined a world/server - Cobblemon's own data sync is inbound, so start watching for it. */
     fun onJoinedWorld() {
         tickCounter = 0
         CobblemonDataSignal.reset()
         PokemonSpriteAtlas.resetEnsureAttempt()
     }
 
-    /** Left the world — drop the sample so the next session re-reads from scratch. */
+    /** Left the world - drop the sample so the next session re-reads from scratch. */
     fun onLeftWorld() {
         tickCounter = 0
         CobblemonDataSignal.reset()

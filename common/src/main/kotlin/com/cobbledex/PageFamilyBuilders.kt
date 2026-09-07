@@ -6,14 +6,18 @@ object SpawnPageBuilder {
     fun sortedSpawns(spawns: List<SpawnInfo>): List<SpawnDisplayHelper.SortedSpawnEntry> =
         SpawnDisplayHelper.buildSortedSpawns(spawns)
 
-    fun build(data: SpawnRecipeData): PanelLayout =
+    fun build(data: SpawnRecipeData): SpawnDisplayHelper.SpawnLayoutResult =
         SpawnDisplayHelper.buildSpawnLayout(
             data.speciesName,
             data.spawn,
             data.mergedFormVariants,
-            data.bucketIndex,
-            data.bucketTotal,
+            data.habitats,
+            data.spawnIndex,
+            data.spawnTotal,
         )
+
+    fun buildIndex(data: SpawnIndexRecipeData): PanelLayout =
+        SpawnDisplayHelper.buildSpawnIndexLayout(data)
 }
 
 object EvolutionPageBuilder {

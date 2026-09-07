@@ -29,11 +29,24 @@ data class ItemSlotDef(
 )
 
 /**
- * A clickable text region bound to a move — the viewer plugin turns it into a click target that
+ * A clickable text region bound to a move - the viewer plugin turns it into a click target that
  * opens the "every Pokémon that can learn this move" grid. Requires no external mod.
  */
 data class MoveLinkDef(
     val moveName: String,
+    val x: Int,
+    val y: Int,
+    val width: Int,
+    val height: Int,
+)
+
+/**
+ * A clickable text region that jumps to another CobbleDex category's pages for [species] - used by
+ * the spawn page's "Spawns in a herd" pointer to open the Herds tab.
+ */
+data class CategoryLinkDef(
+    val categoryId: String,
+    val species: String,
     val x: Int,
     val y: Int,
     val width: Int,
@@ -58,6 +71,8 @@ class RecipeHandle(
         val moveKey: String? = null,
         /** Set on a TM recipe: the move this TM teaches, so viewers can bind its disc entry here. */
         val tmDiscMove: String? = null,
+        /** Clickable regions that jump to another category's pages (e.g. spawn -> Herds). */
+        val categoryLinks: List<CategoryLinkDef> = emptyList(),
     )
 
     val layout: PanelLayout by lazy(LazyThreadSafetyMode.NONE) {
@@ -187,7 +202,7 @@ object SpawnDex : DexCategory {
         for ((species, spawns) in SpawnDataIndex.spawnsBySpecies) {
             if (!SpawnDataIndex.shouldSurfaceSpecies(species)) continue
             if (spawns.isEmpty()) continue
-            all.addAll(RecipeBuilder.buildSpawnRecipes(species, spawns).map(::toHandle))
+            all.addAll(recipesFor(species, spawns))
         }
         return all
     }
@@ -196,14 +211,39 @@ object SpawnDex : DexCategory {
         if (!SpawnDataIndex.shouldSurfaceSpecies(species)) return emptyList()
         val spawns = SpawnDataIndex.getSpawnsFor(species)
         if (spawns.isEmpty()) return emptyList()
-        return RecipeBuilder.buildSpawnRecipes(species, spawns).map(::toHandle)
+        return recipesFor(species, spawns)
     }
 
-    private fun toHandle(d: SpawnRecipeData) = RecipeHandle(
-        recipeIdPath = "spawn/${sanitizePath(d.speciesName)}/${sanitizePath(d.spawn.bucket)}/${d.bucketIndex}",
+    private fun recipesFor(species: String, spawns: List<SpawnInfo>): List<RecipeHandle> {
+        val handles = mutableListOf<RecipeHandle>()
+        RecipeBuilder.buildSpawnIndex(species, spawns)?.let { handles.add(indexHandle(it)) }
+        handles.addAll(RecipeBuilder.buildSpawnRecipes(species, spawns).map(::toHandle))
+        return handles
+    }
+
+    private fun toHandle(d: SpawnRecipeData): RecipeHandle {
+        var result: SpawnDisplayHelper.SpawnLayoutResult? = null
+        fun res() = result ?: SpawnPageBuilder.build(d).also { result = it }
+        return RecipeHandle(
+            recipeIdPath = "spawn/${sanitizePath(d.speciesName)}/${sanitizePath(d.spawn.bucket)}/${d.spawnIndex}",
+            inputSpecies = emptyList(),
+            outputSpecies = listOf(d.speciesName),
+            layoutFactory = { res().layout },
+            _slots = {
+                RecipeHandle.Slots(
+                    pokemon = listOf(pokemonInput(d.speciesName)),
+                    items = res().itemSlots,
+                    categoryLinks = res().categoryLinks,
+                )
+            },
+        )
+    }
+
+    private fun indexHandle(d: SpawnIndexRecipeData) = RecipeHandle(
+        recipeIdPath = "spawn/${sanitizePath(d.speciesName)}/index",
         inputSpecies = emptyList(),
         outputSpecies = listOf(d.speciesName),
-        layoutFactory = { SpawnPageBuilder.build(d) },
+        layoutFactory = { SpawnPageBuilder.buildIndex(d) },
         _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
     )
 }
@@ -334,7 +374,7 @@ object DropDex : DexCategory {
                 RecipeHandle.Slots(
                     pokemon = res().pokemonSlots,
                     // Item as OUTPUT (header icon + "recipes for") and catalog INPUT ("uses of"), so
-                    // every viewer resolves an item lookup to this grid — and nothing else.
+                    // every viewer resolves an item lookup to this grid - and nothing else.
                     items = listOf(ItemSlotDef(d.itemId, PanelLayout.PADDING, 4, SlotRole.OUTPUT)),
                     catalogInputIds = listOf(d.itemId),
                 )

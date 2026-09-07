@@ -47,12 +47,51 @@ object RecipeBuilder {
     fun buildSpawnRecipes(species: String, spawns: List<SpawnInfo>): List<SpawnRecipeData> {
         return SpawnPageBuilder.sortedSpawns(spawns).mapNotNull { entry ->
             try {
-                SpawnRecipeData(species, entry.spawn, entry.formVariants, entry.bucketIndex, entry.bucketTotal)
+                SpawnRecipeData(
+                    species, entry.spawn, entry.formVariants, entry.habitats,
+                    entry.overallIndex, entry.overallTotal,
+                )
             } catch (e: Exception) {
                 DebugLog.once("recipe-spawn-$species-${entry.spawn.id}") { "Failed: ${e.message}" }
                 null
             }
         }
+    }
+
+    private const val SPAWN_INDEX_MAX_ROWS = 20
+
+    /**
+     * The "N ways to spawn" summary; null when the species has one spawn (or none). Rows are 1:1 with
+     * the detail pages that follow it (same order), because both come from [SpawnPageBuilder.sortedSpawns].
+     */
+    fun buildSpawnIndex(species: String, spawns: List<SpawnInfo>): SpawnIndexRecipeData? {
+        val entries = SpawnPageBuilder.sortedSpawns(spawns)
+        if (entries.size < 2) return null
+
+        val rows = entries.map { e ->
+            SpawnIndexRow(
+                bucket = e.spawn.bucket,
+                locator = when {
+                    e.spawn.herd != null -> tr("cobbledex-rei-emi-jei.spawn.index.herd_row")
+                    e.habitats.isNotEmpty() && e.spawn.biomes.isEmpty() ->
+                        e.habitats.first().habitatName + (if (e.habitats.size > 1) " +${e.habitats.size - 1}" else "")
+                    else -> SpawnPageModel.locatorFor(e.spawn)
+                },
+                time = SpawnPageModel.normalizeTime(e.spawn.timeRange),
+                pokeSnack = e.spawn.isPokeSnack == true,
+                herd = e.spawn.herd != null,
+                fishing = e.spawn.isFishing,
+                formNote = summarizeForms(e.formVariants),
+            )
+        }
+        val shown = rows.take(SPAWN_INDEX_MAX_ROWS)
+        return SpawnIndexRecipeData(species, shown, hiddenCount = rows.size - shown.size)
+    }
+
+    private fun summarizeForms(variants: List<String>): String? = when {
+        variants.isEmpty() -> null
+        variants.size > 3 -> "${variants.size} forms"
+        else -> variants.joinToString(", ")
     }
 
     fun buildAllEvolutionRecipes(
@@ -249,7 +288,7 @@ object RecipeBuilder {
         }
     }
 
-    /** Every item-dropper grid, one family per dropped item — used for "view all" browsing and panel sizing. */
+    /** Every item-dropper grid, one family per dropped item - used for "view all" browsing and panel sizing. */
     fun buildAllItemDropperRecipes(): List<ItemDroppersRecipeData> =
         SpawnDataIndex.dropsByItem.keys.sorted().flatMap { buildItemDroppersForItem(it) }
 
@@ -569,7 +608,7 @@ object RecipeBuilder {
     // --- Move learner lookup ---
     //
     // Looking up a move (via its TM/egg/tutor disc, or from the Moves page) shows a grid of every
-    // Pokémon that can learn it by ANY method — level-up, egg, tutor or TM — matching the data on the
+    // Pokémon that can learn it by ANY method - level-up, egg, tutor or TM - matching the data on the
     // per-species Moves page. Paginated into grids rather than one page per Pokémon (200+ learners).
 
     fun buildMoveLearnersForItem(itemId: String): List<MoveLearnersRecipeData> {
@@ -577,7 +616,7 @@ object RecipeBuilder {
         return buildMoveLearnersForMove(moveName)
     }
 
-    /** Every move-learner grid, one family per move — used for "view all" browsing and panel sizing. */
+    /** Every move-learner grid, one family per move - used for "view all" browsing and panel sizing. */
     fun buildAllMoveLearnerRecipes(): List<MoveLearnersRecipeData> =
         SpawnDataIndex.speciesByMove.keys.sorted().flatMap { buildMoveLearnersForMove(it) }
 

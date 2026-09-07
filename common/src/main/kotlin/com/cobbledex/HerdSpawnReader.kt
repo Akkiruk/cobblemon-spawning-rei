@@ -8,7 +8,7 @@ import com.cobblemon.mod.common.api.pokemon.PokemonProperties
  * those classes do not exist. Everything here is reflection over method names that are stable within
  * 1.8.x; any shape mismatch is swallowed and the detail is simply skipped.
  *
- * The caller ([SpawnDataLoader]) still owns condition / anticondition / weight-multiplier parsing —
+ * The caller ([SpawnDataLoader]) still owns condition / anticondition / weight-multiplier parsing -
  * those live on the shared [com.cobblemon.mod.common.api.spawning.detail.SpawnDetail] base and are
  * version-stable. This reader only pulls the herd-specific shape.
  */

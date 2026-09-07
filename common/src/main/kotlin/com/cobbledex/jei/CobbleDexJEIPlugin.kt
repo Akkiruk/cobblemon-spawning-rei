@@ -199,7 +199,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
 
     // No recipe catalysts: the category icons (Diamond, Paper, XP Bottle, …) are arbitrary markers,
     // not real workstations, so registering them just makes looking up a diamond surface "Item
-    // Drops". REI omits them too — categories are still reachable from JEI's category list.
+    // Drops". REI omits them too - categories are still reachable from JEI's category list.
 
     // ----- Generic Recipe wrapping RecipeHandle -----
 
@@ -237,7 +237,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
         override fun getIcon(): IDrawable = iconDrawable
 
         // Small recipes (a 3-drop Pokémon, a short evolution) would otherwise sit lost in that big
-        // area. Centre them horizontally, keep them at the top, and frame the content — the
+        // area. Centre them horizontally, keep them at the top, and frame the content - the
         // per-recipe framing REI (createRecipeBase) and EMI (per-recipe size) already give.
         private fun offsetX(handle: RecipeHandle): Int {
             val w = (background().width - handle.width) / 2
@@ -253,7 +253,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
             val dy = offsetY(handle)
 
             // Track which Pokémon are already in each role so we can add invisible
-            // counterparts — this lets both R (recipe/output) and U (usage/input) find every entry.
+            // counterparts - this lets both R (recipe/output) and U (usage/input) find every entry.
             val inputPokemon = mutableListOf<PokemonIngredient>()
             val outputPokemon = mutableListOf<PokemonIngredient>()
 
@@ -319,6 +319,9 @@ open class CobbleDexJEIPlugin : IModPlugin {
             for (link in recipe.handle.slots.moveLinks) {
                 builder.addInputHandler(MoveLinkInputHandler(link, dx, dy, helpers.focusFactory))
             }
+            for (link in recipe.handle.slots.categoryLinks) {
+                builder.addInputHandler(CategoryLinkInputHandler(link, dx, dy, helpers.focusFactory))
+            }
         }
 
         override fun draw(recipe: GenericRecipe, recipeSlotsView: IRecipeSlotsView, guiGraphics: GuiGraphics, mouseX: Double, mouseY: Double) {
@@ -371,6 +374,37 @@ open class CobbleDexJEIPlugin : IModPlugin {
                 runtime?.recipesGui?.show(
                     focusFactory.createFocus(RecipeIngredientRole.INPUT, MoveIngredientType, MoveIngredient(move))
                 )
+            }
+            return true
+        }
+    }
+
+    /** The spawn page's "Spawns in a herd" pointer → the species' recipe view (Herds tab included). */
+    private class CategoryLinkInputHandler(
+        link: com.cobbledex.CategoryLinkDef,
+        dx: Int,
+        dy: Int,
+        private val focusFactory: mezz.jei.api.recipe.IFocusFactory,
+    ) : mezz.jei.api.gui.inputs.IJeiInputHandler {
+
+        private val species = link.species
+        private val categoryId = link.categoryId
+        private val area = net.minecraft.client.gui.navigation.ScreenRectangle(link.x + dx, link.y + dy, link.width, link.height)
+
+        override fun getArea(): net.minecraft.client.gui.navigation.ScreenRectangle = area
+
+        override fun handleInput(
+            mouseX: Double, mouseY: Double, input: mezz.jei.api.gui.inputs.IJeiUserInput,
+        ): Boolean {
+            if (input.key.value != 0) return false
+            if (!input.isSimulate) {
+                val gui = runtime?.recipesGui ?: return true
+                val def = DexCategory.ALL.firstOrNull { it.id == categoryId }
+                if (def != null) {
+                    gui.showTypes(listOf(recipeType(def)))
+                } else {
+                    gui.show(focusFactory.createFocus(RecipeIngredientRole.INPUT, PokemonIngredientType, PokemonIngredient(species)))
+                }
             }
             return true
         }

@@ -4,8 +4,27 @@ data class SpawnRecipeData(
     val speciesName: String,
     val spawn: SpawnInfo,
     val mergedFormVariants: List<String> = emptyList(),
-    val bucketIndex: Int = 1,
-    val bucketTotal: Int = 1
+    val habitats: List<HabitatContext> = emptyList(),
+    /** Position of this spawn among all of the species' spawns, and the total. */
+    val spawnIndex: Int = 1,
+    val spawnTotal: Int = 1,
+)
+
+/** The "N ways to spawn" summary shown as page 1 when a species has more than one spawn. */
+data class SpawnIndexRecipeData(
+    val speciesName: String,
+    val rows: List<SpawnIndexRow>,
+    val hiddenCount: Int = 0,
+)
+
+data class SpawnIndexRow(
+    val bucket: String,
+    val locator: String,
+    val time: SpawnPageModel.TimeLabel,
+    val pokeSnack: Boolean,
+    val herd: Boolean,
+    val fishing: Boolean = false,
+    val formNote: String? = null,
 )
 
 data class PokemonOverviewRecipeData(

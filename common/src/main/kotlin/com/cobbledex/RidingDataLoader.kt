@@ -85,7 +85,7 @@ object RidingDataLoader {
     }
 
     /**
-     * A [com.cobblemon.mod.common.api.riding.Seat] can carry a Molang `condition` (1.8.0+) — e.g. a
+     * A [com.cobblemon.mod.common.api.riding.Seat] can carry a Molang `condition` (1.8.0+) - e.g. a
      * seat that only exists on an Alpha. Read reflectively (`Seat.condition` / `Expression.originalString`)
      * so 1.7.x, where the field is absent, is unaffected.
      */

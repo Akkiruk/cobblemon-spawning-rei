@@ -32,18 +32,18 @@ class HerdSpawnContextTest {
     )
 
     @Test
-    fun herdSpawnGetsPointerLineNotRosterDump() {
-        val specials = SpawnDisplayHelper.buildSpecials(
-            spawn(herd(member("girafarig"), member("farigiraf", HerdRole.LEADER, isAlpha = true)))
+    fun allHerdMembershipsCollapseToOneSpawnEntry() {
+        val ctx = herd(member("girafarig"), member("farigiraf", HerdRole.LEADER, isAlpha = true))
+        val entries = SpawnDisplayHelper.buildSortedSpawns(
+            listOf(
+                spawn(),                                                    // a normal spawn
+                spawn(ctx).copy(biomes = listOf("#cobblemon:is_savanna")),   // herd, one biome
+                spawn(ctx).copy(biomes = listOf("#cobblemon:is_plains")),    // same herd, other biome
+                spawn(ctx).copy(bucket = "boss"),                            // alpha herd variant
+            )
         )
-        assertTrue(specials.any { it == "cobbledex-rei-emi-jei.spawn.herd.pointer" })
-        assertFalse(specials.any { it.contains("herd.leader") || it.contains("herd.alpha") })
-    }
-
-    @Test
-    fun nonHerdSpawnHasNoHerdPointer() {
-        val specials = SpawnDisplayHelper.buildSpecials(spawn())
-        assertFalse(specials.any { it == "cobbledex-rei-emi-jei.spawn.herd.pointer" })
+        assertEquals(2, entries.size) // one plain + one collapsed herd row
+        assertEquals(1, entries.count { it.spawn.herd != null })
     }
 
     @Test

@@ -50,7 +50,7 @@ object DebugLog {
 
     fun trackFailedSpawn(file: String, reason: String) {
         if (failedSpawnParse.add(file)) {
-            logger.debug("[CobbleDex] Spawn parse failed: $file — $reason")
+            logger.debug("[CobbleDex] Spawn parse failed: $file - $reason")
         }
     }
 

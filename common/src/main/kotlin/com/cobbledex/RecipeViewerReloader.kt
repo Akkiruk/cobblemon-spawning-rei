@@ -5,14 +5,14 @@ import com.cobbledex.platform.PlatformHelper
 /**
  * Ensures EMI and JEI have current CobbleDex data after the index rebuilds.
  *
- * REI uses DynamicDisplayGenerator — always reads live data, no reload needed.
+ * REI uses DynamicDisplayGenerator - always reads live data, no reload needed.
  *
  * EMI and JEI register recipes statically. When a rebuild lands after their initial registration,
  * their recipes are stale. This reloader:
  *  1. Tracks the dataVersion each viewer last registered with
  *  2. On each tick, checks if any viewer is stale (version mismatch)
  *  3. Reloads only stale viewers
- *  4. Verifies success — stops once all are current
+ *  4. Verifies success - stops once all are current
  *  5. Uses exponential backoff if a reload doesn't take effect immediately
  *
  * Viewers are described by [Viewer] entries rather than parallel fields and branches, so adding a
@@ -41,7 +41,7 @@ object RecipeViewerReloader {
 
         fun refreshStaleness(targetVersion: Long) {
             if (!PlatformHelper.isModLoaded(modId)) {
-                // Not installed — treat as permanently current so it never blocks completion.
+                // Not installed - treat as permanently current so it never blocks completion.
                 lastRegisteredVersion = targetVersion
                 isStale = false
                 return
@@ -131,7 +131,7 @@ object RecipeViewerReloader {
         }
 
         val labels = viewers.joinToString(", ") { "${it.name}=${if (it.isStale) "stale" else "current"}" }
-        DebugLog.info("Reload attempt $attempts/$MAX_ATTEMPTS — $labels " +
+        DebugLog.info("Reload attempt $attempts/$MAX_ATTEMPTS - $labels " +
             "(target=v$targetDataVersion, spawns=${SpawnDataIndex.spawnsBySpecies.size})")
 
         stale.forEach { it.reload(targetDataVersion) }

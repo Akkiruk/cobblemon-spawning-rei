@@ -652,8 +652,8 @@ object EvolutionDataLoader {
     // and passing null reproduces the base-species behaviour precisely, so unifying them changes
     // no resolution order.
     //
-    // Fields that genuinely differ between the two readers — secondaryType, labels, description,
-    // catchRate/weight/height — are deliberately NOT here. Each encodes a specific past bug (see
+    // Fields that genuinely differ between the two readers - secondaryType, labels, description,
+    // catchRate/weight/height - are deliberately NOT here. Each encodes a specific past bug (see
     // the comments at their use sites) and collapsing them would reintroduce it.
 
     /** Per-stat: the form's value when it has one, else the species'. */
@@ -747,7 +747,7 @@ object EvolutionDataLoader {
 
     /**
      * A form's empty move list is Cobblemon's convention for "inherit the base form's moveset",
-     * not "learns nothing" — confirmed via vanilla gimmighoul.json, whose Roaming form ships
+     * not "learns nothing" - confirmed via vanilla gimmighoul.json, whose Roaming form ships
      * `"moves": []` on purpose. Passing a null [fallbackForm] (the base-species reader) leaves an
      * empty list empty, which is that reader's existing behaviour.
      */
@@ -820,7 +820,7 @@ object EvolutionDataLoader {
         val drops = extractDrops(form)
         val evYield = extractEvYield(form)
 
-        // Falls back to baseForm when the form's own list is empty — see extractMoves.
+        // Falls back to baseForm when the form's own list is empty - see extractMoves.
         val moves = extractMoves(form, fallbackForm = baseForm)
 
         // Build the form name for i18n: preserve original casing with hyphens (e.g. "mega-x", "therian")
@@ -864,7 +864,7 @@ object EvolutionDataLoader {
         )
     }
 
-    /** Merge a form entry into an existing one (e.g. regional form dedup — O3) */
+    /** Merge a form entry into an existing one (e.g. regional form dedup - O3) */
     private fun mergeFormInfo(existing: SpeciesBasicInfo, incoming: SpeciesBasicInfo): SpeciesBasicInfo {
         return existing.copy(
             primaryType = incoming.primaryType,

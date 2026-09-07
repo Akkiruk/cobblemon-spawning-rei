@@ -153,7 +153,7 @@ object SpawnDataIndex {
      * Rebuild off the current Cobblemon data, on the background loader thread.
      *
      * Called by [CobbleDexMod.tickClient] when [CobblemonDataSignal] reports Cobblemon's registries
-     * actually changed — which is both the initial `species_sync` landing and any later reload.
+     * actually changed - which is both the initial `species_sync` landing and any later reload.
      * There is no retry loop: if nothing changed there is nothing to rebuild.
      */
     fun rebuildAsync() {
@@ -201,20 +201,20 @@ object SpawnDataIndex {
      * CobbleDex sends no packets of its own. There is exactly one load path, and it merges
      * **per field** from three sources, best first:
      *
-     *  1. [DataSourceTier.COBBLEMON] — Cobblemon's own client registries. On a server these are
+     *  1. [DataSourceTier.COBBLEMON] - Cobblemon's own client registries. On a server these are
      *     what Cobblemon's `species_sync` delivered, so they already reflect the server's
      *     datapacks. This covers base stats, types, abilities, learnsets, drops, forms, riding,
      *     dex numbers and dex-entry keys.
-     *  2. [DataSourceTier.LOCAL_FILES] — this client's mod JARs, `datapacks/` and resource packs
+     *  2. [DataSourceTier.LOCAL_FILES] - this client's mod JARs, `datapacks/` and resource packs
      *     ([JarDataCache]). Consulted **only** for what Cobblemon does not put on the wire:
      *     evolutions, pre-evolutions, egg groups/cycles, catch rate, base friendship, EV yield,
      *     base experience yield, spawn pools, and fossil item predicates. (Verified against
      *     Cobblemon 1.7's `Species.encode`/`FormData.encode`: none of those fields are encoded.)
-     *  3. [DataSourceTier.BUILT_IN] — tables compiled into CobbleDex (type chart, natures), which
+     *  3. [DataSourceTier.BUILT_IN] - tables compiled into CobbleDex (type chart, natures), which
      *     never need a source at all.
      *
      * Fields are never taken from a lower tier when a higher one supplied them, and a lower tier
-     * is never rejected wholesale just because a higher one returned something — each gap is
+     * is never rejected wholesale just because a higher one returned something - each gap is
      * filled on its own.
      */
     private fun doLoad() {
@@ -251,7 +251,7 @@ object SpawnDataIndex {
         dataVersion++
 
         // REI reads live data through its dynamic generator, but JEI and EMI register their
-        // recipes statically — they must be told the index changed or they keep showing the
+        // recipes statically - they must be told the index changed or they keep showing the
         // previous version (or nothing, on the first load).
         RecipeViewerReloader.scheduleReload()
 
@@ -272,7 +272,7 @@ object SpawnDataIndex {
     private fun loadSpawns() {
         SpawnDataLoader.invalidateCache()
 
-        // Habitat pools (1.8.0+) are never synced by Cobblemon — same as the world spawn pool — so
+        // Habitat pools (1.8.0+) are never synced by Cobblemon - same as the world spawn pool - so
         // they always come from this client's jars/datapacks. They are additive: a species can spawn
         // both in the world and inside a habitat structure.
         val habitat = if (JarDataCache.hasCachedHabitatSpawns()) {
@@ -280,25 +280,35 @@ object SpawnDataIndex {
         } else emptyMap()
 
         val runtime = normalizeMapKeys(SpawnDataLoader.loadFromRuntime())
-        if (runtime.isNotEmpty()) {
-            spawnsBySpecies = mergeSpawnMaps(runtime, habitat)
-            spawnSourceTier = DataSourceTier.COBBLEMON
-            return
+        when {
+            runtime.isNotEmpty() -> {
+                spawnsBySpecies = dropMissingModSpawns(mergeSpawnMaps(runtime, habitat))
+                spawnSourceTier = DataSourceTier.COBBLEMON
+            }
+            JarDataCache.hasCachedSpawns() -> {
+                val local = normalizeMapKeys(JarDataCache.getCachedSpawns())
+                DebugLog.info("Spawns from local files (${local.size} species) - Cobblemon syncs no spawn pool")
+                spawnsBySpecies = dropMissingModSpawns(mergeSpawnMaps(local, habitat))
+                spawnSourceTier = DataSourceTier.LOCAL_FILES
+            }
+            habitat.isNotEmpty() -> {
+                spawnsBySpecies = habitat
+                spawnSourceTier = DataSourceTier.LOCAL_FILES
+            }
+            else -> {
+                spawnsBySpecies = emptyMap()
+                spawnSourceTier = DataSourceTier.UNAVAILABLE
+            }
         }
-        if (JarDataCache.hasCachedSpawns()) {
-            val local = normalizeMapKeys(JarDataCache.getCachedSpawns())
-            DebugLog.info("Spawns from local files (${local.size} species) — Cobblemon syncs no spawn pool")
-            spawnsBySpecies = mergeSpawnMaps(local, habitat)
-            spawnSourceTier = DataSourceTier.LOCAL_FILES
-            return
-        }
-        if (habitat.isNotEmpty()) {
-            spawnsBySpecies = habitat
-            spawnSourceTier = DataSourceTier.LOCAL_FILES
-            return
-        }
-        spawnsBySpecies = emptyMap()
-        spawnSourceTier = DataSourceTier.UNAVAILABLE
+    }
+
+    private fun dropMissingModSpawns(map: Map<String, List<SpawnInfo>>): Map<String, List<SpawnInfo>> {
+        var removed = 0
+        val out = map.mapValues { (_, list) ->
+            list.filterNot { ModFilter.spawnReferencesMissingMod(it).also { hit -> if (hit) removed++ } }
+        }.filterValues { it.isNotEmpty() }
+        if (removed > 0) DebugLog.info("Hid $removed spawn entries needing a mod that isn't installed")
+        return out
     }
 
     /**
@@ -354,7 +364,7 @@ object SpawnDataIndex {
      */
     private fun loadSpeciesInfo(speciesCount: Int) {
         if (speciesCount <= 0) {
-            DebugLog.warn("Cobblemon has no species yet — species info deferred")
+            DebugLog.warn("Cobblemon has no species yet - species info deferred")
             speciesInfo = emptyMap()
             speciesInfoSourceTier = DataSourceTier.UNAVAILABLE
             return
@@ -411,7 +421,7 @@ object SpawnDataIndex {
         }
 
         if (runtime.isEmpty()) {
-            DebugLog.info("Evolutions from local files (${local.size} species) — Cobblemon's species sync omits them")
+            DebugLog.info("Evolutions from local files (${local.size} species) - Cobblemon's species sync omits them")
             evolutionsBySpecies = local
             evolutionSourceTier = DataSourceTier.LOCAL_FILES
             return
@@ -444,7 +454,7 @@ object SpawnDataIndex {
         }
     }
 
-    /** Special obtainment methods, defined by addon mods and datapacks — never a Cobblemon concept. */
+    /** Special obtainment methods, defined by addon mods and datapacks - never a Cobblemon concept. */
     private fun loadObtainment() {
         try {
             obtainmentBySpecies = normalizeMapKeys(
@@ -474,7 +484,7 @@ object SpawnDataIndex {
         }
     }
 
-    /** Riding properties — fully carried by Cobblemon's species sync. */
+    /** Riding properties - fully carried by Cobblemon's species sync. */
     private fun loadRiding() {
         try {
             ridingBySpecies = RidingDataLoader.loadFromRuntime()
@@ -489,13 +499,13 @@ object SpawnDataIndex {
 
     /**
      * Native TMs (Cobblemon 1.8.0+). The registry is client-synced with full recipes, so the runtime
-     * read is player-truth; the Cobblemon jar is the fallback. Empty on older Cobblemon — the TM
+     * read is player-truth; the Cobblemon jar is the fallback. Empty on older Cobblemon - the TM
      * Recipes page then simply has nothing to show, and third-party TM handling is unaffected.
      */
     private fun loadTms() {
         try {
             // Merge rather than either/or: Cobblemon's TM registry (`JsonDataRegistry`) can still be
-            // mid-populate on the first rebuild — taking a partial runtime map wholesale left the TM
+            // mid-populate on the first rebuild - taking a partial runtime map wholesale left the TM
             // Recipes page showing only the handful of TMs that had loaded by then. The jar cache is
             // the complete file-truth base (~335); runtime entries overlay it as player-truth so
             // datapack edits still win, and a missing sync no longer truncates the list.
@@ -530,7 +540,7 @@ object SpawnDataIndex {
         }
     }
 
-    /** Optional CobbleRegions region names — that mod exposes them to the client itself. */
+    /** Optional CobbleRegions region names - that mod exposes them to the client itself. */
     private fun loadSpawnRegions() {
         spawnRegionsBySpecies = try {
             CobbleRegionsIntegration.regionsBySpecies(spawnsBySpecies.keys)

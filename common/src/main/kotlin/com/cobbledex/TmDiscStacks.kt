@@ -8,7 +8,7 @@ import net.minecraft.world.item.ItemStack
 
 /**
  * Builds one real `cobblemon:technical_machine` ItemStack per known TM, with the move written into the
- * `cobblemon:tm_move` data component — the same stack Cobblemon's TM Machine produces.
+ * `cobblemon:tm_move` data component - the same stack Cobblemon's TM Machine produces.
  *
  * Cobblemon's native TMs are a single item with no per-move id and no creative-tab entry, so recipe
  * viewers have nothing to browse. These stacks are what CobbleDex registers on REI/JEI/EMI so every

@@ -6,7 +6,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceLocation
 
 /**
- * A move as an EMI ingredient. Only used to key navigation ("show me who can learn this move") — it
+ * A move as an EMI ingredient. Only used to key navigation ("show me who can learn this move") - it
  * is never shown in a slot, so it renders nothing.
  */
 class MoveEmiStack private constructor(val move: String) : EmiStack() {

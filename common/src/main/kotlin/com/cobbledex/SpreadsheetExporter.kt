@@ -241,7 +241,7 @@ object SpreadsheetExporter {
     }
 
     // ══════════════════════════════════════════════════════════════════
-    //  Icon registry — deduplicated icon capture
+    //  Icon registry - deduplicated icon capture
     // ══════════════════════════════════════════════════════════════════
 
     /** Maps a cache key → PNG bytes. Built once, shared across all sheets. */
@@ -255,7 +255,7 @@ object SpreadsheetExporter {
             val itemId = cacheKey.removePrefix("item:")
             val stack = SpawnDisplayHelper.resolveItemStack(itemId)
             if (stack.isEmpty) {
-                DebugLog.warn("Icon resolve failed — no ItemStack for key: $cacheKey")
+                DebugLog.warn("Icon resolve failed - no ItemStack for key: $cacheKey")
                 return null
             }
             return IconCapture.captureItemToPng(stack)
@@ -282,7 +282,7 @@ object SpreadsheetExporter {
     )
 
     // ══════════════════════════════════════════════════════════════════
-    //  Sheet builders — Dex # first, no IDs, % symbols, icons
+    //  Sheet builders - Dex # first, no IDs, % symbols, icons
     // ══════════════════════════════════════════════════════════════════
 
     private fun buildSpeciesOverview(index: SpawnDataIndex): SheetData? {
@@ -488,7 +488,7 @@ object SpreadsheetExporter {
                 icons.add(CellIcon("item:${drop.itemId}", rowIdx, 3))
 
                 val qty = if (drop.quantityRange != null) {
-                    drop.quantityRange.replace("-", "–")
+                    drop.quantityRange.replace("-", "-")
                 } else {
                     drop.quantity.toString()
                 }
@@ -540,8 +540,8 @@ object SpreadsheetExporter {
                     move.name,
                     formatTypeName(move.type),
                     titleCase(move.category),
-                    if (move.power > 0) move.power.toString() else "—",
-                    if (move.accuracy > 0) "${move.accuracy}%" else "—",
+                    if (move.power > 0) move.power.toString() else "-",
+                    if (move.accuracy > 0) "${move.accuracy}%" else "-",
                     move.pp.toString()
                 ))
             }
@@ -586,8 +586,8 @@ object SpreadsheetExporter {
                         move.name,
                         formatTypeName(move.type),
                         titleCase(move.category),
-                        if (move.power > 0) move.power.toString() else "—",
-                        if (move.accuracy > 0) "${move.accuracy}%" else "—",
+                        if (move.power > 0) move.power.toString() else "-",
+                        if (move.accuracy > 0) "${move.accuracy}%" else "-",
                         move.pp.toString()
                     ))
                 }
@@ -775,7 +775,7 @@ object SpreadsheetExporter {
     }
 
     // ══════════════════════════════════════════════════════════════════
-    //  XLSX writer — OOXML SpreadsheetML + DrawingML icons
+    //  XLSX writer - OOXML SpreadsheetML + DrawingML icons
     // ══════════════════════════════════════════════════════════════════
 
     private const val ICON_COL_WIDTH = 5.5
@@ -845,7 +845,7 @@ object SpreadsheetExporter {
 
     private fun isNumeric(s: String): Boolean {
         if (s.isEmpty()) return false
-        // Don't treat "5%" or "12.5%" as numeric — they have a % suffix
+        // Don't treat "5%" or "12.5%" as numeric - they have a % suffix
         if (s.endsWith("%")) return false
         return s.matches(Regex("""-?\d+(\.\d+)?"""))
     }

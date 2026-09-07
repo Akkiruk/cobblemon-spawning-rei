@@ -60,31 +60,6 @@ object SpawnDisplayHelper {
     fun bucketSortOrder(bucket: String): Int =
         BUCKET_ORDER.indexOf(bucket.lowercase()).let { if (it < 0) 99 else it }
 
-    fun presetLabel(preset: String): String = when (preset.lowercase()) {
-        "natural" -> tr("cobbledex-rei-emi-jei.preset.natural")
-        "water" -> tr("cobbledex-rei-emi-jei.preset.water")
-        "lava" -> tr("cobbledex-rei-emi-jei.preset.lava")
-        "urban" -> tr("cobbledex-rei-emi-jei.preset.urban")
-        "wild" -> tr("cobbledex-rei-emi-jei.preset.wild")
-        "foliage" -> tr("cobbledex-rei-emi-jei.preset.foliage")
-        "treetop" -> tr("cobbledex-rei-emi-jei.preset.treetop")
-        "derelict" -> tr("cobbledex-rei-emi-jei.preset.derelict")
-        "redstone" -> tr("cobbledex-rei-emi-jei.preset.redstone")
-        "ancient_city" -> tr("cobbledex-rei-emi-jei.preset.ancient_city")
-        "desert_pyramid" -> tr("cobbledex-rei-emi-jei.preset.desert_pyramid")
-        "end_city" -> tr("cobbledex-rei-emi-jei.preset.end_city")
-        "jungle_pyramid" -> tr("cobbledex-rei-emi-jei.preset.jungle_pyramid")
-        "mansion" -> tr("cobbledex-rei-emi-jei.preset.mansion")
-        "nether_fossil" -> tr("cobbledex-rei-emi-jei.preset.nether_fossil")
-        "nether_structures" -> tr("cobbledex-rei-emi-jei.preset.nether_structures")
-        "ocean_monument" -> tr("cobbledex-rei-emi-jei.preset.ocean_monument")
-        "ocean_ruins" -> tr("cobbledex-rei-emi-jei.preset.ocean_ruins")
-        "pillager_outpost" -> tr("cobbledex-rei-emi-jei.preset.pillager_outpost")
-        "stronghold" -> tr("cobbledex-rei-emi-jei.preset.stronghold")
-        "trail_ruins" -> tr("cobbledex-rei-emi-jei.preset.trail_ruins")
-        else -> titleCase(preset)
-    }
-
     // --- Spawn merge ---
 
     fun mergeVariantSpawns(spawns: List<SpawnInfo>): List<MergedSpawn> {
@@ -112,7 +87,7 @@ object SpawnDisplayHelper {
             "${s.neededNearbyBlocks.sorted()}|${s.neededBaseBlocks.sorted()}|" +
             "${s.moonPhase}|${s.presets.sorted()}|${s.fluid}|${serializeAntiCondition(s.anticondition)}|" +
             "${serializeWeightMultipliers(s.weightMultipliers)}|${s.minLureLevel}|${s.conditionWarnings.sorted()}|" +
-            "${s.herd?.rosterKey()}|" +
+            "${s.isPokeSnack}|${s.isSlimeChunk}|${s.herd?.rosterKey()}|" +
             "${s.habitat?.habitatNameKey}:${s.habitat?.phases}"
     }
 
@@ -211,42 +186,6 @@ object SpawnDisplayHelper {
         return list
     }
 
-    fun buildSpecials(spawn: SpawnInfo): List<String> {
-        val list = mutableListOf<String>()
-        spawn.habitat?.let { list.addAll(it.displayLines()) }
-        // Herd details live on their own Herds page now; the spawn panel just points there.
-        if (spawn.herd != null) list.add(tr("cobbledex-rei-emi-jei.spawn.herd.pointer"))
-        val regions = SpawnDataIndex.spawnRegionsForSpecies(spawn.pokemon)
-        if (regions.isNotEmpty()) {
-            list.add(tr("cobbledex-rei-emi-jei.spawn.special.regions", regions.joinToString(", ") { it.displayName }))
-        }
-        val structNames = spawn.structures.map { formatStructureName(it) }.toSet()
-        if (structNames.isNotEmpty()) {
-            list.add(tr("cobbledex-rei-emi-jei.spawn.special.structure", structNames.joinToString(", ")))
-        }
-        if (spawn.dimensions.isNotEmpty()) {
-            list.add(tr("cobbledex-rei-emi-jei.spawn.special.dimension", spawn.dimensions.joinToString(", ") { formatDimension(it) }))
-        }
-        spawn.fluid?.let {
-            val name = when {
-                it.contains("water") -> tr("cobbledex-rei-emi-jei.fluid.water")
-                it.contains("lava") -> tr("cobbledex-rei-emi-jei.fluid.lava")
-                else -> formatId(it)
-            }
-            list.add(tr("cobbledex-rei-emi-jei.spawn.special.in_fluid", name))
-        }
-        if (spawn.neededBaseBlocks.isNotEmpty()) {
-            val names = spawn.neededBaseBlocks.map { formatBlockName(it) }
-            val redundant = structNames.isNotEmpty() && names.all { it.lowercase().contains("structure") }
-            if (!redundant) list.add(tr("cobbledex-rei-emi-jei.spawn.special.spawns_on", names.joinToString(", ")))
-        }
-        if (spawn.neededNearbyBlocks.isNotEmpty()) {
-            val names = spawn.neededNearbyBlocks.map { formatBlockName(it) }
-            val redundant = structNames.isNotEmpty() && names.all { it.lowercase().contains("structure") }
-            if (!redundant) list.add(tr("cobbledex-rei-emi-jei.spawn.special.near", names.joinToString(", ")))
-        }
-        return list
-    }
 
     fun buildExclusionLines(anti: SpawnAntiCondition): List<String> {
         val lines = mutableListOf<String>()
@@ -452,46 +391,61 @@ object SpawnDisplayHelper {
         layout.fill(PanelLayout.PADDING, dividerY, layout.right, dividerY + 1, 0x50FFFFFF)
     }
 
-    // --- Sorted spawn builder (shared across REI/JEI/EMI) ---
+    // --- Display spawn builder (shared across REI/JEI/EMI) ---
+    //
+    // Two merge passes: mergeVariantSpawns collapses form aspects (Unown letters, Magikarp patterns);
+    // then everything with the same SpawnPageModel.displayGroupKey is unioned into one page, so the
+    // index's "N ways to spawn" count matches the number of detail pages exactly.
 
     data class SortedSpawnEntry(
-        val spawn: SpawnInfo,
+        val spawn: SpawnInfo,               // representative, with biomes/structures/mults unioned
         val formVariants: List<String>,
-        val bucketIndex: Int,
-        val bucketTotal: Int
+        val habitats: List<HabitatContext>,
+        val overallIndex: Int,
+        val overallTotal: Int,
     )
 
     fun buildSortedSpawns(spawns: List<SpawnInfo>): List<SortedSpawnEntry> {
-        val merged = mergeVariantSpawns(spawns)
-        val sorted = merged.sortedWith(
-            compareBy<MergedSpawn> { bucketSortOrder(it.spawn.bucket) }
-                .thenBy { it.spawn.context }
-                .thenByDescending { it.spawn.weight }
+        val rawMerged = mergeVariantSpawns(spawns)
+        // Every herd-membership entry (one per herd, per biome variant, per bucket) collapses to a
+        // single "in a herd" row on the spawn page; the real detail lives on the Herds tab.
+        val (herdEntries, plainEntries) = rawMerged.partition { it.spawn.herd != null }
+        val variantMerged = if (herdEntries.isEmpty()) plainEntries else {
+            plainEntries + MergedSpawn(
+                herdEntries.first().spawn.copy(
+                    biomes = emptyList(), structures = emptyList(), dimensions = emptyList(),
+                    neededNearbyBlocks = emptyList(), neededBaseBlocks = emptyList(),
+                    anticondition = null, weightMultipliers = emptyList(), timeRange = null,
+                    canSeeSky = null, minLight = null, maxLight = null, minSkyLight = null, maxSkyLight = null,
+                    minY = null, maxY = null, moonPhase = null, isPokeSnack = null,
+                    bucket = herdEntries.map { it.spawn.bucket }.minByOrNull { bucketSortOrder(it) } ?: "common",
+                ),
+                emptyList(),
+            )
+        }
+        val groups = variantMerged.groupBy { SpawnPageModel.displayGroupKey(it.spawn) }
+
+        val merged = groups.values.map { members ->
+            val reps = members.map { it.spawn }
+            val rep = reps.first().copy(
+                biomes = reps.flatMap { it.biomes }.distinct(),
+                structures = reps.flatMap { it.structures }.distinct(),
+                neededNearbyBlocks = reps.flatMap { it.neededNearbyBlocks }.distinct(),
+                neededBaseBlocks = reps.flatMap { it.neededBaseBlocks }.distinct(),
+                weightMultipliers = reps.flatMap { it.weightMultipliers }.distinctBy { serializeWeightMultipliers(listOf(it)) },
+                minLureLevel = reps.mapNotNull { it.minLureLevel }.minOrNull(),
+                weight = reps.maxOf { it.weight },
+            )
+            Triple(rep, members.flatMap { it.formVariants }.distinct(), reps.mapNotNull { it.habitat }.distinctBy { it.habitatNameKey })
+        }.sortedWith(
+            compareBy<Triple<SpawnInfo, List<String>, List<HabitatContext>>> { bucketSortOrder(it.first.bucket) }
+                .thenBy { it.first.context }
+                .thenByDescending { it.first.weight }
         )
-        val bucketCounts = sorted.groupBy { it.spawn.bucket.lowercase() }.mapValues { it.value.size }
-        val bucketIdx = mutableMapOf<String, Int>()
-        return sorted.map { ms ->
-            val b = ms.spawn.bucket.lowercase()
-            val idx = (bucketIdx[b] ?: 0) + 1
-            bucketIdx[b] = idx
-            SortedSpawnEntry(ms.spawn, ms.formVariants, idx, bucketCounts[b]!!)
-        }
-    }
 
-    // --- Context parts builder ---
-
-    fun buildContextParts(spawn: SpawnInfo, mergedFormVariants: List<String>): List<String> {
-        val parts = mutableListOf<String>()
-        if (spawn.context != "grounded") parts.add(spawn.displayContext)
-        if (spawn.presets.isNotEmpty()) {
-            parts.add(spawn.presets.map { presetLabel(it) }.joinToString(", "))
+        return merged.mapIndexed { i, (rep, forms, habitats) ->
+            SortedSpawnEntry(rep, forms, habitats, i + 1, merged.size)
         }
-        if (mergedFormVariants.isNotEmpty()) {
-            parts.add(tr("cobbledex-rei-emi-jei.spawn.forms", mergedFormVariants.joinToString(", ")))
-        } else if (spawn.hasFormVariant) {
-            parts.add(tr("cobbledex-rei-emi-jei.spawn.form", formatFormAspects(spawn.formAspects)))
-        }
-        return parts
     }
 
     // --- Biome tooltip builder ---
@@ -560,8 +514,8 @@ object SpawnDisplayHelper {
         val displayName = tr(moveKey).let { if (it == moveKey) titleCase(move.name) else it }
         lines.add(Component.literal("§f§l$displayName"))
         lines.add(Component.literal("§e${titleCase(move.type)} §7\u2022 §e${titleCase(move.category)}"))
-        val pow = if (move.power > 0) "${move.power}" else "\u2014"
-        val acc = if (move.accuracy > 0) "${move.accuracy}" else "\u2014"
+        val pow = if (move.power > 0) "${move.power}" else "-"
+        val acc = if (move.accuracy > 0) "${move.accuracy}" else "-"
         lines.add(Component.literal("§7Power: §f$pow §7| Acc: §f$acc §7| PP: §f${move.pp}"))
         if (entry != null) {
             if (entry.isLevelUp) lines.add(Component.literal("§a✦ §7" + tr("cobbledex-rei-emi-jei.moves.tt_level", moveLevelText(entry.levelUpLevels))))
@@ -658,197 +612,312 @@ object SpawnDisplayHelper {
 
     // --- Spawn layout builder (single source of truth for measure + render) ---
 
+    data class SpawnLayoutResult(
+        val layout: PanelLayout,
+        val itemSlots: List<ItemSlotDef>,
+        val categoryLinks: List<CategoryLinkDef> = emptyList(),
+    )
+
+    private fun bandLabel(layout: PanelLayout, key: String, color: Int = 0xFFE8E8E8.toInt()) {
+        layout.text(PanelLayout.PADDING, tr(key), color)
+        layout.line()
+    }
+
+    private fun bandRule(layout: PanelLayout) {
+        layout.gap(2)
+        layout.fill(PanelLayout.PADDING, layout.y, layout.right, layout.y + 1, 0x30FFFFFF)
+        layout.gap(4)
+    }
+
+    /** Up to [visible] friendly names, then `\u2026 +N more \u25BE` with the full list on hover. */
+    private fun collapsedList(
+        layout: PanelLayout, x: Int, maxWidth: Int, items: List<String>, color: Int,
+        visible: Int = 5, perItemTooltip: ((Int) -> List<Component>)? = null,
+    ) {
+        if (items.isEmpty()) return
+        val shown = items.take(visible)
+        val placements = layout.wrappedItemsWithPositions(x, shown, ", ", maxWidth, color)
+        perItemTooltip?.let { tt ->
+            placements.forEachIndexed { i, p ->
+                layout.addTooltipZone(p.x, p.y, p.width, PanelLayout.LINE_HEIGHT, tt(i))
+            }
+        }
+        if (items.size > visible) {
+            val moreText = tr("cobbledex-rei-emi-jei.spawn.more", items.size - visible)
+            val moreY = layout.y
+            layout.text(x, moreText, 0xFF9999AA.toInt())
+            layout.line()
+            val full = items.indices.map { i ->
+                perItemTooltip?.invoke(i)?.firstOrNull()
+                    ?: Component.literal(items[i]).withStyle { it.withColor(color) }
+            }
+            layout.addTooltipZone(x, moreY, layout.font.width(moreText), PanelLayout.LINE_HEIGHT, full)
+        }
+    }
+
+    private fun timeLine(t: SpawnPageModel.TimeLabel): String? = when (t) {
+        SpawnPageModel.TimeLabel.DAY -> tr("cobbledex-rei-emi-jei.spawn.time.day")
+        SpawnPageModel.TimeLabel.NIGHT -> tr("cobbledex-rei-emi-jei.spawn.time.night")
+        SpawnPageModel.TimeLabel.DAWN -> tr("cobbledex-rei-emi-jei.spawn.time.dawn")
+        SpawnPageModel.TimeLabel.DUSK -> tr("cobbledex-rei-emi-jei.spawn.time.dusk")
+        SpawnPageModel.TimeLabel.ANY, SpawnPageModel.TimeLabel.ODD -> null
+    }
+
+    private fun weatherLine(spawn: SpawnInfo): String? = when {
+        spawn.weather.isThundering == true -> tr("cobbledex-rei-emi-jei.weather.thunder")
+        spawn.weather.isRaining == true -> tr("cobbledex-rei-emi-jei.weather.rain")
+        spawn.weather.isRaining == false -> tr("cobbledex-rei-emi-jei.weather.clear")
+        else -> null
+    }
+
+    private fun multiplierLine(wm: WeightMultiplier): Pair<String, Boolean> {
+        val arrow = if (wm.multiplier < 1f) "\u25BC" else if (wm.multiplier > 1f) "\u25B2" else "\u25CF"
+        SpawnPageModel.phraseMultiplier(wm)?.let { return "$arrow ${it.text}" to it.spatial }
+        return "$arrow ${formatWeight(wm.multiplier)}x ${wm.displayConditionSummary()}" to false
+    }
+
     fun buildSpawnLayout(
         speciesName: String,
         spawn: SpawnInfo,
         mergedFormVariants: List<String>,
-        bucketIndex: Int,
-        bucketTotal: Int
-    ): PanelLayout {
+        habitats: List<HabitatContext>,
+        spawnIndex: Int,
+        spawnTotal: Int,
+    ): SpawnLayoutResult {
         val font = Minecraft.getInstance().font
         val padding = PanelLayout.PADDING
-        val lineHeight = PanelLayout.LINE_HEIGHT
-        val showWeights = CobbleDexConfig.get().showSpawnWeights && spawn.weight > 0f
-
+        val nameX = PanelLayout.TEXT_START_X + 6
+        val name = formatSpeciesName(speciesName)
         val lvText = levelText(spawn.levelRange)
-        val bucketText = bucketLabel(spawn.bucket)
-        val ctxParts = buildContextParts(spawn, mergedFormVariants)
-        val ctxText = ctxParts.joinToString(" \u00B7 ")
-        val wtText = if (showWeights) weightText(spawn.weight) else ""
-        val footerText = "$bucketText $bucketIndex/$bucketTotal"
+        val bucketText = bucketLabel(spawn.bucket).uppercase()
+        val bColor = bucketColor(spawn.bucket)
 
-        val nameWidth = PanelLayout.TEXT_START_X + font.width(formatSpeciesName(speciesName)) + padding
-        val lvBucketWidth = padding + font.width(lvText) + 6 + font.width(bucketText) + padding
-        val ctxRowWidth = if (ctxText.isNotEmpty() || wtText.isNotEmpty()) {
-            padding + 4 + font.width(ctxText) + (if (wtText.isNotEmpty()) 6 + font.width(wtText) else 0) + padding
-        } else 0
-        val footerWidth = padding + font.width(footerText) + padding
-        val width = computePanelWidth(nameWidth, lvBucketWidth, ctxRowWidth, footerWidth)
+        val formTag: String? = when {
+            mergedFormVariants.isEmpty() -> null
+            mergedFormVariants.size > 3 -> tr("cobbledex-rei-emi-jei.spawn.forms_n", mergedFormVariants.size)
+            else -> mergedFormVariants.joinToString(", ")
+        }
 
+        val split = SpawnPageModel.splitBiomes(spawn.biomes)
+        val antiSplit = SpawnPageModel.interpretAnti(spawn.anticondition)
+        val categoryLinks = mutableListOf<CategoryLinkDef>()
+        val hasStructure = spawn.structures.isNotEmpty()
+        val chips = SpawnPageModel.blockChips(spawn.neededBaseBlocks, spawn.neededNearbyBlocks, hasStructure)
+        val mults = if (CobbleDexConfig.get().showSpawnWeights)
+            spawn.weightMultipliers.map { multiplierLine(it) } else emptyList()
+
+        val width = computePanelWidth(
+            nameX + font.width(name) + (formTag?.let { font.width(" \u2039$it\u203A") } ?: 0) + padding,
+            padding + font.width(name) + 8 + font.width(lvText) + padding,
+            216,
+        )
         val layout = PanelLayout(width)
         val right = layout.right
+        val contentW = right - padding
+        val itemSlots = mutableListOf<ItemSlotDef>()
+
+        // ---------- header ----------
+        var hx = nameX
+        layout.textAt(hx, 6, name, 0xFFFFFFFF.toInt())
+        hx += font.width(name)
+        if (formTag != null) {
+            val tagStr = " \u2039$formTag\u203A"
+            val tagClipped = clipToWidth(font, tagStr, (right - hx - font.width(lvText) - 6).coerceAtLeast(8))
+            layout.textAt(hx, 6, tagClipped, 0xFF9999AA.toInt())
+            if (mergedFormVariants.size > 3) {
+                layout.addTooltipZone(hx, 6, font.width(tagClipped), PanelLayout.LINE_HEIGHT,
+                    listOf(Component.literal(mergedFormVariants.joinToString(", ")).withStyle { it.withColor(0xDDDDDD) }))
+            }
+        }
+        layout.textRightAt(6, lvText, 0xFF0099FF.toInt())
+        layout.textAt(nameX, 18, bucketText, bColor)
+        layout.fill(padding, 30, right, 31, 0x50FFFFFF)
+        addSourceCaveat(layout, SpawnDataIndex.spawnSourceTier, width, headerHeight = 30)
+        layout.skipTo(35)
+
         val indentX = PanelLayout.INDENT_X
-        val indentWidth = right - indentX
-        val color = bucketColor(spawn.bucket)
 
-        layout.textAt(padding + 22, 6, formatSpeciesName(speciesName), 0xFFFFFF)
-        layout.textAt(padding, 22, lvText, 0x0099FF)
-        layout.textRightAt(22, bucketText, color)
-        layout.fill(padding, 36, right, 37, 0x50FFFFFF)
-        addSourceCaveat(layout, SpawnDataIndex.spawnSourceTier, width)
-        layout.skipTo(42)
-
-        if (showWeights) {
-            layout.textRight(wtText, 0xBBBBBB)
-            if (ctxParts.isNotEmpty()) {
-                val ctxMax = right - font.width(wtText) - (padding + 4) - 6
-                layout.wrapped(padding + 4, ctxText, ctxMax, 0xDDDDDD)
-            } else {
-                layout.line()
+        // ---------- WHERE ----------
+        val biomeIds = split.climateOrConcrete
+        val extraDims = spawn.dimensions.filter { !it.contains("overworld") }
+        val posLine = if (spawn.context != "grounded" && spawn.context != "fishing") spawn.displayContext else null
+        val regions = SpawnDataIndex.spawnRegionsForSpecies(spawn.pokemon)
+        val spatialMults = mults.filter { it.second }
+        val altLine = when {
+            spawn.minY != null && spawn.maxY != null -> tr("cobbledex-rei-emi-jei.spawn.cond.y_range", spawn.minY!!, spawn.maxY!!)
+            spawn.minY != null -> tr("cobbledex-rei-emi-jei.spawn.cond.y_min", spawn.minY!!)
+            spawn.maxY != null -> tr("cobbledex-rei-emi-jei.spawn.cond.y_max", spawn.maxY!!)
+            else -> null
+        }
+        val lavaLine = if (spawn.fluid?.contains("lava") == true && spawn.context != "submerged")
+            tr("cobbledex-rei-emi-jei.spawn.special.in_fluid", tr("cobbledex-rei-emi-jei.fluid.lava")) else null
+        val habitatList = habitats.ifEmpty { listOfNotNull(spawn.habitat) }
+        val noBiomeOrStructure = biomeIds.isEmpty() && spawn.structures.isEmpty()
+        // Whole-dimension tags: "Overworld" only earns a line when it's the only "where" there is.
+        val pureOverworld = split.hasOverworld && noBiomeOrStructure && split.dimensions.isEmpty()
+        val dimLabels = when {
+            pureOverworld -> listOf(tr("cobbledex-rei-emi-jei.spawn.anywhere_overworld"))
+            split.hasOverworld && noBiomeOrStructure && split.dimensions.isNotEmpty() ->
+                listOf(tr("cobbledex-rei-emi-jei.spawn.dim.overworld")) + split.dimensions
+            else -> split.dimensions
+        }
+        val whereHas = biomeIds.isNotEmpty() || spawn.structures.isNotEmpty() || dimLabels.isNotEmpty() ||
+            extraDims.isNotEmpty() || posLine != null || altLine != null || lavaLine != null ||
+            habitatList.isNotEmpty() || antiSplit.positiveWhere.isNotEmpty() ||
+            regions.isNotEmpty() || spawn.isPokeSnack == true || spawn.herd != null || spatialMults.isNotEmpty()
+        if (whereHas) {
+            bandLabel(layout, "cobbledex-rei-emi-jei.spawn.band.where")
+            for (h in habitatList) {
+                h.displayLines().forEachIndexed { i, line ->
+                    layout.wrapped(indentX, line, contentW, if (i == 0) 0xFFCCA066.toInt() else 0xFFAAAAAA.toInt())
+                }
             }
-        } else if (ctxParts.isNotEmpty()) {
-            layout.wrapped(padding + 4, ctxText, right - padding - 4, 0xDDDDDD)
-        } else {
+            if (biomeIds.isNotEmpty()) {
+                collapsedList(
+                    layout, indentX, right - indentX,
+                    biomeIds.map { formatBiomeName(it) }, 0xFFCCA066.toInt(), visible = 5,
+                    perItemTooltip = { i -> buildSingleBiomeTooltip(biomeIds[i]) },
+                )
+            }
+            if (spawn.structures.isNotEmpty()) {
+                collapsedList(
+                    layout, indentX, right - indentX,
+                    spawn.structures.map { formatStructureName(it) }, 0xFFCCB080.toInt(), visible = 4,
+                )
+            }
+            val dimColor = if (noBiomeOrStructure) 0xFFCCA066.toInt() else 0xFFAAAAAA.toInt()
+            dimLabels.forEach { d ->
+                val text = if (noBiomeOrStructure) d else tr("cobbledex-rei-emi-jei.spawn.in_dim", d)
+                layout.wrapped(indentX, text, contentW, dimColor)
+            }
+            extraDims.forEach {
+                layout.wrapped(indentX, tr("cobbledex-rei-emi-jei.spawn.in_dim", formatDimension(it)), contentW, 0xFFAAAAAA.toInt())
+            }
+            posLine?.let { layout.wrapped(indentX, it, contentW, 0xFFAAAAAA.toInt()) }
+            lavaLine?.let { layout.wrapped(indentX, it, contentW, 0xFFCC8866.toInt()) }
+            altLine?.let { layout.wrapped(indentX, it, contentW, 0xFFAAAAAA.toInt()) }
+            antiSplit.positiveWhere.forEach { layout.wrapped(indentX, it, contentW, 0xFFAAAAAA.toInt()) }
+            if (regions.isNotEmpty()) {
+                layout.wrapped(indentX, tr("cobbledex-rei-emi-jei.spawn.only_region", regions.joinToString(", ") { it.displayName }), contentW, 0xFF88CCFF.toInt())
+            }
+            if (spawn.isPokeSnack == true) {
+                layout.wrapped(indentX, "\u25C6 " + tr("cobbledex-rei-emi-jei.spawn.poke_snack"), contentW, 0xFFDDAA55.toInt())
+            }
+            if (spawn.herd != null) {
+                val hy = layout.y
+                val text = tr("cobbledex-rei-emi-jei.spawn.herd.pointer")
+                layout.wrapped(indentX, text, contentW, 0xFFFFCC66.toInt())
+                categoryLinks.add(CategoryLinkDef(HerdsDex.id, speciesName, indentX, hy, contentW - indentX, layout.y - hy))
+            }
+            spatialMults.forEach { layout.wrapped(indentX, it.first, contentW, 0xFFCC9999.toInt()) }
+            bandRule(layout)
+        }
+
+        // ---------- WHEN ----------
+        val timeStr = timeLine(SpawnPageModel.normalizeTime(spawn.timeRange))
+        val weatherStr = weatherLine(spawn)
+        val lightStr = SpawnPageModel.lightPhrase(spawn.minSkyLight, spawn.maxSkyLight, spawn.minLight, spawn.maxLight, spawn.canSeeSky)
+        val tempMults = mults.filter { !it.second }
+        val whenHas = timeStr != null || weatherStr != null || lightStr != null || spawn.moonPhase != null ||
+            spawn.isSlimeChunk == true || spawn.isFishing || tempMults.isNotEmpty()
+        if (whenHas) {
+            bandLabel(layout, "cobbledex-rei-emi-jei.spawn.band.when")
+            val tw = listOfNotNull(timeStr, weatherStr)
+            if (tw.isNotEmpty()) { layout.text(indentX, tw.joinToString("    "), 0xFFDDDDDD.toInt()); layout.line() }
+            lightStr?.let { layout.wrapped(indentX, it, contentW, 0xFFBBBBBB.toInt()) }
+            spawn.moonPhase?.let { layout.wrapped(indentX, tr("cobbledex-rei-emi-jei.spawn.cond.moon", titleCase(it)), contentW, 0xFFBBBBBB.toInt()) }
+            if (spawn.isSlimeChunk == true) layout.wrapped(indentX, tr("cobbledex-rei-emi-jei.spawn.slime_chunk"), contentW, 0xFFBBBBBB.toInt())
+            if (spawn.isFishing) {
+                val lure = spawn.minLureLevel
+                val txt = if (lure != null && lure > 0) tr("cobbledex-rei-emi-jei.spawn.cond.fishing_lure", lure) else tr("cobbledex-rei-emi-jei.spawn.cond.fishing")
+                layout.wrapped(indentX, txt, contentW, 0xFFBBBBBB.toInt())
+            }
+            tempMults.forEach { layout.wrapped(indentX, it.first, contentW, 0xFFCC9999.toInt()) }
+            bandRule(layout)
+        }
+
+        // ---------- NEEDS ----------
+        if (chips.isNotEmpty()) {
+            bandLabel(layout, "cobbledex-rei-emi-jei.spawn.band.needs")
+            for (chip in chips) {
+                val cy = layout.y
+                val stack = chip.itemId?.let { resolveItemStack(it) }
+                if (stack != null && !stack.isEmpty) {
+                    itemSlots.add(ItemSlotDef(chip.itemId!!, PanelLayout.INDENT_X, cy - 3, SlotRole.DISPLAY, size = 16))
+                    layout.textAt(PanelLayout.INDENT_X + 18, cy, clipToWidth(font, chip.label, contentW - 18 - PanelLayout.INDENT_X), 0xFFCCCCCC.toInt())
+                } else {
+                    layout.textAt(PanelLayout.INDENT_X, cy, clipToWidth(font, chip.label, contentW - PanelLayout.INDENT_X), 0xFFCCCCCC.toInt())
+                }
+                layout.skipTo(cy + 18)
+            }
+            bandRule(layout)
+        }
+
+        // ---------- exclusions ----------
+        val exLines = buildExclusionLines(antiSplit.remaining)
+        if (exLines.isNotEmpty()) {
+            val full = "\u2716 " + exLines.joinToString(" \u00B7 ")
+            val exY = layout.y
+            layout.text(padding, clipToWidth(font, full, contentW), 0xFFAA7777.toInt())
+            layout.line()
+            if (font.width(full) > contentW) {
+                layout.addTooltipZone(padding, exY, contentW, PanelLayout.LINE_HEIGHT,
+                    exLines.map { Component.literal(it).withStyle { s -> s.withColor(0xEE8888) } })
+            }
+            bandRule(layout)
+        }
+
+        // ---------- footer ----------
+        if (spawnTotal > 1) {
+            layout.gap(1)
+            layout.textCentered(tr("cobbledex-rei-emi-jei.spawn.of_n", spawnIndex, spawnTotal), 0xFF888888.toInt())
             layout.line()
         }
-        layout.gap(4)
+        layout.gap(padding)
+        return SpawnLayoutResult(layout, itemSlots, categoryLinks)
+    }
 
-        val biomeNames = spawn.biomes.map { formatBiomeName(it) }
-        if (biomeNames.isNotEmpty()) {
-            val maxBiomes = PanelLayout.MAX_VISIBLE_BIOMES
-            val header = if (biomeNames.size > 1) tr("cobbledex-rei-emi-jei.spawn.section.biomes") else tr("cobbledex-rei-emi-jei.spawn.section.biome")
-            layout.text(padding, header, 0xEEEEEE)
+    fun buildSpawnIndexLayout(data: SpawnIndexRecipeData): PanelLayout {
+        val font = Minecraft.getInstance().font
+        val padding = PanelLayout.PADDING
+        val titleX = PanelLayout.TEXT_START_X + 6   // clear of the sprite slot at (8, 3)
+        val total = data.rows.size + data.hiddenCount
+        val title = tr("cobbledex-rei-emi-jei.spawn.index.title", formatSpeciesName(data.speciesName), total)
+        val bucketColW = (data.rows.maxOfOrNull { font.width(bucketLabel(it.bucket).uppercase()) } ?: 40) + 8
+
+        val width = computePanelWidth(
+            titleX + font.width(title) + padding,
+            padding + bucketColW + 160,
+        )
+        val layout = PanelLayout(width)
+        val right = layout.right
+        val rowH = PanelLayout.LINE_HEIGHT + 1
+
+        layout.textAt(titleX, 6, title, 0xFFFFFFFF.toInt())
+        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        addSourceCaveat(layout, SpawnDataIndex.spawnSourceTier, width, headerHeight = 20)
+        layout.skipTo(25)
+
+        for (row in data.rows) {
+            val y = layout.y
+            layout.textAt(padding, y, bucketLabel(row.bucket).uppercase(), bucketColor(row.bucket))
+            val marks = timeLine(row.time) ?: ""
+            val marksW = if (marks.isEmpty()) 0 else font.width(marks) + 4
+            val locX = padding + bucketColW
+            val loc = buildString {
+                append(row.locator)
+                row.formNote?.let { append("  ("); append(it); append(")") }
+                if (row.pokeSnack) append("  · Poké Snack")
+            }
+            layout.clippedAt(locX, y, loc, (right - locX - marksW).coerceAtLeast(20), 0xFFDDDDDD.toInt())
+            if (marks.isNotEmpty()) layout.textRightAt(y, marks, 0xFFAAAAAA.toInt())
+            layout.skipTo(y + rowH)
+        }
+        if (data.hiddenCount > 0) {
+            layout.text(padding, tr("cobbledex-rei-emi-jei.spawn.more", data.hiddenCount), 0xFF9999AA.toInt())
             layout.line()
-            val visibleNames = if (biomeNames.size > maxBiomes) biomeNames.take(maxBiomes) else biomeNames
-            val visibleRawIds = if (spawn.biomes.size > maxBiomes) spawn.biomes.take(maxBiomes) else spawn.biomes
-            val placements = layout.wrappedItemsWithPositions(indentX, visibleNames, ", ", indentWidth, 0xDDDDDD)
-            for ((placement, rawId) in placements.zip(visibleRawIds)) {
-                val tooltipLines = buildSingleBiomeTooltip(rawId)
-                layout.addTooltipZone(placement.x, placement.y, placement.width, PanelLayout.LINE_HEIGHT, tooltipLines)
-            }
-            if (biomeNames.size > maxBiomes) {
-                val overflow = biomeNames.size - maxBiomes
-                val moreText = "+$overflow more..."
-                val moreY = layout.y
-                layout.text(indentX, moreText, 0xFF999999.toInt())
-                layout.line()
-                val overflowTooltip = spawn.biomes.drop(maxBiomes).flatMap { rawId ->
-                    buildSingleBiomeTooltip(rawId) + listOf(Component.literal(""))
-                }.dropLast(1) // remove trailing blank
-                layout.addTooltipZone(indentX, moreY, layout.font.width(moreText), PanelLayout.LINE_HEIGHT, overflowTooltip)
-            }
-            layout.gap(PanelLayout.SECTION_GAP)
         }
-
-        val conditions = buildConditions(spawn)
-        if (conditions.isNotEmpty()) {
-            val maxConds = PanelLayout.MAX_VISIBLE_CONDITIONS
-            layout.text(padding, tr("cobbledex-rei-emi-jei.spawn.section.conditions"), 0xEEEEEE)
-            layout.line()
-            val visibleConds = if (conditions.size > maxConds) conditions.take(maxConds) else conditions
-            for (cond in visibleConds) {
-                layout.wrapped(indentX, cond, indentWidth, 0xDDDDDD)
-            }
-            if (conditions.size > maxConds) {
-                val overflow = conditions.size - maxConds
-                val moreText = "+$overflow more..."
-                val moreY = layout.y
-                layout.text(indentX, moreText, 0xFF999999.toInt())
-                layout.line()
-                val overflowTooltip = conditions.drop(maxConds).map {
-                    Component.literal(it).withStyle { s -> s.withColor(0xDDDDDD) }
-                }
-                layout.addTooltipZone(indentX, moreY, layout.font.width(moreText), PanelLayout.LINE_HEIGHT, overflowTooltip)
-            }
-            layout.gap(PanelLayout.SECTION_GAP)
-        }
-
-        val specials = buildSpecials(spawn)
-        if (specials.isNotEmpty()) {
-            val maxSpecials = PanelLayout.MAX_VISIBLE_SPECIALS
-            layout.text(padding, tr("cobbledex-rei-emi-jei.spawn.section.location"), 0xEEEEEE)
-            layout.line()
-            val visibleSpecials = if (specials.size > maxSpecials) specials.take(maxSpecials) else specials
-            for (s in visibleSpecials) {
-                layout.wrappedCommas(indentX, s, indentWidth, 0xFFCC66)
-            }
-            if (specials.size > maxSpecials) {
-                val overflow = specials.size - maxSpecials
-                val moreText = "+$overflow more..."
-                val moreY = layout.y
-                layout.text(indentX, moreText, 0xFF999999.toInt())
-                layout.line()
-                val overflowTooltip = specials.drop(maxSpecials).map {
-                    Component.literal(it).withStyle { s -> s.withColor(0xFFCC66) }
-                }
-                layout.addTooltipZone(indentX, moreY, layout.font.width(moreText), PanelLayout.LINE_HEIGHT, overflowTooltip)
-            }
-            layout.gap(PanelLayout.SECTION_GAP)
-        }
-
-        val anti = spawn.anticondition
-        if (anti != null && !anti.isEmpty) {
-            val exLines = buildExclusionLines(anti)
-            if (exLines.isNotEmpty()) {
-                val maxEx = PanelLayout.MAX_VISIBLE_EXCLUSION_LINES
-                layout.text(padding, tr("cobbledex-rei-emi-jei.spawn.section.excluded"), 0xFF7777)
-                layout.line()
-                val visibleEx = if (exLines.size > maxEx) exLines.take(maxEx) else exLines
-                for (line in visibleEx) {
-                    layout.wrappedCommas(indentX, line, indentWidth, 0xEE8888)
-                }
-                if (exLines.size > maxEx) {
-                    val overflow = exLines.size - maxEx
-                    val moreText = "+$overflow more..."
-                    val moreY = layout.y
-                    layout.text(indentX, moreText, 0xFF999999.toInt())
-                    layout.line()
-                    val overflowTooltip = exLines.drop(maxEx).map {
-                        Component.literal(it).withStyle { s -> s.withColor(0xEE8888) }
-                    }
-                    layout.addTooltipZone(indentX, moreY, layout.font.width(moreText), PanelLayout.LINE_HEIGHT, overflowTooltip)
-                }
-                layout.gap(PanelLayout.SECTION_GAP)
-            }
-        }
-
-        if (CobbleDexConfig.get().showSpawnWeights && spawn.weightMultipliers.isNotEmpty()) {
-            val maxWm = PanelLayout.MAX_VISIBLE_WEIGHT_MODS
-            layout.text(padding, tr("cobbledex-rei-emi-jei.spawn.section.weight_mods"), 0xEEEEEE)
-            layout.line()
-            val visibleWm = if (spawn.weightMultipliers.size > maxWm) spawn.weightMultipliers.take(maxWm) else spawn.weightMultipliers
-            for (wm in visibleWm) {
-                val arrow: String
-                val c: Int
-                when {
-                    wm.multiplier > 1f -> { arrow = "\u25B2"; c = 0x88DD88 }
-                    wm.multiplier < 1f -> { arrow = "\u25BC"; c = 0xEE8888 }
-                    else -> { arrow = "\u25CF"; c = 0xBBBBBB }
-                }
-                val wmText = "$arrow ${formatWeight(wm.multiplier)}x ${wm.displayConditionSummary()}"
-                layout.wrapped(indentX, wmText, indentWidth, c)
-            }
-            if (spawn.weightMultipliers.size > maxWm) {
-                val overflow = spawn.weightMultipliers.size - maxWm
-                val moreText = "+$overflow more..."
-                val moreY = layout.y
-                layout.text(indentX, moreText, 0xFF999999.toInt())
-                layout.line()
-                val overflowTooltip = spawn.weightMultipliers.drop(maxWm).map { wm ->
-                    val arrow = when { wm.multiplier > 1f -> "\u25B2"; wm.multiplier < 1f -> "\u25BC"; else -> "\u25CF" }
-                    val color = when { wm.multiplier > 1f -> 0x88DD88; wm.multiplier < 1f -> 0xEE8888; else -> 0xBBBBBB }
-                    Component.literal("$arrow ${formatWeight(wm.multiplier)}x ${wm.displayConditionSummary()}").withStyle { s -> s.withColor(color) }
-                }
-                layout.addTooltipZone(indentX, moreY, layout.font.width(moreText), PanelLayout.LINE_HEIGHT, overflowTooltip)
-            }
-        }
-
-        layout.gap(1)
-        layout.separator(0x20FFFFFF)
-        layout.gap(4)
-        layout.text(padding, footerText, color)
-        layout.gap(font.lineHeight + padding)
-
+        layout.gap(padding)
         return layout
     }
 
@@ -970,7 +1039,7 @@ object SpawnDisplayHelper {
                 }
                 is EvolutionChainBuilder.ChainRow.Branch -> {
                     val prefixW = font.width("\u251C ")
-                    val reqPart = if (row.requirement.isNotBlank()) " \u2014 ${row.requirement}" else ""
+                    val reqPart = if (row.requirement.isNotBlank()) " - ${row.requirement}"else ""
                     val itemExtra = if (row.items.isNotEmpty()) 20 else 0
                     padding + 4 + indent + prefixW + iconSize + 2 + font.width(row.displayName + reqPart) + itemExtra + padding
                 }
@@ -1041,7 +1110,7 @@ object SpawnDisplayHelper {
                         val reqX = slotX + afterIcon + font.width(row.displayName) + 4
                         val maxReqW = right - reqX - itemSpace
                         if (maxReqW > 10) {
-                            layout.clipped(reqX, "\u2014 ${row.requirement}", maxReqW, 0xFFDD88)
+                            layout.clipped(reqX, "- ${row.requirement}", maxReqW, 0xFFDD88)
                         }
                     }
                     layout.textAt(slotX + afterIcon, layout.y + 5, row.displayName, 0xFFFFFF)
@@ -1380,8 +1449,8 @@ object SpawnDisplayHelper {
 
     private fun formatMoveSuffix(move: MoveDetail): String {
         val icon = CATEGORY_ICONS[move.category]?.first ?: "\u2022"
-        val pow = if (move.power > 0) "${move.power}" else "\u2014"
-        val acc = if (move.accuracy > 0) "${move.accuracy}" else "\u2014"
+        val pow = if (move.power > 0) "${move.power}" else "-"
+        val acc = if (move.accuracy > 0) "${move.accuracy}" else "-"
         return "$icon $pow | $acc"
     }
 
@@ -1785,7 +1854,7 @@ object SpawnDisplayHelper {
         val right = layout.right
         val slots = mutableListOf<PokemonSlotDef>()
 
-        // Header — leader sprite + name + "Herds" tag
+        // Header - leader sprite + name + "Herds" tag
         slots.add(PokemonSlotDef(herd.leader.species, herdSpriteAspects(herd.leader.formAspects), padding, 2, SlotRole.INPUT, disableBackground = true, disableHighlight = false))
         drawHeader(layout, title, tag, 0xFFB0C4DE.toInt(), dividerY = 20, leftX = nameX, yPos = 6)
         layout.skipTo(24)
@@ -1847,7 +1916,7 @@ object SpawnDisplayHelper {
 
         val biomeNames = herd.conditions.biomes.map { formatBiomeName(it) }.distinct()
         if (biomeNames.isNotEmpty()) {
-            layout.wrappedCommas(padding, "⛰ " + biomeNames.joinToString(", "), right - padding, 0xFFCCA066.toInt())
+            layout.wrappedCommas(padding, "" + biomeNames.joinToString(", "), right - padding, 0xFFCCA066.toInt())
         }
         for (c in buildConditions(herd.conditions).take(PanelLayout.MAX_VISIBLE_CONDITIONS)) {
             layout.wrapped(padding, c, right - padding, 0xFFBBBBBB.toInt())
@@ -1916,8 +1985,8 @@ object SpawnDisplayHelper {
             layout.text(nameCol, NatureData.natureName(nature.name), nameColor)
 
             if (nature.isNeutral) {
-                layout.textAt(upCol, layout.y, "\u2014", 0xFF777777.toInt())
-                layout.textAt(downCol, layout.y, "\u2014", 0xFF777777.toInt())
+                layout.textAt(upCol, layout.y, "-", 0xFF777777.toInt())
+                layout.textAt(downCol, layout.y, "-", 0xFF777777.toInt())
             } else {
                 val upName = nature.increasedStat?.let { NatureData.statName(it) } ?: ""
                 val downName = nature.decreasedStat?.let { NatureData.statName(it) } ?: ""
@@ -2196,7 +2265,7 @@ object SpawnDisplayHelper {
     // drops the item is rendered as a grid of clickable icons; hovering a cell names the Pokémon and
     // its drop chance / quantity for that item.
 
-    const val ITEM_DROPPERS_PER_PAGE = 63 // 9 cols x 7 rows — see the height note above MOVE_LEARNERS_PER_PAGE
+    const val ITEM_DROPPERS_PER_PAGE = 63 // 9 cols x 7 rows - see the height note above MOVE_LEARNERS_PER_PAGE
     private const val ITEM_DROPPERS_COLS = 9 // see the grid column-count note above MOVE_LEARNERS_COLS
     private const val ITEM_DROPPERS_CELL = 20
 

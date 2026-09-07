@@ -110,7 +110,7 @@ object EvolutionChainBuilder {
         // Form evolutions (non-empty aspects) become separate branches
         val formGroups = byAspects.filterKeys { it.isNotEmpty() }
 
-        // Collapse cosmetic aspect variants — group by base target species,
+        // Collapse cosmetic aspect variants - group by base target species,
         // keep only one representative per species (prefer the one with no aspects)
         val grouped = baseEvos.groupBy { SpeciesNameNormalizer.normalize(it.toSpecies) }
         val collapsed = grouped.map { (_, group) ->
@@ -188,7 +188,7 @@ object EvolutionChainBuilder {
             if (info.baseSpeciesName == null) continue
             if (SpeciesNameNormalizer.normalize(info.baseSpeciesName) != baseNormalized) continue
             val labels = info.labels ?: continue
-            // Skip regional forms — those are handled as proper evolution branches in buildNode
+            // Skip regional forms - those are handled as proper evolution branches in buildNode
             if (labels.any { it in REGIONAL_LABELS }) continue
             if (labels.none { it in EVOLUTION_LIKE_LABELS }) continue
 

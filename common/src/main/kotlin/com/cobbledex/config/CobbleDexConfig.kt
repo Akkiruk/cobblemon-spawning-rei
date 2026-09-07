@@ -33,7 +33,7 @@ data class CobbleDexConfig(
     /**
      * Marks reference page (Cobblemon 1.8.0+). Off by default: Cobblemon ships ~168 mark/ribbon
      * entries, most of them contest/Battle-Tower ribbons it has no way to award, and the data carries
-     * no earning conditions — so the page is mostly noise. Opt in via config if you want it.
+     * no earning conditions - so the page is mostly noise. Opt in via config if you want it.
      */
     val showMarks: Boolean = false,
     /** Render the Moves page as separate Level-up/Egg/Tutor/TM sections instead of one unified list. */

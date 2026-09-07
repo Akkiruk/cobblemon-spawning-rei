@@ -29,6 +29,10 @@ data class SpawnInfo(
     val weightMultipliers: List<WeightMultiplier>,
     val minLureLevel: Int?,
     val conditionWarnings: List<String> = emptyList(),
+    /** `true` = this spawn only fires from a Poké Snack block; null = spawns ambiently (1.8.0+). */
+    val isPokeSnack: Boolean? = null,
+    /** `true` = only inside slime chunks. */
+    val isSlimeChunk: Boolean? = null,
     /** Present when this entry came from a `pokemon-herd` spawn detail (1.8.0+). */
     val herd: HerdContext? = null,
     /** Present when this entry came from a habitat spawn pool (1.8.0+). */
@@ -358,7 +362,7 @@ fun formatTimeRange(raw: String): String {
             val start = parts[0].trim().toIntOrNull()
             val end = parts[1].trim().toIntOrNull()
             if (start != null && end != null) {
-                "${tickToTime(start)}\u2013${tickToTime(end)}"
+                "${tickToTime(start)}-${tickToTime(end)}"
             } else segment.trim()
         } else segment.trim()
     }

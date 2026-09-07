@@ -62,7 +62,7 @@ object IconCapture {
             val fileH = image.getHeight()
             if (fileW <= 0 || fileH <= 0) { image.close(); return null }
 
-            // Animated textures: frames stacked vertically — use first frame only
+            // Animated textures: frames stacked vertically - use first frame only
             val frameW = fileW
             val frameH = if (fileH > fileW) fileW else fileH
 
@@ -115,7 +115,7 @@ object IconCapture {
         return try {
             val mainTarget = mc.mainRenderTarget
 
-            // Explicit transparent clear — default clear color may not be (0,0,0,0)
+            // Explicit transparent clear - default clear color may not be (0,0,0,0)
             RenderSystem.clearColor(0f, 0f, 0f, 0f)
             target.clear(false)
             target.bindWrite(true)

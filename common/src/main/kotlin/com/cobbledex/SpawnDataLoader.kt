@@ -48,7 +48,9 @@ object SpawnDataLoader {
                         val rawSpecies = detail.pokemon.species?.lowercase() ?: continue
                         // Strip namespace prefix for consistent keying (e.g. "cobblemon:charizard" -> "charizard")
                         val species = if (rawSpecies.contains(':')) rawSpecies.substringAfter(':') else rawSpecies
-                        result.getOrPut(species) { mutableListOf() }.add(extractSpawnInfo(detail, species))
+                        val info = extractSpawnInfo(detail, species)
+                        if (ModFilter.spawnReferencesMissingMod(info)) continue
+                        result.getOrPut(species) { mutableListOf() }.add(info)
                         count++
                     }
                     // `pokemon-herd` details (Cobblemon 1.8.0+). Read reflectively so this jar still
@@ -68,6 +70,7 @@ object SpawnDataLoader {
         DebugLog.info("Loaded $count spawn entries for ${result.size} species from Cobblemon runtime")
         return result
     }
+
 
     // --- SpawnInfo extraction ---
 
@@ -142,7 +145,9 @@ object SpawnDataLoader {
             anticondition = anti,
             weightMultipliers = weightMults,
             minLureLevel = minLureLevel,
-            conditionWarnings = merged.warnings
+            conditionWarnings = merged.warnings,
+            isPokeSnack = merged.isPokeSnack,
+            isSlimeChunk = merged.isSlimeChunk,
         )
     }
 
@@ -219,8 +224,19 @@ object SpawnDataLoader {
         val neededNearbyBlocks: List<String> = emptyList(),
         val neededBaseBlocks: List<String> = emptyList(),
         val moonPhase: String? = null,
+        val isPokeSnack: Boolean? = null,
+        val isSlimeChunk: Boolean? = null,
         val warnings: List<String> = emptyList()
     )
+
+    /**
+     * The `natural` spawn preset requires standing on `#cobblemon:natural` (ordinary terrain, not
+     * player-built) and excludes farmland - i.e. "spawns on normal ground", the default expectation
+     * for every wild Pokémon. Stripped so it never renders as a bogus "Spawns on: Natural" line. The
+     * same tag as an *anticondition* (from `derelict`/`urban`) is kept - there it means the opposite.
+     */
+    private const val NATURAL_GROUND_TAG = "#cobblemon:natural"
+    private const val FARMLAND_ID = "minecraft:farmland"
 
     private data class ListMerge(
         val values: List<String>,
@@ -273,8 +289,12 @@ object SpawnDataLoader {
             nearbyBlocks = cond.neededNearbyBlocks?.mapNotNull { extractRegistryId(it) } ?: emptyList()
         }
         if (cond is GroundedTypeSpawningCondition<*>) {
-            baseBlocks = cond.neededBaseBlocks?.mapNotNull { extractRegistryId(it) } ?: emptyList()
+            baseBlocks = cond.neededBaseBlocks?.mapNotNull { extractRegistryId(it) }
+                ?.filterNot { it == NATURAL_GROUND_TAG } ?: emptyList()
         }
+
+        val isPokeSnack = try { cond.isPokeSnack } catch (_: Throwable) { null }
+        val isSlimeChunk = try { cond.isSlimeChunk } catch (_: Throwable) { null }
 
         return ConditionData(
             biomes = biomes,
@@ -292,7 +312,9 @@ object SpawnDataLoader {
             maxY = cond.maxY?.toInt(),
             neededNearbyBlocks = nearbyBlocks,
             neededBaseBlocks = baseBlocks,
-            moonPhase = moonPhase
+            moonPhase = moonPhase,
+            isPokeSnack = isPokeSnack,
+            isSlimeChunk = isSlimeChunk,
         )
     }
 
@@ -336,7 +358,11 @@ object SpawnDataLoader {
 
         val anti = SpawnAntiCondition(
             biomes = allBiomes.distinct(), structures = allStructures.distinct(),
-            neededBaseBlocks = allBaseBlocks.distinct(), neededNearbyBlocks = allNearbyBlocks.distinct(),
+            // "not on farmland" ships with the `natural` preset on nearly every spawn - it's the
+            // default, not a player-facing exclusion. `#cobblemon:natural` here is kept: from the
+            // `derelict`/`urban` presets it means "on built/structure blocks".
+            neededBaseBlocks = allBaseBlocks.distinct().filterNot { it == FARMLAND_ID },
+            neededNearbyBlocks = allNearbyBlocks.distinct(),
             minY = minY, maxY = maxY, timeRange = timeRange, dimensions = allDimensions.distinct(),
             isRaining = isRaining, isThundering = isThundering,
             minLight = minLight, maxLight = maxLight, moonPhase = moonPhase
@@ -448,6 +474,8 @@ object SpawnDataLoader {
             neededNearbyBlocks = combineRequiredLists(a.neededNearbyBlocks, b.neededNearbyBlocks),
             neededBaseBlocks = combineRequiredLists(a.neededBaseBlocks, b.neededBaseBlocks),
             moonPhase = moonPhaseResult.value,
+            isPokeSnack = a.isPokeSnack ?: b.isPokeSnack,
+            isSlimeChunk = a.isSlimeChunk ?: b.isSlimeChunk,
             warnings = warnings
         )
     }

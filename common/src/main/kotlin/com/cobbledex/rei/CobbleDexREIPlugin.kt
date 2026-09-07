@@ -49,7 +49,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
     private val emiActive: Boolean by lazy {
         try {
             Class.forName("dev.emi.emi.api.EmiPlugin")
-            DebugLog.info("EMI detected — skipping REI plugin (native EMI plugin handles registration)")
+            DebugLog.info("EMI detected - skipping REI plugin (native EMI plugin handles registration)")
             true
         } catch (_: ClassNotFoundException) { false }
     }
@@ -143,7 +143,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
                 hidden++
             }
         }
-        DebugLog.info("Registered $registered Pokémon entries + $formCount forms ($hidden hidden — no model)")
+        DebugLog.info("Registered $registered Pokémon entries + $formCount forms ($hidden hidden - no model)")
 
         val tmDiscs = com.cobbledex.TmDiscStacks.all()
         for (entry in tmDiscs) {
@@ -279,6 +279,19 @@ open class CobbleDexREIPlugin : REIClientPlugin {
                 val button = MoveLinkButton(px + link.x, py + link.y, link.width, link.height) {
                     ViewSearchBuilder.builder()
                         .addRecipesFor(EntryStack.of(MoveEntryType.MOVE, MoveEntry(move)))
+                        .open()
+                }
+                widgets.add(Widgets.wrapVanillaWidget(button))
+            }
+
+            // Category jump links (e.g. the spawn page's "Spawns in a herd" pointer -> Herds tab).
+            for (link in slots.categoryLinks) {
+                val button = MoveLinkButton(px + link.x, py + link.y, link.width, link.height) {
+                    val catId = CategoryIdentifier.of<GenericDisplay>(CobbleDexMod.MOD_ID, link.categoryId)
+                    ViewSearchBuilder.builder()
+                        .addRecipesFor(EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(link.species)))
+                        .addUsagesFor(EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(link.species)))
+                        .filterCategory(catId)
                         .open()
                 }
                 widgets.add(Widgets.wrapVanillaWidget(button))

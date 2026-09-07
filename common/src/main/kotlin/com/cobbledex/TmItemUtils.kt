@@ -33,7 +33,7 @@ object TmItemUtils {
         "simpletms:tm_",
     )
 
-    /** Third-party TMs only — native discs carry no move in the id, use [extractMoveFromStack]. */
+    /** Third-party TMs only - native discs carry no move in the id, use [extractMoveFromStack]. */
     fun extractMove(itemId: String): String? {
         for (prefix in movePrefixes) {
             if (itemId.startsWith(prefix)) return itemId.removePrefix(prefix)

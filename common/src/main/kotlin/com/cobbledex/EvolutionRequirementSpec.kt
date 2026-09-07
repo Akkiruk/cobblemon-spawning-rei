@@ -4,7 +4,7 @@ package com.cobbledex
  * The vocabulary of evolution requirements: every variant CobbleDex understands, and the data keys
  * each one carries.
  *
- * Requirements reach CobbleDex two ways — typed Cobblemon objects from the runtime API, and raw
+ * Requirements reach CobbleDex two ways - typed Cobblemon objects from the runtime API, and raw
  * JSON from this client's files. Both used to enumerate all 26 variants and all their key names
  * independently, so adding a requirement type upstream meant editing two files; miss one and that
  * source silently degraded to `"unknown"` while the other kept working. Since evolutions now come
@@ -63,7 +63,7 @@ object EvolutionRequirementSpec {
         Spec("advancement", listOf(str("requiredAdvancement"))),
         Spec("world", listOf(str("identifier"))),
         Spec("attack_defence_ratio", listOf(str("ratio"))),
-        // "any" carries no fields of its own — both readers unwrap it to its first possibility.
+        // "any" carries no fields of its own - both readers unwrap it to its first possibility.
         Spec("any", emptyList()),
     )
 

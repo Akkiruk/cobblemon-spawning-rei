@@ -5,7 +5,7 @@ package com.cobbledex
  * `cobblemon:technical_machine` item whose move lives in a data component; each move that is a TM has
  * a recipe (Type Gem + up to two extra ingredients) crafted in the TM Machine.
  *
- * Third-party TM mods (`tmcraft`, `simpletms`) are unaffected — they are still handled by
+ * Third-party TM mods (`tmcraft`, `simpletms`) are unaffected - they are still handled by
  * [TmItemUtils] via their per-move item ids and have no recipe data here.
  */
 data class TmInfo(
@@ -15,7 +15,7 @@ data class TmInfo(
     val elementalType: String?,
     val ingredients: List<TmIngredient>,
     /**
-     * `true` — the recipe is always available. `false` — it unlocks once the player owns a Pokémon
+     * `true` - the recipe is always available. `false` - it unlocks once the player owns a Pokémon
      * that knows the move (or scans a Data Monitor holding the disc).
      */
     val passivelyObtained: Boolean,

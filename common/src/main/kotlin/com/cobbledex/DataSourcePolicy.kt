@@ -8,7 +8,7 @@ package com.cobbledex
  */
 enum class DataSourceTier(val displayName: String, val rank: Int) {
     /**
-     * Cobblemon's client-side registries — `PokemonSpecies`, `Moves`, `Abilities`, `Fossils`.
+     * Cobblemon's client-side registries - `PokemonSpecies`, `Moves`, `Abilities`, `Fossils`.
      * On a server these are exactly what Cobblemon's own `species_sync` delivered, so they match
      * the server's datapacks; in singleplayer they are the loaded datapacks directly. Always
      * authoritative.

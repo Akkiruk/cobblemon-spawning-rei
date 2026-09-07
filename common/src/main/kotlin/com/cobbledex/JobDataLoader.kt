@@ -79,7 +79,7 @@ object JobDataLoader {
             }
 
             // "ditto" in species list = universal type-based wildcard (only applies if type matches)
-            // Don't explicitly show this as a reason — the type match already covers it
+            // Don't explicitly show this as a reason - the type match already covers it
 
             if (reasons.isNotEmpty()) JobMatch(rule, reasons) else null
         }

@@ -110,7 +110,7 @@ object JarDataCache {
     }
 
     /**
-     * Initialize the cache from mod JAR files. Safe to call multiple times —
+     * Initialize the cache from mod JAR files. Safe to call multiple times -
      * only the first call does work. Runs synchronously on whatever thread calls it.
      */
     fun initialize(modRoots: List<Path>) {
@@ -137,7 +137,7 @@ object JarDataCache {
             cachedFossils = parseFossilsFromJars(modRoots)
 
             val elapsed = System.currentTimeMillis() - startTime
-            DebugLog.info("JarDataCache: ready in ${elapsed}ms — " +
+            DebugLog.info("JarDataCache: ready in ${elapsed}ms - " +
                 "${cachedSpawns.size} species with spawns, " +
                 "${cachedHabitatSpawns.size} species with habitat spawns, " +
                 "${cachedEvolutions.size} species with evolutions, " +
@@ -372,7 +372,7 @@ object JarDataCache {
         val moonPhase = condition?.optString("moonPhase")
         val fluid = condition?.optString("fluid")
 
-        // Weight multipliers — handle both plural array and singular object forms
+        // Weight multipliers - handle both plural array and singular object forms
         val weightMults = mutableListOf<WeightMultiplier>()
         spawn.optArray("weightMultipliers")?.forEach { wmElem ->
             try {
@@ -450,7 +450,7 @@ object JarDataCache {
 
     /**
      * Habitat pools (`data/<ns>/habitat_pools/`, Cobblemon 1.8.0+). Cobblemon's [HabitatPools]
-     * registry has an empty `sync()`, so — exactly like `spawn_pool_world` — the client only has these
+     * registry has an empty `sync()`, so - exactly like `spawn_pool_world` - the client only has these
      * from its own jars / datapacks. Each file is one habitat: `{ name, type, spawns: [ { species,
      * bucket, spawnablePositionType, weight, levelRange, phases, minLight, maxLight } ] }`. `phases`
      * (e.g. `"1-3, 5"`) selects which of the habitat's day-cycle phases the species appears in.
@@ -1162,7 +1162,7 @@ object JarDataCache {
         }
 
         if (spec == null) {
-            // Unrecognised variant — keep whatever primitives it carries so the page can still say
+            // Unrecognised variant - keep whatever primitives it carries so the page can still say
             // something useful, rather than dropping the requirement entirely.
             val data = mutableMapOf<String, Any>()
             for ((key, value) in req.entrySet()) {

@@ -94,7 +94,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             if (!def.isEnabled(config)) continue
             val cat = emiCategory(def)
             registry.addCategory(cat)
-            // No workstation: the category icons are arbitrary markers, not real stations — matches
+            // No workstation: the category icons are arbitrary markers, not real stations - matches
             // REI/JEI. The category is still in EMI's category list.
 
             val recipes = def.buildAllRecipes()
@@ -165,7 +165,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
         // Pokémon and their "outputs" are data. EMI's recipe-tree / "cost per batch" feature tries to
         // build a MaterialTree bill-of-materials from them and throws IndexOutOfBounds on the empty
         // result (EMI SlotWidget.addSlotTooltip -> RecipeCostTooltipComponent -> MaterialTree). Always
-        // opt out — the tree makes no sense here and R/U recipe lookup works without it.
+        // opt out - the tree makes no sense here and R/U recipe lookup works without it.
         override fun supportsRecipeTree(): Boolean = false
 
         override fun addWidgets(widgets: dev.emi.emi.api.widget.WidgetHolder) {
@@ -201,6 +201,16 @@ open class CobbleDexEMIPlugin : EmiPlugin {
                 )
             }
 
+            // Category jump links (spawn page "Spawns in a herd" → the species' recipe view).
+            for (link in slots.categoryLinks) {
+                widgets.add(
+                    CategoryLinkEmiWidget(
+                        dev.emi.emi.api.widget.Bounds(link.x, link.y, link.width, link.height),
+                        link.species,
+                    )
+                )
+            }
+
             for (zone in handle.layout.tooltipZones) {
                 if (zone.lines.isNotEmpty()) {
                     widgets.addTooltipText(zone.lines, zone.x, zone.y, zone.width, zone.height)
@@ -227,6 +237,37 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             if (button == 0 && bounds.contains(mouseX, mouseY)) {
                 // The move is an input on the learner grid, so "uses" is the view that resolves it.
                 dev.emi.emi.api.EmiApi.displayUses(MoveEmiStack.of(move))
+                return true
+            }
+            return false
+        }
+    }
+
+    /** Invisible click target that opens the species' recipe view (Herds tab included). */
+    private class CategoryLinkEmiWidget(
+        private val bounds: dev.emi.emi.api.widget.Bounds,
+        private val species: String,
+    ) : dev.emi.emi.api.widget.Widget() {
+
+        override fun getBounds(): dev.emi.emi.api.widget.Bounds = bounds
+
+        override fun render(graphics: net.minecraft.client.gui.GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {
+            if (bounds.contains(mouseX, mouseY)) {
+                graphics.fill(bounds.x(), bounds.y(), bounds.right(), bounds.bottom(), 0x30FFFFFF)
+            }
+        }
+
+        override fun mouseClicked(mouseX: Int, mouseY: Int, button: Int): Boolean {
+            if (button == 0 && bounds.contains(mouseX, mouseY)) {
+                try {
+                    val cat = emiCategory(com.cobbledex.HerdsDex)
+                    val handles = com.cobbledex.HerdsDex.buildRecipesFor(species)
+                    val recipe = handles.firstOrNull()?.let { GenericEmiRecipe(it, cat, com.cobbledex.HerdsDex) }
+                    if (recipe != null) dev.emi.emi.api.EmiApi.displayRecipe(recipe)
+                    else if (PokemonItemCache.canRender(species)) dev.emi.emi.api.EmiApi.displayUses(PokemonEmiStack.of(species))
+                } catch (_: Throwable) {
+                    if (PokemonItemCache.canRender(species)) dev.emi.emi.api.EmiApi.displayUses(PokemonEmiStack.of(species))
+                }
                 return true
             }
             return false

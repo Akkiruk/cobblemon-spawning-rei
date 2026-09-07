@@ -17,8 +17,6 @@ private object ClientI18n {
 
 fun levelText(levelRange: String): String = tr("cobbledex-rei-emi-jei.spawn.level", levelRange)
 
-fun weightText(weight: Float): String = tr("cobbledex-rei-emi-jei.spawn.weight", SpawnDisplayHelper.formatWeight(weight))
-
 fun obtainmentUseText(block: String): String = tr("cobbledex-rei-emi-jei.obtainment.use", block)
 
 fun obtainmentStructureText(structure: String): String = tr("cobbledex-rei-emi-jei.obtainment.structure", structure)

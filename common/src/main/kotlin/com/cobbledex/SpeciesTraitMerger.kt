@@ -7,7 +7,7 @@ import com.cobbledex.EvolutionDataLoader.SpeciesBasicInfo
  * Fills the per-species gaps Cobblemon's network sync leaves behind, from this client's files.
  *
  * Cobblemon's `Species.encode` / `FormData.encode` carry stats, types, abilities, learnsets, drops,
- * forms and riding — but **not** `catchRate`, `eggGroups`, `eggCycles`, `baseFriendship`,
+ * forms and riding - but **not** `catchRate`, `eggGroups`, `eggCycles`, `baseFriendship`,
  * `evYield`, `baseExperienceYield` or `labels`. On a dedicated server a client therefore has a
  * species object with real stats and blank breeding data. In singleplayer the runtime has
  * everything, so nothing here fires.
@@ -26,20 +26,20 @@ object SpeciesTraitMerger {
     )
 
     /**
-     * The values a Cobblemon `Species` carries when the field was never populated — read straight
+     * The values a Cobblemon `Species` carries when the field was never populated - read straight
      * off `Species`' no-arg constructor, which is exactly the state a client is left in for the
      * fields `Species.encode` doesn't write.
      *
      * These are sentinels, not proof of absence: a species whose real catch rate is genuinely 45
      * is indistinguishable, by value alone, from one that was never synced. That ambiguity is
-     * real **after a network sync** — a dedicated-server client's `Species` object never had these
+     * real **after a network sync** - a dedicated-server client's `Species` object never had these
      * fields decoded at all, so filling a sentinel-valued field there can only be correct or a
      * harmless no-op (the local file for a genuinely-45 species also resolves to 45).
      *
      * In singleplayer/LAN, though, `Species` is populated straight from the loaded datapacks, not
-     * network decoding — a genuinely-45 species has a *real* 45, not an unset one. If the client's
+     * network decoding - a genuinely-45 species has a *real* 45, not an unset one. If the client's
      * separately-cached local files (`JarDataCache`, scanned once at launch) are ever stale versus
-     * what actually got loaded this session — a datapack edited without restarting, say — filling
+     * what actually got loaded this session - a datapack edited without restarting, say - filling
      * on the sentinel match there would silently swap a real value for a stale one. So [fillGaps]
      * only applies these four sentinel-gated fields off a network sync ([trustSentinelDefaults]),
      * never in a local world. The other fields below (`eggGroups`, `evYield`, `labels`, and the
@@ -54,7 +54,7 @@ object SpeciesTraitMerger {
     /**
      * @param trustSentinelDefaults Whether a sentinel-valued field (see [UNSET_CATCH_RATE] and
      * siblings) is safe to treat as "Cobblemon never synced this" and fill from local files.
-     * Defaults to [DataAvailability.isLocalWorld]'s negation — true after a network sync (where
+     * Defaults to [DataAvailability.isLocalWorld]'s negation - true after a network sync (where
      * that's guaranteed), false in singleplayer/LAN (where it's merely usually true).
      */
     fun fillGaps(
@@ -135,7 +135,7 @@ object SpeciesTraitMerger {
     /**
      * Fills the breeding/dex fields of one species from local files, returning the result and how
      * many fields were actually filled. A field is only filled when Cobblemon left it at its unset
-     * default — a value Cobblemon supplied is never replaced.
+     * default - a value Cobblemon supplied is never replaced.
      */
     fun mergeTraits(
         info: SpeciesBasicInfo,
@@ -164,7 +164,7 @@ object SpeciesTraitMerger {
             }
         }
 
-        // Unambiguous absence (null/empty), not a magic value — safe to fill regardless of world type.
+        // Unambiguous absence (null/empty), not a magic value - safe to fill regardless of world type.
         if (updated.eggGroups.isNullOrEmpty() && local.eggGroups != null) {
             updated = updated.copy(eggGroups = local.eggGroups); filled++
         }
@@ -179,7 +179,7 @@ object SpeciesTraitMerger {
     }
 
     /**
-     * Move *details* always come from Cobblemon's synced `Moves` registry — the local files only
+     * Move *details* always come from Cobblemon's synced `Moves` registry - the local files only
      * supply which moves a species learns, never their power/accuracy/type.
      */
     private fun resolveMove(name: String): MoveDetail? = try {

@@ -85,7 +85,7 @@ class SpeciesTraitMergerTest {
     @Test
     fun withoutTrustedSentinelsTheFourAmbiguousFieldsAreLeftAlone() {
         // In a local world (singleplayer/LAN) a sentinel-valued field might be genuinely that
-        // value, not merely unsynced — see the doc comment on fillGaps. The caller signals that by
+        // value, not merely unsynced - see the doc comment on fillGaps. The caller signals that by
         // passing trustSentinelDefaults = false, and only catchRate/eggCycles/baseFriendship/
         // baseExperienceYield are gated by it; eggGroups (unambiguous absence) still fills.
         val (merged, filled) = SpeciesTraitMerger.mergeTraits(species(), localTraits, trustSentinelDefaults = false)

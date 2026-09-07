@@ -8,8 +8,8 @@ import kotlin.test.assertEquals
  * Characterisation tests for the local-file requirement reader.
  *
  * This reader used to be a hand-written branch per variant; it is now table-driven off
- * [EvolutionRequirementSpec]. These assertions pin the observable behaviour — variant name and
- * data keys — so the table cannot silently change what a requirement decodes to.
+ * [EvolutionRequirementSpec]. These assertions pin the observable behaviour - variant name and
+ * data keys - so the table cannot silently change what a requirement decodes to.
  */
 class EvolutionRequirementJsonTest {
 

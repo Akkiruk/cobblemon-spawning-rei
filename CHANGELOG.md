@@ -2,6 +2,56 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.23.0] - 2026-09-07
+
+### Changed
+- **Spawn page, rebuilt.** The old page was a flat wall of prose organised by game mechanic, with the
+  important facts buried. It's now organised by the question you're actually asking:
+  - **Header** — name, level, and one rarity word (`UNCOMMON`) in its bucket colour. The cryptic
+    `Wt: 20` is gone. Big form counts collapse to `‹28 forms ▾›`.
+  - **WHERE** — everything spatial in one place: biomes, structures, dimension, position, region
+    locks, the herd pointer. Whole-dimension biome tags (`#cobblemon:is_overworld`) no longer render
+    as a meaningless "Overworld biomes" line — they fold into a dimension note or vanish.
+  - **WHEN** — time (Day / Night / Dawn / Dusk, never a raw clock range), weather, and light as one
+    plain phrase ("Total darkness", "Open sky, unlit", "Under cover") instead of "sky light ≥8".
+  - **NEEDS** — required blocks as real item sprites ("near water", "in trees"). Structure building
+    materials are dropped.
+  - **Weight multipliers** read as "much rarer at night" / "more common in rain".
+  - **Exclusions** are one muted line, not a red section.
+  - Long lists everywhere collapse the same way — a few entries then `… +N more ▾`, full list on hover.
+- **New spawn index page.** A species with more than one spawn opens on a "Flamigo — 4 ways to spawn"
+  summary — every spawn's rarity, where, and when at a glance, with near-duplicates merged. No more
+  paging blind through `Common 1/4`.
+
+### Fixed
+- **`Spawns on: Natural` gibberish** was the `#cobblemon:natural` block tag (from the `natural`
+  spawn preset, on ~half of all spawns) meaning "on ordinary ground". Suppressed, along with its
+  "not on farmland" companion.
+- **Poké Snack-only spawns are now marked.** A spawn gated to Poké Snack blocks (`isPokeSnack`) shows
+  "Only from a Poké Snack" instead of looking like an ordinary ambient spawn.
+- **Habitat-pool spawns no longer render as blank pages.** The 1.8.0 habitat context (name + day
+  phase) was dropped in the rewrite; it's back in the WHERE band, and habitat spawns for one species
+  now merge onto a single page.
+- **Spawns for uninstalled mods are hidden.** A spawn whose biome / structure / block comes from a
+  mod that isn't loaded (Aether, Bumblezone, Twilight Forest, …) no longer shows, on any spawn
+  source (world pool, jar cache, herds).
+- **Index count now matches the page count.** "N ways to spawn" and the number of detail pages are
+  built from the same merge, so Magikarp no longer says "7 ways" over 30 pages.
+- **Herd-membership spawns collapse to one row.** A Pokémon that appears as a follower in several
+  herds no longer gets a "BOSS \<dimension\> (Alpha)" row per herd; it's a single "In a herd" entry
+  that points at the Herds tab.
+- **"Spawns in a herd" is clickable** - opens the Herds view for that Pokémon on REI/EMI/JEI.
+- Time / weather render as plain words (no more broken moon glyph).
+- Pokémon sprite no longer overlaps the name on the spawn and index pages.
+- Slime-chunk, moon-phase, altitude and lava conditions render.
+- Every em / en dash in user-facing text replaced with a comma or hyphen.
+
+### Internal
+- Removed the spawn page's dead scaffolding after the rewrite: `buildSpecials`, `buildContextParts`,
+  `presetLabel`, `weightText`, five unused layout constants, `bucketIndex`/`bucketTotal` on the
+  spawn recipe data, and ~30 orphan translation keys. `showSpawnWeights` now gates the
+  weight-multiplier phrases again.
+
 ## [2.22.0] - 2026-09-07
 
 ### Added

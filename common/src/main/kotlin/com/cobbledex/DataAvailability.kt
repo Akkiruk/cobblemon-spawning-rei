@@ -7,7 +7,7 @@ import net.minecraft.client.Minecraft
  *
  * Data read out of Cobblemon's registries always matches the world you are in, because Cobblemon
  * synced it. Data read from this client's files matches only when the client carries the same packs
- * as the server — always true in singleplayer, usually true on a modpack server, not guaranteed on
+ * as the server - always true in singleplayer, usually true on a modpack server, not guaranteed on
  * a server running packs of its own.
  *
  * Rather than let that ambiguity silently corrupt a page, categories consult this and say so.
@@ -26,11 +26,11 @@ object DataAvailability {
     }
 
     /**
-     * True in singleplayer or on a LAN world this client is hosting — local files *are* the world.
+     * True in singleplayer or on a LAN world this client is hosting - local files *are* the world.
      *
      * Public so [SpeciesTraitMerger] can use it too: in that world type, Cobblemon populated its
      * species objects straight from the loaded datapacks rather than `species_sync` decoding, so a
-     * field like `catchRate` is never actually "unset" the way it always is after a network sync —
+     * field like `catchRate` is never actually "unset" the way it always is after a network sync -
      * see the merger's own doc comment for why that distinction matters there.
      */
     fun isLocalWorld(): Boolean = try {

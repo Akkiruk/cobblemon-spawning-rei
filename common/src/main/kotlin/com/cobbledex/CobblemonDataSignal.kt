@@ -8,7 +8,7 @@ import com.cobblemon.mod.common.api.spawning.CobblemonSpawnPools
  * signal instead of a blind retry loop.
  *
  * Cobblemon gives us no client-side "data synchronised" callback: `PokemonSpecies.observable` only
- * fires on the datapack-load path (server / singleplayer), *not* on the network path — its
+ * fires on the datapack-load path (server / singleplayer), *not* on the network path - its
  * `reload(Map)` used by `SpeciesRegistrySyncPacket` swaps the registry maps and emits nothing. So
  * the only reliable signal is the registry contents themselves. This takes a cheap fingerprint of
  * them and reports transitions.
@@ -18,7 +18,7 @@ import com.cobblemon.mod.common.api.spawning.CobblemonSpawnPools
  */
 object CobblemonDataSignal {
 
-    /** Sentinel for "nothing sampled yet" — distinct from a real all-zero fingerprint. */
+    /** Sentinel for "nothing sampled yet" - distinct from a real all-zero fingerprint. */
     private const val NO_SAMPLE = -1L
 
     @Volatile
@@ -29,14 +29,14 @@ object CobblemonDataSignal {
      *
      * Species count moves when `species_sync` lands (and on any later Cobblemon reload); spawn-pool
      * size moves when a singleplayer/LAN world finishes loading its spawn files. On a dedicated
-     * server the pool stays at 0 forever, which is correct — it is never synced.
+     * server the pool stays at 0 forever, which is correct - it is never synced.
      *
      * Species *count* alone misses a datapack change that alters an existing species without
-     * adding or removing one — the commonest example being a form added to or removed from a
+     * adding or removing one - the commonest example being a form added to or removed from a
      * species that's already implemented. So each species' name and form count are folded into a
      * running sum too: still O(species count) with only property reads (no per-form/per-ability
      * traversal), but sensitive to far more than "did the total change". A same-species,
-     * same-form-count stat-only edit still isn't caught by this — genuinely detecting that would
+     * same-form-count stat-only edit still isn't caught by this - genuinely detecting that would
      * mean hashing the full data CobbleDex reads, which costs about what the rebuild itself does
      * and defeats the point of sampling cheaply once a second.
      */

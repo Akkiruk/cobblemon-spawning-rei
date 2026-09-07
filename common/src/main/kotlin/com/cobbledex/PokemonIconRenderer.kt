@@ -6,7 +6,7 @@ import net.minecraft.client.gui.GuiGraphics
  * The one place a Pokémon icon is drawn.
  *
  * REI, JEI and EMI each need to paint the same thing and previously each carried their own copy of
- * this sequence — atlas first, rendered item as fallback, failures recorded so a broken model isn't
+ * this sequence - atlas first, rendered item as fallback, failures recorded so a broken model isn't
  * retried every frame. Keeping three copies meant a fix in one viewer silently didn't reach the
  * other two.
  */

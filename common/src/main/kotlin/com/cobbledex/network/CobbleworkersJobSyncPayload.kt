@@ -15,7 +15,7 @@ import net.minecraft.resources.ResourceLocation
  * Receives the job_sync packet sent by CobbleCrew (server-side).
  * Payload ID matches CobbleCrew's namespace so the server's packet
  * is routed to this handler. CobbleDex does NOT need CobbleCrew on
- * the client classpath — just the matching payload ID.
+ * the client classpath - just the matching payload ID.
  */
 class CobbleworkersJobSyncPayload(val data: ByteArray) : CustomPacketPayload {
 

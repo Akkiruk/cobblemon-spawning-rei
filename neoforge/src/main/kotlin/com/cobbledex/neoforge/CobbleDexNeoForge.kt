@@ -10,7 +10,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent
 
 /**
  * CobbleDex is a pure client-side viewer. It runs no server logic and sends no packets of its
- * own — every Pokémon fact it shows is read from data Cobblemon and Minecraft already sync to
+ * own - every Pokémon fact it shows is read from data Cobblemon and Minecraft already sync to
  * the client, or from the client's own files. See [com.cobbledex.SpawnDataIndex].
  *
  * The only payload registered here is CobbleCrew's, which that mod sends on its own channel.

@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
  * Locks the requirement vocabulary that the runtime reader and the local-file reader share.
  *
  * Both readers name requirements through [EvolutionRequirementSpec]; these assertions fail if a
- * variant is added without a name, or if an alias stops resolving — the drift that previously made
+ * variant is added without a name, or if an alias stops resolving - the drift that previously made
  * a requirement render differently in singleplayer than on a server.
  */
 class EvolutionRequirementSpecTest {
