@@ -2,6 +2,14 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.20.1] - 2026-09-06
+
+### Fixed
+- **"Can learn this move" / "Dropped by" grids no longer spill past the panel.** The learner and
+  dropper icon grids paged at 10 rows, whose panel is tall enough to overflow EMI's recipe viewport
+  (and REI/JEI's frame) at common GUI scales. Paged down to 7 rows so every page fits; popular moves
+  and drop items just get a few more pages.
+
 ## [2.20.0] - 2026-09-06
 
 ### Fixed

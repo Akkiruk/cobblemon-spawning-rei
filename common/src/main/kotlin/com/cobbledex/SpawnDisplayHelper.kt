@@ -1978,7 +1978,9 @@ object SpawnDisplayHelper {
     // vanilla recipes the panel collapses toward ~190px and anything wider than that spills out both
     // sides of the frame. 9 cols * 20px + 12px padding = 192px, right at REI's minimum panel width.
     // JEI/EMI size exactly to the panel, so they just get a slightly narrower grid.
-    const val MOVE_LEARNERS_PER_PAGE = 90 // 9 cols x 10 rows
+    // 9 cols x 7 rows. Kept short enough that a full page's panel (~195px) fits EMI's recipe
+    // viewport and REI/JEI's frame at common GUI scales without the grid spilling past the panel.
+    const val MOVE_LEARNERS_PER_PAGE = 63
     private const val MOVE_LEARNERS_COLS = 9
     private const val MOVE_LEARNERS_CELL = 20
     /** Hard cap for grid panels ✦ see the column-count note above. */
@@ -2074,7 +2076,7 @@ object SpawnDisplayHelper {
     // drops the item is rendered as a grid of clickable icons; hovering a cell names the Pokémon and
     // its drop chance / quantity for that item.
 
-    const val ITEM_DROPPERS_PER_PAGE = 90 // 9 cols x 10 rows
+    const val ITEM_DROPPERS_PER_PAGE = 63 // 9 cols x 7 rows — see the height note above MOVE_LEARNERS_PER_PAGE
     private const val ITEM_DROPPERS_COLS = 9 // see the grid column-count note above MOVE_LEARNERS_COLS
     private const val ITEM_DROPPERS_CELL = 20
 
