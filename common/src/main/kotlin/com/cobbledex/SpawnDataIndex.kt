@@ -79,6 +79,14 @@ object SpawnDataIndex {
         get() = snapshot.marks
         private set(value) { snapshot = snapshot.copy(marks = value) }
 
+    var herdsBySpecies: Map<String, List<HerdInfo>>
+        get() = snapshot.herdsBySpecies
+        private set(value) { snapshot = snapshot.copy(herdsBySpecies = value) }
+
+    var allHerds: List<HerdInfo>
+        get() = snapshot.allHerds
+        private set(value) { snapshot = snapshot.copy(allHerds = value) }
+
     var spawnRegionsBySpecies: Map<String, List<SpawnRegionInfo>>
         get() = snapshot.spawnRegionsBySpecies
         private set(value) { snapshot = snapshot.copy(spawnRegionsBySpecies = value) }
@@ -220,6 +228,7 @@ object SpawnDataIndex {
         val speciesCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
 
         loadSpawns()
+        deriveHerds()
         loadSpeciesInfo(speciesCount)
         loadEvolutions(speciesCount)
         loadObtainment()
@@ -290,6 +299,41 @@ object SpawnDataIndex {
         }
         spawnsBySpecies = emptyMap()
         spawnSourceTier = DataSourceTier.UNAVAILABLE
+    }
+
+    /**
+     * Groups the per-member herd [SpawnInfo]s (1.8.0+) back into one [HerdInfo] per roster, merging
+     * the biome-variant copies. Empty when spawns came from the jar cache (which does not parse herd
+     * files) or on pre-1.8.0 Cobblemon.
+     */
+    private fun deriveHerds() {
+        val byRoster = LinkedHashMap<String, MutableList<SpawnInfo>>()
+        for (infos in spawnsBySpecies.values) {
+            for (info in infos) {
+                val ctx = info.herd ?: continue
+                byRoster.getOrPut(ctx.rosterKey()) { mutableListOf() }.add(info)
+            }
+        }
+        if (byRoster.isEmpty()) {
+            allHerds = emptyList()
+            herdsBySpecies = emptyMap()
+            return
+        }
+
+        val herds = byRoster.values.mapNotNull { HerdInfo.from(it) }
+            .sortedWith(compareByDescending<HerdInfo> { it.hasAlpha }.thenBy { it.leader.species })
+
+        val bySpecies = HashMap<String, MutableList<HerdInfo>>()
+        for (herd in herds) {
+            // A member species can appear twice in one roster (e.g. Farigiraf as leader and follower);
+            // list the herd once per species.
+            for (species in herd.members.map { SpeciesNameNormalizer.normalize(it.species) }.distinct()) {
+                bySpecies.getOrPut(species) { mutableListOf() }.add(herd)
+            }
+        }
+        allHerds = herds
+        herdsBySpecies = bySpecies
+        DebugLog.info("Derived ${herds.size} herds covering ${bySpecies.size} species")
     }
 
     private fun mergeSpawnMaps(
@@ -450,11 +494,20 @@ object SpawnDataIndex {
      */
     private fun loadTms() {
         try {
+            // Merge rather than either/or: Cobblemon's TM registry (`JsonDataRegistry`) can still be
+            // mid-populate on the first rebuild — taking a partial runtime map wholesale left the TM
+            // Recipes page showing only the handful of TMs that had loaded by then. The jar cache is
+            // the complete file-truth base (~335); runtime entries overlay it as player-truth so
+            // datapack edits still win, and a missing sync no longer truncates the list.
+            val jar = if (JarDataCache.hasCachedTms()) JarDataCache.getCachedTms() else emptyMap()
             val runtime = NativeTmDataLoader.loadFromRuntime()
             tmInfoByMove = when {
-                runtime.isNotEmpty() -> runtime
-                JarDataCache.hasCachedTms() -> JarDataCache.getCachedTms()
-                else -> emptyMap()
+                jar.isEmpty() -> runtime
+                runtime.isEmpty() -> jar
+                else -> jar + runtime
+            }
+            if (runtime.isNotEmpty() && jar.isNotEmpty() && runtime.size < jar.size) {
+                DebugLog.info("TM registry runtime read was partial (${runtime.size}/${jar.size}); merged with jar cache")
             }
         } catch (e: Exception) {
             DebugLog.warn("TM data load failed: ${e.message}")
@@ -553,6 +606,9 @@ object SpawnDataIndex {
     fun getObtainmentFor(species: String): List<ObtainmentInfo> = currentQueries().getObtainmentFor(species)
 
     fun getFossilsFor(species: String): List<FossilCombo> = currentQueries().getFossilsFor(species)
+
+    fun getHerdsFor(species: String): List<HerdInfo> = currentQueries().getHerdsFor(species)
+    fun allHerdsList(): List<HerdInfo> = currentQueries().allHerds()
 
     fun getSpeciesDroppingItem(itemId: String): List<String> = currentQueries().getSpeciesDroppingItem(itemId)
 

@@ -1,6 +1,8 @@
 package com.cobbledex
 
 import com.cobbledex.config.CobbleDexConfig
+import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.Items
 
@@ -54,6 +56,8 @@ class RecipeHandle(
         val moveLinks: List<MoveLinkDef> = emptyList(),
         /** Set on a move-learner grid: the move it lists learners for, so viewers can key nav on it. */
         val moveKey: String? = null,
+        /** Set on a TM recipe: the move this TM teaches, so viewers can bind its disc entry here. */
+        val tmDiscMove: String? = null,
     )
 
     val layout: PanelLayout by lazy(LazyThreadSafetyMode.NONE) {
@@ -133,7 +137,7 @@ interface DexCategory {
         val ALL: List<DexCategory> = listOf(
             PokemonOverviewDex, SpawnDex, EvolutionDex, ObtainmentDex, DropDex,
             StatsDex, MovesDex, TmRecipeDex, PokedexInfoDex, PokemonDescriptionDex, FossilDex,
-            TypeChartDex, NatureDex, MarksDex, JobsDex, FormsDex, RidingDex
+            TypeChartDex, NatureDex, MarksDex, JobsDex, FormsDex, RidingDex, HerdsDex
         )
     }
 }
@@ -477,7 +481,8 @@ object TmRecipeDex : DexCategory {
                 RecipeHandle.Slots(
                     items = res().itemSlots,
                     moveLinks = res().moveLinks,
-                    catalogInputIds = (listOf(TmItemUtils.NATIVE_TM_ID) +
+                    tmDiscMove = d.tm.moveName,
+                    catalogInputIds = (listOf(TmItemUtils.NATIVE_TM_ID, TmItemUtils.BLANK_TM_ID) +
                         d.tm.elementalType?.let { listOf("cobblemon:${it}_gem") }.orEmpty() +
                         d.tm.ingredients.flatMap { it.itemIds }).distinct(),
                 )
@@ -617,6 +622,41 @@ object NatureDex : DexCategory {
         outputSpecies = emptyList(),
         layoutFactory = { MechanicPageBuilder.buildNature(d) },
     )
+}
+
+// ----- Herds -----
+
+/** The Pokémon Pasture reads as "a group of Pokémon"; fall back to a lead if the item id ever moves. */
+private val HERD_ICON: Item by lazy {
+    BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse("cobblemon:pasture")).orElse(Items.LEAD)
+}
+
+object HerdsDex : DexCategory {
+    override val id = "herds"
+    override val titleKey = "category.cobbledex-rei-emi-jei.herds"
+    override val icon: Item get() = HERD_ICON
+    override val supportsRecipeTree = false
+    override fun isEnabled(config: CobbleDexConfig) = config.showHerds
+
+    override fun buildAllRecipes() = RecipeBuilder.buildAllHerdRecipes().map(::toHandle)
+
+    override fun buildRecipesFor(species: String) =
+        RecipeBuilder.buildHerdsFor(species).map(::toHandle)
+
+    override fun buildUsagesFor(species: String) = buildRecipesFor(species)
+
+    private fun toHandle(d: HerdRecipeData): RecipeHandle {
+        var result: SpawnDisplayHelper.HerdLayoutResult? = null
+        fun res() = result ?: MechanicPageBuilder.buildHerd(d).also { result = it }
+        val memberSpecies = d.herd.members.map { it.species }.distinct()
+        return RecipeHandle(
+            recipeIdPath = "herds/${sanitizePath(d.herd.id)}" + (d.fromSpecies?.let { "/from-${sanitizePath(it)}" } ?: ""),
+            inputSpecies = memberSpecies,
+            outputSpecies = emptyList(),
+            layoutFactory = { res().layout },
+            _slots = { RecipeHandle.Slots(pokemon = res().pokemonSlots) },
+        )
+    }
 }
 
 // ----- Marks -----

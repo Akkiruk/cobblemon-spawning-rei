@@ -11,6 +11,16 @@ import kotlin.test.assertTrue
  */
 class HerdSpawnContextTest {
 
+    private fun member(
+        species: String,
+        role: HerdRole = HerdRole.FOLLOWER,
+        isAlpha: Boolean = false,
+        weight: Float = 1f,
+        maxCount: Int = 4,
+    ) = HerdMemberRef(species, "", role, isAlpha, null, "10-20", maxCount, weight)
+
+    private fun herd(vararg members: HerdMemberRef, size: Int = 6) = HerdContext(members.toList(), size)
+
     private fun spawn(herd: HerdContext? = null, habitat: HabitatContext? = null) = SpawnInfo(
         id = "test", pokemon = "spinda", formAspects = "", bucket = "common", weight = 1f,
         levelRange = "5-10", context = "grounded", biomes = emptyList(), timeRange = null,
@@ -22,21 +32,44 @@ class HerdSpawnContextTest {
     )
 
     @Test
-    fun leaderSpecialsCarryAlphaLine() {
+    fun herdSpawnGetsPointerLineNotRosterDump() {
         val specials = SpawnDisplayHelper.buildSpecials(
-            spawn(HerdContext(HerdRole.LEADER, maxHerdSize = 6))
+            spawn(herd(member("girafarig"), member("farigiraf", HerdRole.LEADER, isAlpha = true)))
         )
-        assertTrue(specials.any { it == "cobbledex-rei-emi-jei.spawn.herd.leader" })
-        assertTrue(specials.any { it == "cobbledex-rei-emi-jei.spawn.herd.alpha" })
+        assertTrue(specials.any { it == "cobbledex-rei-emi-jei.spawn.herd.pointer" })
+        assertFalse(specials.any { it.contains("herd.leader") || it.contains("herd.alpha") })
     }
 
     @Test
-    fun followerSpecialsHaveNoAlphaLine() {
-        val specials = SpawnDisplayHelper.buildSpecials(
-            spawn(HerdContext(HerdRole.FOLLOWER, maxHerdSize = 6))
+    fun nonHerdSpawnHasNoHerdPointer() {
+        val specials = SpawnDisplayHelper.buildSpecials(spawn())
+        assertFalse(specials.any { it == "cobbledex-rei-emi-jei.spawn.herd.pointer" })
+    }
+
+    @Test
+    fun hasAlphaReflectsLeaderFlag() {
+        assertTrue(herd(member("girafarig"), member("farigiraf", HerdRole.LEADER, isAlpha = true)).hasAlpha)
+        assertFalse(herd(member("bulbasaur"), member("ivysaur")).hasAlpha)
+    }
+
+    @Test
+    fun rosterKeyIsOrderIndependent() {
+        val a = herd(member("bulbasaur"), member("venusaur"), size = 4)
+        val b = herd(member("venusaur"), member("bulbasaur"), size = 4)
+        assertEquals(a.rosterKey(), b.rosterKey())
+    }
+
+    @Test
+    fun herdInfoOrdersLeaderFirstThenFollowersByWeight() {
+        val ctx = herd(
+            member("magikarp", weight = 10f),
+            member("gyarados", HerdRole.LEADER, isAlpha = true, weight = 30f),
+            member("gyarados", weight = 20f),
         )
-        assertTrue(specials.any { it == "cobbledex-rei-emi-jei.spawn.herd.follower" })
-        assertFalse(specials.any { it == "cobbledex-rei-emi-jei.spawn.herd.alpha" })
+        val info = HerdInfo.from(listOf(spawn(ctx))) ?: error("herd not derived")
+        assertEquals("gyarados", info.leader.species)
+        assertTrue(info.hasDesignatedLeader)
+        assertEquals(listOf("gyarados", "magikarp"), info.followers.map { it.species })
     }
 
     @Test
@@ -60,7 +93,7 @@ class HerdSpawnContextTest {
     @Test
     fun herdAndNonHerdEntriesDoNotMerge() {
         val merged = SpawnDisplayHelper.mergeVariantSpawns(
-            listOf(spawn(), spawn(HerdContext(HerdRole.LEADER, maxHerdSize = 6)))
+            listOf(spawn(), spawn(herd(member("bulbasaur", HerdRole.LEADER))))
         )
         assertEquals(2, merged.size)
     }

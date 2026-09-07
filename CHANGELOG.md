@@ -2,6 +2,97 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.22.0] - 2026-09-07
+
+### Added
+- **Herd pages (Cobblemon 1.8.0+).** Herd info used to be four lines crammed onto a spawn panel, one
+  member at a time, which lost the whole picture. Each herd is now its own page showing the formation
+  as a unit:
+  - The **roster** — every member as a clickable sprite with its "up to N" count and level range.
+    Alpha herds pull the Alpha out front (★, held Type Gem, "Leads the herd") under an **ALPHA HERD**
+    banner; plain family herds just list their members.
+  - A **facts strip** — herd size, rarity (Boss for alpha herds), biomes, time/light conditions,
+    position (underwater / water surface), structure exclusions, and time-of-day weighting.
+  - A two-line note on alpha herds: they scale above your party, know a TM move, and grant the Alpha
+    Mark.
+  - Biome-variant copies of one herd (same roster, different biome) are merged into a single page.
+  - Reached by looking up any member Pokémon (the herd shows in its tab strip); the spawn panel now
+    carries a one-line "◈ Spawns in a herd — see the Herds tab" pointer instead of the old dump.
+  - Also browsable as a **Herds** category (Pokémon Pasture icon). Empty and hidden on older
+    Cobblemon and wherever the world spawn pool isn't available (dedicated servers). Toggle with
+    `showHerds` in the config.
+
+### Also in this release (2.20.2–2.21.0)
+- **A browsable disc entry per native TM (1.8.0+).** On REI they collapse into one "Cobblemon TMs"
+  group like third-party TM mods; searchable by move, type, and `tm:` token; R/U opens that TM's
+  recipe. EMI gets per-TM searchable entries too.
+- **TM Recipes page now lists every TM (~335), not a partial ~30** — a partial read of Cobblemon's
+  still-loading TM registry was being cached; the complete jar list is now the base.
+- **Native TM discs are a working lookup key** — look up the blank TM disc for the full recipe list.
+- **Evolution drops show again (1.8.0+)** — Nincada → Shed Shell and friends are read from each
+  evolution's own drop table and marked "(on evolution)".
+- **Herd and habitat spawn lines no longer truncate mid-sentence.**
+- **Marks reference page is now off by default** — mostly unearnable contest ribbons; `showMarks` to
+  re-enable.
+
+## [2.21.0] - 2026-09-06
+
+### Added
+- **A browsable disc entry per native TM (Cobblemon 1.8.0+).** Cobblemon's native TMs are one item
+  with the move in a data component and no creative-tab entry, so there was nothing to browse or
+  search. CobbleDex now registers a real `technical_machine` stack per TM:
+  - **REI:** all TM discs **collapse into one "Cobblemon TMs" group** in the entry list (like
+    third-party TM mods), expandable to the full set. Searchable by move name, type, and `tm:` token.
+    R / U on a disc opens that one TM's recipe (plus its move-learner grid).
+  - **EMI:** one searchable disc per TM; looking a disc up opens its own recipe rather than the whole
+    list.
+  - **JEI:** unchanged — Cobblemon gives its TM item no per-move subtype, so JEI still can't tell the
+    discs apart; look up the blank TM disc for the full recipe list (2.20.4).
+  - Toggle with `showTmEntries` in the config (default on). No effect on older Cobblemon.
+
+## [2.20.6] - 2026-09-06
+
+### Changed
+- **Marks reference page is now off by default.** Cobblemon ships ~168 mark/ribbon entries — most of
+  them contest and Battle-Tower ribbons it has no way to award — and the data carries no earning
+  conditions, so the page was mostly noise. The category and its loader stay in the jar; set
+  `showMarks: true` in `config/cobbledex-rei-emi-jei.json` to bring it back.
+
+## [2.20.5] - 2026-09-06
+
+### Fixed
+- **TM Recipes page showed only a fraction of the TMs.** TM data was taken from Cobblemon's synced
+  registry *or* the jar cache, whichever answered first — and Cobblemon's `JsonDataRegistry` can
+  still be mid-populate on CobbleDex's first index build, so a partial runtime read (e.g. 30 of ~335)
+  was taken wholesale and stuck. The jar cache (complete file-truth) is now the base and runtime
+  entries overlay it, so the full TM list always shows and datapack edits still win.
+
+## [2.20.4] - 2026-09-06
+
+### Fixed
+- **Native TM discs are now a working lookup key.** Cobblemon 1.8.0's written TM
+  (`cobblemon:technical_machine`) keeps its move in a data component and is in no creative tab, so
+  recipe viewers had nothing to look up — only the Type Gems reached the TM Recipes page. Looking up
+  the **blank TM disc** (`cobblemon:blank_tm`, the craftable item players actually hold) now opens the
+  full list of TM recipes on REI, JEI and EMI.
+
+## [2.20.3] - 2026-09-06
+
+### Fixed
+- **Evolution drops now actually show (Cobblemon 1.8.0+).** 2.18.0 read the species/form drop table,
+  but 1.8.0 puts "drops when this Pokémon evolves" items on each **Evolution's own** drop table
+  (`Evolution.drops`). Nincada → Shed Shell (and every other evolution drop) now appears on the Item
+  Drops page marked "(on evolution)", is included in the export, and is found by the reverse
+  "which Pokémon drop this" item lookup. Read reflectively so 1.7.x is unaffected.
+
+## [2.20.2] - 2026-09-06
+
+### Fixed
+- **Herd and habitat spawn lines no longer truncate mid-sentence.** The Spawn page's Location section
+  wrapped only at commas and clipped anything longer, so comma-less sentences like "Follows in herds
+  of up to 7" and "Appears on 1 of the habitat's 5-day cycle" cut off as "…up t…". Over-long segments
+  are now word-wrapped instead of clipped, everywhere that comma-wrapping is used.
+
 ## [2.20.1] - 2026-09-06
 
 ### Fixed

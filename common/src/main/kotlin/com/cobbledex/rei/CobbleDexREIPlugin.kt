@@ -144,7 +144,34 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             }
         }
         DebugLog.info("Registered $registered Pokémon entries + $formCount forms ($hidden hidden — no model)")
+
+        val tmDiscs = com.cobbledex.TmDiscStacks.all()
+        for (entry in tmDiscs) {
+            try {
+                registry.addEntry(EntryStacks.of(entry.stack))
+            } catch (e: Exception) {
+                DebugLog.once("tm-entry-fail-${entry.moveName}") { "TM entry registration failed for ${entry.moveName}: ${e.message}" }
+            }
+        }
+        if (tmDiscs.isNotEmpty()) DebugLog.info("Registered ${tmDiscs.size} native TM disc entries")
+
         DebugLog.printSummary()
+    }
+
+    override fun registerCollapsibleEntries(registry: me.shedaniel.rei.api.client.registry.entry.CollapsibleEntryRegistry) {
+        if (emiActive) return
+        val stacks = com.cobbledex.TmDiscStacks.all().map { EntryStacks.of(it.stack) }
+        if (stacks.isEmpty()) return
+        try {
+            registry.group(
+                ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "cobblemon_tms"),
+                Component.translatable("cobbledex-rei-emi-jei.collapsible.tms"),
+                stacks,
+            )
+            DebugLog.info("Registered 'Cobblemon TMs' collapsible group (${stacks.size})")
+        } catch (e: Exception) {
+            DebugLog.warn("Collapsible TM group registration failed: ${e.message}")
+        }
     }
 
     // ----- Generic Display wrapping RecipeHandle -----
@@ -287,10 +314,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             when (val value = entry.value ?: return Optional.empty()) {
                 is PokemonEntry -> return forValue(def.buildRecipesFor(value.species))
                 is MoveEntry -> return forValue(def.buildRecipesForMove(value.moveName))
-                is net.minecraft.world.item.ItemStack -> {
-                    val itemId = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(value.item).toString()
-                    return forValue(def.buildRecipesForItem(itemId))
-                }
+                is net.minecraft.world.item.ItemStack -> return forValue(recipesForStack(value))
             }
             return Optional.empty()
         }
@@ -299,12 +323,22 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             when (val value = entry.value ?: return Optional.empty()) {
                 is PokemonEntry -> return forValue(def.buildUsagesFor(value.species))
                 is MoveEntry -> return forValue(def.buildRecipesForMove(value.moveName))
-                is net.minecraft.world.item.ItemStack -> {
-                    val itemId = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(value.item).toString()
-                    return forValue(def.buildRecipesForItem(itemId))
-                }
+                is net.minecraft.world.item.ItemStack -> return forValue(recipesForStack(value))
             }
             return Optional.empty()
+        }
+
+        /**
+         * A native TM disc carries its move in a data component, not the id, so a per-move disc entry
+         * must resolve to that one TM's recipe. The blank disc (no component) still falls through to
+         * `buildRecipesForItem`, which lists every TM.
+         */
+        private fun recipesForStack(stack: net.minecraft.world.item.ItemStack): List<RecipeHandle> {
+            com.cobbledex.TmDiscStacks.moveOf(stack)?.let { move ->
+                return def.buildRecipesForMove(move)
+            }
+            val itemId = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.item).toString()
+            return def.buildRecipesForItem(itemId)
         }
 
         override fun generate(builder: ViewSearchBuilder): Optional<List<GenericDisplay>> {

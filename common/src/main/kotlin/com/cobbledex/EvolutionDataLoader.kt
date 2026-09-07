@@ -696,18 +696,34 @@ object EvolutionDataLoader {
     private fun extractDrops(
         form: com.cobblemon.mod.common.pokemon.FormData?,
     ): List<DropEntryInfo>? = try {
-        (form?.drops?.entries ?: emptyList())
+        fun toInfo(entry: ItemDropEntry, forceEvolution: Boolean) = DropEntryInfo(
+            itemId = entry.item.toString(),
+            percentage = entry.percentage,
+            quantity = entry.quantity,
+            quantityRange = entry.quantityRange?.let { "${it.first}-${it.last}" },
+            trigger = if (forceEvolution || isEvolutionDrop(entry)) DropTrigger.EVOLUTION else DropTrigger.DEFEAT,
+        )
+
+        val battle = (form?.drops?.entries ?: emptyList())
             .filterIsInstance<ItemDropEntry>()
-            .map { entry ->
-                DropEntryInfo(
-                    itemId = entry.item.toString(),
-                    percentage = entry.percentage,
-                    quantity = entry.quantity,
-                    quantityRange = entry.quantityRange?.let { "${it.first}-${it.last}" },
-                    trigger = if (isEvolutionDrop(entry)) DropTrigger.EVOLUTION else DropTrigger.DEFEAT,
-                )
+            .map { toInfo(it, forceEvolution = false) }
+
+        // Cobblemon 1.8.0 puts "drops when this Pokémon evolves" items on each Evolution's own drop
+        // table (`Evolution.drops`), not the species/form drop table. Read reflectively so 1.7.x,
+        // where evolutions carry no drops, is unaffected.
+        val evolution = try {
+            (form?.evolutions ?: emptySet()).flatMap { evo ->
+                val entries = evo.javaClass.methods.firstOrNull { it.name == "getDrops" && it.parameterCount == 0 }
+                    ?.invoke(evo)
+                    ?.let { dropTable -> dropTable.javaClass.methods.firstOrNull { it.name == "getEntries" && it.parameterCount == 0 }?.invoke(dropTable) }
+                    as? Collection<*> ?: emptyList<Any>()
+                entries.filterIsInstance<ItemDropEntry>().map { toInfo(it, forceEvolution = true) }
             }
-            .ifEmpty { null }
+        } catch (_: Throwable) { emptyList() }
+
+        // De-dupe: an item already listed as a battle drop shouldn't also appear as an evolution drop.
+        val battleItems = battle.map { it.itemId }.toSet()
+        (battle + evolution.filter { it.itemId !in battleItems }).ifEmpty { null }
     } catch (_: Exception) { null }
 
     /**

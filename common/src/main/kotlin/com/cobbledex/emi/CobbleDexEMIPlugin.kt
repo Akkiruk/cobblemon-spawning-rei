@@ -78,6 +78,16 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             if (speciesInfo.isForm) formCount++ else registered++
         }
 
+        // One browsable disc per native TM, searchable by move / type / `tm:` token.
+        val tmDiscs = com.cobbledex.TmDiscStacks.all()
+        for (entry in tmDiscs) {
+            val stack = EmiStack.of(entry.stack)
+            registry.addEmiStack(stack)
+            val aliases = DiscoveryAliases.moveAliases(entry.moveName)
+            if (aliases.isNotEmpty()) registry.addAlias(stack, Component.literal(aliases.joinToString(" ")))
+        }
+        if (tmDiscs.isNotEmpty()) DebugLog.info("EMI: Registered ${tmDiscs.size} native TM disc entries")
+
         // Register categories, workstations, and recipes
         val registeredCats = mutableListOf<String>()
         for (def in DexCategory.ALL) {
@@ -129,7 +139,14 @@ open class CobbleDexEMIPlugin : EmiPlugin {
                 val stack = SpawnDisplayHelper.resolveItemStack(itemId)
                 if (!stack.isEmpty) EmiStack.of(stack) else null
             }
-            pokemon + items
+            // The TM recipe "produces" the written disc for its move, so looking that disc up lands
+            // here rather than on the blanket all-TMs list.
+            val tmDisc = handle.slots.tmDiscMove
+                ?.let { com.cobbledex.TmDiscStacks.forMove(it) }
+                ?.takeUnless { it.isEmpty }
+                ?.let { listOf(EmiStack.of(it)) }
+                ?: emptyList()
+            pokemon + items + tmDisc
         }
 
         override fun getCategory(): EmiRecipeCategory = emiCategory

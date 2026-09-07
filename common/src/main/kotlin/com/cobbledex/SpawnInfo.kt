@@ -83,31 +83,35 @@ data class SpawnInfo(
 }
 
 /**
- * Herd-spawn context for a [SpawnInfo] produced from a `pokemon-herd` detail. One [SpawnInfo] is
- * emitted per herd member species; [role] says whether that species heads the herd (herd leaders are
- * the ones that can roll an Alpha) or only follows.
+ * Herd-spawn context (Cobblemon 1.8.0+). The *same* [HerdContext] instance is attached to every
+ * member species' [SpawnInfo] for one `pokemon-herd` detail, so it describes the whole formation, not
+ * just one member. [SpawnDataIndex] groups member spawns back into per-roster [HerdInfo] pages off
+ * this; the spawn page itself only uses it to know "this is a herd spawn" and point at the Herds tab.
  */
 data class HerdContext(
-    val role: HerdRole,
+    val members: List<HerdMemberRef>,
     val maxHerdSize: Int,
-    val heldItemId: String? = null,
 ) {
-    val canBeAlpha: Boolean get() = role == HerdRole.LEADER
+    val hasAlpha: Boolean get() = members.any { it.isAlpha }
 
-    fun displayLines(): List<String> {
-        val lines = mutableListOf<String>()
-        lines.add(
-            when (role) {
-                HerdRole.LEADER -> tr("cobbledex-rei-emi-jei.spawn.herd.leader", maxHerdSize)
-                HerdRole.FOLLOWER -> tr("cobbledex-rei-emi-jei.spawn.herd.follower", maxHerdSize)
-                HerdRole.ANY -> tr("cobbledex-rei-emi-jei.spawn.herd.member", maxHerdSize)
-            }
-        )
-        if (canBeAlpha) lines.add(tr("cobbledex-rei-emi-jei.spawn.herd.alpha"))
-        heldItemId?.let { lines.add(tr("cobbledex-rei-emi-jei.spawn.herd.held", formatId(it))) }
-        return lines
-    }
+    /** Stable identity for a roster, used to merge the biome-variant copies of one herd. */
+    fun rosterKey(): String =
+        members.map { it.species }.sorted().joinToString("-") + "-x$maxHerdSize"
 }
+
+data class HerdMemberRef(
+    val species: String,
+    val formAspects: String,
+    val role: HerdRole,
+    val isAlpha: Boolean,
+    val heldItemId: String?,
+    /** The member's own level range within the herd, e.g. "24-43"; null falls back to the herd's. */
+    val levelRange: String?,
+    /** How many of this species can be in one herd ("up to N"). */
+    val maxCount: Int,
+    /** Relative roll weight among herd members, for ordering the roster. */
+    val weight: Float,
+)
 
 enum class HerdRole { LEADER, FOLLOWER, ANY }
 

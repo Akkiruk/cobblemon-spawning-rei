@@ -17,6 +17,10 @@ data class CobbleDexDataSnapshot(
     val tmInfoByMove: Map<String, TmInfo> = emptyMap(),
     /** Pokémon Marks (1.8.0+); empty on older Cobblemon. */
     val marks: List<MarkInfo> = emptyList(),
+    /** Herds keyed by each member species (1.8.0+); empty on older Cobblemon or dedicated servers. */
+    val herdsBySpecies: Map<String, List<HerdInfo>> = emptyMap(),
+    /** Every herd once, deduped by roster — the browsable list for the Herds category. */
+    val allHerds: List<HerdInfo> = emptyList(),
     val spawnRegionsBySpecies: Map<String, List<SpawnRegionInfo>> = emptyMap(),
     val allSpeciesNames: List<String> = emptyList(),
     val spawnSourceTier: DataSourceTier = DataSourceTier.UNAVAILABLE,

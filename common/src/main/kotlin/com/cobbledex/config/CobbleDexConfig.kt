@@ -20,10 +20,22 @@ data class CobbleDexConfig(
     val showJobs: Boolean = true,
     val showAlternateForms: Boolean = true,
     val showRiding: Boolean = true,
+    /** Herd pages (Cobblemon 1.8.0+): the roster, alpha, and conditions of each herd a Pokémon joins. */
+    val showHerds: Boolean = true,
     /** TM Recipes page (native Cobblemon 1.8.0+ TMs). No effect on older Cobblemon. */
     val showTmRecipes: Boolean = true,
-    /** Marks reference page (Cobblemon 1.8.0+). No effect on older Cobblemon. */
-    val showMarks: Boolean = true,
+    /**
+     * Register one browsable disc entry per native TM (Cobblemon 1.8.0+) in REI/JEI/EMI, so each TM
+     * is searchable by move and opens its own recipe. On REI they collapse into one "Cobblemon TMs"
+     * group like third-party TM mods. No effect on older Cobblemon.
+     */
+    val showTmEntries: Boolean = true,
+    /**
+     * Marks reference page (Cobblemon 1.8.0+). Off by default: Cobblemon ships ~168 mark/ribbon
+     * entries, most of them contest/Battle-Tower ribbons it has no way to award, and the data carries
+     * no earning conditions — so the page is mostly noise. Opt in via config if you want it.
+     */
+    val showMarks: Boolean = false,
     /** Render the Moves page as separate Level-up/Egg/Tutor/TM sections instead of one unified list. */
     val groupMovesByMethod: Boolean = false,
     val registerFormEntries: Boolean = true,

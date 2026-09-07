@@ -504,6 +504,14 @@ object RecipeBuilder {
         return path.substringBefore("_gem").takeIf { it.isNotBlank() && it.all(Char::isLetter) }
     }
 
+    // --- Herds ---
+
+    fun buildAllHerdRecipes(): List<HerdRecipeData> =
+        SpawnDataIndex.allHerdsList().map { HerdRecipeData(it, fromSpecies = null) }
+
+    fun buildHerdsFor(species: String): List<HerdRecipeData> =
+        SpawnDataIndex.getHerdsFor(species).map { HerdRecipeData(it, fromSpecies = species) }
+
     // --- Marks reference ---
 
     private const val MARKS_PER_PAGE = 12

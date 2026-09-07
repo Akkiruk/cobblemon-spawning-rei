@@ -112,7 +112,7 @@ object SpawnDisplayHelper {
             "${s.neededNearbyBlocks.sorted()}|${s.neededBaseBlocks.sorted()}|" +
             "${s.moonPhase}|${s.presets.sorted()}|${s.fluid}|${serializeAntiCondition(s.anticondition)}|" +
             "${serializeWeightMultipliers(s.weightMultipliers)}|${s.minLureLevel}|${s.conditionWarnings.sorted()}|" +
-            "${s.herd?.role}:${s.herd?.maxHerdSize}:${s.herd?.heldItemId}|" +
+            "${s.herd?.rosterKey()}|" +
             "${s.habitat?.habitatNameKey}:${s.habitat?.phases}"
     }
 
@@ -214,7 +214,8 @@ object SpawnDisplayHelper {
     fun buildSpecials(spawn: SpawnInfo): List<String> {
         val list = mutableListOf<String>()
         spawn.habitat?.let { list.addAll(it.displayLines()) }
-        spawn.herd?.let { list.addAll(it.displayLines()) }
+        // Herd details live on their own Herds page now; the spawn panel just points there.
+        if (spawn.herd != null) list.add(tr("cobbledex-rei-emi-jei.spawn.herd.pointer"))
         val regions = SpawnDataIndex.spawnRegionsForSpecies(spawn.pokemon)
         if (regions.isNotEmpty()) {
             list.add(tr("cobbledex-rei-emi-jei.spawn.special.regions", regions.joinToString(", ") { it.displayName }))
@@ -324,11 +325,17 @@ object SpawnDisplayHelper {
         val lines = mutableListOf<String>()
         var current = ""
         for (item in items) {
-            val clipped = if (font.width(item) > maxWidth) clipToWidth(font, item, maxWidth) else item
-            val next = if (current.isEmpty()) clipped else "$current, $clipped"
+            // A single comma-segment wider than the panel (e.g. a herd/habitat sentence with no
+            // commas) is word-wrapped rather than clipped, so prose never truncates mid-word.
+            if (font.width(item) > maxWidth) {
+                if (current.isNotEmpty()) { lines.add(current); current = "" }
+                lines.addAll(wrapText(font, item, maxWidth))
+                continue
+            }
+            val next = if (current.isEmpty()) item else "$current, $item"
             if (font.width(next) > maxWidth && current.isNotEmpty()) {
                 lines.add(current)
-                current = clipped
+                current = item
             } else {
                 current = next
             }
@@ -1750,6 +1757,119 @@ object SpawnDisplayHelper {
 
         layout.gap(padding)
         return layout
+    }
+
+    // --- Herd layout builder ---
+
+    data class HerdLayoutResult(
+        val layout: PanelLayout,
+        val pokemonSlots: List<PokemonSlotDef>,
+    )
+
+    private fun herdSpriteAspects(formAspects: String): Set<String> =
+        formAspects.split(" ").filter { it.isNotBlank() && "=" !in it }.toSet()
+
+    fun buildHerdLayout(data: HerdRecipeData): HerdLayoutResult {
+        val herd = data.herd
+        val font = Minecraft.getInstance().font
+        val padding = PanelLayout.PADDING
+        val nameX = PanelLayout.TEXT_START_X
+        val title = herd.displayName()
+        val tag = tr("category.cobbledex-rei-emi-jei.herds")
+
+        val width = computePanelWidth(
+            measureHeaderWidth(font, title, tag),
+            220,
+        )
+        val layout = PanelLayout(width)
+        val right = layout.right
+        val slots = mutableListOf<PokemonSlotDef>()
+
+        // Header — leader sprite + name + "Herds" tag
+        slots.add(PokemonSlotDef(herd.leader.species, herdSpriteAspects(herd.leader.formAspects), padding, 2, SlotRole.INPUT, disableBackground = true, disableHighlight = false))
+        drawHeader(layout, title, tag, 0xFFB0C4DE.toInt(), dividerY = 20, leftX = nameX, yPos = 6)
+        layout.skipTo(24)
+
+        if (herd.hasAlpha) {
+            val by = layout.y
+            layout.fill(padding, by, right, by + 12, 0x55CE3A49)
+            layout.textCentered(tr("cobbledex-rei-emi-jei.herd.alpha_banner"), 0xFFFFCDD2.toInt())
+            layout.skipTo(by + 15)
+        }
+
+        if (herd.hasDesignatedLeader) {
+            val ly = layout.y
+            slots.add(PokemonSlotDef(herd.leader.species, herdSpriteAspects(herd.leader.formAspects), padding, ly, SlotRole.INPUT, disableBackground = true, disableHighlight = false))
+            val prefix = if (herd.leader.isAlpha) "★ " else ""
+            val nameColor = if (herd.leader.isAlpha) 0xFFFFD54F.toInt() else 0xFFFFFFFF.toInt()
+            layout.clippedAt(nameX, ly, prefix + formatSpeciesName(herd.leader.species), right - nameX, nameColor)
+            val sub = buildString {
+                if (herd.leader.isAlpha) append(tr("cobbledex-rei-emi-jei.herd.alpha_label"))
+                herd.leader.heldItemId?.let {
+                    if (isNotEmpty()) append("  ·  ")
+                    append(tr("cobbledex-rei-emi-jei.herd.holds", resolveItemName(it)))
+                }
+                if (isEmpty()) append(tr("cobbledex-rei-emi-jei.herd.leads"))
+            }
+            layout.clippedAt(nameX, ly + 10, sub, right - nameX, 0xFF9E9E9E.toInt())
+            layout.addTooltipZone(
+                padding, ly, 20, 20,
+                listOf(
+                    Component.literal("§f§l" + formatSpeciesName(herd.leader.species)),
+                    Component.literal("§7" + tr("cobbledex-rei-emi-jei.herd.leads")),
+                ),
+            )
+            layout.skipTo(ly + 23)
+        }
+
+        val followers = herd.followers
+        if (followers.isNotEmpty()) {
+            layout.text(padding, tr("cobbledex-rei-emi-jei.herd.members"), 0xFFEEEEEE.toInt())
+            layout.line()
+            for (m in followers) {
+                val my = layout.y
+                slots.add(PokemonSlotDef(m.species, herdSpriteAspects(m.formAspects), padding, my, SlotRole.INPUT, disableBackground = true, disableHighlight = false))
+                val here = data.fromSpecies?.let { m.species.equals(it, ignoreCase = true) } == true
+                val name = formatSpeciesName(m.species) + (if (here) "  ◄" else "")
+                drawSplitRow(layout, nameX, name, tr("cobbledex-rei-emi-jei.herd.up_to", m.maxCount), 0xFFFFFFFF.toInt(), 0xFF9E9E9E.toInt(), yPos = my)
+                m.levelRange?.let { layout.clippedAt(nameX, my + 10, levelText(it), right - nameX, 0xFF7EA9C7.toInt()) }
+                layout.addTooltipZone(padding, my, 20, 20, listOf(Component.literal("§f§l" + formatSpeciesName(m.species))))
+                layout.skipTo(my + 23)
+            }
+        }
+
+        // Facts
+        layout.fill(padding, layout.y, right, layout.y + 1, 0x50FFFFFF)
+        layout.gap(4)
+        val bucketText = if (herd.bucket.equals("boss", ignoreCase = true))
+            tr("cobbledex-rei-emi-jei.herd.boss") else bucketLabel(herd.bucket)
+        layout.wrapped(padding, tr("cobbledex-rei-emi-jei.herd.size_line", herd.maxHerdSize, bucketText), right - padding, 0xFFDDDDDD.toInt())
+
+        val biomeNames = herd.conditions.biomes.map { formatBiomeName(it) }.distinct()
+        if (biomeNames.isNotEmpty()) {
+            layout.wrappedCommas(padding, "⛰ " + biomeNames.joinToString(", "), right - padding, 0xFFCCA066.toInt())
+        }
+        for (c in buildConditions(herd.conditions).take(PanelLayout.MAX_VISIBLE_CONDITIONS)) {
+            layout.wrapped(padding, c, right - padding, 0xFFBBBBBB.toInt())
+        }
+        if (herd.conditions.context != "grounded") {
+            layout.wrapped(padding, herd.conditions.displayContext, right - padding, 0xFFBBBBBB.toInt())
+        }
+        herd.conditions.anticondition?.structures?.takeIf { it.isNotEmpty() }?.let { ex ->
+            layout.wrappedCommas(padding, tr("cobbledex-rei-emi-jei.herd.never_near", ex.joinToString(", ") { formatStructureName(it) }), right - padding, 0xFFCC8888.toInt())
+        }
+        for (wm in herd.conditions.weightMultipliers.take(2)) {
+            val arrow = if (wm.multiplier < 1f) "▼" else if (wm.multiplier > 1f) "▲" else "●"
+            layout.wrapped(padding, "$arrow ${formatWeight(wm.multiplier)}x ${wm.displayConditionSummary()}", right - padding, 0xFFCC9999.toInt())
+        }
+
+        if (herd.hasAlpha) {
+            layout.gap(3)
+            layout.wrapped(padding, tr("cobbledex-rei-emi-jei.herd.alpha_note"), right - padding, 0xFF8A8A8A.toInt())
+        }
+
+        layout.gap(padding)
+        return HerdLayoutResult(layout, slots)
     }
 
     // --- Nature layout builder ---

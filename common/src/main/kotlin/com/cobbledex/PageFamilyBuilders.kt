@@ -339,4 +339,5 @@ object MechanicPageBuilder {
     fun buildJob(speciesName: String, match: JobMatch): PanelLayout = SpawnDisplayHelper.buildJobLayout(speciesName, match)
     fun buildTmRecipe(data: TmRecipeData): SpawnDisplayHelper.TmLayoutResult = SpawnDisplayHelper.buildTmRecipeLayout(data)
     fun buildMark(data: MarkRecipeData): PanelLayout = SpawnDisplayHelper.buildMarkLayout(data)
+    fun buildHerd(data: HerdRecipeData): SpawnDisplayHelper.HerdLayoutResult = SpawnDisplayHelper.buildHerdLayout(data)
 }

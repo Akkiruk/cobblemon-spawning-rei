@@ -20,8 +20,11 @@ object HerdSpawnReader {
         val species: String,
         val formAspects: String,
         val role: HerdRole,
+        val isAlpha: Boolean,
         val heldItemId: String?,
-        val ownLevelRange: String?,
+        val levelRange: String?,
+        val maxCount: Int,
+        val weight: Float,
     )
 
     data class HerdRead(
@@ -48,23 +51,27 @@ object HerdSpawnReader {
                     val props = hc.getMethod("getPokemon").invoke(herdable) as? PokemonProperties ?: return@mapNotNull null
                     val rawSpecies = props.species?.lowercase() ?: return@mapNotNull null
                     val species = rawSpecies.substringAfter(':')
-                    val isLeader = hc.getMethod("isLeader").invoke(herdable) as? Boolean ?: false
-                    val isFollower = hc.getMethod("isFollower").invoke(herdable) as? Boolean ?: true
-                    val role = when {
-                        isLeader && !isFollower -> HerdRole.LEADER
-                        isLeader -> HerdRole.LEADER
-                        isFollower -> HerdRole.FOLLOWER
-                        else -> HerdRole.ANY
-                    }
+                    val isLeader = runCatching { hc.getMethod("isLeader").invoke(herdable) as? Boolean }.getOrNull() ?: false
+                    val isFollower = runCatching { hc.getMethod("isFollower").invoke(herdable) as? Boolean }.getOrNull() ?: true
+                    val role = if (isLeader) HerdRole.LEADER else if (isFollower) HerdRole.FOLLOWER else HerdRole.ANY
+
+                    val aspects = herdFormAspects(props)
+                    val isAlpha = readIsAlpha(props) || aspects.contains("alpha", ignoreCase = true)
                     val heldItem = runCatching { hc.getMethod("getHeldItem").invoke(herdable)?.toString() }.getOrNull()
-                    val ownRange = runCatching { readIntRange(hc.getMethod("getHerdLevelRange").invoke(herdable)) }.getOrNull()
+                    val ownRange = runCatching { readIntRange(hc.getMethod("getLevelRange").invoke(herdable)) }.getOrNull()
+                        ?: runCatching { readIntRange(hc.getMethod("getHerdLevelRange").invoke(herdable)) }.getOrNull()
+                    val maxCount = (runCatching { hc.getMethod("getMaxTimes").invoke(herdable) as? Number }.getOrNull())?.toInt() ?: 1
+                    val weight = (runCatching { hc.getMethod("getWeight").invoke(herdable) as? Number }.getOrNull())?.toFloat() ?: 1f
 
                     HerdMember(
                         species = species,
-                        formAspects = herdFormAspects(props),
+                        formAspects = aspects,
                         role = role,
+                        isAlpha = isAlpha,
                         heldItemId = heldItem,
-                        ownLevelRange = ownRange,
+                        levelRange = ownRange,
+                        maxCount = maxCount,
+                        weight = weight,
                     )
                 } catch (_: Throwable) {
                     null
@@ -75,6 +82,15 @@ object HerdSpawnReader {
         } catch (_: Throwable) {
             null
         }
+    }
+
+    /** `PokemonProperties.isAlpha` is a nullable Boolean; its Kotlin getter name varies, so try both. */
+    private fun readIsAlpha(props: PokemonProperties): Boolean = try {
+        props.javaClass.methods
+            .firstOrNull { it.parameterCount == 0 && (it.name == "isAlpha" || it.name == "getIsAlpha" || it.name == "getAlpha") }
+            ?.invoke(props) as? Boolean ?: false
+    } catch (_: Throwable) {
+        false
     }
 
     private fun herdFormAspects(props: PokemonProperties): String {

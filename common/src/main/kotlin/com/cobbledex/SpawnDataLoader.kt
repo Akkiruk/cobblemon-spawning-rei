@@ -175,13 +175,27 @@ object SpawnDataLoader {
             minLureLevel = null, conditionWarnings = merged.warnings,
         )
 
+        // One roster description, shared by every member's SpawnInfo, ordered leader/alpha first then
+        // by roll weight so the page can render the formation without re-sorting.
+        val memberRefs = read.members
+            .map {
+                HerdMemberRef(
+                    species = it.species, formAspects = it.formAspects, role = it.role,
+                    isAlpha = it.isAlpha, heldItemId = it.heldItemId,
+                    levelRange = it.levelRange ?: read.detailLevelRange,
+                    maxCount = it.maxCount, weight = it.weight,
+                )
+            }
+            .sortedWith(compareByDescending<HerdMemberRef> { it.role == HerdRole.LEADER }.thenByDescending { it.weight })
+        val herdContext = HerdContext(memberRefs, read.maxHerdSize)
+
         return read.members.map { member ->
             member.species to base.copy(
                 id = "${sd.id ?: member.species}#herd:${member.species}",
                 pokemon = member.species,
                 formAspects = member.formAspects,
-                levelRange = member.ownLevelRange ?: read.detailLevelRange,
-                herd = HerdContext(member.role, read.maxHerdSize, member.heldItemId),
+                levelRange = member.levelRange ?: read.detailLevelRange,
+                herd = herdContext,
             )
         }
     }

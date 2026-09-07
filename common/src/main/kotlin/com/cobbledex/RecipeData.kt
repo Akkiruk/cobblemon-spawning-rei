@@ -66,3 +66,9 @@ data class MarkRecipeData(
     val pageIndex: Int = 0,
     val pageTotal: Int = 1,
 )
+
+data class HerdRecipeData(
+    val herd: HerdInfo,
+    /** The species the viewer navigated from, marked with a ◄ on the roster; null when browsing. */
+    val fromSpecies: String? = null,
+)

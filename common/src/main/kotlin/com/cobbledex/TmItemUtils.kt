@@ -15,6 +15,14 @@ import net.minecraft.world.item.ItemStack
 object TmItemUtils {
 
     const val NATIVE_TM_ID = "cobblemon:technical_machine"
+
+    /**
+     * The blank disc used to craft native TMs. Unlike [NATIVE_TM_ID] (a written TM whose move lives in
+     * a data component and which is not in any creative tab), `blank_tm` is a real browsable item, so
+     * it is the entry point recipe viewers use to reach "all TM recipes".
+     */
+    const val BLANK_TM_ID = "cobblemon:blank_tm"
+
     private val TM_MOVE_COMPONENT = ResourceLocation.parse("cobblemon:tm_move")
 
     private val movePrefixes = listOf(
@@ -33,10 +41,10 @@ object TmItemUtils {
         return null
     }
 
-    fun isNativeTm(itemId: String): Boolean = itemId == NATIVE_TM_ID
+    fun isNativeTm(itemId: String): Boolean = itemId == NATIVE_TM_ID || itemId == BLANK_TM_ID
 
     fun isTmItem(itemId: String): Boolean =
-        itemId == NATIVE_TM_ID || movePrefixes.any { itemId.startsWith(it) }
+        itemId == NATIVE_TM_ID || itemId == BLANK_TM_ID || movePrefixes.any { itemId.startsWith(it) }
 
     /** Resolves the move for either system from a stack (native reads the data component). */
     fun extractMoveFromStack(stack: ItemStack): String? {

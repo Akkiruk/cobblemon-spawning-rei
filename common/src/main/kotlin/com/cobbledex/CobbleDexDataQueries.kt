@@ -23,6 +23,11 @@ class CobbleDexDataQueries(private val snapshot: CobbleDexDataSnapshot) {
     fun getFossilsFor(species: String): List<FossilCombo> =
         snapshot.fossilsBySpecies[SpeciesNameNormalizer.normalize(species)] ?: emptyList()
 
+    fun getHerdsFor(species: String): List<HerdInfo> =
+        snapshot.herdsBySpecies[SpeciesNameNormalizer.normalize(species)] ?: emptyList()
+
+    fun allHerds(): List<HerdInfo> = snapshot.allHerds
+
     fun getSpeciesDroppingItem(itemId: String): List<String> =
         snapshot.dropsByItem[itemId] ?: emptyList()
 
