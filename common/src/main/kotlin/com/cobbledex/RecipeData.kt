@@ -54,3 +54,15 @@ data class NatureRecipeData(
     val pageIndex: Int = 0,
     val pageTotal: Int = 1
 )
+
+data class TmRecipeData(
+    val tm: TmInfo,
+    /** Number of species that can learn this move (any method), for a summary line. */
+    val learnerCount: Int,
+)
+
+data class MarkRecipeData(
+    val marks: List<MarkInfo>,
+    val pageIndex: Int = 0,
+    val pageTotal: Int = 1,
+)

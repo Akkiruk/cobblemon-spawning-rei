@@ -50,7 +50,9 @@ object RidingDataLoader {
         val behaviours = riding.behaviours ?: return null
         if (behaviours.isEmpty()) return null
 
-        val seats = riding.seats.size.coerceAtLeast(1)
+        val seatList = try { riding.seats } catch (_: Exception) { emptyList<Any?>() }
+        val seats = seatList.size.coerceAtLeast(1)
+        val conditionalSeats = seatList.mapNotNull { seat -> readSeatCondition(seat) }
         val allMountTypes = behaviours.keys.map { it.name }
         val ridingStyles = behaviours.values.mapNotNull { extractStyleName(it.key.path) }.distinct()
 
@@ -78,7 +80,36 @@ object RidingDataLoader {
             ridingStyles = ridingStyles,
             seats = seats,
             mounts = mounts,
+            conditionalSeats = conditionalSeats,
         )
+    }
+
+    /**
+     * A [com.cobblemon.mod.common.api.riding.Seat] can carry a Molang `condition` (1.8.0+) — e.g. a
+     * seat that only exists on an Alpha. Read reflectively (`Seat.condition` / `Expression.originalString`)
+     * so 1.7.x, where the field is absent, is unaffected.
+     */
+    private fun readSeatCondition(seat: Any?): String? {
+        seat ?: return null
+        val expr = try {
+            seat.javaClass.getMethod("getCondition").invoke(seat)
+        } catch (_: Throwable) { null } ?: return null
+        val raw = try {
+            expr.javaClass.getMethod("getOriginalString").invoke(expr) as? String
+        } catch (_: Throwable) { null } ?: return null
+        return humanizeSeatCondition(raw)
+    }
+
+    private fun humanizeSeatCondition(raw: String): String? {
+        val cleaned = raw.trim()
+            .removePrefix("q.").removePrefix("query.").removePrefix("v.").removePrefix("variable.")
+            .substringBefore("==").substringBefore("!=")
+            .trim().trim('(', ')', ' ')
+        if (cleaned.isBlank() || cleaned == "1" || cleaned == "true") return null
+        return when {
+            cleaned.contains("is_alpha", ignoreCase = true) -> "Alpha"
+            else -> cleaned.replace('_', ' ').replaceFirstChar { it.uppercase() }
+        }
     }
 
     private fun shouldIncludeForm(

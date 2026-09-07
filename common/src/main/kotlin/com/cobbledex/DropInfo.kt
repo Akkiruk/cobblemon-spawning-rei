@@ -1,11 +1,16 @@
 package com.cobbledex
 
+enum class DropTrigger { DEFEAT, EVOLUTION }
+
 data class DropEntryInfo(
     val itemId: String,
     val percentage: Float,
     val quantity: Int,
-    val quantityRange: String? = null
+    val quantityRange: String? = null,
+    /** When this item is dropped. [DropTrigger.EVOLUTION] = dropped when the Pokémon evolves (1.8.0+). */
+    val trigger: DropTrigger = DropTrigger.DEFEAT,
 ) {
+    val isEvolutionDrop: Boolean get() = trigger == DropTrigger.EVOLUTION
     val displayQuantity: String
         get() = quantityRange ?: quantity.toString()
 

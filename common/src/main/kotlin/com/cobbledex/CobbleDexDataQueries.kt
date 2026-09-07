@@ -94,6 +94,20 @@ class CobbleDexDataQueries(private val snapshot: CobbleDexDataSnapshot) {
     fun getRidingFor(species: String): RidingInfo? =
         snapshot.ridingBySpecies[SpeciesNameNormalizer.normalize(species)]
 
+    fun allTms(): List<TmInfo> = snapshot.tmInfoByMove.values.sortedBy { it.moveName }
+
+    fun getTmForMove(moveName: String): TmInfo? = snapshot.tmInfoByMove[moveName.lowercase()]
+
+    fun getTmsForType(type: String): List<TmInfo> =
+        snapshot.tmInfoByMove.values.filter { it.elementalType.equals(type, ignoreCase = true) }.sortedBy { it.moveName }
+
+    fun getTmsUsingItem(itemId: String): List<TmInfo> =
+        snapshot.tmInfoByMove.values
+            .filter { tm -> tm.ingredients.any { itemId in it.itemIds || it.tagId == itemId } }
+            .sortedBy { it.moveName }
+
+    fun hasTms(): Boolean = snapshot.tmInfoByMove.isNotEmpty()
+
     private fun normalizeAspects(aspects: Set<String>): Set<String> =
         aspects.map { aspect ->
             aspect.lowercase().replace(Regex("[^a-z0-9]"), "")

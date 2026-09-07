@@ -6,6 +6,7 @@
   "category.cobbledex-rei-emi-jei.drops": "Item Drops",
   "category.cobbledex-rei-emi-jei.stats": "Base Stats",
   "category.cobbledex-rei-emi-jei.moves": "Moves",
+  "category.cobbledex-rei-emi-jei.tm_recipes": "TM Recipes",
   "category.cobbledex-rei-emi-jei.pokedex_info": "Pok\u00e9dex Info",
   "category.cobbledex-rei-emi-jei.pokemon_description": "Pok\u00e9dex Entry",
   "category.cobbledex-rei-emi-jei.jobs": "Cobbleworkers Jobs",
@@ -321,6 +322,31 @@
   "cobbledex-rei-emi-jei.spawn.special.spawns_on": "Spawns on: %s",
   "cobbledex-rei-emi-jei.spawn.special.near": "Near: %s",
 
+  "cobbledex-rei-emi-jei.spawn.herd.leader": "Leads herds of up to %d",
+  "cobbledex-rei-emi-jei.spawn.herd.follower": "Follows in herds of up to %d",
+  "cobbledex-rei-emi-jei.spawn.herd.member": "Spawns in herds of up to %d",
+  "cobbledex-rei-emi-jei.spawn.herd.alpha": "The herd leader can be an Alpha — larger, stronger, and already knows two TM moves",
+  "cobbledex-rei-emi-jei.spawn.herd.held": "Sometimes holds %s",
+  "cobbledex-rei-emi-jei.spawn.habitat.name": "Habitat: %s",
+  "cobbledex-rei-emi-jei.spawn.habitat.phases": "Appears on %1$d of the habitat's %2$d-day cycle",
+
+  "cobbledex-rei-emi-jei.tm.type": "Type: %s",
+  "cobbledex-rei-emi-jei.tm.craft": "Craft in the TM Machine:",
+  "cobbledex-rei-emi-jei.tm.no_recipe": "No crafting recipe — obtained another way.",
+  "cobbledex-rei-emi-jei.tm.unlock.passive": "Recipe is always available.",
+  "cobbledex-rei-emi-jei.tm.unlock.conditional": "Recipe unlocks once you own a Pokémon that knows this move (or scan a Data Monitor holding the TM).",
+  "cobbledex-rei-emi-jei.tm.learners": "%d Pokémon can learn this move — click to see them",
+
+  "cobbledex-rei-emi-jei.riding.seats.one": "1 seat",
+  "cobbledex-rei-emi-jei.riding.seats.many": "%d seats",
+  "cobbledex-rei-emi-jei.riding.seats.conditional": "Requires: %s",
+
+  "cobbledex-rei-emi-jei.drops.on_evolution": "(on evolution)",
+
+  "cobbledex-rei-emi-jei.marks.title": "Pokémon Marks",
+  "cobbledex-rei-emi-jei.marks.rarity": "~%s%%",
+  "cobbledex-rei-emi-jei.marks.special": "Special",
+
   "cobbledex-rei-emi-jei.fluid.water": "Water",
   "cobbledex-rei-emi-jei.fluid.lava": "Lava",
 
@@ -430,6 +456,7 @@
   "category.cobbledex-rei-emi-jei.fossils": "Fossil Resurrection",
   "category.cobbledex-rei-emi-jei.type_chart": "Type Chart",
   "category.cobbledex-rei-emi-jei.natures": "Natures",
+  "category.cobbledex-rei-emi-jei.marks": "Marks",
 
   "cobbledex-rei-emi-jei.fossils.required": "Required Fossils:",
   "cobbledex-rei-emi-jei.typechart.weak": "\u2b07 Weaknesses",

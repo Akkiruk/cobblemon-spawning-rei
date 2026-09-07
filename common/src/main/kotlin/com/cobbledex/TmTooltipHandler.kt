@@ -1,7 +1,6 @@
 package com.cobbledex
 
 import net.minecraft.ChatFormatting
-import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.Style
 import net.minecraft.world.item.ItemStack
@@ -52,8 +51,7 @@ object TmTooltipHandler {
      * Appends job lines to the tooltip if the item is a TMCraft move item.
      */
     fun appendTooltip(stack: ItemStack, lines: MutableList<Component>) {
-        val itemId = BuiltInRegistries.ITEM.getKey(stack.item).toString()
-        val move = TmItemUtils.extractMove(itemId) ?: return
+        val move = TmItemUtils.extractMoveFromStack(stack) ?: return
 
         rebuildIfNeeded()
         val jobs = moveIndex[move] ?: return

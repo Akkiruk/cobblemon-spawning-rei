@@ -132,8 +132,8 @@ interface DexCategory {
     companion object {
         val ALL: List<DexCategory> = listOf(
             PokemonOverviewDex, SpawnDex, EvolutionDex, ObtainmentDex, DropDex,
-            StatsDex, MovesDex, PokedexInfoDex, PokemonDescriptionDex, FossilDex,
-            TypeChartDex, NatureDex, JobsDex, FormsDex, RidingDex
+            StatsDex, MovesDex, TmRecipeDex, PokedexInfoDex, PokemonDescriptionDex, FossilDex,
+            TypeChartDex, NatureDex, MarksDex, JobsDex, FormsDex, RidingDex
         )
     }
 }
@@ -444,6 +444,48 @@ object MovesDex : DexCategory {
     }
 }
 
+// ----- Native TM Recipes -----
+
+object TmRecipeDex : DexCategory {
+    override val id = "tm_recipes"
+    override val titleKey = "category.cobbledex-rei-emi-jei.tm_recipes"
+    override val icon: Item = Items.MUSIC_DISC_CAT
+    override val supportsRecipeTree = true
+    override fun isEnabled(config: CobbleDexConfig) = config.showTmRecipes
+
+    override fun buildAllRecipes() = RecipeBuilder.buildAllTmRecipes().map(::toHandle)
+
+    // TM recipes are not per-species; the "which TMs can this Pokémon learn" question is answered by
+    // the TM column on the Moves page.
+    override fun buildRecipesFor(species: String) = emptyList<RecipeHandle>()
+
+    override fun buildRecipesForItem(itemId: String) =
+        RecipeBuilder.buildTmRecipesForItem(itemId).map(::toHandle)
+
+    override fun buildRecipesForMove(moveName: String) =
+        RecipeBuilder.buildTmRecipesForMove(moveName).map(::toHandle)
+
+    private fun toHandle(d: TmRecipeData): RecipeHandle {
+        var result: SpawnDisplayHelper.TmLayoutResult? = null
+        fun res() = result ?: MechanicPageBuilder.buildTmRecipe(d).also { result = it }
+        return RecipeHandle(
+            recipeIdPath = "tm_recipes/${sanitizePath(d.tm.moveName)}",
+            inputSpecies = emptyList(),
+            outputSpecies = emptyList(),
+            layoutFactory = { res().layout },
+            _slots = {
+                RecipeHandle.Slots(
+                    items = res().itemSlots,
+                    moveLinks = res().moveLinks,
+                    catalogInputIds = (listOf(TmItemUtils.NATIVE_TM_ID) +
+                        d.tm.elementalType?.let { listOf("cobblemon:${it}_gem") }.orEmpty() +
+                        d.tm.ingredients.flatMap { it.itemIds }).distinct(),
+                )
+            },
+        )
+    }
+}
+
 // ----- Pokédex Info -----
 
 object PokedexInfoDex : DexCategory {
@@ -574,6 +616,26 @@ object NatureDex : DexCategory {
         inputSpecies = emptyList(),
         outputSpecies = emptyList(),
         layoutFactory = { MechanicPageBuilder.buildNature(d) },
+    )
+}
+
+// ----- Marks -----
+
+object MarksDex : DexCategory {
+    override val id = "marks"
+    override val titleKey = "category.cobbledex-rei-emi-jei.marks"
+    override val icon: Item = Items.NAME_TAG
+    override fun isEnabled(config: CobbleDexConfig) = config.showMarks
+
+    override fun buildAllRecipes() = RecipeBuilder.buildMarkRecipes().map(::toHandle)
+
+    override fun buildRecipesFor(species: String) = emptyList<RecipeHandle>()
+
+    private fun toHandle(d: MarkRecipeData) = RecipeHandle(
+        recipeIdPath = "marks/page_${d.pageIndex}",
+        inputSpecies = emptyList(),
+        outputSpecies = emptyList(),
+        layoutFactory = { MechanicPageBuilder.buildMark(d) },
     )
 }
 

@@ -2,6 +2,80 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.20.0] - 2026-09-06
+
+### Fixed
+- **EMI: recipe pages no longer crash with "Error rendering widget group".** EMI tried to build a
+  bill-of-materials "cost per batch" tooltip for CobbleDex's informational panels and threw
+  `IndexOutOfBoundsException` (`MaterialTree` on an empty material list), leaving a broken tile in
+  the grid. CobbleDex categories now opt out of EMI's recipe tree entirely — they are reference
+  panels, not craftable recipes, and R/U recipe lookup still works. Also removes the meaningless
+  "Cost per batch" tooltip that appeared between icons.
+- **Garbled tooltip text (all viewers).** Move, ability, biome and drop-grid tooltips had a
+  long-standing encoding corruption in the source (`§` colour codes stored as `Â§`, method icons as
+  mojibake, `Pokémon`/`Pokédex`/`×` mangled), so every line rendered with stray `Â` characters and
+  broken glyphs. All literals repaired; icons normalised to `✦`.
+
+## [2.19.0] - 2026-09-06
+
+### Added
+- **Marks reference page (Cobblemon 1.8.0+).** A scrolling catalogue of every Pokémon Mark — name,
+  flavour description, rarity, and the title it grants — styled like the Natures and Type Chart
+  pages. Marks have no in-game catalogue of their own, only showing on individual caught Pokémon.
+  Data from Cobblemon's client-synced Mark registry, falling back to the Cobblemon jar. Empty (and
+  the category hides itself) on older Cobblemon.
+
+## [2.18.0] - 2026-09-06
+
+### Added
+- **Evolution drops are now labelled (Cobblemon 1.8.0+).** Items that drop when a Pokémon evolves
+  (e.g. Shed Shell, Turtle Scute) are marked "(on evolution)" on the Item Drops page and in the
+  export, instead of looking like ordinary battle drops. The "which Pokémon drop this" lookup picks
+  them up automatically.
+
+## [2.17.0] - 2026-09-06
+
+### Added
+- **Conditional riding seats (Cobblemon 1.8.0+).** When a mount has a seat gated by a Molang
+  condition (e.g. a seat that only exists on an Alpha), the Riding page now notes it —
+  "Requires: Alpha" — instead of just a seat count. Read reflectively so 1.7.x is unaffected.
+
+## [2.16.0] - 2026-09-06
+
+### Added
+- **Native TM Recipes page (Cobblemon 1.8.0+).** Cobblemon's 1.8.0 TM system has no recipe-viewer
+  surface of its own, so CobbleDex adds one: a page per TM showing the required Type Gem and extra
+  ingredients (with counts), the move's type, whether the recipe is always available or unlocks by
+  owning a Pokémon that knows the move, and a click-through to every Pokémon that can learn it. Data
+  comes from Cobblemon's client-synced TM registry, falling back to the Cobblemon jar.
+- Looking up a **Type Gem** lists every TM of that type; looking up a TM ingredient lists the TMs
+  that use it; looking up the **TM disc** lists all TM recipes.
+- Native TM discs (`cobblemon:technical_machine`) are now recognised everywhere third-party TM items
+  (`tmcraft`, `simpletms`) already were — tooltips, move lookups, and the Cobbleworkers job tooltip
+  read the move from the disc's data component.
+- Export: new **TMs** sheet (move, type, recipe, unlock condition, learner count).
+
+### Notes
+- Third-party TM mods keep working exactly as before; native TMs are just the primary path now.
+- On Cobblemon 1.7.x the TM Recipes page is simply empty (the registry doesn't exist) and everything
+  else is unchanged — the same jar still runs on both.
+
+## [2.15.0] - 2026-09-06
+
+### Added
+- **Herd spawns (Cobblemon 1.8.0+).** Species that only appear in `pokemon-herd` spawns previously
+  showed no spawn data at all. Their Spawn page now lists the herd entry with the herd size, whether
+  the species leads or follows the herd, any held item, and — for herd leaders — a note that the
+  leader can be an **Alpha** (larger, stronger, already knows two TM moves). Read reflectively so the
+  same jar still runs on 1.7.x.
+- **Habitat spawn pools (Cobblemon 1.8.0+).** The 1.8.0 habitat pools (`data/cobblemon/habitat_pools/`)
+  are a separate spawn system Cobblemon never syncs to clients, so a large share of 1.8.0's
+  obtainable species had no spawn data in CobbleDex. Habitat spawns now appear on the Spawn page with
+  the habitat name, bucket, level range, and which part of the habitat's day-phase cycle the species
+  appears in (e.g. "Appears on 1 of the habitat's 5-day cycle"). Read from this client's own
+  Cobblemon jar / datapacks, same as the world spawn pool.
+- Export: the Spawn Data sheet gains Herd Role, Herd Size, Habitat and Habitat Phases columns.
+
 ## [2.14.0] - 2026-09-06
 
 ### Fixed

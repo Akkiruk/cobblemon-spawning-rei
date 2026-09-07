@@ -42,16 +42,26 @@ object SpawnDataLoader {
         var count = 0
 
         for (detail in details) {
-            if (detail !is PokemonSpawnDetail) continue
             try {
-                val rawSpecies = detail.pokemon.species?.lowercase() ?: continue
-                // Strip namespace prefix for consistent keying (e.g. "cobblemon:charizard" -> "charizard")
-                val species = if (rawSpecies.contains(':')) rawSpecies.substringAfter(':') else rawSpecies
-                val info = extractSpawnInfo(detail, species)
-                result.getOrPut(species) { mutableListOf() }.add(info)
-                count++
+                when {
+                    detail is PokemonSpawnDetail -> {
+                        val rawSpecies = detail.pokemon.species?.lowercase() ?: continue
+                        // Strip namespace prefix for consistent keying (e.g. "cobblemon:charizard" -> "charizard")
+                        val species = if (rawSpecies.contains(':')) rawSpecies.substringAfter(':') else rawSpecies
+                        result.getOrPut(species) { mutableListOf() }.add(extractSpawnInfo(detail, species))
+                        count++
+                    }
+                    // `pokemon-herd` details (Cobblemon 1.8.0+). Read reflectively so this jar still
+                    // loads on 1.7.x. One SpawnInfo per herd member species.
+                    HerdSpawnReader.isHerdDetail(detail) -> {
+                        for ((species, info) in extractHerdSpawnInfos(detail)) {
+                            result.getOrPut(species) { mutableListOf() }.add(info)
+                            count++
+                        }
+                    }
+                }
             } catch (e: Exception) {
-                DebugLog.once("spawn-detail-${detail.id}") { "Failed to read spawn detail: ${e.message}" }
+                DebugLog.once("spawn-detail-${(detail as? SpawnDetail)?.id}") { "Failed to read spawn detail: ${e.message}" }
             }
         }
 
@@ -134,6 +144,46 @@ object SpawnDataLoader {
             minLureLevel = minLureLevel,
             conditionWarnings = merged.warnings
         )
+    }
+
+    /**
+     * Builds one [SpawnInfo] per member of a `pokemon-herd` detail. The shared world conditions
+     * (read off the version-stable [SpawnDetail] base) are mapped once into a base entry, then
+     * `.copy()`d per member with only the member-specific fields overridden.
+     */
+    private fun extractHerdSpawnInfos(detail: Any): List<Pair<String, SpawnInfo>> {
+        val sd = detail as? SpawnDetail ?: return emptyList()
+        val read = HerdSpawnReader.read(detail) ?: return emptyList()
+
+        val merged = mergeConditions(sd.conditions ?: emptyList(), sd.compositeCondition)
+        val anti = buildAntiCondition(sd.anticonditions ?: emptyList(), sd.compositeCondition)
+        val context = try { sd.spawnablePositionType?.name } catch (_: Throwable) { null } ?: "grounded"
+
+        val base = SpawnInfo(
+            id = "", pokemon = "", formAspects = "",
+            bucket = extractBucketName(sd), weight = sd.weight,
+            levelRange = read.detailLevelRange, context = context,
+            biomes = merged.biomes, timeRange = merged.timeRange,
+            weather = SpawnWeather(merged.isRaining, merged.isThundering),
+            dimensions = merged.dimensions, structures = merged.structures,
+            canSeeSky = merged.canSeeSky, minLight = merged.minLight, maxLight = merged.maxLight,
+            minSkyLight = merged.minSkyLight, maxSkyLight = merged.maxSkyLight,
+            minY = merged.minY, maxY = merged.maxY,
+            neededNearbyBlocks = merged.neededNearbyBlocks, neededBaseBlocks = merged.neededBaseBlocks,
+            moonPhase = merged.moonPhase, presets = emptyList(), fluid = null,
+            anticondition = anti, weightMultipliers = extractWeightMultipliers(sd),
+            minLureLevel = null, conditionWarnings = merged.warnings,
+        )
+
+        return read.members.map { member ->
+            member.species to base.copy(
+                id = "${sd.id ?: member.species}#herd:${member.species}",
+                pokemon = member.species,
+                formAspects = member.formAspects,
+                levelRange = member.ownLevelRange ?: read.detailLevelRange,
+                herd = HerdContext(member.role, read.maxHerdSize, member.heldItemId),
+            )
+        }
     }
 
     // --- Condition extraction ---

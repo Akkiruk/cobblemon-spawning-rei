@@ -28,7 +28,11 @@ data class SpawnInfo(
     val anticondition: SpawnAntiCondition?,
     val weightMultipliers: List<WeightMultiplier>,
     val minLureLevel: Int?,
-    val conditionWarnings: List<String> = emptyList()
+    val conditionWarnings: List<String> = emptyList(),
+    /** Present when this entry came from a `pokemon-herd` spawn detail (1.8.0+). */
+    val herd: HerdContext? = null,
+    /** Present when this entry came from a habitat spawn pool (1.8.0+). */
+    val habitat: HabitatContext? = null,
 ) {
     val hasFormVariant: Boolean
         get() = formAspects.isNotBlank()
@@ -45,6 +49,88 @@ data class SpawnInfo(
 
     val isFishing: Boolean
         get() = context.equals("fishing", ignoreCase = true)
+
+    companion object {
+        /**
+         * Builds a [SpawnInfo] with only the core identity / level fields set and every
+         * environmental condition (biomes, weather, light, Y range, blocks, …) left at its
+         * empty default. For spawn sources that carry no world-condition data of their own,
+         * such as habitat pools.
+         */
+        fun minimal(
+            id: String,
+            pokemon: String,
+            bucket: String,
+            weight: Float,
+            levelRange: String,
+            formAspects: String = "",
+            context: String = "grounded",
+            minLight: Int? = null,
+            maxLight: Int? = null,
+            herd: HerdContext? = null,
+            habitat: HabitatContext? = null,
+        ): SpawnInfo = SpawnInfo(
+            id = id, pokemon = pokemon, formAspects = formAspects, bucket = bucket,
+            weight = weight, levelRange = levelRange, context = context,
+            biomes = emptyList(), timeRange = null, weather = SpawnWeather(),
+            dimensions = emptyList(), structures = emptyList(), canSeeSky = null,
+            minLight = minLight, maxLight = maxLight, minSkyLight = null, maxSkyLight = null,
+            minY = null, maxY = null, neededNearbyBlocks = emptyList(), neededBaseBlocks = emptyList(),
+            moonPhase = null, presets = emptyList(), fluid = null, anticondition = null,
+            weightMultipliers = emptyList(), minLureLevel = null, herd = herd, habitat = habitat,
+        )
+    }
+}
+
+/**
+ * Herd-spawn context for a [SpawnInfo] produced from a `pokemon-herd` detail. One [SpawnInfo] is
+ * emitted per herd member species; [role] says whether that species heads the herd (herd leaders are
+ * the ones that can roll an Alpha) or only follows.
+ */
+data class HerdContext(
+    val role: HerdRole,
+    val maxHerdSize: Int,
+    val heldItemId: String? = null,
+) {
+    val canBeAlpha: Boolean get() = role == HerdRole.LEADER
+
+    fun displayLines(): List<String> {
+        val lines = mutableListOf<String>()
+        lines.add(
+            when (role) {
+                HerdRole.LEADER -> tr("cobbledex-rei-emi-jei.spawn.herd.leader", maxHerdSize)
+                HerdRole.FOLLOWER -> tr("cobbledex-rei-emi-jei.spawn.herd.follower", maxHerdSize)
+                HerdRole.ANY -> tr("cobbledex-rei-emi-jei.spawn.herd.member", maxHerdSize)
+            }
+        )
+        if (canBeAlpha) lines.add(tr("cobbledex-rei-emi-jei.spawn.herd.alpha"))
+        heldItemId?.let { lines.add(tr("cobbledex-rei-emi-jei.spawn.herd.held", formatId(it))) }
+        return lines
+    }
+}
+
+enum class HerdRole { LEADER, FOLLOWER, ANY }
+
+/**
+ * Habitat spawn-pool context (1.8.0+). Habitats run a fixed cycle of [totalPhases] phases (roughly one
+ * in-game day each); [phases] is the raw spec (e.g. `"1-3, 5"`) of which phases this species appears in.
+ */
+data class HabitatContext(
+    val habitatNameKey: String,
+    val phases: String,
+    val phaseCount: Int,
+    val totalPhases: Int,
+) {
+    val habitatName: String
+        get() = tr(habitatNameKey).let { if (it == habitatNameKey) titleCase(habitatNameKey.substringAfterLast('.').removeSuffix("_name")) else it }
+
+    fun displayLines(): List<String> {
+        val lines = mutableListOf(tr("cobbledex-rei-emi-jei.spawn.habitat.name", habitatName))
+        if (phaseCount in 1 until totalPhases) {
+            lines.add(tr("cobbledex-rei-emi-jei.spawn.habitat.phases", phaseCount, totalPhases))
+        }
+        return lines
+    }
 }
 
 data class SpawnWeather(

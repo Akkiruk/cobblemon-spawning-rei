@@ -144,7 +144,12 @@ open class CobbleDexEMIPlugin : EmiPlugin {
         override fun getDisplayWidth(): Int = handle.width
         override fun getDisplayHeight(): Int = handle.height
 
-        override fun supportsRecipeTree(): Boolean = def.supportsRecipeTree
+        // CobbleDex categories are informational panels, not craftable recipes: their "inputs" are
+        // Pokémon and their "outputs" are data. EMI's recipe-tree / "cost per batch" feature tries to
+        // build a MaterialTree bill-of-materials from them and throws IndexOutOfBounds on the empty
+        // result (EMI SlotWidget.addSlotTooltip -> RecipeCostTooltipComponent -> MaterialTree). Always
+        // opt out — the tree makes no sense here and R/U recipe lookup works without it.
+        override fun supportsRecipeTree(): Boolean = false
 
         override fun addWidgets(widgets: dev.emi.emi.api.widget.WidgetHolder) {
             val slots = handle.slots

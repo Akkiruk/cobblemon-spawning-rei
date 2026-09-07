@@ -71,6 +71,14 @@ object SpawnDataIndex {
         get() = snapshot.ridingBySpecies
         private set(value) { snapshot = snapshot.copy(ridingBySpecies = value) }
 
+    var tmInfoByMove: Map<String, TmInfo>
+        get() = snapshot.tmInfoByMove
+        private set(value) { snapshot = snapshot.copy(tmInfoByMove = value) }
+
+    var marks: List<MarkInfo>
+        get() = snapshot.marks
+        private set(value) { snapshot = snapshot.copy(marks = value) }
+
     var spawnRegionsBySpecies: Map<String, List<SpawnRegionInfo>>
         get() = snapshot.spawnRegionsBySpecies
         private set(value) { snapshot = snapshot.copy(spawnRegionsBySpecies = value) }
@@ -217,6 +225,8 @@ object SpawnDataIndex {
         loadObtainment()
         loadFossils()
         loadRiding()
+        loadTms()
+        loadMarks()
         loadSpawnRegions()
 
         rebuildDerivedData()
@@ -252,21 +262,46 @@ object SpawnDataIndex {
      */
     private fun loadSpawns() {
         SpawnDataLoader.invalidateCache()
+
+        // Habitat pools (1.8.0+) are never synced by Cobblemon — same as the world spawn pool — so
+        // they always come from this client's jars/datapacks. They are additive: a species can spawn
+        // both in the world and inside a habitat structure.
+        val habitat = if (JarDataCache.hasCachedHabitatSpawns()) {
+            normalizeMapKeys(JarDataCache.getCachedHabitatSpawns())
+        } else emptyMap()
+
         val runtime = normalizeMapKeys(SpawnDataLoader.loadFromRuntime())
         if (runtime.isNotEmpty()) {
-            spawnsBySpecies = runtime
+            spawnsBySpecies = mergeSpawnMaps(runtime, habitat)
             spawnSourceTier = DataSourceTier.COBBLEMON
             return
         }
         if (JarDataCache.hasCachedSpawns()) {
             val local = normalizeMapKeys(JarDataCache.getCachedSpawns())
             DebugLog.info("Spawns from local files (${local.size} species) — Cobblemon syncs no spawn pool")
-            spawnsBySpecies = local
+            spawnsBySpecies = mergeSpawnMaps(local, habitat)
+            spawnSourceTier = DataSourceTier.LOCAL_FILES
+            return
+        }
+        if (habitat.isNotEmpty()) {
+            spawnsBySpecies = habitat
             spawnSourceTier = DataSourceTier.LOCAL_FILES
             return
         }
         spawnsBySpecies = emptyMap()
         spawnSourceTier = DataSourceTier.UNAVAILABLE
+    }
+
+    private fun mergeSpawnMaps(
+        base: Map<String, List<SpawnInfo>>,
+        extra: Map<String, List<SpawnInfo>>,
+    ): Map<String, List<SpawnInfo>> {
+        if (extra.isEmpty()) return base
+        val merged = base.mapValues { it.value.toMutableList() }.toMutableMap()
+        for ((species, infos) in extra) {
+            merged.getOrPut(species) { mutableListOf() }.addAll(infos)
+        }
+        return merged
     }
 
     /**
@@ -408,6 +443,40 @@ object SpawnDataIndex {
         }
     }
 
+    /**
+     * Native TMs (Cobblemon 1.8.0+). The registry is client-synced with full recipes, so the runtime
+     * read is player-truth; the Cobblemon jar is the fallback. Empty on older Cobblemon — the TM
+     * Recipes page then simply has nothing to show, and third-party TM handling is unaffected.
+     */
+    private fun loadTms() {
+        try {
+            val runtime = NativeTmDataLoader.loadFromRuntime()
+            tmInfoByMove = when {
+                runtime.isNotEmpty() -> runtime
+                JarDataCache.hasCachedTms() -> JarDataCache.getCachedTms()
+                else -> emptyMap()
+            }
+        } catch (e: Exception) {
+            DebugLog.warn("TM data load failed: ${e.message}")
+            tmInfoByMove = emptyMap()
+        }
+    }
+
+    /** Pokémon Marks (Cobblemon 1.8.0+). Client-synced; Cobblemon jar is the fallback. */
+    private fun loadMarks() {
+        try {
+            val runtime = MarkDataLoader.loadFromRuntime()
+            marks = when {
+                runtime.isNotEmpty() -> runtime
+                JarDataCache.hasCachedMarks() -> JarDataCache.getCachedMarks()
+                else -> emptyList()
+            }
+        } catch (e: Exception) {
+            DebugLog.warn("Mark data load failed: ${e.message}")
+            marks = emptyList()
+        }
+    }
+
     /** Optional CobbleRegions region names — that mod exposes them to the client itself. */
     private fun loadSpawnRegions() {
         spawnRegionsBySpecies = try {
@@ -504,4 +573,11 @@ object SpawnDataIndex {
     fun getSpeciesWithMove(moveName: String): List<String> = currentQueries().getSpeciesWithMove(moveName)
 
     fun getRidingFor(species: String): RidingInfo? = currentQueries().getRidingFor(species)
+
+    fun allTms(): List<TmInfo> = currentQueries().allTms()
+    fun getTmForMove(moveName: String): TmInfo? = currentQueries().getTmForMove(moveName)
+    fun getTmsForType(type: String): List<TmInfo> = currentQueries().getTmsForType(type)
+    fun getTmsUsingItem(itemId: String): List<TmInfo> = currentQueries().getTmsUsingItem(itemId)
+    fun hasTms(): Boolean = currentQueries().hasTms()
+    fun allMarks(): List<MarkInfo> = snapshot.marks
 }

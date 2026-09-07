@@ -27,12 +27,14 @@ Your viewer-native **Cobblemon in-game reference guide** inside **REI**, **JEI**
 ### One mod, many Pokédex tabs
 CobbleDex adds dedicated viewer pages for:
 
-- **Spawn Data** - where a Pokemon can appear, including biome tags, resolved biome names, time, weather, light, height, structures, nearby blocks, bucket, context, rarity, and weight multipliers
+- **Spawn Data** - where a Pokemon can appear, including biome tags, resolved biome names, time, weather, light, height, structures, nearby blocks, bucket, context, rarity, and weight multipliers. On Cobblemon 1.8.0+ this also covers herd spawns (herd size, leader/follower, "the leader can be an Alpha") and habitat spawn pools (habitat name and which part of the habitat's day-phase cycle a species appears in)
 - **Evolution Chains** - full family trees with branching lines, item icons, form changes, and detailed requirements
 - **Special Obtainment** - custom per-Pokemon obtainment notes for altar summons, shrine methods, special encounters, legendary acquisition methods, and mod-gated methods such as LumyMon when that mod is present
 - **Item Drops** - what each Pokemon drops, with drop chance and quantity ranges
 - **Stats** - base stats, total stats, typing, and EV yields
 - **Moves** - level-up moves, egg moves, tutor moves, TM compatibility, and TM reverse lookups
+- **TM Recipes** - for Cobblemon 1.8.0+ native TMs: the Type Gem and ingredients each TM needs, its type, whether the recipe is always available or unlocks by owning a Pokemon that knows the move, and a jump to every Pokemon that can learn it. Third-party TM mods (tmcraft, simpletms) keep working alongside
+- **Marks** - a full reference of Cobblemon 1.8.0+ Pokemon Marks: name, flavor text, rarity, and the title each grants
 - **Pokedex Info** - abilities, hidden abilities, egg groups, gender ratio, catch rate, height, weight, and related species data
 - **Pokedex Descriptions** - flavor text entries directly in the viewer
 - **Fossils** - which fossil items create each Pokemon, plus reverse lookup from the fossil item itself

@@ -13,6 +13,10 @@ data class CobbleDexDataSnapshot(
     val speciesByMove: Map<String, List<String>> = emptyMap(),
     val jobRules: List<JobRule> = emptyList(),
     val ridingBySpecies: Map<String, RidingInfo> = emptyMap(),
+    /** Native Cobblemon TMs keyed by lower-cased move id (1.8.0+); empty on older Cobblemon. */
+    val tmInfoByMove: Map<String, TmInfo> = emptyMap(),
+    /** Pokémon Marks (1.8.0+); empty on older Cobblemon. */
+    val marks: List<MarkInfo> = emptyList(),
     val spawnRegionsBySpecies: Map<String, List<SpawnRegionInfo>> = emptyMap(),
     val allSpeciesNames: List<String> = emptyList(),
     val spawnSourceTier: DataSourceTier = DataSourceTier.UNAVAILABLE,

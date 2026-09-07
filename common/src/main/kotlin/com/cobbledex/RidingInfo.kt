@@ -21,6 +21,8 @@ data class RidingInfo(
     val ridingStyles: List<String>,
     val seats: Int,
     val mounts: List<RidingMount>,
+    /** Human-readable requirement for each seat that is gated by a Molang condition (1.8.0+). */
+    val conditionalSeats: List<String> = emptyList(),
 )
 
 data class RidingRecipeData(
@@ -30,4 +32,5 @@ data class RidingRecipeData(
     val mountTotal: Int,
     val seats: Int,
     val allMountTypes: List<String>,
+    val conditionalSeats: List<String> = emptyList(),
 )

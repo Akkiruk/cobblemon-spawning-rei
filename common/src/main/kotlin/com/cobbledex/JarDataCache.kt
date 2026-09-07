@@ -26,6 +26,12 @@ object JarDataCache {
     @Volatile
     private var cachedSpawns: Map<String, List<SpawnInfo>> = emptyMap()
     @Volatile
+    private var cachedHabitatSpawns: Map<String, List<SpawnInfo>> = emptyMap()
+    @Volatile
+    private var cachedTms: Map<String, TmInfo> = emptyMap()
+    @Volatile
+    private var cachedMarks: List<MarkInfo> = emptyList()
+    @Volatile
     private var cachedMoves: Map<String, JarMoveData> = emptyMap()
     @Volatile
     private var cachedFormMoves: Map<String, JarMoveData> = emptyMap()
@@ -75,9 +81,15 @@ object JarDataCache {
 
     fun getCachedEvolutions(): Map<String, List<EvolutionInfo>> = cachedEvolutions
     fun getCachedSpawns(): Map<String, List<SpawnInfo>> = cachedSpawns
+    fun getCachedHabitatSpawns(): Map<String, List<SpawnInfo>> = cachedHabitatSpawns
+    fun getCachedTms(): Map<String, TmInfo> = cachedTms
+    fun getCachedMarks(): List<MarkInfo> = cachedMarks
+    fun hasCachedMarks(): Boolean = cachedMarks.isNotEmpty()
 
     fun hasCachedEvolutions(): Boolean = cachedEvolutions.isNotEmpty()
     fun hasCachedSpawns(): Boolean = cachedSpawns.isNotEmpty()
+    fun hasCachedHabitatSpawns(): Boolean = cachedHabitatSpawns.isNotEmpty()
+    fun hasCachedTms(): Boolean = cachedTms.isNotEmpty()
     fun hasCachedMoves(): Boolean = cachedMoves.isNotEmpty()
     fun getCachedMoves(): Map<String, JarMoveData> = cachedMoves
     fun hasCachedFormMoves(): Boolean = cachedFormMoves.isNotEmpty()
@@ -113,6 +125,9 @@ object JarDataCache {
             DebugLog.info("JarDataCache: loaded ${presets.size} spawn presets")
 
             cachedSpawns = parseSpawnsFromJars(modRoots, presets)
+            cachedHabitatSpawns = parseHabitatPoolsFromJars(modRoots)
+            cachedTms = parseTmsFromJars(modRoots)
+            cachedMarks = parseMarksFromJars(modRoots)
             val scan = parseEvolutionsAndMovesFromJars(modRoots)
             cachedEvolutions = scan.evolutions
             cachedMoves = scan.moves
@@ -124,6 +139,7 @@ object JarDataCache {
             val elapsed = System.currentTimeMillis() - startTime
             DebugLog.info("JarDataCache: ready in ${elapsed}ms — " +
                 "${cachedSpawns.size} species with spawns, " +
+                "${cachedHabitatSpawns.size} species with habitat spawns, " +
                 "${cachedEvolutions.size} species with evolutions, " +
                 "${cachedMoves.size} species with moves, " +
                 "${cachedTraits.size} species with breeding/dex traits, " +
@@ -428,6 +444,210 @@ object JarDataCache {
             weightMultipliers = weightMults,
             minLureLevel = minLureLevel
         )
+    }
+
+    // ==================== Habitat Pool Parsing ====================
+
+    /**
+     * Habitat pools (`data/<ns>/habitat_pools/`, Cobblemon 1.8.0+). Cobblemon's [HabitatPools]
+     * registry has an empty `sync()`, so — exactly like `spawn_pool_world` — the client only has these
+     * from its own jars / datapacks. Each file is one habitat: `{ name, type, spawns: [ { species,
+     * bucket, spawnablePositionType, weight, levelRange, phases, minLight, maxLight } ] }`. `phases`
+     * (e.g. `"1-3, 5"`) selects which of the habitat's day-cycle phases the species appears in.
+     */
+    private fun parseHabitatPoolsFromJars(modRoots: List<Path>): Map<String, List<SpawnInfo>> {
+        val result = mutableMapOf<String, MutableList<SpawnInfo>>()
+        var poolCount = 0
+        var spawnCount = 0
+
+        fun ingest(json: JsonObject) {
+            val nameKey = json.optString("name") ?: return
+            val spawns = json.optArray("spawns") ?: return
+            val spawnObjs = spawns.mapNotNull { if (it.isJsonObject) it.asJsonObject else null }
+            val totalPhases = spawnObjs
+                .flatMap { parsePhaseSet(it.optString("phases")) }
+                .toSet().size.coerceAtLeast(1)
+            poolCount++
+            for (spawnObj in spawnObjs) {
+                val info = parseHabitatSpawnEntry(spawnObj, nameKey, totalPhases) ?: continue
+                result.getOrPut(SpeciesNameNormalizer.normalize(info.pokemon)) { mutableListOf() }.add(info)
+                spawnCount++
+            }
+        }
+
+        forEachDataFile(modRoots, "habitat_pools") { json -> try { ingest(json) } catch (_: Exception) {} }
+
+        DebugLog.info("JarDataCache: parsed $spawnCount habitat spawns from $poolCount pools")
+        return result
+    }
+
+    private fun parseHabitatSpawnEntry(spawn: JsonObject, habitatNameKey: String, totalPhases: Int): SpawnInfo? {
+        val rawSpecies = spawn.optString("species") ?: return null
+        val species = rawSpecies.split(" ").firstOrNull()?.lowercase()?.substringAfter(':') ?: return null
+        val formAspects = rawSpecies.split(" ").drop(1).joinToString(" ").lowercase()
+
+        val phaseSpec = spawn.optString("phases")?.trim().takeUnless { it.isNullOrBlank() }
+        val phaseSet = parsePhaseSet(phaseSpec)
+
+        return SpawnInfo.minimal(
+            id = "habitat/${habitatNameKey.substringAfterLast('.')}/$species",
+            pokemon = species,
+            formAspects = formAspects,
+            bucket = spawn.optString("bucket") ?: "common",
+            weight = spawn.optFloat("weight") ?: 1f,
+            levelRange = spawn.optString("levelRange") ?: spawn.optString("level") ?: "1-100",
+            context = (spawn.optString("spawnablePositionType") ?: spawn.optString("context") ?: "grounded").lowercase(),
+            minLight = spawn.optInt("minLight"),
+            maxLight = spawn.optInt("maxLight"),
+            habitat = HabitatContext(
+                habitatNameKey = habitatNameKey,
+                phases = phaseSpec ?: "",
+                phaseCount = phaseSet.size.coerceAtLeast(if (phaseSpec == null) totalPhases else 1),
+                totalPhases = totalPhases,
+            ),
+        )
+    }
+
+    /** Expands a phase spec like `"1, 3-5"` into `{1, 3, 4, 5}`. Blank / null → empty. */
+    internal fun parsePhaseSet(spec: String?): Set<Int> {
+        if (spec.isNullOrBlank()) return emptySet()
+        val out = sortedSetOf<Int>()
+        for (part in spec.split(',')) {
+            val t = part.trim()
+            if (t.isEmpty()) continue
+            val dash = t.indexOf('-', startIndex = if (t.startsWith('-')) 1 else 0)
+            if (dash > 0) {
+                val lo = t.substring(0, dash).trim().toIntOrNull()
+                val hi = t.substring(dash + 1).trim().toIntOrNull()
+                if (lo != null && hi != null && lo <= hi) for (i in lo..hi) out.add(i)
+            } else {
+                t.toIntOrNull()?.let { out.add(it) }
+            }
+        }
+        return out
+    }
+
+    // ==================== Native TM Parsing ====================
+
+    /**
+     * Cobblemon's native TM registry (`data/<ns>/tms/`, 1.8.0+). Fallback for when the client-synced
+     * `TechnicalMachines` registry ([NativeTmDataLoader]) isn't available. Shape per file:
+     * `{ moveName, type, obtainMethods: [{variant}], recipe: [{ item | tag, count }] }`.
+     */
+    private fun parseTmsFromJars(modRoots: List<Path>): Map<String, TmInfo> {
+        val result = LinkedHashMap<String, TmInfo>()
+        forEachDataFile(modRoots, "tms") { json ->
+            try {
+                parseTmObject(json)?.let { result[it.moveName] = it }
+            } catch (_: Exception) {}
+        }
+        DebugLog.info("JarDataCache: parsed ${result.size} native TMs")
+        return result
+    }
+
+    // ==================== Marks Parsing ====================
+
+    /** Cobblemon Mark registry (`data/<ns>/marks/`, 1.8.0+). Fallback for [MarkDataLoader]. */
+    private fun parseMarksFromJars(modRoots: List<Path>): List<MarkInfo> {
+        val result = LinkedHashMap<String, MarkInfo>()
+        forEachDataFile(modRoots, "marks") { json ->
+            try {
+                parseMarkObject(json)?.let { result[it.id] = it }
+            } catch (_: Exception) {}
+        }
+        DebugLog.info("JarDataCache: parsed ${result.size} marks")
+        return result.values.toList()
+    }
+
+    internal fun parseMarkObject(json: JsonObject): MarkInfo? {
+        val nameKey = json.optString("name") ?: return null
+        val id = "cobblemon:${nameKey.substringAfterLast('.')}"
+        return MarkInfo(
+            id = id,
+            nameKey = nameKey,
+            descriptionKey = json.optString("description") ?: "$nameKey.desc",
+            titleKey = json.optString("title"),
+            titleColor = json.optString("titleColor") ?: json.optString("titleColour"),
+            chance = json.optFloat("chance") ?: 0f,
+            group = json.optString("group"),
+            sortOrder = json.optInt("sortOrder") ?: 0,
+            indexNumber = json.optInt("indexNumber"),
+        )
+    }
+
+    internal fun parseTmObject(json: JsonObject): TmInfo? {
+        val move = (json.optString("moveName") ?: return null).lowercase()
+        val type = json.optString("type")?.lowercase()?.ifBlank { null }
+        val variants = json.optArray("obtainMethods")?.mapNotNull {
+            if (it.isJsonObject) it.asJsonObject.optString("variant") else null
+        } ?: emptyList()
+        val passive = variants.any { it.substringAfterLast(':') == "default" }
+        val ingredients = json.optArray("recipe")?.mapNotNull { el ->
+            if (!el.isJsonObject) return@mapNotNull null
+            val o = el.asJsonObject
+            val count = o.optInt("count") ?: 1
+            val item = o.optString("item")
+            val tag = o.optString("tag")
+            when {
+                item != null -> TmIngredient(listOf(item), count)
+                tag != null -> TmIngredient(emptyList(), count, tagId = tag)
+                else -> null
+            }
+        } ?: emptyList()
+        return TmInfo(move, type, ingredients, passive, "bundled")
+    }
+
+    /**
+     * Walks every JSON file under `data/<ns>/<subDir>` across mod jars, directory datapacks and zip
+     * datapacks, handing each parsed object to [handler]. For a flat single-object-per-file shape
+     * (like habitat pools); callers that need the `spawns`-array wrapper keep their own loops.
+     */
+    private inline fun forEachDataFile(modRoots: List<Path>, subDir: String, crossinline handler: (JsonObject) -> Unit) {
+        val dirs = mutableListOf<Path>()
+        for (root in modRoots) {
+            try {
+                val dataDir = root.resolve("data")
+                if (!Files.isDirectory(dataDir)) continue
+                Files.list(dataDir).use { it.filter { ns -> Files.isDirectory(ns) }.forEach { ns ->
+                    ns.resolve(subDir).takeIf { d -> Files.isDirectory(d) }?.let(dirs::add)
+                } }
+            } catch (_: Exception) {}
+        }
+        try {
+            val datapacksDir = com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
+            if (Files.isDirectory(datapacksDir)) {
+                Files.list(datapacksDir).use { it.filter { p -> Files.isDirectory(p) }.forEach { pack ->
+                    val dataDir = pack.resolve("data")
+                    if (Files.isDirectory(dataDir)) Files.list(dataDir).use { nss ->
+                        nss.filter { ns -> Files.isDirectory(ns) }.forEach { ns ->
+                            ns.resolve(subDir).takeIf { d -> Files.isDirectory(d) }?.let(dirs::add)
+                        }
+                    }
+                } }
+            }
+        } catch (_: Exception) {}
+
+        for (dir in dirs) {
+            try {
+                Files.walk(dir, 10).use { files ->
+                    files.filter { it.toString().endsWith(".json") && Files.isRegularFile(it) }.forEach { file ->
+                        try {
+                            val obj = InputStreamReader(Files.newInputStream(file), Charsets.UTF_8).use { r ->
+                                JsonParser.parseReader(r).asJsonObject
+                            }
+                            handler(obj)
+                        } catch (_: Exception) {}
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        try {
+            val datapacksDir = com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
+            if (Files.isDirectory(datapacksDir)) {
+                scanZipDatapacks(datapacksDir, subDir) { _, _, json -> handler(json) }
+            }
+        } catch (_: Exception) {}
     }
 
     /**

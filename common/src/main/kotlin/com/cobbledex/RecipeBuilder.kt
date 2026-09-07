@@ -478,6 +478,44 @@ object RecipeBuilder {
         return listOf(NatureRecipeData(NatureData.NATURES))
     }
 
+    // --- Native TM recipes ---
+
+    private fun tmData(tm: TmInfo) = TmRecipeData(tm, SpawnDataIndex.getSpeciesWithMove(tm.moveName).size)
+
+    fun buildAllTmRecipes(): List<TmRecipeData> = SpawnDataIndex.allTms().map(::tmData)
+
+    fun buildTmRecipesForMove(moveName: String): List<TmRecipeData> =
+        SpawnDataIndex.getTmForMove(moveName)?.let { listOf(tmData(it)) } ?: emptyList()
+
+    fun buildTmRecipesForItem(itemId: String): List<TmRecipeData> = when {
+        TmItemUtils.isNativeTm(itemId) -> buildAllTmRecipes()
+        else -> {
+            val byType = elementalTypeOfGem(itemId)?.let { SpawnDataIndex.getTmsForType(it) } ?: emptyList()
+            val byIngredient = SpawnDataIndex.getTmsUsingItem(itemId)
+            (byType + byIngredient).distinctBy { it.moveName }.map(::tmData)
+        }
+    }
+
+    /** `cobblemon:fire_gem` / `fire_gem_block` / `fire_gem_cluster` -> `"fire"`. */
+    private fun elementalTypeOfGem(itemId: String): String? {
+        if (!itemId.startsWith("cobblemon:")) return null
+        val path = itemId.substringAfter(':')
+        if (!path.contains("_gem")) return null
+        return path.substringBefore("_gem").takeIf { it.isNotBlank() && it.all(Char::isLetter) }
+    }
+
+    // --- Marks reference ---
+
+    private const val MARKS_PER_PAGE = 12
+
+    fun buildMarkRecipes(): List<MarkRecipeData> {
+        val marks = SpawnDataIndex.allMarks()
+            .sortedWith(compareBy({ it.sortOrder }, { it.indexNumber ?: Int.MAX_VALUE }, { it.id }))
+        if (marks.isEmpty()) return emptyList()
+        val pages = marks.chunked(MARKS_PER_PAGE)
+        return pages.mapIndexed { i, page -> MarkRecipeData(page, i, pages.size) }
+    }
+
     // --- Pokemon description recipes ---
 
     fun buildAllDescriptionRecipes(): List<PokemonDescriptionRecipeData> {
@@ -859,7 +897,7 @@ object RecipeBuilder {
         return SpawnDataIndex.ridingBySpecies.flatMap { (species, info) ->
             if (!SpawnDataIndex.shouldSurfaceSpecies(species)) return@flatMap emptyList()
             info.mounts.mapIndexed { idx, mount ->
-                RidingRecipeData(species, mount, idx, info.mounts.size, info.seats, info.allMountTypes)
+                RidingRecipeData(species, mount, idx, info.mounts.size, info.seats, info.allMountTypes, info.conditionalSeats)
             }
         }
     }
@@ -868,7 +906,7 @@ object RecipeBuilder {
         if (!SpawnDataIndex.shouldSurfaceSpecies(speciesName)) return emptyList()
         val info = SpawnDataIndex.getRidingFor(speciesName) ?: return emptyList()
         return info.mounts.mapIndexed { idx, mount ->
-            RidingRecipeData(speciesName, mount, idx, info.mounts.size, info.seats, info.allMountTypes)
+            RidingRecipeData(speciesName, mount, idx, info.mounts.size, info.seats, info.allMountTypes, info.conditionalSeats)
         }
     }
 }

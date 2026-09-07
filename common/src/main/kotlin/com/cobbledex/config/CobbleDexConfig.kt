@@ -20,6 +20,10 @@ data class CobbleDexConfig(
     val showJobs: Boolean = true,
     val showAlternateForms: Boolean = true,
     val showRiding: Boolean = true,
+    /** TM Recipes page (native Cobblemon 1.8.0+ TMs). No effect on older Cobblemon. */
+    val showTmRecipes: Boolean = true,
+    /** Marks reference page (Cobblemon 1.8.0+). No effect on older Cobblemon. */
+    val showMarks: Boolean = true,
     /** Render the Moves page as separate Level-up/Egg/Tutor/TM sections instead of one unified list. */
     val groupMovesByMethod: Boolean = false,
     val registerFormEntries: Boolean = true,

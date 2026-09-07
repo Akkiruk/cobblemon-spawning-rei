@@ -703,11 +703,20 @@ object EvolutionDataLoader {
                     itemId = entry.item.toString(),
                     percentage = entry.percentage,
                     quantity = entry.quantity,
-                    quantityRange = entry.quantityRange?.let { "${it.first}-${it.last}" }
+                    quantityRange = entry.quantityRange?.let { "${it.first}-${it.last}" },
+                    trigger = if (isEvolutionDrop(entry)) DropTrigger.EVOLUTION else DropTrigger.DEFEAT,
                 )
             }
             .ifEmpty { null }
     } catch (_: Exception) { null }
+
+    /**
+     * `EvolutionItemDropEntry` (a subclass of `ItemDropEntry`, so already caught by `filterIsInstance`)
+     * marks an item that drops when the Pokémon evolves. Detected by class name so 1.7.x, where the
+     * subclass doesn't exist, just sees every drop as a defeat drop.
+     */
+    private fun isEvolutionDrop(entry: Any): Boolean =
+        generateSequence<Class<*>>(entry.javaClass) { it.superclass }.any { it.simpleName == "EvolutionItemDropEntry" }
 
     private fun extractEvYield(
         form: com.cobblemon.mod.common.pokemon.FormData?,
