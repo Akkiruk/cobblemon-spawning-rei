@@ -388,7 +388,7 @@ object SpawnDisplayHelper {
             minLeftWidth = 56,
             minRightWidth = 36
         )
-        layout.fill(PanelLayout.PADDING, dividerY, layout.right, dividerY + 1, 0x50FFFFFF)
+        layout.fill(PanelLayout.PADDING, dividerY, layout.right, dividerY + 1, DexColors.DIVIDER)
     }
 
     // --- Display spawn builder (shared across REI/JEI/EMI) ---
@@ -625,7 +625,7 @@ object SpawnDisplayHelper {
 
     private fun bandRule(layout: PanelLayout) {
         layout.gap(2)
-        layout.fill(PanelLayout.PADDING, layout.y, layout.right, layout.y + 1, 0x30FFFFFF)
+        layout.fill(PanelLayout.PADDING, layout.y, layout.right, layout.y + 1, DexColors.DIVIDER_FAINT)
         layout.gap(4)
     }
 
@@ -731,7 +731,7 @@ object SpawnDisplayHelper {
         }
         layout.textRightAt(6, lvText, 0xFF0099FF.toInt())
         layout.textAt(nameX, 18, bucketText, bColor)
-        layout.fill(padding, 30, right, 31, 0x50FFFFFF)
+        layout.fill(padding, 30, right, 31, DexColors.DIVIDER)
         addSourceCaveat(layout, SpawnDataIndex.spawnSourceTier, width, headerHeight = 30)
         layout.skipTo(35)
 
@@ -894,7 +894,7 @@ object SpawnDisplayHelper {
         val rowH = PanelLayout.LINE_HEIGHT + 1
 
         layout.textAt(titleX, 6, title, 0xFFFFFFFF.toInt())
-        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        layout.fill(padding, 20, right, 21, DexColors.DIVIDER)
         addSourceCaveat(layout, SpawnDataIndex.spawnSourceTier, width, headerHeight = 20)
         layout.skipTo(25)
 
@@ -1001,7 +1001,7 @@ object SpawnDisplayHelper {
         }
 
         layout.gap(2)
-        layout.separator(0x20FFFFFF)
+        layout.separator(DexColors.DIVIDER_SUBTLE)
         layout.gap(4)
         val countText = tr("cobbledex-rei-emi-jei.drops.count", data.totalDrops)
         layout.text(padding, countText, 0x888888)
@@ -1065,7 +1065,7 @@ object SpawnDisplayHelper {
         pokemonSlots.add(PokemonSlotDef(chain.species, chain.aspects, padding, 2, SlotRole.INPUT))
         layout.textAt(padding + 22, 6, clippedName, 0xFFFFFF)
         layout.textRightAt(6, headerTag, 0xDDCC99)
-        layout.fill(padding, 24, right, 25, 0x50FFFFFF)
+        layout.fill(padding, 24, right, 25, DexColors.DIVIDER)
         layout.skipTo(30)
 
         layout.text(padding, tr("cobbledex-rei-emi-jei.evo.section.chain"), 0xEEEEEE)
@@ -1145,7 +1145,7 @@ object SpawnDisplayHelper {
 
         val allSpecies = EvolutionChainBuilder.collectAllSpecies(chain)
         layout.gap(1)
-        layout.separator(0x20FFFFFF)
+        layout.separator(DexColors.DIVIDER_SUBTLE)
         layout.gap(4)
         layout.text(padding, tr("cobbledex-rei-emi-jei.evo.chain_count", allSpecies.size), 0x888888)
         layout.gap(font.lineHeight + padding)
@@ -1212,7 +1212,7 @@ object SpawnDisplayHelper {
         }
 
         layout.gap(1)
-        layout.separator(0x20FFFFFF)
+        layout.separator(DexColors.DIVIDER_SUBTLE)
         layout.gap(4)
         val summary = when {
             data.isTerminal -> "No next-stage outcomes"
@@ -1314,7 +1314,7 @@ object SpawnDisplayHelper {
             layout.text(padding, label, 0xBBBBBB)
 
             val barWidth = ((value.toFloat() / maxStat) * barMaxWidth).toInt().coerceAtLeast(1)
-            layout.fill(barX, layout.y + 1, barX + barMaxWidth, layout.y + 9, 0x30FFFFFF)
+            layout.fill(barX, layout.y + 1, barX + barMaxWidth, layout.y + 9, DexColors.DIVIDER_FAINT)
             layout.fill(barX, layout.y + 1, barX + barWidth, layout.y + 9, color)
 
             layout.textRight(value.toString(), 0xFFFFFF)
@@ -1639,7 +1639,7 @@ object SpawnDisplayHelper {
 
         data.extraTags?.let { tags ->
             layout.gap(4)
-            layout.separator(0x20FFFFFF)
+            layout.separator(DexColors.DIVIDER_SUBTLE)
             layout.gap(4)
             val tagParts = tags.split(" ")
             for (part in tagParts) {
@@ -1762,7 +1762,7 @@ object SpawnDisplayHelper {
         }
 
         layout.gap(2)
-        layout.separator(0x30FFFFFF)
+        layout.separator(DexColors.DIVIDER_FAINT)
         layout.gap(4)
 
         val unlockKey = if (tm.passivelyObtained) "cobbledex-rei-emi-jei.tm.unlock.passive"
@@ -1773,9 +1773,10 @@ object SpawnDisplayHelper {
         if (data.learnerCount > 0) {
             val linkY = layout.y
             val linkText = tr("cobbledex-rei-emi-jei.tm.learners", data.learnerCount)
-            layout.text(padding, linkText, 0xFF88CCFF.toInt())
-            moveLinks.add(MoveLinkDef(tm.moveName, padding, linkY, Minecraft.getInstance().font.width(linkText).coerceAtLeast(8), PanelLayout.LINE_HEIGHT))
-            layout.gap(PanelLayout.LINE_HEIGHT)
+            val maxW = right - padding
+            val lineCount = layout.wrapped(padding, linkText, maxW, 0xFF88CCFF.toInt()).coerceAtLeast(1)
+            val blockW = Minecraft.getInstance().font.width(linkText).coerceIn(8, maxW)
+            moveLinks.add(MoveLinkDef(tm.moveName, padding, linkY, blockW, PanelLayout.LINE_HEIGHT * lineCount))
         }
 
         layout.gap(padding)
@@ -1908,7 +1909,7 @@ object SpawnDisplayHelper {
         }
 
         // Facts
-        layout.fill(padding, layout.y, right, layout.y + 1, 0x50FFFFFF)
+        layout.fill(padding, layout.y, right, layout.y + 1, DexColors.DIVIDER)
         layout.gap(4)
         val bucketText = if (herd.bucket.equals("boss", ignoreCase = true))
             tr("cobbledex-rei-emi-jei.herd.boss") else bucketLabel(herd.bucket)
@@ -1978,7 +1979,7 @@ object SpawnDisplayHelper {
         layout.textAt(downCol, layout.y, downColHeader, 0xFFFF8888.toInt())
         layout.gap(lineHeight + 2)
 
-        layout.fill(padding, layout.y - 1, right, layout.y, 0x30FFFFFF)
+        layout.fill(padding, layout.y - 1, right, layout.y, DexColors.DIVIDER_FAINT)
 
         for (nature in data.natures) {
             val nameColor = if (nature.isNeutral) 0xFFAAAAAA.toInt() else 0xFFFFFFFF.toInt()
@@ -2093,7 +2094,7 @@ object SpawnDisplayHelper {
         // Job description
         layout.wrapped(padding + 4, rule.description, right - padding - 4, 0xFFCCCCCC.toInt())
         layout.gap(6)
-        layout.separator(0x30FFFFFF)
+        layout.separator(DexColors.DIVIDER_FAINT)
         layout.gap(4)
 
         // Requirements
@@ -2139,7 +2140,7 @@ object SpawnDisplayHelper {
         }
 
         layout.gap(4)
-        layout.separator(0x30FFFFFF)
+        layout.separator(DexColors.DIVIDER_FAINT)
         layout.gap(4)
 
         // Qualifications
@@ -2442,7 +2443,7 @@ object SpawnDisplayHelper {
         }
 
         layout.gap(1)
-        layout.separator(0x20FFFFFF)
+        layout.separator(DexColors.DIVIDER_SUBTLE)
         layout.gap(4)
         val formCount = tr("cobbledex-rei-emi-jei.forms.count", data.totalForms)
         layout.text(padding, formCount, 0x888888)
@@ -2531,7 +2532,7 @@ object SpawnDisplayHelper {
             layout.text(padding, statName, 0xBBBBBB)
 
             // Background bar
-            layout.fill(barX, layout.y + 1, barX + barMaxWidth, layout.y + 9, 0x30FFFFFF)
+            layout.fill(barX, layout.y + 1, barX + barMaxWidth, layout.y + 9, DexColors.DIVIDER_FAINT)
             // Min bar (darker)
             val minBarW = ((min.toFloat() / maxStatValue) * barMaxWidth).toInt().coerceAtLeast(0)
             layout.fill(barX, layout.y + 1, barX + minBarW, layout.y + 9, color)

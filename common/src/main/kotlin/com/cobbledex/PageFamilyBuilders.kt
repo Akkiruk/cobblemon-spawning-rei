@@ -68,7 +68,7 @@ object ObtainmentPageBuilder {
 
         layout.textAt(padding + 22, 6, speciesName, 0xFFFFFF)
         layout.textRightAt(6, headerTag, 0xDDCC99)
-        layout.fill(padding, 20, right, 21, 0x50FFFFFF)
+        layout.fill(padding, 20, right, 21, DexColors.DIVIDER)
         SpawnDisplayHelper.addSourceCaveat(layout, SpawnDataIndex.obtainmentSourceTier, width, headerHeight = 27)
         layout.skipTo(27)
 
@@ -86,7 +86,7 @@ object ObtainmentPageBuilder {
         }
 
         layout.gap(1)
-        layout.separator(0x20FFFFFF)
+        layout.separator(DexColors.DIVIDER_SUBTLE)
         layout.gap(4)
         if (data.pageTotal > 1) {
             layout.text(padding, "${data.pageIndex}/${data.pageTotal}", 0xFFAA00)
@@ -180,7 +180,7 @@ object PokemonInfoPageBuilder {
         val typeMaxWidth = right - padding - (dexNumber?.let { font.width(it) + 6 } ?: 0)
         typeText?.let { layout.clippedAt(padding, 22, it, typeMaxWidth, 0xFFDD66) }
         dexNumber?.let { layout.textRightAt(22, it, 0xBBBBBB) }
-        layout.fill(padding, 36, right, 37, 0x50FFFFFF)
+        layout.fill(padding, 36, right, 37, DexColors.DIVIDER)
         layout.skipTo(43)
 
         info?.description?.takeIf { it.isNotBlank() }?.let { descriptionKey ->

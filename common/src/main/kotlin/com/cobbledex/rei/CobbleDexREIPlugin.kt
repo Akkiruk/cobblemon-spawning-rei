@@ -3,6 +3,7 @@ package com.cobbledex.rei
 import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
+import com.cobbledex.PanelLayout
 import com.cobbledex.PokemonItemCache
 import com.cobbledex.RecipeHandle
 import com.cobbledex.SlotRole
@@ -231,7 +232,12 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             val px = bounds.x
             val py = bounds.y + yOff
 
-            widgets.add(Widgets.createRecipeBase(Rectangle(px, py, w, h)))
+            // The mod paints its own opaque surface instead of REI's recipe-base sprite, which is
+            // light in REI's default theme and left the light panel text unreadable (issue #42).
+            // Added before the slots so it sits behind the Pokémon icons, not over them.
+            widgets.add(Widgets.createDrawableWidget { gfx, _, _, _ ->
+                PanelLayout.renderSurface(gfx, px, py, w, h)
+            })
 
             for (slot in slots.pokemon) {
                 val entry = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(slot.species, slot.aspects))
@@ -384,7 +390,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             graphics: net.minecraft.client.gui.GuiGraphics,
             mouseX: Int, mouseY: Int, delta: Float,
         ) {
-            if (isHovered) graphics.fill(x, y, x + width, y + height, 0x30FFFFFF)
+            if (isHovered) graphics.fill(x, y, x + width, y + height, com.cobbledex.DexColors.HOVER)
         }
 
         override fun onClick(mouseX: Double, mouseY: Double) = onPress()

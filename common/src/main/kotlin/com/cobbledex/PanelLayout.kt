@@ -41,7 +41,7 @@ class PanelLayout(val width: Int) {
         elements.add(Element.Text(x, yPos, clippedText, color, shadow))
         if (clippedText != text) {
             addTooltipZone(x, yPos, font.width(clippedText), LINE_HEIGHT,
-                listOf(Component.literal(text).withStyle { s -> s.withColor(0xDDDDDD) }))
+                listOf(Component.literal(text).withStyle { s -> s.withColor(DexColors.BODY) }))
         }
         return this
     }
@@ -62,7 +62,7 @@ class PanelLayout(val width: Int) {
         elements.add(Element.Text(x, yPos, clippedText, color, shadow))
         if (clippedText != text) {
             addTooltipZone(x, yPos, font.width(clippedText), LINE_HEIGHT,
-                listOf(Component.literal(text).withStyle { s -> s.withColor(0xDDDDDD) }))
+                listOf(Component.literal(text).withStyle { s -> s.withColor(DexColors.BODY) }))
         }
         return this
     }
@@ -79,7 +79,7 @@ class PanelLayout(val width: Int) {
         elements.add(Element.Text(x, y, clippedText, color, shadow))
         if (clippedText != text) {
             addTooltipZone(x, y, font.width(clippedText), LINE_HEIGHT,
-                listOf(Component.literal(text).withStyle { s -> s.withColor(0xDDDDDD) }))
+                listOf(Component.literal(text).withStyle { s -> s.withColor(DexColors.BODY) }))
         }
         return this
     }
@@ -90,7 +90,7 @@ class PanelLayout(val width: Int) {
         elements.add(Element.Text(x, y, clippedText, color, shadow))
         if (clippedText != text) {
             addTooltipZone(x, y, font.width(clippedText), LINE_HEIGHT,
-                listOf(Component.literal(text).withStyle { s -> s.withColor(0xDDDDDD) }))
+                listOf(Component.literal(text).withStyle { s -> s.withColor(DexColors.BODY) }))
         }
         return this
     }
@@ -138,7 +138,7 @@ class PanelLayout(val width: Int) {
             elements.add(Element.Text(curX, y, item + suffix, color, shadow))
             if (wasClipped) {
                 addTooltipZone(curX, y, itemWidth, LINE_HEIGHT,
-                    listOf(Component.literal(rawItem).withStyle { s -> s.withColor(0xDDDDDD) }))
+                    listOf(Component.literal(rawItem).withStyle { s -> s.withColor(DexColors.BODY) }))
             }
             curX += fullWidth
         }
@@ -148,7 +148,7 @@ class PanelLayout(val width: Int) {
 
     // --- Structural ---
 
-    fun separator(color: Int = 0x50FFFFFF): PanelLayout {
+    fun separator(color: Int = DexColors.DIVIDER): PanelLayout {
         elements.add(Element.Fill(PADDING, y, right, y + 1, color))
         y += 1
         return this
@@ -195,6 +195,23 @@ class PanelLayout(val width: Int) {
     }
 
     companion object {
+
+        /**
+         * Paints the panel's own opaque surface + 1px frame at ([x], [y]) sized [w] x [h].
+         *
+         * Every viewer plugin calls this *before* placing item slots and *before* [render], so the
+         * whole page - text and Pokémon icons alike - sits on one surface the mod controls, instead
+         * of on REI's / JEI's / EMI's theme background (issue #42). Callers pass the panel size from
+         * their [RecipeHandle] (`handle.width` / `handle.height`).
+         */
+        fun renderSurface(graphics: GuiGraphics, x: Int, y: Int, w: Int, h: Int) {
+            graphics.fill(x, y, x + w, y + h, DexColors.SURFACE)
+            graphics.fill(x, y, x + w, y + 1, DexColors.BORDER)
+            graphics.fill(x, y + h - 1, x + w, y + h, DexColors.BORDER)
+            graphics.fill(x, y, x + 1, y + h, DexColors.BORDER)
+            graphics.fill(x + w - 1, y, x + w, y + h, DexColors.BORDER)
+        }
+
         const val PADDING = 6
         const val LINE_HEIGHT = 11
         const val SECTION_GAP = 3

@@ -2,6 +2,25 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.24.0] - 2026-09-10
+
+### Changed
+- **Panels now paint their own surface, so text is readable in every viewer and theme.** (#42)
+  CobbleDex pages used to be drawn straight onto the recipe viewer's own background — which is
+  light in REI's default theme, a dark box in JEI, and pack-dependent in EMI — so the light panel
+  text ranged from crisp to nearly invisible depending on which viewer you opened. Every page is
+  now drawn on an opaque dark surface the mod controls (`PanelLayout.renderSurface`), added behind
+  the Pokémon icons in all three viewers. Contrast is now identical in REI, JEI and EMI regardless
+  of the active theme or resource pack.
+- New `DexColors` object holds the structural palette (surface, border, text roles, dividers) in
+  one place; the scattered divider literals now route through it.
+
+## [2.23.1] - 2026-09-07
+
+### Fixed
+- **TM recipe "%d Pokémon can learn this move, click to see them" line no longer runs off the
+  panel.** The line now wraps to the panel width, and the whole wrapped block stays clickable.
+
 ## [2.23.0] - 2026-09-07
 
 ### Changed

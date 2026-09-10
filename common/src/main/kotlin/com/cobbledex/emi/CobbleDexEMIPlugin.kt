@@ -170,6 +170,14 @@ open class CobbleDexEMIPlugin : EmiPlugin {
 
         override fun addWidgets(widgets: dev.emi.emi.api.widget.WidgetHolder) {
             val slots = handle.slots
+            val w = handle.width
+            val h = handle.height
+
+            // Opaque surface the mod owns, drawn before the slots so panel text stays readable
+            // whatever EMI theme / resource pack is active (issue #42).
+            widgets.addDrawable(0, 0, w, h) { gfx, _, _, _ ->
+                com.cobbledex.PanelLayout.renderSurface(gfx, 0, 0, w, h)
+            }
 
             for (slot in slots.pokemon) {
                 val stack = PokemonEmiStack.of(slot.species, slot.aspects)
@@ -185,8 +193,6 @@ open class CobbleDexEMIPlugin : EmiPlugin {
                 }
             }
 
-            val w = handle.width
-            val h = handle.height
             widgets.addDrawable(0, 0, w, h) { gfx, _, _, _ ->
                 handle.layout.render(gfx)
             }
@@ -229,7 +235,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
 
         override fun render(graphics: net.minecraft.client.gui.GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {
             if (bounds.contains(mouseX, mouseY)) {
-                graphics.fill(bounds.x(), bounds.y(), bounds.right(), bounds.bottom(), 0x30FFFFFF)
+                graphics.fill(bounds.x(), bounds.y(), bounds.right(), bounds.bottom(), com.cobbledex.DexColors.HOVER)
             }
         }
 
@@ -253,7 +259,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
 
         override fun render(graphics: net.minecraft.client.gui.GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {
             if (bounds.contains(mouseX, mouseY)) {
-                graphics.fill(bounds.x(), bounds.y(), bounds.right(), bounds.bottom(), 0x30FFFFFF)
+                graphics.fill(bounds.x(), bounds.y(), bounds.right(), bounds.bottom(), com.cobbledex.DexColors.HOVER)
             }
         }
 

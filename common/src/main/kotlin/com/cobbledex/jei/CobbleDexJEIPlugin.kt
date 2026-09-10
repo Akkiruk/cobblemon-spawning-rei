@@ -5,6 +5,7 @@ import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
 import com.cobbledex.DiscoveryAliases
+import com.cobbledex.PanelLayout
 import com.cobbledex.PokemonItemCache
 import com.cobbledex.RecipeHandle
 import com.cobbledex.RecipeViewerReloader
@@ -332,13 +333,9 @@ open class CobbleDexJEIPlugin : IModPlugin {
             val w = handle.width
             val h = handle.height
 
-            // Content-sized frame, centred in JEI's category area.
-            guiGraphics.fill(dx, dy, dx + w, dy + h, 0xE81C1C1C.toInt())
-            val border = 0xFF555555.toInt()
-            guiGraphics.fill(dx, dy, dx + w, dy + 1, border)
-            guiGraphics.fill(dx, dy + h - 1, dx + w, dy + h, border)
-            guiGraphics.fill(dx, dy, dx + 1, dy + h, border)
-            guiGraphics.fill(dx + w - 1, dy, dx + w, dy + h, border)
+            // Content-sized surface the mod owns, centred in JEI's category area. Opaque so panel
+            // text keeps its contrast whatever theme JEI/the pack uses (issue #42).
+            PanelLayout.renderSurface(guiGraphics, dx, dy, w, h)
 
             guiGraphics.pose().pushPose()
             guiGraphics.pose().translate(dx.toFloat(), dy.toFloat(), 0f)
