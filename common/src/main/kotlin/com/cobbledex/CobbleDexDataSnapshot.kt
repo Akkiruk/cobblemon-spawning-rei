@@ -22,6 +22,8 @@ data class CobbleDexDataSnapshot(
     /** Every herd once, deduped by roster - the browsable list for the Herds category. */
     val allHerds: List<HerdInfo> = emptyList(),
     val spawnRegionsBySpecies: Map<String, List<SpawnRegionInfo>> = emptyMap(),
+    /** `biome token -> summed competing spawn weight`, for [SpawnBiomeRanking]. */
+    val spawnBiomeCrowd: Map<String, Float> = emptyMap(),
     val allSpeciesNames: List<String> = emptyList(),
     val spawnSourceTier: DataSourceTier = DataSourceTier.UNAVAILABLE,
     val evolutionSourceTier: DataSourceTier = DataSourceTier.UNAVAILABLE,

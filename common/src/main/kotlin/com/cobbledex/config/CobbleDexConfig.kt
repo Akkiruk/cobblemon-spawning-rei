@@ -7,6 +7,8 @@ import java.nio.file.Files
 
 data class CobbleDexConfig(
     val showSpawnWeights: Boolean = true,
+    /** The "best odds: <biome>" caption on spawn panels and the "Usually: <biome>" line on the spawn index. */
+    val showBestBiome: Boolean = true,
     val showEvolutions: Boolean = true,
     val showObtainment: Boolean = true,
     val showDrops: Boolean = true,

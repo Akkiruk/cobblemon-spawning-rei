@@ -85,7 +85,8 @@ object RecipeBuilder {
             )
         }
         val shown = rows.take(SPAWN_INDEX_MAX_ROWS)
-        return SpawnIndexRecipeData(species, shown, hiddenCount = rows.size - shown.size)
+        val bestBiome = SpawnDataIndex.headlineSpawnBiome(entries.map { it.spawn })?.let { formatBiomeName(it) }
+        return SpawnIndexRecipeData(species, shown, hiddenCount = rows.size - shown.size, bestBiome = bestBiome)
     }
 
     private fun summarizeForms(variants: List<String>): String? = when {

@@ -15,6 +15,8 @@ data class SpawnIndexRecipeData(
     val speciesName: String,
     val rows: List<SpawnIndexRow>,
     val hiddenCount: Int = 0,
+    /** Friendly name of the biome where this species has its best overall odds; null if unknown. */
+    val bestBiome: String? = null,
 )
 
 data class SpawnIndexRow(

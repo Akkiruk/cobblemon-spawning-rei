@@ -607,6 +607,10 @@ object SpawnDataIndex {
 
     fun getSpawnsFor(species: String): List<SpawnInfo> = currentQueries().getSpawnsFor(species)
 
+    fun bestSpawnBiomeForWay(spawn: SpawnInfo): String? = currentQueries().bestSpawnBiomeForWay(spawn)
+
+    fun headlineSpawnBiome(spawns: List<SpawnInfo>): String? = currentQueries().headlineSpawnBiome(spawns)
+
     fun getEvolutionsFrom(species: String): List<EvolutionInfo> = currentQueries().getEvolutionsFrom(species)
 
     fun getEvolutionsTo(species: String): List<EvolutionInfo> = currentQueries().getEvolutionsTo(species)

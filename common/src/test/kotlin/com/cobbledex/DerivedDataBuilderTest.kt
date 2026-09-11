@@ -61,6 +61,31 @@ class DerivedDataBuilderTest {
     }
 
     @Test
+    fun buildsTheSpawnBiomeCrowdFromTheSameSnapshot() {
+        fun spawn(pokemon: String, weight: Float, biomes: List<String>) = SpawnInfo(
+            id = "t", pokemon = pokemon, formAspects = "", bucket = "common", weight = weight,
+            levelRange = "1-5", context = "grounded", biomes = biomes, timeRange = null,
+            weather = SpawnWeather(), dimensions = emptyList(), structures = emptyList(),
+            canSeeSky = null, minLight = null, maxLight = null, minSkyLight = null, maxSkyLight = null,
+            minY = null, maxY = null, neededNearbyBlocks = emptyList(), neededBaseBlocks = emptyList(),
+            moonPhase = null, presets = emptyList(), fluid = null, anticondition = null,
+            weightMultipliers = emptyList(), minLureLevel = null,
+        )
+        val pidgey = spawn("pidgey", 10f, listOf("minecraft:forest", "minecraft:plains"))
+        val snapshot = CobbleDexDataSnapshot(
+            spawnsBySpecies = mapOf(
+                "pidgey" to listOf(pidgey),
+                "spearow" to listOf(spawn("spearow", 90f, listOf("minecraft:forest"))),
+            )
+        )
+
+        val result = DerivedDataBuilder.rebuild(snapshot) { emptyList() }
+
+        assertTrue(result.snapshot.spawnBiomeCrowd.isNotEmpty())
+        assertEquals("minecraft:plains", SpawnBiomeRanking.bestBiomeForWay(pidgey, result.snapshot.spawnBiomeCrowd))
+    }
+
+    @Test
     fun queriesEvaluateMaterialFormsAgainstTheirSnapshot() {
         val snapshot = CobbleDexDataSnapshot(
             speciesInfo = mapOf(

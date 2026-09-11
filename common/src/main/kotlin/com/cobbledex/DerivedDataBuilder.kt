@@ -153,6 +153,7 @@ object DerivedDataBuilder {
                 speciesInfo = enriched,
                 dropsByItem = dropIndex,
                 speciesByMove = moveLearnerIndex,
+                spawnBiomeCrowd = SpawnBiomeRanking.buildCrowd(snapshot.spawnsBySpecies),
                 allSpeciesNames = sortedSpecies,
             ),
             backfilledSpeciesInfoCount = backfilled,

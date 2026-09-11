@@ -8,6 +8,14 @@ class CobbleDexDataQueries(private val snapshot: CobbleDexDataSnapshot) {
     fun getSpawnsFor(species: String): List<SpawnInfo> =
         snapshot.spawnsBySpecies[SpeciesNameNormalizer.normalize(species)] ?: emptyList()
 
+    /** The biome (of those this spawn lists) with clearly better odds, or null when it's close. */
+    fun bestSpawnBiomeForWay(spawn: SpawnInfo): String? =
+        SpawnBiomeRanking.bestBiomeForWay(spawn, snapshot.spawnBiomeCrowd)
+
+    /** The best-odds biome across all of a species' spawn ways, or null. */
+    fun headlineSpawnBiome(spawns: List<SpawnInfo>): String? =
+        SpawnBiomeRanking.headline(spawns, snapshot.spawnBiomeCrowd)
+
     fun getEvolutionsFrom(species: String): List<EvolutionInfo> =
         snapshot.evolutionsBySpecies[SpeciesNameNormalizer.normalize(species)] ?: emptyList()
 

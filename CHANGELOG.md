@@ -2,6 +2,19 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.25.0] - 2026-09-10
+
+### Added
+- **Spawn panels now point you at the biome where a Pokémon actually shows up most.** (#41)
+  A panel lists an entry's biomes but never said which one to actually go to. When one of them has
+  clearly better odds — the least competition from other spawns of its rarity — it's pulled to the
+  front of the WHERE biome list and marked with a ★; hover it for the method and its limits (biome
+  tags aren't resolved to concrete biomes; time/weather/block conditions are ignored). The
+  multi-spawn index page adds a matching `★ Usually: <biome>` line under the title. When no biome
+  has a clear edge, nothing changes. No percentage — the pick is the useful part. Toggle with
+  `showBestBiome` in the config (on by default); needs local spawn data (works in singleplayer and
+  on servers whose spawn packs the client also has).
+
 ## [2.24.0] - 2026-09-10
 
 ### Changed

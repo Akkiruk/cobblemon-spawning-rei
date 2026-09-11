@@ -773,10 +773,29 @@ object SpawnDisplayHelper {
                 }
             }
             if (biomeIds.isNotEmpty()) {
+                // The biome with clearly better odds is pulled to the front and marked with a star;
+                // its tooltip explains why. Every biome is still listed - nothing is dropped.
+                val best = if (CobbleDexConfig.get().showBestBiome)
+                    SpawnDataIndex.bestSpawnBiomeForWay(spawn) else null
+                val orderedBiomes = if (best != null)
+                    listOf(best) + biomeIds.filterNot { it == best } else biomeIds
+                val labels = orderedBiomes.map { token ->
+                    val name = formatBiomeName(token)
+                    if (token == best) "★ $name" else name
+                }
                 collapsedList(
                     layout, indentX, right - indentX,
-                    biomeIds.map { formatBiomeName(it) }, 0xFFCCA066.toInt(), visible = 5,
-                    perItemTooltip = { i -> buildSingleBiomeTooltip(biomeIds[i]) },
+                    labels, 0xFFCCA066.toInt(), visible = 5,
+                    perItemTooltip = { i ->
+                        val token = orderedBiomes[i]
+                        if (token == best)
+                            buildSingleBiomeTooltip(token) + listOf(
+                                Component.literal(""),
+                                Component.literal("§6★ §f" + tr("cobbledex-rei-emi-jei.spawn.biome_best.title")),
+                                Component.literal("§7" + tr("cobbledex-rei-emi-jei.spawn.biome_best.tooltip")),
+                            )
+                        else buildSingleBiomeTooltip(token)
+                    },
                 )
             }
             if (spawn.structures.isNotEmpty()) {
@@ -885,9 +904,14 @@ object SpawnDisplayHelper {
         val title = tr("cobbledex-rei-emi-jei.spawn.index.title", formatSpeciesName(data.speciesName), total)
         val bucketColW = (data.rows.maxOfOrNull { font.width(bucketLabel(it.bucket).uppercase()) } ?: 40) + 8
 
+        val bestBiomeText = data.bestBiome
+            ?.takeIf { CobbleDexConfig.get().showBestBiome }
+            ?.let { tr("cobbledex-rei-emi-jei.spawn.index.best_biome", it) }
+
         val width = computePanelWidth(
             titleX + font.width(title) + padding,
             padding + bucketColW + 160,
+            bestBiomeText?.let { padding + font.width(it) + padding } ?: 0,
         )
         val layout = PanelLayout(width)
         val right = layout.right
@@ -897,6 +921,19 @@ object SpawnDisplayHelper {
         layout.fill(padding, 20, right, 21, DexColors.DIVIDER)
         addSourceCaveat(layout, SpawnDataIndex.spawnSourceTier, width, headerHeight = 20)
         layout.skipTo(25)
+
+        if (bestBiomeText != null) {
+            val by = layout.y
+            layout.text(padding, bestBiomeText, 0xFFCCA066.toInt())
+            layout.addTooltipZone(
+                padding, by, font.width(bestBiomeText), PanelLayout.LINE_HEIGHT,
+                listOf(
+                    Component.literal("§6★ §f" + tr("cobbledex-rei-emi-jei.spawn.biome_best.title")),
+                    Component.literal("§7" + tr("cobbledex-rei-emi-jei.spawn.biome_best.tooltip")),
+                ),
+            )
+            layout.gap(PanelLayout.LINE_HEIGHT + 2)
+        }
 
         for (row in data.rows) {
             val y = layout.y
