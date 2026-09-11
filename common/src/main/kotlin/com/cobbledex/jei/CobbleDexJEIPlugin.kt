@@ -50,30 +50,96 @@ open class CobbleDexJEIPlugin : IModPlugin {
                 )
             }
 
-        /** Called by RecipeViewerReloader after server sync to push new recipes into JEI */
+        // ----- Incremental reload -----
+        //
+        // A reload used to hide + rebuild + add every category's recipes in one call - for a large
+        // modpack (~1000+ species, ~10000+ recipes) that's several seconds on the render thread,
+        // felt as a freeze right after joining a world (issue #43's remaining case: a reload that's
+        // genuinely necessary, not the redundant one #43 also fixed). buildAllRecipes() itself is
+        // cheap (RecipeHandle's layout/width/height are lazy), so the cost is JEI's own
+        // IRecipeManager bookkeeping (search/ingredient re-indexing) - not something we can make
+        // faster, only spread out. continueReload() below does a bounded slice of that work per
+        // call and reports whether it's finished; RecipeViewerReloader drives it once per tick
+        // instead of invoking one atomic method and hoping.
+
+        /** One category's rebuilt recipes, queued for incremental hide+add. */
+        private class ReloadUnit(val def: DexCategory, val recipes: List<GenericRecipe>)
+
+        /** `addRecipes` calls of roughly this size each - enough ticks to smooth out even the
+         *  Spawns category (by far the largest) without dragging a reload out for many seconds. */
+        private const val RECIPES_PER_TICK = 250
+
+        @Volatile private var reloadUnits: List<ReloadUnit>? = null
+        @Volatile private var reloadTargetVersion = -1L
+        private var unitIndex = 0
+        private var offsetInUnit = 0
+        private var addedThisUnit = mutableListOf<GenericRecipe>()
+
+        /**
+         * Advances an in-progress reload for [targetVersion] by one tick's worth of work (starting
+         * a new one if none is running, or the target changed). Returns true once fully caught up.
+         * Safe to call every tick - a no-op call (nothing pending) is just a version check.
+         */
         @JvmStatic
-        fun reloadRecipes() {
-            val rt = runtime ?: return
-            val manager = rt.recipeManager
-            val config = CobbleDexConfig.get()
-            for (def in DexCategory.ALL) {
-                if (!def.isEnabled(config)) continue
-                val type = recipeType(def)
-
-                // Hide previously added recipes to avoid duplicates
-                addedRecipes[def.id]?.let { old ->
-                    if (old.isNotEmpty()) manager.hideRecipes(type, old)
+        fun continueReload(targetVersion: Long): Boolean {
+            val rt = runtime ?: return true
+            if (reloadUnits == null || reloadTargetVersion != targetVersion) {
+                val config = CobbleDexConfig.get()
+                reloadUnits = DexCategory.ALL.filter { it.isEnabled(config) }.map { def ->
+                    val handles = try { def.buildAllRecipes() } catch (e: Exception) {
+                        DebugLog.warn("JEI reload: ${def.id} buildAllRecipes failed: ${e.message}")
+                        emptyList()
+                    }
+                    ViewerParityGuard.warn(def, handles, "JEI")
+                    ReloadUnit(def, handles.map { GenericRecipe(it) })
                 }
-
-                val handles = def.buildAllRecipes()
-                ViewerParityGuard.warn(def, handles, "JEI")
-                val recipes = handles.map { GenericRecipe(it) }
-                if (recipes.isNotEmpty()) {
-                    manager.addRecipes(type, recipes)
-                }
-                addedRecipes[def.id] = recipes
+                reloadTargetVersion = targetVersion
+                unitIndex = 0
+                offsetInUnit = 0
+                addedThisUnit = mutableListOf()
             }
 
+            val units = reloadUnits ?: return true
+            val manager = rt.recipeManager
+            var budget = RECIPES_PER_TICK
+
+            while (budget > 0 && unitIndex < units.size) {
+                val unit = units[unitIndex]
+                val type = recipeType(unit.def)
+
+                if (offsetInUnit == 0) {
+                    // Entering this category for the first time this reload: drop its old recipes
+                    // in one call (bounded by that one category's previous size, not the whole set).
+                    addedRecipes[unit.def.id]?.let { old -> if (old.isNotEmpty()) manager.hideRecipes(type, old) }
+                }
+
+                val take = minOf(budget, unit.recipes.size - offsetInUnit)
+                if (take > 0) {
+                    val slice = unit.recipes.subList(offsetInUnit, offsetInUnit + take)
+                    manager.addRecipes(type, slice)
+                    addedThisUnit.addAll(slice)
+                    offsetInUnit += take
+                    budget -= take
+                }
+
+                if (offsetInUnit >= unit.recipes.size) {
+                    addedRecipes[unit.def.id] = addedThisUnit
+                    addedThisUnit = mutableListOf()
+                    unitIndex++
+                    offsetInUnit = 0
+                } else {
+                    break // category has more left than this tick's budget - continue it next tick
+                }
+            }
+
+            if (unitIndex < units.size) return false // more categories queued for later ticks
+
+            finishReload(rt, targetVersion)
+            reloadUnits = null
+            return true
+        }
+
+        private fun finishReload(rt: IJeiRuntime, targetVersion: Long) {
             // Re-register Pokémon ingredients so search index includes job names
             if (SpawnDataIndex.hasJobRules()) {
                 try {
@@ -101,8 +167,8 @@ open class CobbleDexJEIPlugin : IModPlugin {
                 }
             }
 
-            RecipeViewerReloader.jeiLastRegisteredVersion = SpawnDataIndex.dataVersion
-            DebugLog.info("JEI: Reloaded recipes (dataVersion=${SpawnDataIndex.dataVersion})")
+            RecipeViewerReloader.jeiLastRegisteredVersion = targetVersion
+            DebugLog.info("JEI: Reloaded recipes (dataVersion=$targetVersion)")
         }
     }
 

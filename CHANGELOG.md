@@ -2,7 +2,16 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
-## [2.25.1] - 2026-09-11
+## [2.25.2] - 2026-09-11
+
+### Changed
+- **When JEI's recipes genuinely do need reloading (a real data change, not the redundant one
+  2.25.1 removed), it no longer freezes the render thread for it.** (#43) `reloadRecipes()` used to
+  hide, rebuild and re-add every category's recipes - ~10,000+ on a large modpack - in one blocking
+  call; on a ~1000-species pack that was several seconds of stutter. It's now driven incrementally,
+  a few hundred recipes per tick, so the same total work is spread across many frames instead of
+  freezing one. EMI's reload is unaffected (EMI's own reload manager doesn't expose a progress
+  signal to spread out).
 
 ### Fixed
 - **Client no longer freezes for several seconds after entering a world.** (#43) Joining a world
