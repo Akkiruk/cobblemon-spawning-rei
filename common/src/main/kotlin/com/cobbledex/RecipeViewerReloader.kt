@@ -23,6 +23,13 @@ import com.cobbledex.platform.PlatformHelper
  *  - **EMI**: reload is triggered through EMI's own `EmiReloadManager.reload()`, a fire-and-forget
  *    call into EMI's internals with no progress signal - we can only ask again later whether it
  *    took effect, hence the [Viewer] abstraction and exponential backoff retained for it.
+ *
+ *    This isn't a gap: `EmiReloadManager.reload()` starts its own background `Thread` and returns
+ *    immediately (confirmed from EMI 1.1.12's source) - every plugin's `register()`, including
+ *    ours, runs off the render thread there. EMI just shows its own "Reloading" line and hides its
+ *    list widget until that thread finishes; nothing about it blocks the game the way JEI's
+ *    synchronous `IRecipeManager` calls did. So issue #43's freeze was JEI-specific by construction,
+ *    not something EMI happened to dodge - no incremental path is needed for it.
  */
 object RecipeViewerReloader {
 
