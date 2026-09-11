@@ -68,7 +68,13 @@ object CobblemonDataSignal {
         return true
     }
 
-    /** Forget the last sample so the next [consumeChange] reports a change. */
+    /**
+     * Forget the last sample so the next [consumeChange] unconditionally reports a change.
+     *
+     * Not called on ordinary world join/leave - see [CobbleDexMod.onJoinedWorld]. Kept for a
+     * deliberate, explicit re-sync (e.g. a future `/cobbledex reload` path) rather than the normal
+     * per-second fingerprint compare, which already catches every real data change on its own.
+     */
     fun reset() {
         lastFingerprint = NO_SAMPLE
     }

@@ -2,6 +2,18 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.25.1] - 2026-09-11
+
+### Fixed
+- **Client no longer freezes for several seconds after entering a world.** (#43) Joining a world
+  reset CobbleDex's "did Cobblemon's data change" fingerprint unconditionally, so every join forced
+  a full rebuild *and* a synchronous JEI/EMI recipe reload even when nothing had actually changed -
+  in singleplayer, Cobblemon's species/spawn registries are already populated by the time you join,
+  so this was pure repeat work. On a large modpack (~1000+ species) that's several seconds of the
+  render thread rebuilding and re-registering recipes it already had. The per-second fingerprint
+  compare already catches a real data change on its own, so the forced reset on join/leave is gone;
+  a reload now only happens when Cobblemon's data has genuinely changed.
+
 ## [2.25.0] - 2026-09-10
 
 ### Added

@@ -72,17 +72,28 @@ object CobbleDexMod {
         }
     }
 
-    /** Joined a world/server - Cobblemon's own data sync is inbound, so start watching for it. */
+    /**
+     * Joined a world/server - Cobblemon's own data sync is inbound, so sample promptly (reset the
+     * tick counter) rather than waiting out whatever's left of the last interval.
+     *
+     * Does *not* reset [CobblemonDataSignal] - that used to force [consumeChange] to report a
+     * change on the very next sample no matter what, which meant every world join triggered a full
+     * rebuild + a synchronous JEI/EMI recipe reload even when nothing had actually changed. In
+     * singleplayer, Cobblemon's species/spawn registries are already populated by the time this
+     * fires - the world's own datapack reload has already happened - so that reload was pure
+     * repeat work, and for large modpacks (~1000+ species) it's a multi-second render-thread freeze
+     * for nothing (issue #43). The fingerprint compare already catches a *real* change - a
+     * genuinely different server/world reliably produces a different fingerprint - so forcing one
+     * isn't needed for correctness, only for a probability-zero coincidence.
+     */
     fun onJoinedWorld() {
         tickCounter = 0
-        CobblemonDataSignal.reset()
         PokemonSpriteAtlas.resetEnsureAttempt()
     }
 
-    /** Left the world - drop the sample so the next session re-reads from scratch. */
+    /** Left the world. See [onJoinedWorld] for why this no longer forces a resample. */
     fun onLeftWorld() {
         tickCounter = 0
-        CobblemonDataSignal.reset()
         PokemonSpriteAtlas.resetEnsureAttempt()
     }
 }
