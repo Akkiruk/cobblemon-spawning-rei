@@ -2,6 +2,18 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.26.11] - 2026-09-12
+
+### Fixed
+- **Every Cobblemon move showed up as a blank icon in JEI's ingredient list**, interleaved with real
+  items like TM discs and eggs. Moves have no `ItemStack`, so they were only ever meant to work as an
+  invisible lookup key (for the Moves page's "who can learn this move" navigation) - but
+  `registerIngredients()` was handing the full move list to JEI's normal `register()` call, which
+  always surfaces every entry in the visible ingredient panel regardless of how it's used elsewhere.
+  Moves are now registered with an empty ingredient list instead, keeping the invisible-ingredient and
+  focus-navigation uses (which don't require the list to be non-empty) working exactly as before. REI
+  and EMI were unaffected - they never added moves to their visible panels in the first place.
+
 ## [2.26.10] - 2026-09-12
 
 ### Removed

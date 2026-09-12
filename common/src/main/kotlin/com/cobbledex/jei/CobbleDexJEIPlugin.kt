@@ -209,11 +209,13 @@ open class CobbleDexJEIPlugin : IModPlugin {
         val formCount = allPokemon.count { queries.isForm(it.species) }
         DebugLog.info("JEI: Registered ${allPokemon.size - formCount} Pokémon + $formCount form ingredients")
 
-        // Moves as (never-shown) ingredients so the Moves-page name links can focus-navigate to
-        // "who can learn this move". Also makes moves searchable.
-        val moves = SpawnDataIndex.speciesByMove.keys.sorted().map { MoveIngredient(it) }
-        registration.register(MoveIngredientType, moves, MoveIngredientHelper(), MoveIngredientRenderer())
-        DebugLog.info("JEI: Registered ${moves.size} move ingredients")
+        // Moves exist only as an invisible ingredient type: the Moves-page name links and
+        // "who can learn this move" lookups use MoveIngredientType via addInvisibleIngredients()
+        // and createFocus(), neither of which requires the type's ingredient list to be non-empty.
+        // Registering the real move list here would put every move (they have no ItemStack, so
+        // MoveIngredientRenderer is a no-op) into JEI's visible ingredient panel as blank tiles
+        // alongside real items like TM discs and eggs.
+        registration.register(MoveIngredientType, emptyList(), MoveIngredientHelper(), MoveIngredientRenderer())
     }
 
     override fun registerIngredientAliases(registration: mezz.jei.api.registration.IIngredientAliasRegistration) {
@@ -232,10 +234,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
                 count++
             }
         }
-        for (move in SpawnDataIndex.speciesByMove.keys) {
-            registration.addAliases(MoveIngredientType, MoveIngredient(move), DiscoveryAliases.moveAliases(move))
-        }
-        DebugLog.info("JEI: Registered search aliases for $count Pokémon + ${SpawnDataIndex.speciesByMove.size} moves")
+        DebugLog.info("JEI: Registered search aliases for $count Pokémon")
     }
 
     override fun registerCategories(registration: IRecipeCategoryRegistration) {
