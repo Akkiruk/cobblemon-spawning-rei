@@ -2,6 +2,16 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.26.4] - 2026-09-12
+
+### Diagnostic (temporary)
+- Added per-category timing logs to JEI's category/recipe registration (`registerCategories`/
+  `registerRecipes`), split into "our object construction" vs. "JEI's own bookkeeping" for each of
+  the 18 categories. JEI's own timer attributes ~3.7-4.7s + ~2.6s to these two calls on every world
+  join, and it wasn't clear which side of that (ours vs. JEI's internal indexing) actually accounts
+  for it. No behavior change - purely more logging, to be removed once we've captured a log showing
+  where the time goes.
+
 ## [2.26.3] - 2026-09-12
 
 ### Changed
