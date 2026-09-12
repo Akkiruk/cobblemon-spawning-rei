@@ -14,6 +14,8 @@ data class CobbleDexConfig(
     val showDrops: Boolean = true,
     val showStats: Boolean = true,
     val showMoves: Boolean = true,
+    /** The "legacy" (past-generation TM/tutor) column on the Moves page - real Cobblemon data. */
+    val showLegacyMoves: Boolean = true,
     val showPokedexInfo: Boolean = true,
     val showPokemonDescription: Boolean = true,
     val showFossils: Boolean = true,

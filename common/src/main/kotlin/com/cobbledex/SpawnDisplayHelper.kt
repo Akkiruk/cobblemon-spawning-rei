@@ -522,6 +522,7 @@ object SpawnDisplayHelper {
             if (entry.egg) lines.add(Component.literal("§a✦ §7" + tr("cobbledex-rei-emi-jei.moves.tt_egg")))
             if (entry.tutor) lines.add(Component.literal("§a✦ §7" + tr("cobbledex-rei-emi-jei.moves.tt_tutor")))
             if (entry.tm) lines.add(Component.literal("§a✦ §7" + tr("cobbledex-rei-emi-jei.moves.tt_tm")))
+            if (entry.legacy) lines.add(Component.literal("§a✦ §7" + tr("cobbledex-rei-emi-jei.moves.tt_legacy")))
         }
         val descKey = "cobblemon.move.${move.name}.desc"
         val desc = tr(descKey)
@@ -1494,7 +1495,11 @@ object SpawnDisplayHelper {
     // Fixed column geometry for the unified move list. Columns are anchored from the right edge so
     // a given method always sits at the same x ✦ reading "every TM move" is then a straight
     // vertical scan of one column, with no duplicated rows.
-    private const val MOVES_PANEL_WIDTH = 256
+    //
+    // MOVES_PANEL_WIDTH carries one MOVE_GLYPH_COL_W more than the four glyph columns strictly need,
+    // reserved for the legacy column added below - so that column comes out of new panel width, not
+    // out of the move-name column every other row already has to fit in.
+    private const val MOVES_PANEL_WIDTH = 267
     private const val MOVE_SUFFIX_RESERVE = 62
     private const val MOVE_GLYPH_COL_W = 11
     private const val MOVE_LEVEL_COL_W = 24
@@ -1506,28 +1511,33 @@ object SpawnDisplayHelper {
         val moveLinks: List<MoveLinkDef>,
     )
 
+    // Every method uses the same mark - position (which column) carries the meaning, not shape -
+    // so "legacy" follows that existing convention rather than inventing a new glyph.
     private val METHOD_GLYPHS = mapOf(
         "levelup" to "✦",
         "egg" to "✦",
         "tutor" to "✦",
         "tm" to "✦",
+        "legacy" to "✦",
     )
     private const val METHOD_GLYPH_COLOR = 0xFFCCCCCC.toInt()
     private const val MOVE_LEVEL_COLOR = 0xFF88CCFF.toInt()
 
     private data class MoveColumns(
         val nameX: Int, val nameMax: Int, val levelX: Int,
-        val eggX: Int, val tutorX: Int, val tmX: Int,
+        val eggX: Int, val tutorX: Int, val tmX: Int, val legacyX: Int,
     )
 
     private fun moveColumns(layout: PanelLayout): MoveColumns {
         val right = layout.right
-        val tmX = right - MOVE_SUFFIX_RESERVE - MOVE_COL_GAP - MOVE_GLYPH_COL_W
+        // Rightmost of the four: reads as "the three current methods, then the historical one."
+        val legacyX = right - MOVE_SUFFIX_RESERVE - MOVE_COL_GAP - MOVE_GLYPH_COL_W
+        val tmX = legacyX - MOVE_GLYPH_COL_W
         val tutorX = tmX - MOVE_GLYPH_COL_W
         val eggX = tutorX - MOVE_GLYPH_COL_W
         val levelX = eggX - MOVE_COL_GAP - MOVE_LEVEL_COL_W
         val nameX = PanelLayout.PADDING + 4
-        return MoveColumns(nameX, (levelX - nameX - 4).coerceAtLeast(1), levelX, eggX, tutorX, tmX)
+        return MoveColumns(nameX, (levelX - nameX - 4).coerceAtLeast(1), levelX, eggX, tutorX, tmX, legacyX)
     }
 
     private fun moveLevelText(levels: List<Int>): String =
@@ -1572,6 +1582,7 @@ object SpawnDisplayHelper {
         glyph(cols.eggX, "egg", entry.egg)
         glyph(cols.tutorX, "tutor", entry.tutor)
         glyph(cols.tmX, "tm", entry.tm)
+        glyph(cols.legacyX, "legacy", entry.legacy)
 
         val suffix = formatMoveSuffix(move)
         val suffixColor = CATEGORY_ICONS[move.category]?.second ?: 0xFFBBBBBB.toInt()
@@ -1618,6 +1629,7 @@ object SpawnDisplayHelper {
         layout.textAt(cols.eggX, keyY, METHOD_GLYPHS.getValue("egg"), keyColor)
         layout.textAt(cols.tutorX, keyY, METHOD_GLYPHS.getValue("tutor"), keyColor)
         layout.textAt(cols.tmX, keyY, METHOD_GLYPHS.getValue("tm"), keyColor)
+        layout.textAt(cols.legacyX, keyY, METHOD_GLYPHS.getValue("legacy"), keyColor)
         layout.clippedRightAt(keyY, tr("cobbledex-rei-emi-jei.moves.pow_acc"), MOVE_SUFFIX_RESERVE + 6, keyColor)
         layout.addTooltipZone(
             padding, keyY, right - padding, PanelLayout.LINE_HEIGHT,

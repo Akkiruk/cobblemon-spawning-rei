@@ -385,12 +385,12 @@ object RecipeBuilder {
         return buildMovesPages(speciesName, info)
     }
 
-    private val GROUPED_METHOD_ORDER = mapOf("levelup" to 0, "egg" to 1, "tutor" to 2, "tm" to 3)
+    private val GROUPED_METHOD_ORDER = mapOf("levelup" to 0, "egg" to 1, "tutor" to 2, "tm" to 3, "legacy" to 4)
 
     /**
-     * Collapse the four per-method learn lists into one [MoveEntry] per unique move (keyed by
+     * Collapse the per-method learn lists into one [MoveEntry] per unique move (keyed by
      * lower-cased move name), merging every method that reaches it. First-seen [MoveDetail] wins;
-     * all four lists resolve from the same Cobblemon move template, so the stats are identical.
+     * all lists resolve from the same Cobblemon move template, so the stats are identical.
      */
     internal fun mergeMoveEntries(info: EvolutionDataLoader.SpeciesBasicInfo): List<MoveEntry> {
         class Acc(val move: MoveDetail) {
@@ -398,6 +398,7 @@ object RecipeBuilder {
             var egg = false
             var tutor = false
             var tm = false
+            var legacy = false
         }
         val byName = LinkedHashMap<String, Acc>()
         fun slot(move: MoveDetail): Acc = byName.getOrPut(move.name.lowercase()) { Acc(move) }
@@ -406,8 +407,9 @@ object RecipeBuilder {
         info.eggMoves?.forEach { slot(it).egg = true }
         info.tutorMoves?.forEach { slot(it).tutor = true }
         info.tmMoves?.forEach { slot(it).tm = true }
+        info.legacyMoves?.forEach { slot(it).legacy = true }
 
-        return byName.values.map { MoveEntry(it.move, it.levels.toList(), it.egg, it.tutor, it.tm) }
+        return byName.values.map { MoveEntry(it.move, it.levels.toList(), it.egg, it.tutor, it.tm, it.legacy) }
     }
 
     private fun flatComparator(): Comparator<MoveEntry> =
@@ -609,8 +611,9 @@ object RecipeBuilder {
     // --- Move learner lookup ---
     //
     // Looking up a move (via its TM/egg/tutor disc, or from the Moves page) shows a grid of every
-    // Pokémon that can learn it by ANY method - level-up, egg, tutor or TM - matching the data on the
-    // per-species Moves page. Paginated into grids rather than one page per Pokémon (200+ learners).
+    // Pokémon that can learn it by ANY method - level-up, egg, tutor, TM or legacy - matching the
+    // data on the per-species Moves page. Paginated into grids rather than one page per Pokémon
+    // (200+ learners).
 
     fun buildMoveLearnersForItem(itemId: String): List<MoveLearnersRecipeData> {
         val moveName = TmItemUtils.extractMove(itemId) ?: return emptyList()
@@ -650,6 +653,10 @@ object RecipeBuilder {
             info?.tutorMoves?.firstOrNull { it.name.equals(moveName, ignoreCase = true) }?.let {
                 sharedDetail = sharedDetail ?: it
                 methods.add(LearnMethod("Tutor", null))
+            }
+            info?.legacyMoves?.firstOrNull { it.name.equals(moveName, ignoreCase = true) }?.let {
+                sharedDetail = sharedDetail ?: it
+                methods.add(LearnMethod("Legacy", null))
             }
 
             MoveLearner(sp, methods)

@@ -127,8 +127,10 @@ object DerivedDataBuilder {
         }
 
         // Reverse index: move name -> every species that can learn it by ANY method (level-up, egg,
-        // tutor or TM). Drives the "who can learn this move" learner grid, so it must match the data
-        // shown on the per-species Moves page rather than TM-only.
+        // tutor, TM or legacy). Drives the "who can learn this move" learner grid, so it must match
+        // the data shown on the per-species Moves page - a move that's legacy-only for every species
+        // that has it would otherwise be a dead link: its glyph shows on the Moves page, but nothing
+        // resolves when its name is clicked.
         val moveIndex = mutableMapOf<String, MutableSet<String>>()
         for ((species, info) in enriched) {
             fun add(name: String) { moveIndex.getOrPut(name.lowercase()) { linkedSetOf() }.add(species) }
@@ -136,6 +138,7 @@ object DerivedDataBuilder {
             info.eggMoves?.forEach { add(it.name) }
             info.tutorMoves?.forEach { add(it.name) }
             info.tmMoves?.forEach { add(it.name) }
+            info.legacyMoves?.forEach { add(it.name) }
         }
         val moveLearnerIndex = moveIndex.mapValues { (_, v) -> v.toList() }
 

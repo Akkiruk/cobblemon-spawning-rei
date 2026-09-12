@@ -382,6 +382,10 @@ object EvolutionDataLoader {
         val eggMoves: List<MoveDetail>? = null,
         val tutorMoves: List<MoveDetail>? = null,
         val tmMoves: List<MoveDetail>? = null,
+        /** Moves learnable only via a past-generation TM/tutor Cobblemon still records (e.g. Blissey
+         *  + Toxic). Real Cobblemon data, not a CobbleDex concept - null when [CobbleDexConfig.showLegacyMoves]
+         *  is off, or on a Cobblemon build old enough not to expose it. */
+        val legacyMoves: List<MoveDetail>? = null,
         val shoulderMountable: Boolean = false,
         val formName: String? = null,
         val baseSpeciesName: String? = null,
@@ -472,6 +476,7 @@ object EvolutionDataLoader {
                     eggMoves = moves.egg,
                     tutorMoves = moves.tutor,
                     tmMoves = moves.tm,
+                    legacyMoves = moves.legacy,
                     shoulderMountable = shoulderMount,
                     source = source
                 )
@@ -636,13 +641,14 @@ object EvolutionDataLoader {
     }
 
     /**
-     * The four move lists of a learnset, already converted to [MoveDetail].
+     * The learnset's move lists, already converted to [MoveDetail].
      */
     private data class ExtractedMoves(
         val levelUp: List<LevelUpMove>?,
         val egg: List<MoveDetail>?,
         val tutor: List<MoveDetail>?,
         val tm: List<MoveDetail>?,
+        val legacy: List<MoveDetail>?,
     )
 
     // ---- Shared field extraction -------------------------------------------------------------
@@ -767,6 +773,11 @@ object EvolutionDataLoader {
             grouped.entries.sortedBy { it.key }.map { LevelUpMove(it.key, it.value) }.ifEmpty { null }
         } catch (_: Exception) { null }
 
+        // Throwable, not Exception: a pick that touches a property a given Cobblemon build doesn't
+        // have (legacyMoves is the newest of the four/five) fails with NoSuchMethodError, a
+        // LinkageError - not an Exception - and would otherwise escape this catch and take the
+        // whole species' data down with it. Widening this one catch protects every category here,
+        // not just the new one, against the same class of cross-version API drift.
         fun list(
             pick: (com.cobblemon.mod.common.pokemon.FormData) -> List<com.cobblemon.mod.common.api.moves.MoveTemplate>,
         ): List<MoveDetail>? = try {
@@ -774,13 +785,14 @@ object EvolutionDataLoader {
                 .ifEmpty { fallbackForm?.let(pick) ?: emptyList() }
                 .map { toMoveDetail(it) }
                 .ifEmpty { null }
-        } catch (_: Exception) { null }
+        } catch (_: Throwable) { null }
 
         return ExtractedMoves(
             levelUp = levelUp,
             egg = list { it.moves.eggMoves },
             tutor = list { it.moves.tutorMoves },
             tm = list { it.moves.tmMoves },
+            legacy = if (com.cobbledex.config.CobbleDexConfig.get().showLegacyMoves) list { it.moves.legacyMoves } else null,
         )
     }
 
@@ -856,6 +868,7 @@ object EvolutionDataLoader {
             eggMoves = moves.egg,
             tutorMoves = moves.tutor,
             tmMoves = moves.tm,
+            legacyMoves = moves.legacy,
             shoulderMountable = try { species.shoulderMountable } catch (_: Exception) { false },
             formName = rawFormName,
             baseSpeciesName = baseName,
@@ -882,6 +895,7 @@ object EvolutionDataLoader {
             eggMoves = incoming.eggMoves ?: existing.eggMoves,
             tutorMoves = incoming.tutorMoves ?: existing.tutorMoves,
             tmMoves = incoming.tmMoves ?: existing.tmMoves,
+            legacyMoves = incoming.legacyMoves ?: existing.legacyMoves,
             formName = incoming.formName ?: existing.formName,
             baseSpeciesName = incoming.baseSpeciesName ?: existing.baseSpeciesName,
             formAspects = incoming.formAspects.ifEmpty { existing.formAspects }

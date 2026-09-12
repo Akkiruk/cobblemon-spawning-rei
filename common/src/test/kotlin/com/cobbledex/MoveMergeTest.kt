@@ -12,6 +12,7 @@ class MoveMergeTest {
         egg: List<MoveDetail>? = null,
         tutor: List<MoveDetail>? = null,
         tm: List<MoveDetail>? = null,
+        legacy: List<MoveDetail>? = null,
     ) = EvolutionDataLoader.SpeciesBasicInfo(
         name = "pikachu",
         nationalDexNumber = 25,
@@ -24,6 +25,7 @@ class MoveMergeTest {
         eggMoves = egg,
         tutorMoves = tutor,
         tmMoves = tm,
+        legacyMoves = legacy,
     )
 
     @Test
@@ -74,5 +76,28 @@ class MoveMergeTest {
         assertEquals("egg", entries.getValue("Volt Tackle").primaryMethod())
         assertEquals("levelup", entries.getValue("Thunder Shock").primaryMethod())
         assertEquals("tm", entries.getValue("Dig").primaryMethod())
+    }
+
+    @Test
+    fun aLegacyOnlyMoveIsFlaggedAndCategorisedAsLegacyNotTm() {
+        val entries = RecipeBuilder.mergeMoveEntries(info(legacy = listOf(move("Toxic"))))
+
+        val toxic = entries.single()
+        assertTrue(toxic.legacy)
+        assertTrue(!toxic.tm)
+        assertEquals("legacy", toxic.primaryMethod())
+    }
+
+    @Test
+    fun legacyIsMergedAlongsideOtherMethodsOnTheSameMove() {
+        val entries = RecipeBuilder.mergeMoveEntries(
+            info(tm = listOf(move("Toxic")), legacy = listOf(move("Toxic")))
+        )
+
+        val toxic = entries.single()
+        assertTrue(toxic.tm)
+        assertTrue(toxic.legacy)
+        // TM still wins the section in grouped mode - legacy is the least "current" method.
+        assertEquals("tm", toxic.primaryMethod())
     }
 }

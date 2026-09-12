@@ -2,6 +2,18 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.26.0] - 2026-09-11
+
+### Added
+- **Moves page now shows Legacy moves** - moves only learnable via a past-generation TM/tutor that
+  Cobblemon still records (e.g. Blissey can still legacy-learn Toxic). This is real Cobblemon data
+  (`Learnset.legacyMoves`), sitting right next to the level-up/egg/tutor/TM lists the Moves page
+  already showed - it just had no column before. Same `✦` mark as the other methods, in a new
+  rightmost column; grouped mode gets a "☆ Legacy Moves" section; the move-learner grid and search
+  now include legacy-only moves too. Toggle with `showLegacyMoves` in the config (on by default).
+  Falls back to no legacy data (nothing else affected) on a Cobblemon build old enough not to expose
+  it, rather than failing to load species data.
+
 ## [2.25.2] - 2026-09-11
 
 ### Changed

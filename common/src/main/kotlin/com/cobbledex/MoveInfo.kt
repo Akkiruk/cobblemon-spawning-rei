@@ -26,15 +26,22 @@ data class MoveEntry(
     val egg: Boolean,
     val tutor: Boolean,
     val tm: Boolean,
+    /** Only learnable via a past-generation TM/tutor Cobblemon still records (e.g. Blissey + Toxic). */
+    val legacy: Boolean = false,
 ) {
     val isLevelUp: Boolean get() = levelUpLevels.isNotEmpty()
 
-    /** Section a move belongs to in the grouped-by-method layout (level-up wins, then egg/tutor/TM). */
+    /**
+     * Section a move belongs to in the grouped-by-method layout (level-up wins, then egg/tutor/TM,
+     * legacy last - it's the least "current" of the five). Every case is explicit on purpose: a
+     * catch-all `else` here would silently file a legacy-only move under whatever case came last.
+     */
     fun primaryMethod(): String = when {
         isLevelUp -> "levelup"
         egg -> "egg"
         tutor -> "tutor"
-        else -> "tm"
+        tm -> "tm"
+        else -> "legacy"
     }
 }
 
