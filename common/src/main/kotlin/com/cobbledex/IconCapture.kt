@@ -217,8 +217,16 @@ object IconCapture {
             val out = ByteArrayOutputStream()
             ImageIO.write(scaled, "PNG", out)
             out.toByteArray()
-        } catch (e: Exception) {
-            DebugLog.warn("Species icon failed for $speciesId: ${e.message}")
+        } catch (e: Throwable) {
+            // Throwable, not Exception: drawProfilePokemon's signature has changed between
+            // Cobblemon versions before (a NoSuchMethodError/LinkageError is an Error, not an
+            // Exception - catch (e: Exception) silently lets it right past this guard and crashes
+            // the game instead of just skipping this one sprite). Test profiles in this session
+            // have run Cobblemon versions older than what CobbleDex builds against, so this is a
+            // real, reachable case, not just a defensive nicety.
+            DebugLog.warnOnce("icon-capture-${e.javaClass.simpleName}") {
+                "Species icon failed for $speciesId: ${e.javaClass.simpleName}: ${e.message}"
+            }
             null
         }
     }

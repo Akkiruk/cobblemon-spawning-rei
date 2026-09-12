@@ -2,6 +2,20 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.26.5] - 2026-09-12
+
+### Fixed
+- **Game could crash outright building the sprite atlas on some Cobblemon versions.** Two problems
+  compounded: `drawProfilePokemon`'s signature isn't the same on every Cobblemon version, and our
+  own capture code only caught `Exception` around that call - a `NoSuchMethodError` from a version
+  mismatch is an `Error`, not an `Exception`, so it went straight past that guard uncaught. Under the
+  old one-shot atlas build this was still contained (the whole thing ran inside an outer
+  `catch (Throwable)`, so a mismatch just failed the atlas build with a log line); 2.26.3's tick-
+  spread version moved the actual capture loop onto the plain client tick with nothing above it to
+  catch a stray `Error`, so the same mismatch now crashed the game instead. Both are fixed: the
+  capture call now catches `Throwable`, and the tick-driven loop has its own safety net that aborts
+  the capture job cleanly (not the whole game) if anything still gets through.
+
 ## [2.26.4] - 2026-09-12
 
 ### Diagnostic (temporary)

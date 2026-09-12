@@ -321,8 +321,23 @@ object PokemonSpriteAtlas {
         var budget = SPECIES_PER_TICK
         while (budget > 0 && job.index < job.keys.size) {
             val resolved = job.keys[job.index]
-            val png = IconCapture.captureSpeciesToPng(resolved.renderSpecies, resolved.renderAspects, job.outputSize)
-            job.onEach(resolved, png)
+            try {
+                val png = IconCapture.captureSpeciesToPng(resolved.renderSpecies, resolved.renderAspects, job.outputSize)
+                job.onEach(resolved, png)
+            } catch (t: Throwable) {
+                // Driven straight from the client tick with nothing above it to catch a stray
+                // Error/Exception - unlike the old one-shot buildAtlasNow(), which ran inside a
+                // Minecraft.execute { try { ... } catch (Throwable) } block. Without this, a single
+                // bad species (or a Cobblemon API mismatch - see IconCapture.captureSpeciesToPng)
+                // would crash the game instead of just failing this one capture job.
+                job.sender.send("§cSprite capture aborted: ${t.javaClass.simpleName}: ${t.message}")
+                DebugLog.warn("Sprite capture aborted at ${resolved.key.id}: ${t.javaClass.simpleName}: ${t.message}")
+                t.printStackTrace()
+                captureJob = null
+                buildInProgress = false
+                IconCapture.cleanup()
+                return
+            }
             job.index++
             budget--
             if (job.index == job.keys.size || job.index % 50 == 0) {
