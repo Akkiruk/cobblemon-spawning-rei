@@ -2,6 +2,18 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.26.7] - 2026-09-12
+
+### Changed
+- **Every category's recipes were being built twice on every world join.** JEI's own
+  `addRecipeCategories()` calls `getWidth()`/`getHeight()` on each category as a sanity check before
+  it'll accept it - which resolves to `CategorySizer` measuring the category, which builds its full
+  recipe list just to measure it. `registerRecipes()` then built the exact same list again from
+  scratch moments later, unaware the first build had just happened. Confirmed via JEI's own
+  diagnostic timing (2.26.4): "moves" (11104 recipes) was costing ~1.5s in *each* phase - the whole
+  category, built twice, every join. Both call sites now share one cached build per data version
+  (`RecipeBuildCache`), so whichever asks first pays the cost and the second reuses it.
+
 ## [2.26.6] - 2026-09-12
 
 ### Changed

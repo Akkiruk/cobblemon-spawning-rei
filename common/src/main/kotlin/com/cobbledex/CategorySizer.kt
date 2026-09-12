@@ -48,7 +48,11 @@ object CategorySizer {
     }
 
     private fun computeBounds(category: DexCategory): PanelSize {
-        val recipes = try { category.buildAllRecipes() } catch (_: Exception) { emptyList() }
+        // Shared with CobbleDexJEIPlugin.registerRecipes() - JEI calls getWidth()/getHeight() (which
+        // resolve to this) on every category during its own registerCategories() sanity check, before
+        // registerRecipes() builds the same category's recipes again a moment later. Without sharing
+        // this build, the whole category gets built twice, back to back, on every world join.
+        val recipes = try { RecipeBuildCache.getOrBuild(category) } catch (_: Exception) { emptyList() }
         if (recipes.isEmpty()) return PanelSize(200, 100)
         var maxW = PanelLayout.MIN_WIDTH
         var maxH = 80

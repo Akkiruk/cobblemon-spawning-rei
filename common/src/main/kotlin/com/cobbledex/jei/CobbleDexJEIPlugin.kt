@@ -7,6 +7,7 @@ import com.cobbledex.DexCategory
 import com.cobbledex.DiscoveryAliases
 import com.cobbledex.PanelLayout
 import com.cobbledex.PokemonItemCache
+import com.cobbledex.RecipeBuildCache
 import com.cobbledex.RecipeHandle
 import com.cobbledex.RecipeViewerReloader
 import com.cobbledex.SlotRole
@@ -276,7 +277,10 @@ open class CobbleDexJEIPlugin : IModPlugin {
         for (def in DexCategory.ALL) {
             if (!def.isEnabled(config)) continue
             val buildStart = System.nanoTime()
-            val handles = def.buildAllRecipes()
+            // Shared with CategorySizer - JEI's own registerCategories() (just before this) already
+            // forced this category's recipes to be built once, to measure width/height. Reusing that
+            // build here instead of redoing it saves rebuilding the whole category from scratch.
+            val handles = RecipeBuildCache.getOrBuild(def)
             ViewerParityGuard.warn(def, handles, "JEI")
             val recipes = handles.map { GenericRecipe(it) }
             val buildMs = (System.nanoTime() - buildStart) / 1_000_000.0
