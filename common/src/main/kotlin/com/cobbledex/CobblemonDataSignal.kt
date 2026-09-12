@@ -78,4 +78,19 @@ object CobblemonDataSignal {
     fun reset() {
         lastFingerprint = NO_SAMPLE
     }
+
+    /**
+     * Snapshot the current registry state as the baseline, *without* reporting a change - call once
+     * a load has already brought CobbleDex's data up to date with it (see [SpawnDataIndex.doLoad]).
+     *
+     * Without this, [lastFingerprint] stayed at [NO_SAMPLE] until the tick loop's own first sample,
+     * which landed *after* that load had already registered its data with JEI/EMI - so that first
+     * sample always found a "change" (NO_SAMPLE never equals a real fingerprint) and forced an
+     * immediate, redundant second reload, on every fresh launch, even with the join/leave reset
+     * removed. Calling this the moment a load finishes closes that gap: the next sample only fires
+     * when something has genuinely changed since.
+     */
+    fun markCurrent() {
+        lastFingerprint = fingerprint()
+    }
 }

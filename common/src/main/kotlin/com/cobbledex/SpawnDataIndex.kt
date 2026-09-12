@@ -250,6 +250,16 @@ object SpawnDataIndex {
         }
         dataVersion++
 
+        // This load's data is current as of right now - tell CobblemonDataSignal so its very next
+        // per-second sample compares against *this*, not against NO_SAMPLE. Without this, the first
+        // sample after any load (including the very first one, moments after JEI's own initial
+        // registration) unconditionally reported "changed" - not because anything had, but because
+        // nothing had been sampled yet in this process - and forced an immediate, redundant second
+        // reload on every fresh launch (issue #43, still reproducing after 2.25.1/2.25.2 - the
+        // forced reset on join was gone, but this gap meant the very first sample recreated the
+        // same symptom by itself).
+        CobblemonDataSignal.markCurrent()
+
         // REI reads live data through its dynamic generator, but JEI and EMI register their
         // recipes statically - they must be told the index changed or they keep showing the
         // previous version (or nothing, on the first load).

@@ -72,6 +72,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
         @Volatile private var reloadUnits: List<ReloadUnit>? = null
         @Volatile private var reloadTargetVersion = -1L
         private var unitIndex = 0
+        private var hideOffsetInUnit = 0
         private var offsetInUnit = 0
         private var addedThisUnit = mutableListOf<GenericRecipe>()
 
@@ -95,22 +96,29 @@ open class CobbleDexJEIPlugin : IModPlugin {
                 }
                 reloadTargetVersion = targetVersion
                 unitIndex = 0
+                hideOffsetInUnit = 0
                 offsetInUnit = 0
                 addedThisUnit = mutableListOf()
             }
 
             val units = reloadUnits ?: return true
             val manager = rt.recipeManager
+            // One shared, per-tick ceiling covers both hiding the old recipes and adding the new
+            // ones - the biggest category (Spawns) can have thousands of each, so neither side gets
+            // to do unbounded work in a single call.
             var budget = RECIPES_PER_TICK
 
             while (budget > 0 && unitIndex < units.size) {
                 val unit = units[unitIndex]
                 val type = recipeType(unit.def)
+                val old = addedRecipes[unit.def.id] ?: emptyList()
 
-                if (offsetInUnit == 0) {
-                    // Entering this category for the first time this reload: drop its old recipes
-                    // in one call (bounded by that one category's previous size, not the whole set).
-                    addedRecipes[unit.def.id]?.let { old -> if (old.isNotEmpty()) manager.hideRecipes(type, old) }
+                if (hideOffsetInUnit < old.size) {
+                    val takeHide = minOf(budget, old.size - hideOffsetInUnit)
+                    manager.hideRecipes(type, old.subList(hideOffsetInUnit, hideOffsetInUnit + takeHide))
+                    hideOffsetInUnit += takeHide
+                    budget -= takeHide
+                    if (hideOffsetInUnit < old.size) break // rest of the old list next tick
                 }
 
                 val take = minOf(budget, unit.recipes.size - offsetInUnit)
@@ -126,6 +134,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
                     addedRecipes[unit.def.id] = addedThisUnit
                     addedThisUnit = mutableListOf()
                     unitIndex++
+                    hideOffsetInUnit = 0
                     offsetInUnit = 0
                 } else {
                     break // category has more left than this tick's budget - continue it next tick

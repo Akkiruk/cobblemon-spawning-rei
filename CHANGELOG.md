@@ -2,6 +2,21 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.26.1] - 2026-09-12
+
+### Fixed
+- **The first-join freeze from #43 could still happen once per game launch, even after 2.25.1/2.25.2.**
+  A reporter's own log analysis pinned it down: the fingerprint 2.25.1 started comparing against was
+  never given a starting value after the very first data load, so the tick loop's first sample always
+  looked like a "change" - not because anything had, just because nothing had been sampled yet - and
+  forced one extra, genuinely redundant reload on every fresh launch. The initial load now records its
+  own fingerprint as the baseline the moment it finishes, so that first sample only fires on a real
+  change, same as every sample after it.
+- **JEI reload spread also covered the "add" half but not the "hide" half.** `hideRecipes()` for a
+  category's previous recipes was still one unchunked call per category; it now shares the same
+  per-tick budget `addRecipes()` already used, so hiding a very large category's old list can no
+  longer itself cause a stutter.
+
 ## [2.26.0] - 2026-09-11
 
 ### Added
