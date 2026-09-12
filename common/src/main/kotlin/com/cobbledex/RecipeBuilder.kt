@@ -625,46 +625,71 @@ object RecipeBuilder {
         return buildMoveLearnersForMove(moveName)
     }
 
-    /** Every move-learner grid, one family per move - used for "view all" browsing and panel sizing. */
-    fun buildAllMoveLearnerRecipes(): List<MoveLearnersRecipeData> =
-        SpawnDataIndex.speciesByMove.keys.sorted().flatMap { buildMoveLearnersForMove(it) }
+    /** One species' full learn-method index, keyed by lowercased move name - see [speciesMoveMethods]. */
+    class SpeciesMoveMethods(
+        val methodsByMove: Map<String, List<LearnMethod>>,
+        val detailByMove: Map<String, MoveDetail>,
+    )
 
-    fun buildMoveLearnersForMove(moveName: String): List<MoveLearnersRecipeData> {
+    /**
+     * Every method by which [species] learns each of its moves, indexed once instead of once per
+     * move. [buildMoveLearnersForMove] used to re-scan a species' entire level-up/TM/egg/tutor/legacy
+     * lists from scratch for every single move query - fine looked up once, but
+     * [buildAllMoveLearnerRecipes] calls it for every move in the pack (800+), so the same species'
+     * lists were being linearly rescanned hundreds of times over. [cache] is shared across the whole
+     * `buildAllMoveLearnerRecipes()` pass so each species is indexed exactly once regardless of how
+     * many moves ask for it; a one-off single-move lookup just gets its own throwaway cache.
+     */
+    private fun speciesMoveMethods(species: String, cache: MutableMap<String, SpeciesMoveMethods>): SpeciesMoveMethods =
+        cache.getOrPut(species) {
+            val info = SpawnDataIndex.getSpeciesInfo(species)
+            val methods = mutableMapOf<String, MutableList<LearnMethod>>()
+            val details = mutableMapOf<String, MoveDetail>()
+
+            fun record(move: MoveDetail, method: LearnMethod) {
+                val key = move.name.lowercase()
+                methods.getOrPut(key) { mutableListOf() }.add(method)
+                details.putIfAbsent(key, move)
+            }
+
+            // distinctBy mirrors the old firstOrNull-per-level-entry behaviour: only one "Level Up"
+            // method is ever recorded for a given move at a given level, even if the level's own move
+            // list somehow named it twice.
+            info?.levelUpMoves?.forEach { entry ->
+                entry.moves.distinctBy { it.name.lowercase() }.forEach { move ->
+                    record(move, LearnMethod("Level Up", "Lv. ${entry.level}"))
+                }
+            }
+            info?.tmMoves?.forEach { move -> record(move, LearnMethod("TM", null)) }
+            info?.eggMoves?.forEach { move -> record(move, LearnMethod("Egg Move", null)) }
+            info?.tutorMoves?.forEach { move -> record(move, LearnMethod("Tutor", null)) }
+            info?.legacyMoves?.forEach { move -> record(move, LearnMethod("Legacy", null)) }
+
+            SpeciesMoveMethods(methods, details)
+        }
+
+    /** Every move-learner grid, one family per move - used for "view all" browsing and panel sizing. */
+    fun buildAllMoveLearnerRecipes(): List<MoveLearnersRecipeData> {
+        val cache = mutableMapOf<String, SpeciesMoveMethods>()
+        return SpawnDataIndex.speciesByMove.keys.sorted().flatMap { buildMoveLearnersForMove(it, cache) }
+    }
+
+    fun buildMoveLearnersForMove(
+        moveName: String,
+        cache: MutableMap<String, SpeciesMoveMethods> = mutableMapOf(),
+    ): List<MoveLearnersRecipeData> {
         val species = SpawnDataIndex.getSpeciesWithMove(moveName)
             .distinct()
             .filter { SpawnDataIndex.shouldSurfaceSpecies(it) && PokemonItemCache.canRender(it) }
             .sortedBy { SpawnDataIndex.getSpeciesInfo(it)?.nationalDexNumber?.takeIf { n -> n > 0 } ?: Int.MAX_VALUE }
         if (species.isEmpty()) return emptyList()
 
+        val moveKey = moveName.lowercase()
         var sharedDetail: MoveDetail? = null
         val learners = species.map { sp ->
-            val info = SpawnDataIndex.getSpeciesInfo(sp)
-            val methods = mutableListOf<LearnMethod>()
-
-            info?.levelUpMoves?.forEach { entry ->
-                entry.moves.firstOrNull { it.name.equals(moveName, ignoreCase = true) }?.let {
-                    sharedDetail = sharedDetail ?: it
-                    methods.add(LearnMethod("Level Up", "Lv. ${entry.level}"))
-                }
-            }
-            info?.tmMoves?.firstOrNull { it.name.equals(moveName, ignoreCase = true) }?.let {
-                sharedDetail = sharedDetail ?: it
-                methods.add(LearnMethod("TM", null))
-            }
-            info?.eggMoves?.firstOrNull { it.name.equals(moveName, ignoreCase = true) }?.let {
-                sharedDetail = sharedDetail ?: it
-                methods.add(LearnMethod("Egg Move", null))
-            }
-            info?.tutorMoves?.firstOrNull { it.name.equals(moveName, ignoreCase = true) }?.let {
-                sharedDetail = sharedDetail ?: it
-                methods.add(LearnMethod("Tutor", null))
-            }
-            info?.legacyMoves?.firstOrNull { it.name.equals(moveName, ignoreCase = true) }?.let {
-                sharedDetail = sharedDetail ?: it
-                methods.add(LearnMethod("Legacy", null))
-            }
-
-            MoveLearner(sp, methods)
+            val smm = speciesMoveMethods(sp, cache)
+            smm.detailByMove[moveKey]?.let { sharedDetail = sharedDetail ?: it }
+            MoveLearner(sp, smm.methodsByMove[moveKey] ?: emptyList())
         }
 
         val pages = learners.chunked(SpawnDisplayHelper.MOVE_LEARNERS_PER_PAGE)

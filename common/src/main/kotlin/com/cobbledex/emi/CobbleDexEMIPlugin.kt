@@ -5,6 +5,7 @@ import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
 import com.cobbledex.DiscoveryAliases
 import com.cobbledex.PokemonItemCache
+import com.cobbledex.RecipeBuildCache
 import com.cobbledex.RecipeHandle
 import com.cobbledex.RecipeViewerReloader
 import com.cobbledex.SlotRole
@@ -97,7 +98,10 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             // No workstation: the category icons are arbitrary markers, not real stations - matches
             // REI/JEI. The category is still in EMI's category list.
 
-            val recipes = def.buildAllRecipes()
+            // Shared with CategorySizer/JEI - whichever viewer (or CategorySizer's own panel-sizing
+            // pass) builds this category first for this dataVersion, the others reuse it instead of
+            // rebuilding the same recipes from scratch. See RecipeBuildCache.
+            val recipes = RecipeBuildCache.getOrBuild(def)
             ViewerParityGuard.warn(def, recipes, "EMI")
             for (handle in recipes) {
                 registry.addRecipe(GenericEmiRecipe(handle, cat, def))

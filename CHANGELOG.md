@@ -2,6 +2,25 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.26.8] - 2026-09-12
+
+### Changed
+- **The shared recipe-build cache (2.26.7) now also covers REI and EMI**, not just JEI. EMI eagerly
+  builds every category up front the same way JEI does, but was calling `buildAllRecipes()` directly
+  instead of through the shared cache - on a pack running EMI alongside JEI, that meant a *third*
+  independent build of categories like Moves/Evolution. REI's registration is already lazy for almost
+  every category (built only when a player opens that category's "view all" page, not at startup) -
+  wired the two places it does build eagerly (the small `NatureDex` special case, and that lazy
+  "view all" build itself) through the same cache too, so whichever viewer builds a category first,
+  for a given data version, the others reuse it instead of rebuilding.
+- **Looking up every move's list of learners was re-scanning each learner's entire moveset from
+  scratch, once per move.** `buildAllMoveLearnerRecipes()` calls `buildMoveLearnersForMove()` once
+  per move in the pack (800+) - and for every learner species on every one of those calls, it linearly
+  rescanned that species' full level-up/TM/egg/tutor/legacy lists just to find the one move being
+  asked about. Each species' learn-methods are now indexed once (by move name) and reused across every
+  move that asks about it, instead of being rescanned per move. Same output, same order - just not
+  redone hundreds of times over for the same species.
+
 ## [2.26.7] - 2026-09-12
 
 ### Changed

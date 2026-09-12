@@ -5,6 +5,7 @@ import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
 import com.cobbledex.PanelLayout
 import com.cobbledex.PokemonItemCache
+import com.cobbledex.RecipeBuildCache
 import com.cobbledex.RecipeHandle
 import com.cobbledex.SlotRole
 import com.cobbledex.SpawnDataIndex
@@ -105,7 +106,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         for (def in DexCategory.ALL) {
             if (!def.isEnabled(config)) continue
             if (def is com.cobbledex.NatureDex) {
-                val handles = def.buildAllRecipes()
+                val handles = RecipeBuildCache.getOrBuild(def)
                 ViewerParityGuard.warn(def, handles, "REI")
                 handles.map { GenericDisplay(it, def) }.forEach { registry.add(it) }
             } else {
@@ -371,7 +372,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             val version = SpawnDataIndex.dataVersion
             cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
 
-            val handles = def.buildAllRecipes()
+            val handles = RecipeBuildCache.getOrBuild(def)
             ViewerParityGuard.warn(def, handles, "REI")
             val all = handles.map { GenericDisplay(it, def) }
             cachedDisplays = all
