@@ -52,6 +52,10 @@ object CobbleDexMod {
      */
     fun tickClient() {
         RecipeViewerReloader.tick()
+        // A sprite atlas build/export in progress captures a few species per tick (each is a real
+        // GPU render, not a cheap copy) - driven every tick, not the once-a-second cadence below,
+        // so it finishes in a reasonable time while still never doing more than a handful per frame.
+        PokemonSpriteAtlas.continueCapture()
 
         if (++tickCounter < SAMPLE_INTERVAL_TICKS) return
         tickCounter = 0

@@ -2,6 +2,18 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.26.3] - 2026-09-12
+
+### Changed
+- **Building the Pokémon sprite atlas no longer freezes the render thread.** This runs automatically
+  in the background the first time CobbleDex ever loads (or right after we ship a fix that bumps the
+  atlas format), and it used to capture every enabled species - a real off-screen 3D render plus a
+  full-frame pixel scan per species, not a cheap copy - back-to-back in one call. On a large modpack
+  (1000+ species) that was several seconds of stutter on first launch, invisible in testing once a
+  cached atlas already existed. It's now driven a few species per tick, same spread-out pattern as
+  the JEI recipe reload fix. `/cobbledex sprites build` and the website sprite export share the same
+  fix.
+
 ## [2.26.2] - 2026-09-12
 
 ### Fixed

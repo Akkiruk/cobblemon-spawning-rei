@@ -205,15 +205,11 @@ object PokemonSpriteAtlas {
         sender.send("§7Building CobbleDex Pokemon sprite atlas...")
         Minecraft.getInstance().execute {
             try {
-                val result = buildAtlasNow(sender)
-                sender.send("§aSprite atlas ready: ${result.captured}/${result.requested} captured, ${result.failed} failed")
-                sender.send("§7${result.atlasPath.toAbsolutePath()}")
-                reload(preferCache = true)
+                startAtlasCapture(sender)
             } catch (t: Throwable) {
                 sender.send("§cSprite atlas build failed: ${t.message ?: t.javaClass.simpleName}")
                 DebugLog.warn("Sprite atlas build failed: ${t.message}")
                 t.printStackTrace()
-            } finally {
                 buildInProgress = false
                 IconCapture.cleanup()
             }
@@ -221,7 +217,17 @@ object PokemonSpriteAtlas {
         return 1
     }
 
-    private fun buildAtlasNow(sender: DiagnosticService.MessageSender): BuildResult {
+    // Each captureSpeciesToPng() call is a real off-screen 3D model render (Cobblemon's own
+    // drawProfilePokemon into a 512x512 FBO) plus a full-frame CPU pixel scan for the content
+    // bounds - genuinely expensive per species, not a cheap PNG copy. Doing every enabled species
+    // (1000+ on a large modpack) back-to-back in one call, as this used to, was a real multi-second
+    // render-thread freeze the first time a player ever loads the mod (or after an ATLAS_VERSION
+    // bump ships) - the atlas *load* path already had a modest, unavoidable one-shot cost, but this
+    // *build* path was unbounded. Spread across many ticks instead, same pattern as
+    // CobbleDexJEIPlugin.continueReload().
+    private const val SPECIES_PER_TICK = 4
+
+    private fun startAtlasCapture(sender: DiagnosticService.MessageSender) {
         val keys = collectSpriteKeys()
         val outputDir = cacheDir()
         val spriteDir = outputDir.resolve(SPRITES_DIR)
@@ -231,21 +237,33 @@ object PokemonSpriteAtlas {
         IconCapture.init()
         val images = linkedMapOf<ResolvedSpriteKey, java.awt.image.BufferedImage>()
         var failed = 0
-        keys.forEachIndexed { index, resolved ->
-            val png = IconCapture.captureSpeciesToPng(resolved.renderSpecies, resolved.renderAspects, SPRITE_SIZE)
-            if (png != null) {
-                val image = ImageIO.read(png.inputStream())
-                images[resolved] = image
-                ImageIO.write(image, "PNG", spriteDir.resolve("${resolved.key.id}.png").toFile())
-            } else {
-                failed++
-            }
-            val completed = index + 1
-            if (completed == keys.size || completed % 50 == 0) {
-                sender.send("§7Sprites: $completed/${keys.size}")
-            }
-        }
+        captureJob = CaptureJob(
+            keys = keys,
+            outputSize = SPRITE_SIZE,
+            sender = sender,
+            onEach = { resolved, png ->
+                if (png != null) {
+                    val image = ImageIO.read(png.inputStream())
+                    images[resolved] = image
+                    ImageIO.write(image, "PNG", spriteDir.resolve("${resolved.key.id}.png").toFile())
+                } else {
+                    failed++
+                }
+            },
+            onFinish = {
+                val result = finishAtlasBuild(images, failed, outputDir)
+                sender.send("§aSprite atlas ready: ${result.captured}/${result.requested} captured, ${result.failed} failed")
+                sender.send("§7${result.atlasPath.toAbsolutePath()}")
+                reload(preferCache = true)
+            },
+        )
+    }
 
+    private fun finishAtlasBuild(
+        images: Map<ResolvedSpriteKey, java.awt.image.BufferedImage>,
+        failed: Int,
+        outputDir: Path,
+    ): BuildResult {
         val rows = ((images.size + ATLAS_COLUMNS - 1) / ATLAS_COLUMNS).coerceAtLeast(1)
         val atlasWidth = ATLAS_COLUMNS * SPRITE_SIZE
         val atlasHeight = rows * SPRITE_SIZE
@@ -276,7 +294,54 @@ object PokemonSpriteAtlas {
             gson.toJson(Manifest(ATLAS_VERSION, SPRITE_SIZE, ATLAS_FILE, atlasWidth, atlasHeight, entries))
         )
 
-        return BuildResult(atlasPath, manifestPath, keys.size, images.size, failed)
+        return BuildResult(atlasPath, manifestPath, entries.size + failed, images.size, failed)
+    }
+
+    /** One capture-and-write step per species, plus what to do once every key is processed. */
+    private class CaptureJob(
+        val keys: List<ResolvedSpriteKey>,
+        val outputSize: Int,
+        val sender: DiagnosticService.MessageSender,
+        val onEach: (ResolvedSpriteKey, ByteArray?) -> Unit,
+        val onFinish: () -> Unit,
+        val progressLabel: String = "Sprites",
+    ) {
+        var index = 0
+    }
+
+    @Volatile private var captureJob: CaptureJob? = null
+
+    /**
+     * Advances an in-progress sprite capture (atlas build or website export) by up to
+     * [SPECIES_PER_TICK] species. Driven every client tick (see [CobbleDexMod.tickClient]); a no-op
+     * call (nothing running) just checks a null reference.
+     */
+    fun continueCapture() {
+        val job = captureJob ?: return
+        var budget = SPECIES_PER_TICK
+        while (budget > 0 && job.index < job.keys.size) {
+            val resolved = job.keys[job.index]
+            val png = IconCapture.captureSpeciesToPng(resolved.renderSpecies, resolved.renderAspects, job.outputSize)
+            job.onEach(resolved, png)
+            job.index++
+            budget--
+            if (job.index == job.keys.size || job.index % 50 == 0) {
+                job.sender.send("§7${job.progressLabel}: ${job.index}/${job.keys.size}")
+            }
+        }
+        if (job.index >= job.keys.size) {
+            captureJob = null
+            try {
+                job.onFinish()
+            } catch (t: Throwable) {
+                job.sender.send("§cSprite capture failed: ${t.message ?: t.javaClass.simpleName}")
+                DebugLog.warn("Sprite capture finish failed: ${t.message}")
+                t.printStackTrace()
+            } finally {
+                buildInProgress = false
+                IconCapture.cleanup()
+            }
+        }
     }
 
     // For the companion Pokedex website: full-size individual PNGs (not the
@@ -303,26 +368,28 @@ object PokemonSpriteAtlas {
                 IconCapture.init()
                 var captured = 0
                 var failed = 0
-                keys.forEachIndexed { index, resolved ->
-                    val png = IconCapture.captureSpeciesToPng(resolved.renderSpecies, resolved.renderAspects, size)
-                    if (png != null) {
-                        Files.write(outputDir.resolve("${resolved.key.id}.png"), png)
-                        captured++
-                    } else {
-                        failed++
-                    }
-                    val completed = index + 1
-                    if (completed == keys.size || completed % 50 == 0) {
-                        sender.send("§7Exported: $completed/${keys.size}")
-                    }
-                }
-                sender.send("§aWebsite sprite export done: $captured/${keys.size} captured, $failed failed")
-                sender.send("§7${outputDir.toAbsolutePath()}")
+                captureJob = CaptureJob(
+                    keys = keys,
+                    outputSize = size,
+                    sender = sender,
+                    onEach = { resolved, png ->
+                        if (png != null) {
+                            Files.write(outputDir.resolve("${resolved.key.id}.png"), png)
+                            captured++
+                        } else {
+                            failed++
+                        }
+                    },
+                    onFinish = {
+                        sender.send("§aWebsite sprite export done: $captured/${keys.size} captured, $failed failed")
+                        sender.send("§7${outputDir.toAbsolutePath()}")
+                    },
+                    progressLabel = "Exported",
+                )
             } catch (t: Throwable) {
                 sender.send("§cWebsite sprite export failed: ${t.message ?: t.javaClass.simpleName}")
                 DebugLog.warn("Website sprite export failed: ${t.message}")
                 t.printStackTrace()
-            } finally {
                 buildInProgress = false
                 IconCapture.cleanup()
             }
