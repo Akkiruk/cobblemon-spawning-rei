@@ -1606,6 +1606,49 @@ object SpawnDisplayHelper {
         layout.line()
     }
 
+    /**
+     * Exact panel geometry for a species' Moves page, derived without building the layout - mirrors
+     * [moveLearnersPanelSize] for the same reason: a [RecipeHandle] with no explicit size falls back
+     * to building its full layout just to be measured, and unlike the move-learner grid, this page
+     * used to have no cheap alternative - every one of ~1400 species' Moves pages was fully laid out
+     * (every row's text measured and clipped, every tooltip built) purely so CategorySizer could read
+     * its width/height. Confirmed via CategorySizer's own diagnostic timing: on a 1400-species pack,
+     * measuring the "moves" category this way cost ~990ms of its ~1.7s total, almost entirely this.
+     */
+    fun movesPanelSize(data: MovesRecipeData): CategorySizer.PanelSize {
+        val headerText = if (data.pageTotal > 1)
+            tr("category.cobbledex-rei-emi-jei.moves") + " (" + tr("cobbledex-rei-emi-jei.moves.page", data.pageIndex, data.pageTotal) + ")"
+        else
+            tr("category.cobbledex-rei-emi-jei.moves")
+        val width = computePanelWidth(
+            measureHeaderWidth(Minecraft.getInstance().font, formatSpeciesName(data.speciesName), headerText),
+            MOVES_PANEL_WIDTH
+        )
+
+        // Mirrors buildMovesLayout exactly: skipTo(35) after the header + column-key row, one
+        // LINE_HEIGHT per move row (grouped or not), plus - only in grouped mode - one extra
+        // LINE_HEIGHT per method-section header and one SECTION_GAP between sections (not before the
+        // first), then the final gap(PADDING).
+        var height = 35
+        if (data.grouped) {
+            var groups = 0
+            var prevMethod: String? = null
+            for (entry in data.moves) {
+                val method = entry.primaryMethod()
+                if (method != prevMethod) {
+                    groups++
+                    prevMethod = method
+                }
+            }
+            height += groups * PanelLayout.LINE_HEIGHT
+            if (groups > 1) height += (groups - 1) * PanelLayout.SECTION_GAP
+        }
+        height += data.moves.size * PanelLayout.LINE_HEIGHT
+        height += PanelLayout.PADDING
+
+        return CategorySizer.PanelSize(width, height)
+    }
+
     fun buildMovesLayout(data: MovesRecipeData): MovesLayoutResult {
         val headerText = if (data.pageTotal > 1)
             tr("category.cobbledex-rei-emi-jei.moves") + " (" + tr("cobbledex-rei-emi-jei.moves.page", data.pageIndex, data.pageTotal) + ")"

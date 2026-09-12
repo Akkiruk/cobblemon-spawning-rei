@@ -437,7 +437,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
         ) {
             val dx = offsetX(recipe.handle)
             val dy = offsetY(recipe.handle)
-            for (link in recipe.handle.slots.moveLinks) {
+            for (link in recipe.handle.moveLinks) {
                 builder.addInputHandler(MoveLinkInputHandler(link, dx, dy, helpers.focusFactory))
             }
             for (link in recipe.handle.slots.categoryLinks) {

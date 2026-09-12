@@ -281,7 +281,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             })
 
             // Move-name links: an invisible button over each name that opens the move's learner grid.
-            for (link in slots.moveLinks) {
+            for (link in handle.moveLinks) {
                 val move = link.moveName
                 val button = MoveLinkButton(px + link.x, py + link.y, link.width, link.height) {
                     ViewSearchBuilder.builder()

@@ -2,6 +2,20 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.26.9] - 2026-09-12
+
+### Changed
+- **Every species' Moves page was fully laid out just to be measured and validated, never actually
+  shown.** A page's width/height falls back to building its real layout when nothing cheaper is
+  given (the move-learner grid already had a cheap formula; the per-species overview page didn't) -
+  giving it one closes most of that gap, but `ViewerParityGuard`'s once-per-load validation pass
+  independently touches every handle's `slots` too, and that page's only reason to need the full
+  layout there was to read `moveLinks` (only actually needed when a player clicks a move name on an
+  already-rendered page). `moveLinks` is now its own independently-lazy property, so validation no
+  longer forces the same expensive build the sizing pass now avoids. Measured (JEI's own diagnostic
+  timing) at ~742ms saved on a 1400-species pack, cutting `Starting JEI` further after 2.26.6/2.26.7's
+  fixes. No visible change - same pages, same sizes, same click behavior.
+
 ## [2.26.8] - 2026-09-12
 
 ### Changed

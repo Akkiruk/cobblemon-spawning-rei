@@ -202,7 +202,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             }
 
             // Move-name links: an invisible clickable over each name → that move's learner grid.
-            for (link in slots.moveLinks) {
+            for (link in handle.moveLinks) {
                 widgets.add(
                     MoveLinkEmiWidget(
                         dev.emi.emi.api.widget.Bounds(link.x, link.y, link.width, link.height),

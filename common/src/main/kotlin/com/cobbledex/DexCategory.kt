@@ -74,6 +74,18 @@ class RecipeHandle(
     private val _width: (() -> Int)? = null,
     private val _height: (() -> Int)? = null,
     private val _slots: () -> Slots = { Slots() },
+    /**
+     * Move-name click targets, independent of [_slots] - only needed when a page is actually
+     * rendered (or by a viewer's own input-handler wiring), never for sizing or validation.
+     * [MovesDex]'s per-species page is the reason this exists: its [_slots] otherwise had no need
+     * for the real layout at all (just a fixed Pokémon slot), but used to build it anyway solely to
+     * read `moveLinks` off it - which meant [ViewerParityGuard]'s validation pass (which touches
+     * every handle's slots to check item-lookup keys) forced that same expensive build too, even
+     * though it never looks at moveLinks itself. Defaults to reading off [Slots.moveLinks] so
+     * categories that set it there (e.g. [TmRecipeDex], which needs the real layout for `itemSlots`
+     * regardless) keep working unchanged.
+     */
+    private val _moveLinks: (() -> List<MoveLinkDef>)? = null,
 ) {
     data class Slots(
         val pokemon: List<PokemonSlotDef> = emptyList(),
@@ -110,6 +122,9 @@ class RecipeHandle(
             DebugLog.once("slots-$recipeIdPath") { "Slots failed: ${e.message}" }
             Slots()
         }
+    }
+    val moveLinks: List<MoveLinkDef> by lazy(LazyThreadSafetyMode.NONE) {
+        try { _moveLinks?.invoke() ?: slots.moveLinks } catch (_: Exception) { emptyList() }
     }
 
     fun lookupInputSpecies(): List<String> = lookupSpecies(inputSpecies, outputSpecies)
@@ -471,12 +486,15 @@ object MovesDex : DexCategory {
             inputSpecies = listOf(d.speciesName),
             outputSpecies = emptyList(),
             layoutFactory = { res().layout },
-            _slots = {
-                RecipeHandle.Slots(
-                    pokemon = listOf(pokemonInput(d.speciesName)),
-                    moveLinks = res().moveLinks,
-                )
-            },
+            _width = { SpawnDisplayHelper.movesPanelSize(d).width },
+            _height = { SpawnDisplayHelper.movesPanelSize(d).height },
+            // Pokemon slot is fixed/known upfront - doesn't need the real layout, so _slots no
+            // longer touches res() at all. moveLinks (the only thing that DID need it) is now its
+            // own separately-lazy RecipeHandle property, resolved only when a viewer actually clicks
+            // a move name - not by ViewerParityGuard's item-lookup validation pass, which used to
+            // force this same build via handle.slots on every one of ~1400 species, every load.
+            _slots = { RecipeHandle.Slots(pokemon = listOf(pokemonInput(d.speciesName))) },
+            _moveLinks = { res().moveLinks },
         )
     }
 
