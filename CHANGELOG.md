@@ -2,6 +2,17 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.26.6] - 2026-09-12
+
+### Changed
+- **Building the Evolution category's recipes was accidentally quadratic.** `buildAllEvolutionRecipes()`
+  built one fresh `CobbleDexDataQueries` per species instead of sharing one across the whole pass -
+  `getFormsOf()` caches per-instance, so every one of ~1400 species re-scanned the *entire* species
+  list from scratch just to check for mega/gmax-style sibling forms. Measured at ~1.4s of JEI's
+  ~3.7s "registerRecipes" cost on a 1400-species pack (JEI's own diagnostic timing, added in 2.26.4).
+  Now shares one `CobbleDexDataQueries` across the whole build. No behavior change - same recipes,
+  same data, just without redoing the same species scan 1400 times over.
+
 ## [2.26.5] - 2026-09-12
 
 ### Fixed
