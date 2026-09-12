@@ -2,6 +2,17 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.26.2] - 2026-09-12
+
+### Fixed
+- **JEI: hovering a Pokémon directly on the Moves and Item Drops grids showed the generic species
+  info instead of that cell's actual point** (which method/level it learns the move at, or its drop
+  chance/quantity) - you had to hover the gap *between* icons to see it. JEI resolves a slot's own
+  ingredient tooltip before ever consulting the panel's custom tooltips, so the per-cell info was
+  silently skipped whenever the icon itself was hovered. Those two grids' Pokémon icons now report
+  their own cell info directly, so hovering the icon shows the right thing. REI and EMI were
+  unaffected - both already let the panel's tooltip win over the icon's default one.
+
 ## [2.26.1] - 2026-09-12
 
 ### Fixed

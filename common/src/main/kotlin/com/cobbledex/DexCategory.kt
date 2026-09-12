@@ -2,6 +2,7 @@ package com.cobbledex
 
 import com.cobbledex.config.CobbleDexConfig
 import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.Items
@@ -17,6 +18,18 @@ data class PokemonSlotDef(
     val role: SlotRole,
     val disableBackground: Boolean = true,
     val disableHighlight: Boolean = true,
+    /**
+     * When set, replaces this slot's default species-info tooltip on hover - used by grid pages
+     * (move learners, item droppers) where the same cell means something more specific ("learns
+     * this via Legacy TM", "drops this at 12% x2") than "here's this Pokémon's dex entry".
+     *
+     * Needed because JEI (unlike REI/EMI) resolves a slot's own ingredient tooltip *before* ever
+     * consulting the recipe category's tooltip zones - by JEI's own design, "ingredient tooltips
+     * from recipe slots are already handled by JEI" and the category-level path is only consulted
+     * for everything else. Without this, hovering the icon itself showed the generic species
+     * tooltip and only the gaps *between* icons showed the grid's per-cell info.
+     */
+    val cellTooltip: List<Component>? = null,
 )
 
 data class ItemSlotDef(

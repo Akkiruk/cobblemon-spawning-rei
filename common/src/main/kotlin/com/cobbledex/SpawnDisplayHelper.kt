@@ -2292,11 +2292,13 @@ object SpawnDisplayHelper {
         data.learners.forEachIndexed { i, learner ->
             val cx = padding + (i % MOVE_LEARNERS_COLS) * MOVE_LEARNERS_CELL
             val cy = gridTop + (i / MOVE_LEARNERS_COLS) * MOVE_LEARNERS_CELL
-            layout.addTooltipZone(cx, cy, MOVE_LEARNERS_CELL, MOVE_LEARNERS_CELL, buildMoveLearnerCellTooltip(learner))
+            val cellTooltip = buildMoveLearnerCellTooltip(learner)
+            layout.addTooltipZone(cx, cy, MOVE_LEARNERS_CELL, MOVE_LEARNERS_CELL, cellTooltip)
             slots.add(
                 PokemonSlotDef(
                     learner.speciesName, emptySet(), cx, cy, SlotRole.INPUT,
                     disableBackground = false, disableHighlight = false,
+                    cellTooltip = cellTooltip,
                 )
             )
         }
@@ -2376,11 +2378,13 @@ object SpawnDisplayHelper {
         data.droppers.forEachIndexed { i, dropper ->
             val cx = padding + (i % ITEM_DROPPERS_COLS) * ITEM_DROPPERS_CELL
             val cy = gridTop + (i / ITEM_DROPPERS_COLS) * ITEM_DROPPERS_CELL
-            layout.addTooltipZone(cx, cy, ITEM_DROPPERS_CELL, ITEM_DROPPERS_CELL, buildItemDropperCellTooltip(dropper))
+            val cellTooltip = buildItemDropperCellTooltip(dropper)
+            layout.addTooltipZone(cx, cy, ITEM_DROPPERS_CELL, ITEM_DROPPERS_CELL, cellTooltip)
             slots.add(
                 PokemonSlotDef(
                     dropper.speciesName, emptySet(), cx, cy, SlotRole.INPUT,
                     disableBackground = false, disableHighlight = false,
+                    cellTooltip = cellTooltip,
                 )
             )
         }

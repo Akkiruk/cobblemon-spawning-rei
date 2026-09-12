@@ -336,9 +336,20 @@ open class CobbleDexJEIPlugin : IModPlugin {
             for (slot in slots.pokemon) {
                 val ingredient = PokemonIngredient(slot.species, slot.aspects)
                 val role = if (slot.role == SlotRole.INPUT) RecipeIngredientRole.INPUT else RecipeIngredientRole.OUTPUT
-                builder.addSlot(role, slot.x + dx, slot.y + dy)
+                val slotBuilder = builder.addSlot(role, slot.x + dx, slot.y + dy)
                     .setSlotName(slot.species)
                     .addIngredient(PokemonIngredientType, ingredient)
+                // JEI resolves a slot's own ingredient tooltip before ever consulting the category's
+                // tooltip zones (see PokemonSlotDef.cellTooltip) - grid pages (move learners, item
+                // droppers) need their per-cell info to win over the generic species tooltip when
+                // the icon itself is hovered, not just in the gaps between icons.
+                val cellTooltip = slot.cellTooltip
+                if (cellTooltip != null) {
+                    slotBuilder.addRichTooltipCallback { _, tooltip ->
+                        tooltip.clear()
+                        tooltip.addAll(cellTooltip)
+                    }
+                }
                 if (slot.role == SlotRole.INPUT) inputPokemon.add(ingredient)
                 else outputPokemon.add(ingredient)
             }
