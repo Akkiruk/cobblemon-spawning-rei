@@ -52,16 +52,10 @@ object CategorySizer {
         // resolve to this) on every category during its own registerCategories() sanity check, before
         // registerRecipes() builds the same category's recipes again a moment later. Without sharing
         // this build, the whole category gets built twice, back to back, on every world join.
-        // DIAGNOSTIC (temporary): split the raw data build from the width/height measurement loop
-        // below - a handle with no explicit size falls back to building its full visual layout just
-        // to be measured, which is cheap for most categories but not necessarily all of them.
-        val buildStart = System.nanoTime()
         val recipes = try { RecipeBuildCache.getOrBuild(category) } catch (_: Exception) { emptyList() }
-        val buildMs = (System.nanoTime() - buildStart) / 1_000_000.0
         if (recipes.isEmpty()) return PanelSize(200, 100)
         var maxW = PanelLayout.MIN_WIDTH
         var maxH = 80
-        val measureStart = System.nanoTime()
         // This result is cached per category+dataVersion+language (getBounds
         // above), so it only runs once per data load/reload - not worth an
         // early-exit shortcut that can under-measure the panel when an
@@ -88,13 +82,6 @@ object CategorySizer {
                     }
                 }
             } catch (_: Exception) {}
-        }
-        val measureMs = (System.nanoTime() - measureStart) / 1_000_000.0
-        if (buildMs + measureMs > 1.0) {
-            DebugLog.info(
-                "CategorySizer timing [${category.id}]: build=%.1fms measure=%.1fms (${recipes.size} recipes)"
-                    .format(buildMs, measureMs)
-            )
         }
         return PanelSize(
             maxW.coerceIn(PanelLayout.MIN_WIDTH, PanelLayout.MAX_WIDTH),

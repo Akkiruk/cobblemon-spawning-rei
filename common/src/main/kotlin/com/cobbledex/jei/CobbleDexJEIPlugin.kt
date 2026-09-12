@@ -243,63 +243,33 @@ open class CobbleDexJEIPlugin : IModPlugin {
         val config = CobbleDexConfig.get()
         val registered = mutableListOf<String>()
 
-        // DIAGNOSTIC (temporary - see issue #43 follow-up): JEI's own timer attributes ~3.7-4.7s to
-        // this single call on every world join, and it's not obvious why - 18 categories doing what
-        // should be trivial object construction. Split per-category and per-step so the next log
-        // capture says exactly where it goes (our GenericCategory construction vs. JEI's own
-        // addRecipeCategories bookkeeping) instead of guessing.
-        val totalStart = System.nanoTime()
         for (def in DexCategory.ALL) {
             if (!def.isEnabled(config)) continue
-            val buildStart = System.nanoTime()
-            val category = GenericCategory(def, helpers)
-            val buildMs = (System.nanoTime() - buildStart) / 1_000_000.0
-            val addStart = System.nanoTime()
-            registration.addRecipeCategories(category)
-            val addMs = (System.nanoTime() - addStart) / 1_000_000.0
-            if (buildMs + addMs > 1.0) {
-                DebugLog.info("JEI category timing [${def.id}]: construct=%.1fms register=%.1fms".format(buildMs, addMs))
-            }
+            registration.addRecipeCategories(GenericCategory(def, helpers))
             registered.add(def.id)
         }
-        val totalMs = (System.nanoTime() - totalStart) / 1_000_000.0
-        DebugLog.info("JEI categories registered in %.1fms (${registered.joinToString(" + ")})".format(totalMs))
+        DebugLog.info("JEI categories registered (${registered.joinToString(" + ")})")
     }
 
     override fun registerRecipes(registration: IRecipeRegistration) {
         SpawnDataIndex.ensureLoaded()
         val config = CobbleDexConfig.get()
 
-        // DIAGNOSTIC (temporary - see issue #43 follow-up): same reasoning as registerCategories
-        // above - split "build our RecipeHandle/GenericRecipe objects" from "hand them to JEI's own
-        // IRecipeRegistration bookkeeping" so a log capture shows which side of the ~2.6s is ours.
-        val totalStart = System.nanoTime()
         for (def in DexCategory.ALL) {
             if (!def.isEnabled(config)) continue
-            val buildStart = System.nanoTime()
             // Shared with CategorySizer - JEI's own registerCategories() (just before this) already
             // forced this category's recipes to be built once, to measure width/height. Reusing that
             // build here instead of redoing it saves rebuilding the whole category from scratch.
             val handles = RecipeBuildCache.getOrBuild(def)
             ViewerParityGuard.warn(def, handles, "JEI")
             val recipes = handles.map { GenericRecipe(it) }
-            val buildMs = (System.nanoTime() - buildStart) / 1_000_000.0
-            val addStart = System.nanoTime()
             if (recipes.isNotEmpty()) {
                 registration.addRecipes(recipeType(def), recipes)
             }
-            val addMs = (System.nanoTime() - addStart) / 1_000_000.0
-            if (buildMs + addMs > 1.0) {
-                DebugLog.info(
-                    "JEI recipe timing [${def.id}]: build=%.1fms (${recipes.size} recipes) register=%.1fms"
-                        .format(buildMs, addMs)
-                )
-            }
             addedRecipes[def.id] = recipes
         }
-        val totalMs = (System.nanoTime() - totalStart) / 1_000_000.0
         RecipeViewerReloader.jeiLastRegisteredVersion = SpawnDataIndex.dataVersion
-        DebugLog.info("JEI: All recipes registered in %.1fms (dataVersion=${SpawnDataIndex.dataVersion})".format(totalMs))
+        DebugLog.info("JEI: All recipes registered (dataVersion=${SpawnDataIndex.dataVersion})")
     }
 
     override fun onRuntimeAvailable(jeiRuntime: IJeiRuntime) {

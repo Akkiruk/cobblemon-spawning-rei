@@ -2,6 +2,14 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.26.10] - 2026-09-12
+
+### Removed
+- Stripped the temporary diagnostic timing added in 2.26.4/2.26.9 (JEI category/recipe registration,
+  CategorySizer build/measure split) now that it's done its job - it found the redundant double-build
+  (2.26.7), the accidental O(n^2) in evolution recipes (2.26.6), and the Moves-page layout/validation
+  cost (2.26.9). No behavior change, just quieter logs.
+
 ## [2.26.9] - 2026-09-12
 
 ### Changed
