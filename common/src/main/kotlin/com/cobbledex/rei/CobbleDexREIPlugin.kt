@@ -116,31 +116,44 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         DebugLog.info("Registered dynamic display generators")
     }
 
-    override fun registerEntries(registry: EntryRegistry) {
-        if (emiActive) return
-        ensureEntryTypeAvailable()
+    private class PokemonStackEntry(val stack: EntryStack<PokemonEntry>, val isForm: Boolean)
+
+    /** Species/form filter chain shared by [registerEntries] and [registerCollapsibleEntries]. */
+    private fun buildPokemonStacks(): Pair<List<PokemonStackEntry>, Int> {
         SpawnDataIndex.ensureLoaded()
         val config = CobbleDexConfig.get()
         val queries = SpawnDataIndex.currentQueries()
 
-        var registered = 0
-        var formCount = 0
-        var hidden = 0
+        val stacks = mutableListOf<PokemonStackEntry>()
+        var hiddenNoModel = 0
         for (species in SpawnDataIndex.allSpeciesNames) {
-            val info = queries.getSpeciesInfo(species)
-            if (info == null) continue
+            val info = queries.getSpeciesInfo(species) ?: continue
             if (info.isForm && !config.registerFormEntries) continue
             if (!queries.shouldSurfaceSpecies(species)) continue
             if (!PokemonItemCache.canRender(species)) {
                 DebugLog.trackMissingModel(species)
-                hidden++
+                hiddenNoModel++
                 continue
             }
+            stacks.add(PokemonStackEntry(EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(species)), info.isForm))
+        }
+        return stacks to hiddenNoModel
+    }
+
+    override fun registerEntries(registry: EntryRegistry) {
+        if (emiActive) return
+        ensureEntryTypeAvailable()
+
+        var registered = 0
+        var formCount = 0
+        val (stacks, hiddenNoModel) = buildPokemonStacks()
+        var hidden = hiddenNoModel
+        for (entry in stacks) {
             try {
-                val stack = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(species))
-                registry.addEntry(stack)
-                if (info.isForm) formCount++ else registered++
+                registry.addEntry(entry.stack)
+                if (entry.isForm) formCount++ else registered++
             } catch (e: Exception) {
+                val species = entry.stack.value?.species
                 DebugLog.once("entry-fail-$species") { "Entry registration failed for $species: ${e.message}" }
                 hidden++
             }
@@ -162,19 +175,45 @@ open class CobbleDexREIPlugin : REIClientPlugin {
 
     override fun registerCollapsibleEntries(registry: me.shedaniel.rei.api.client.registry.entry.CollapsibleEntryRegistry) {
         if (emiActive) return
-        val stacks = com.cobbledex.TmDiscStacks.all().map { EntryStacks.of(it.stack) }
-        if (stacks.isEmpty()) return
-        try {
-            registry.group(
-                ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "cobblemon_tms"),
-                Component.translatable("cobbledex-rei-emi-jei.collapsible.tms"),
-                stacks,
-            )
-            DebugLog.info("Registered 'Cobblemon TMs' collapsible group (${stacks.size})")
-        } catch (e: Exception) {
-            DebugLog.warn("Collapsible TM group registration failed: ${e.message}")
+        val tmStacks = com.cobbledex.TmDiscStacks.all().map { EntryStacks.of(it.stack) }
+        if (tmStacks.isNotEmpty()) {
+            try {
+                registry.group(
+                    ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "cobblemon_tms"),
+                    Component.translatable("cobbledex-rei-emi-jei.collapsible.tms"),
+                    tmStacks,
+                )
+                DebugLog.info("Registered 'Cobblemon TMs' collapsible group (${tmStacks.size})")
+            } catch (e: Exception) {
+                DebugLog.warn("Collapsible TM group registration failed: ${e.message}")
+            }
+        }
+
+        if (CobbleDexConfig.get().collapsePokemonEntries) {
+            val (pokemonStacks, _) = buildPokemonStacks()
+            if (pokemonStacks.isNotEmpty()) {
+                try {
+                    registry.group(
+                        ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "cobblemon_pokemon"),
+                        Component.translatable("cobbledex-rei-emi-jei.collapsible.pokemon"),
+                        pokemonStacks.map { it.stack },
+                    )
+                    DebugLog.info("Registered 'Cobblemon' Pokémon collapsible group (${pokemonStacks.size})")
+                } catch (e: Exception) {
+                    DebugLog.warn("Collapsible Pokémon group registration failed: ${e.message}")
+                }
+            }
         }
     }
+
+    /**
+     * REI sorts plugins ascending by priority and registers them in that order (see
+     * [me.shedaniel.rei.api.common.plugins.REIPlugin.compareTo]), so a high priority defers this
+     * plugin's registration until after other mods'. This only nudges where the collapsed "Cobblemon"
+     * group lands in the default/registration-order item-panel sort - the exact position still depends
+     * on the user's chosen REI sort mode, so treat this as best-effort, not a guarantee.
+     */
+    override fun getPriority(): Double = 1000.0
 
     // ----- Generic Display wrapping RecipeHandle -----
 

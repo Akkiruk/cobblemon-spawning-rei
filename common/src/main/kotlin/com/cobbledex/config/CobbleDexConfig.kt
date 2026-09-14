@@ -43,6 +43,12 @@ data class CobbleDexConfig(
     /** Render the Moves page as separate Level-up/Egg/Tutor/TM sections instead of one unified list. */
     val groupMovesByMethod: Boolean = false,
     val registerFormEntries: Boolean = true,
+    /**
+     * REI only: collapse every Pokémon entry into one "Cobblemon" group (like the "Cobblemon TMs"
+     * TM-disc group) instead of listing all 1000+ species/forms flat in the item panel. Search still
+     * finds individual Pokémon directly, ungrouped - this only affects browsing/scrolling.
+     */
+    val collapsePokemonEntries: Boolean = true,
     val debugMode: Boolean = false
 ) {
     companion object {

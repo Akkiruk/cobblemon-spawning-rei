@@ -361,6 +361,7 @@
   "cobbledex-rei-emi-jei.tm.unlock.conditional": "Recipe unlocks once you own a Pokémon that knows this move (or scan a Data Monitor holding the TM).",
   "cobbledex-rei-emi-jei.tm.learners": "%d Pokémon can learn this move, click to see them",
   "cobbledex-rei-emi-jei.collapsible.tms": "Cobblemon TMs",
+  "cobbledex-rei-emi-jei.collapsible.pokemon": "Cobblemon",
 
   "cobbledex-rei-emi-jei.riding.seats.one": "1 seat",
   "cobbledex-rei-emi-jei.riding.seats.many": "%d seats",

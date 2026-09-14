@@ -2,6 +2,15 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.26.12] - 2026-09-13
+
+### Added
+- **REI: all 1000+ Pokémon entries now collapse into one "Cobblemon" group in the item panel**, the
+  same way TM discs already collapse into "Cobblemon TMs". Click the group icon to see every
+  species/form; the search bar still finds individual Pokémon directly, ungrouped. New config toggle
+  `collapsePokemonEntries` (default `true`) to opt back into the flat list. JEI/EMI are unaffected -
+  neither has a native grouping API for the ingredient list.
+
 ## [2.26.11] - 2026-09-12
 
 ### Fixed
