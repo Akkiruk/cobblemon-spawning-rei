@@ -41,6 +41,8 @@ object DerivedDataBuilder {
             runtimeSpeciesNames().toList()
         } catch (_: Throwable) { emptyList() }
         val baseSpeciesNames = runtimeSpeciesList.map { it.lowercase() }
+        val speciesNameSet = baseSpeciesNames.toHashSet()
+        val maxNameWords = baseSpeciesNames.maxOfOrNull { it.count { c -> c == ' ' } + 1 } ?: 1
         val fusionIndicator = Regex("""\b(fusion|fusing|fused|absorbed?|absorbs)\b""", RegexOption.IGNORE_CASE)
         val mutableEvolutionsBySpecies = snapshot.evolutionsBySpecies.mapValues { it.value.toMutableList() }.toMutableMap()
         var fusionEdgeCount = 0
@@ -51,9 +53,7 @@ object DerivedDataBuilder {
             if (!fusionIndicator.containsMatchIn(descText)) continue
             val toSpecies = info.baseSpeciesName?.let { SpeciesNameNormalizer.normalize(it) } ?: formKey
             val toAspects = info.formAspects
-            val componentNames = baseSpeciesNames.filter { name ->
-                Regex("\\b${Regex.escape(name)}\\b", RegexOption.IGNORE_CASE).containsMatchIn(descText)
-            }
+            val componentNames = findMentionedSpecies(descText, speciesNameSet, maxNameWords)
             if (componentNames.size < 2) continue
             for (component in componentNames) {
                 val others = componentNames.filter { it != component }.joinToString(" + ") { titleCase(it) }
@@ -163,6 +163,33 @@ object DerivedDataBuilder {
             speciesEnumerationError = speciesEnumerationError,
         )
     }
+
+    /**
+     * Which of [speciesNameSet] (already lowercased) are mentioned as whole words in [descText].
+     * Tokenizes the description into words once and looks each word/word-run up in a hash set,
+     * instead of compiling and running one `\b`-bounded [Regex] per species name against the
+     * description - which used to mean up to `speciesNameSet.size` (~1000-1400) fresh Regex
+     * compilations, one of the more expensive single JVM operations, for every description that
+     * mentions fusion at all. Splitting on runs of non-letter/non-digit characters reproduces the
+     * same `\b` word-boundary semantics a per-name Regex had (species names are plain lowercase
+     * identifiers with no internal punctuation, so this never needs to special-case it); the
+     * [maxNameWords] window only matters if a species name itself contains a space, which none of
+     * Cobblemon's do today, but costs nothing when it's 1.
+     */
+    internal fun findMentionedSpecies(descText: String, speciesNameSet: Set<String>, maxNameWords: Int): Set<String> {
+        val tokens = WORD_SPLIT.split(descText.lowercase()).filter { it.isNotEmpty() }
+        val found = LinkedHashSet<String>()
+        for (i in tokens.indices) {
+            for (n in 1..maxNameWords) {
+                if (i + n > tokens.size) break
+                val candidate = tokens.subList(i, i + n).joinToString(" ")
+                if (candidate in speciesNameSet) found.add(candidate)
+            }
+        }
+        return found
+    }
+
+    private val WORD_SPLIT = Regex("""[^\p{L}\p{N}]+""")
 
     private fun loadRuntimeSpeciesNames(): Iterable<String> {
         val runtimeCount = try { PokemonSpecies.implemented.count() } catch (_: Throwable) { 0 }

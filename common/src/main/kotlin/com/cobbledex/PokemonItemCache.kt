@@ -18,7 +18,12 @@ object PokemonItemCache {
     private val itemCache = ConcurrentHashMap<String, ItemStack>()
     private val blockedRenderKeys = ConcurrentHashMap.newKeySet<String>()
 
-    private fun resolveAspects(name: String, explicitAspects: Set<String>): Set<String> {
+    /**
+     * Aspects to render/resolve [name] with: [explicitAspects] when the caller has them, otherwise
+     * the aspects implied by a form-qualified species id (e.g. `alolan_raichu`), cached by normalized
+     * name since this is called for every icon render, every frame.
+     */
+    fun resolveAspects(name: String, explicitAspects: Set<String>): Set<String> {
         if (explicitAspects.isNotEmpty()) return explicitAspects
         val normalized = SpeciesNameNormalizer.normalize(name)
         return aspectCache.getOrPut(normalized) {

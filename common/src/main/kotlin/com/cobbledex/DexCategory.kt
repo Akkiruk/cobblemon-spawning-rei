@@ -75,6 +75,15 @@ class RecipeHandle(
     private val _height: (() -> Int)? = null,
     private val _slots: () -> Slots = { Slots() },
     /**
+     * Cheap proxy for how large this recipe's page is likely to render - a count already sitting on
+     * the recipe data (spawn conditions, evolution methods, obtainment routes...), never a layout
+     * build. Lets [CategorySizer] measure only the largest-looking handles in a category instead of
+     * laying out every one of them just to find the category's max bounds. 0 (the default) means "no
+     * signal" - [CategorySizer] falls back to measuring every handle for a category where nothing
+     * sets this.
+     */
+    val sizeHint: Int = 0,
+    /**
      * Move-name click targets, independent of [_slots] - only needed when a page is actually
      * rendered (or by a viewer's own input-handler wiring), never for sizing or validation.
      * [MovesDex]'s per-species page is the reason this exists: its [_slots] otherwise had no need
@@ -264,6 +273,15 @@ object SpawnDex : DexCategory {
                     categoryLinks = res().categoryLinks,
                 )
             },
+            // Unlike Evolution/Obtainment below, SpawnInfo only carries raw identifiers (e.g.
+            // "minecraft:plains") - the display text is translated later in SpawnDisplayHelper, which
+            // sizeHint deliberately avoids calling here (that's real per-handle tr() cost, the same
+            // class of thing this whole change is trying to cut). Identifier length is a looser proxy
+            // for eventual display-name length than Evolution/Obtainment's already-resolved text, so
+            // this category leans on CategorySizer's SIZE_CANDIDATES margin more than exact ranking.
+            sizeHint = d.spawn.biomes.sumOf { it.length } + d.spawn.structures.sumOf { it.length } +
+                d.spawn.dimensions.sumOf { it.length } + d.habitats.size * 24 +
+                d.mergedFormVariants.sumOf { it.length },
         )
     }
 
@@ -333,6 +351,10 @@ object EvolutionDex : DexCategory {
                     catalogInputIds = d.methods.flatMap { method -> method.itemRequirements.map(EvolutionItemInfo::itemId) }.distinct(),
                 )
             },
+            // requirementText is already-resolved display text (no tr() needed here), so its length
+            // is a direct proxy for the "very long evolution requirement list" width risk the
+            // CategorySizer.computeBounds comment warns about - not just a raw method/item count.
+            sizeHint = d.methods.sumOf { it.requirementText.length + it.itemRequirements.size * 8 },
         )
     }
 }
@@ -365,6 +387,12 @@ object ObtainmentDex : DexCategory {
                 pokemon = listOf(pokemonOutput(d.speciesName, 8, 3)),
                 catalogInputIds = d.routes.flatMap { it.itemIds }.distinct(),
             )
+        },
+        // obtainment.description/notes are already-resolved display text (no tr() needed here), so
+        // their length is a direct proxy for how much a route actually renders, not just a route/item
+        // count.
+        sizeHint = d.routes.sumOf {
+            it.obtainment.description.length + it.obtainment.notes.sumOf { n -> n.length } + it.itemIds.size * 8
         },
     )
 }

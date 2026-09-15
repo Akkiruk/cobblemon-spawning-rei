@@ -2,6 +2,47 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.26.14] - 2026-09-15
+
+### Fixed
+- **Hardened 2.26.13's Evolution/Obtainment/Spawn panel-sizing sample against under-measurement.**
+  The `sizeHint` those categories use to pick which recipes to actually measure was originally a raw
+  method/route/item *count* - a weak proxy, since panel width is driven by *text length*, not item
+  count (a single long requirement sentence sizes wider than several short ones). Evolution and
+  Obtainment now weight `sizeHint` by the length of their already-resolved display text
+  (`requirementText`, `obtainment.description`/`notes`) instead, directly targeting the "very long
+  requirement list" risk the original sizing code warned about. Spawn's proxy still can't avoid this
+  perfectly without paying back the translation cost 2.26.13 removed, so its sample size grew
+  16 -> 24 as a wider safety margin.
+- **Added real regression coverage for 2.26.13's fusion-detection rewrite**, which had none - the code
+  path depends on Minecraft's translation system, unavailable in this project's plain-JVM unit tests,
+  so nothing previously exercised it. The word-matching logic is now a separately-testable function
+  (`DerivedDataBuilder.findMentionedSpecies`), checked against the exact old per-name-Regex logic
+  across representative fusion-description shapes (multi-species mentions, punctuation/case
+  variation, whole-word-boundary edge cases) to confirm the rewrite changed nothing but performance.
+
+## [2.26.13] - 2026-09-14
+
+### Changed
+- **Fusion-evolution detection (e.g. Starlight Fusion packs) no longer compiles a fresh `Regex` per
+  species name, per matching description.** The old scan re-checked every known species name against
+  a fusion description with its own `\b`-bounded `Regex`, which on a fusion-heavy pack meant tens of
+  thousands of regex compilations on every data load. It now tokenizes each description once and
+  looks each word/word-run up in a hash set instead - same word-boundary matching semantics (covered
+  by the existing `DerivedDataBuilderTest` suite, unchanged pass), far fewer allocations.
+- **Category panel sizing (Spawn/Evolution/Obtainment) no longer force-builds every recipe's full
+  layout just to measure the category's max width/height.** These were the three large categories
+  without an explicit `_width`/`_height` fast path (the kind added for Moves in 2.26.9), so sizing them
+  meant a real layout build - biome-tag lookups, text-wrap passes, tooltip zones - for every recipe in
+  the category. They now carry a cheap `sizeHint` (spawn condition / evolution method / obtainment
+  route counts, already sitting on the recipe data) that `CategorySizer` uses to measure only the ~16
+  largest-looking recipes instead of all of them. A category that doesn't set `sizeHint` keeps the
+  full scan unchanged.
+- **The per-frame Pokémon icon renderer no longer recomputes form aspects on every draw call.**
+  `PokemonIconRenderer.resolveAspects` had its own uncached copy of the same lookup
+  `PokemonItemCache` already memoizes for item-stack resolution; it now delegates to that cache
+  instead of carrying a second, unmemoized implementation.
+
 ## [2.26.12] - 2026-09-13
 
 ### Added

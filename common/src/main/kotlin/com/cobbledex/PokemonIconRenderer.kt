@@ -16,11 +16,13 @@ object PokemonIconRenderer {
     private const val ITEM_RENDER_SIZE = 16
 
     /**
-     * Aspects to draw this species with: the caller's explicit set when it has one, otherwise the
-     * aspects implied by a form-qualified species id (e.g. `alolan_raichu`).
+     * Aspects to draw this species with. Delegates to [PokemonItemCache.resolveAspects] - the item-
+     * stack resolution path already memoizes this same lookup by normalized species name; this used
+     * to carry its own uncached copy, recomputed on every render call (i.e. every frame, for every
+     * visible Pokémon icon in the REI/JEI/EMI panel).
      */
     fun resolveAspects(species: String, formAspects: Set<String>): Set<String> =
-        formAspects.ifEmpty { SpeciesNameNormalizer.decomposeFormSpecies(species).cobblemonAspects }
+        PokemonItemCache.resolveAspects(species, formAspects)
 
     /**
      * Draws [species] at [x], [y] filling [size] pixels. Returns false when nothing could be drawn,

@@ -47,6 +47,18 @@ object CategorySizer {
         cachedLang = ""
     }
 
+    /**
+     * How many of a category's largest-by-[RecipeHandle.sizeHint] candidates get actually measured
+     * (real layout build) instead of relying on the hint alone. A category like Spawn or Evolution
+     * with 1000+ handles and no explicit `_width`/`_height` used to force a full layout build of
+     * *every* handle just to find the tallest/widest one - this bounds that to a handful of the
+     * likeliest outliers instead. sizeHint is a proxy (condition/method/route counts), not a render
+     * measurement, so it can occasionally pick the "wrong" top handle - but that just means this
+     * measures a slightly-too-small candidate, never an under-measured panel, since a hint of 0 on
+     * every handle (a category that doesn't set it) falls back to the full scan below unchanged.
+     */
+    private const val SIZE_CANDIDATES = 24
+
     private fun computeBounds(category: DexCategory): PanelSize {
         // Shared with CobbleDexJEIPlugin.registerRecipes() - JEI calls getWidth()/getHeight() (which
         // resolve to this) on every category during its own registerCategories() sanity check, before
@@ -54,6 +66,9 @@ object CategorySizer {
         // this build, the whole category gets built twice, back to back, on every world join.
         val recipes = try { RecipeBuildCache.getOrBuild(category) } catch (_: Exception) { emptyList() }
         if (recipes.isEmpty()) return PanelSize(200, 100)
+        val candidates = if (recipes.size > SIZE_CANDIDATES && recipes.any { it.sizeHint > 0 })
+            recipes.sortedByDescending { it.sizeHint }.take(SIZE_CANDIDATES)
+        else recipes
         var maxW = PanelLayout.MIN_WIDTH
         var maxH = 80
         // This result is cached per category+dataVersion+language (getBounds
@@ -63,8 +78,10 @@ object CategorySizer {
         // list, or many "notable differences" bullet points) happens to sit
         // outside whatever sample window a shortcut would have checked.
         // Scanning every recipe here is what fixed text overflowing the
-        // Evolution and Alternate Forms panels.
-        for (handle in recipes) {
+        // Evolution and Alternate Forms panels - sizeHint-based sampling
+        // (above) is what keeps that scan cheap for categories that opt in,
+        // without reintroducing that bug.
+        for (handle in candidates) {
             try {
                 val w = handle.width
                 val h = handle.height
