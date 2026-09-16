@@ -41,6 +41,8 @@ object JarDataCache {
     private var cachedTraits: Map<String, JarTraitData> = emptyMap()
     @Volatile
     private var cachedFormTraits: Map<String, JarTraitData> = emptyMap()
+    @Volatile
+    private var cachedTypeChartOverrides: Map<String, Map<String, Float>> = emptyMap()
 
     /** Raw move data parsed from species JSON in mod JARs. */
     data class JarMoveData(
@@ -99,6 +101,7 @@ object JarDataCache {
     fun hasCachedTraits(): Boolean = cachedTraits.isNotEmpty() || cachedFormTraits.isNotEmpty()
     fun getCachedTraits(): Map<String, JarTraitData> = cachedTraits
     fun getCachedFormTraits(): Map<String, JarTraitData> = cachedFormTraits
+    fun getCachedTypeChartOverrides(): Map<String, Map<String, Float>> = cachedTypeChartOverrides
 
     /**
      * Wait for the cache to finish initializing (up to timeout).
@@ -135,6 +138,7 @@ object JarDataCache {
             cachedTraits = scan.traits
             cachedFormTraits = scan.formTraits
             cachedFossils = parseFossilsFromJars(modRoots)
+            cachedTypeChartOverrides = parseTypeChartOverridesFromJars(modRoots)
 
             val elapsed = System.currentTimeMillis() - startTime
             DebugLog.info("JarDataCache: ready in ${elapsed}ms - " +
@@ -143,7 +147,8 @@ object JarDataCache {
                 "${cachedEvolutions.size} species with evolutions, " +
                 "${cachedMoves.size} species with moves, " +
                 "${cachedTraits.size} species with breeding/dex traits, " +
-                "${cachedFossils.values.sumOf { it.size }} fossils for ${cachedFossils.size} species")
+                "${cachedFossils.values.sumOf { it.size }} fossils for ${cachedFossils.size} species, " +
+                "${cachedTypeChartOverrides.size} type chart overrides")
 
             initialized.set(true)
         } catch (e: Exception) {
@@ -598,18 +603,19 @@ object JarDataCache {
     }
 
     /**
-     * Walks every JSON file under `data/<ns>/<subDir>` across mod jars, directory datapacks and zip
-     * datapacks, handing each parsed object to [handler]. For a flat single-object-per-file shape
-     * (like habitat pools); callers that need the `spawns`-array wrapper keep their own loops.
+     * (namespace subdirectory, human-readable source label) pairs for `data/<ns>/$subPath` across
+     * mod jars and directory datapacks. Shared by [forEachDataFile] and [forEachDataText] - zip
+     * datapacks are collected separately since they don't expose real filesystem directories.
      */
-    private inline fun forEachDataFile(modRoots: List<Path>, subDir: String, crossinline handler: (JsonObject) -> Unit) {
-        val dirs = mutableListOf<Path>()
+    private fun collectNamespaceDirs(modRoots: List<Path>, subPath: String): List<Pair<Path, String>> {
+        val dirs = mutableListOf<Pair<Path, String>>()
         for (root in modRoots) {
             try {
                 val dataDir = root.resolve("data")
                 if (!Files.isDirectory(dataDir)) continue
                 Files.list(dataDir).use { it.filter { ns -> Files.isDirectory(ns) }.forEach { ns ->
-                    ns.resolve(subDir).takeIf { d -> Files.isDirectory(d) }?.let(dirs::add)
+                    ns.resolve(subPath).takeIf { d -> Files.isDirectory(d) }
+                        ?.let { dirs.add(it to "jar:${root.fileName}") }
                 } }
             } catch (_: Exception) {}
         }
@@ -620,14 +626,36 @@ object JarDataCache {
                     val dataDir = pack.resolve("data")
                     if (Files.isDirectory(dataDir)) Files.list(dataDir).use { nss ->
                         nss.filter { ns -> Files.isDirectory(ns) }.forEach { ns ->
-                            ns.resolve(subDir).takeIf { d -> Files.isDirectory(d) }?.let(dirs::add)
+                            ns.resolve(subPath).takeIf { d -> Files.isDirectory(d) }
+                                ?.let { dirs.add(it to "datapack:${pack.fileName}") }
                         }
                     }
                 } }
             }
         } catch (_: Exception) {}
+        return dirs
+    }
 
-        for (dir in dirs) {
+    /** Every `.zip` datapack under [datapacksDir] matching [packFilter], opened and handed to [action]. */
+    private fun forEachZipDatapack(datapacksDir: Path, packFilter: (Path) -> Boolean = { true }, action: (ZipFile, Path) -> Unit) {
+        try {
+            Files.list(datapacksDir).use { packs ->
+                packs.filter { it.toString().endsWith(".zip") && Files.isRegularFile(it) && packFilter(it) }.forEach { zipPath ->
+                    try {
+                        ZipFile(zipPath.toFile()).use { zip -> action(zip, zipPath) }
+                    } catch (_: Exception) {}
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
+    /**
+     * Walks every JSON file under `data/<ns>/<subDir>` across mod jars, directory datapacks and zip
+     * datapacks, handing each parsed object to [handler]. For a flat single-object-per-file shape
+     * (like habitat pools); callers that need the `spawns`-array wrapper keep their own loops.
+     */
+    private inline fun forEachDataFile(modRoots: List<Path>, subDir: String, crossinline handler: (JsonObject) -> Unit) {
+        for ((dir, _) in collectNamespaceDirs(modRoots, subDir)) {
             try {
                 Files.walk(dir, 10).use { files ->
                     files.filter { it.toString().endsWith(".json") && Files.isRegularFile(it) }.forEach { file ->
@@ -648,6 +676,127 @@ object JarDataCache {
                 scanZipDatapacks(datapacksDir, subDir) { _, _, json -> handler(json) }
             }
         } catch (_: Exception) {}
+    }
+
+    // ==================== Type Chart Override Parsing ====================
+
+    /**
+     * Type effectiveness overrides from `data/<ns>/mega_showdown/showdown/typecharts/<type>.js`
+     * - the Showdown-style `damageTaken` scripts that mega_showdown reads to patch Cobblemon's
+     * battle engine, and how rebalance packs like Project Lazuli redefine type matchups. Each file
+     * is named after the *defending* type and maps each attacking type to a Showdown damage code
+     * (0 = normal, 1 = super effective, 2 = not very effective, 3 = immune), so the result is keyed
+     * defending-type-first to match how [TypeChart.applyOverrides] consumes it.
+     *
+     * Sources are scanned mod jars first, then directory datapacks, then zip datapacks - if two of
+     * them define the same defending type (e.g. two rebalance packs both loaded), the later source
+     * wins and a warning is logged naming both, rather than resolving silently.
+     */
+    private fun parseTypeChartOverridesFromJars(modRoots: List<Path>): Map<String, Map<String, Float>> {
+        val result = mutableMapOf<String, Map<String, Float>>()
+        val sourceOf = mutableMapOf<String, String>()
+        forEachDataText(modRoots, "mega_showdown/showdown/typecharts", ".js") { fileName, text, source ->
+            applyTypeChartEntry(result, sourceOf, fileName, text, source)
+        }
+        DebugLog.info("JarDataCache: parsed type chart overrides for ${result.size} defending types")
+        return result
+    }
+
+    /**
+     * Merges one type chart script into [result], logging (via [sourceOf]) when [source] isn't the
+     * first to define that defending type - see [parseTypeChartOverridesFromJars]. Pulled out as its
+     * own function so the collision behavior is directly unit-testable without touching a filesystem.
+     */
+    internal fun applyTypeChartEntry(
+        result: MutableMap<String, Map<String, Float>>,
+        sourceOf: MutableMap<String, String>,
+        fileName: String,
+        text: String,
+        source: String,
+    ) {
+        val overrides = parseDamageTakenBlock(text)
+        if (overrides.isEmpty()) return
+        val type = fileName.lowercase()
+        sourceOf[type]?.let { existing ->
+            DebugLog.warn(
+                "Type chart override for '$type' defined by both $existing and $source - " +
+                    "using $source (last scanned wins)"
+            )
+        }
+        result[type] = overrides
+        sourceOf[type] = source
+    }
+
+    private val DAMAGE_TAKEN_BLOCK = Regex("damageTaken\\s*:\\s*\\{([^}]*)}", RegexOption.DOT_MATCHES_ALL)
+    private val DAMAGE_TAKEN_ENTRY = Regex("['\"]?(\\w+)['\"]?\\s*:\\s*(\\d)")
+
+    internal fun parseDamageTakenBlock(text: String): Map<String, Float> {
+        val block = DAMAGE_TAKEN_BLOCK.find(text)?.groupValues?.get(1) ?: return emptyMap()
+        val result = mutableMapOf<String, Float>()
+        for (match in DAMAGE_TAKEN_ENTRY.findAll(block)) {
+            val multiplier = when (match.groupValues[2].toInt()) {
+                1 -> 2f
+                2 -> 0.5f
+                3 -> 0f
+                else -> 1f
+            }
+            result[match.groupValues[1].lowercase()] = multiplier
+        }
+        return result
+    }
+
+    /**
+     * Walks every file directly under `data/<ns>/$subPath` across mod jars, directory datapacks
+     * and zip datapacks, handing each file's raw text - plus a human-readable source label, for
+     * collision reporting - to [handler]. Mirrors [forEachDataFile]'s three sources, but for
+     * plain-text files (like the Showdown-JS type chart scripts) rather than JSON.
+     */
+    private fun forEachDataText(
+        modRoots: List<Path>,
+        subPath: String,
+        extension: String,
+        handler: (fileName: String, text: String, source: String) -> Unit,
+    ) {
+        for ((dir, source) in collectNamespaceDirs(modRoots, subPath)) {
+            try {
+                Files.walk(dir, 5).use { files ->
+                    files.filter { it.toString().endsWith(extension) && Files.isRegularFile(it) }.forEach { file ->
+                        try {
+                            val text = Files.readString(file, Charsets.UTF_8)
+                            handler(file.fileName.toString().removeSuffix(extension), text, source)
+                        } catch (_: Exception) {}
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        try {
+            val datapacksDir = com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
+            if (Files.isDirectory(datapacksDir)) {
+                scanZipDatapackTexts(datapacksDir, subPath, extension, handler)
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun scanZipDatapackTexts(
+        datapacksDir: Path,
+        subPath: String,
+        extension: String,
+        handler: (fileName: String, text: String, source: String) -> Unit,
+    ) {
+        val pattern = Regex("^data/[^/]+/${Regex.escape(subPath)}/[^/]+${Regex.escape(extension)}\$")
+        forEachZipDatapack(datapacksDir) { zip, zipPath ->
+            for (entry in zip.entries()) {
+                if (entry.isDirectory || !pattern.matches(entry.name)) continue
+                try {
+                    val text = zip.getInputStream(entry).use { stream ->
+                        InputStreamReader(stream, Charsets.UTF_8).readText()
+                    }
+                    val fileName = entry.name.substringAfterLast('/').removeSuffix(extension)
+                    handler(fileName, text, "zip:${zipPath.fileName}")
+                } catch (_: Exception) {}
+            }
+        }
     }
 
     /**
@@ -1305,30 +1454,22 @@ object JarDataCache {
         packFilter: (Path) -> Boolean = { true },
         handler: (namespace: String, entryName: String, json: JsonObject) -> Unit
     ) {
-        try {
-            Files.list(datapacksDir).use { packs ->
-                packs.filter { it.toString().endsWith(".zip") && Files.isRegularFile(it) && packFilter(it) }.forEach { zipPath ->
-                    try {
-                        ZipFile(zipPath.toFile()).use { zip ->
-                            val pattern = Regex("^data/([^/]+)/${subDir}/.+\\.json\$")
-                            for (entry in zip.entries()) {
-                                if (entry.isDirectory) continue
-                                val match = pattern.matchEntire(entry.name) ?: continue
-                                val namespace = match.groupValues[1]
-                                try {
-                                    val json = zip.getInputStream(entry).use { stream ->
-                                        InputStreamReader(stream, Charsets.UTF_8).use { reader ->
-                                            JsonParser.parseReader(reader).asJsonObject
-                                        }
-                                    }
-                                    handler(namespace, entry.name, json)
-                                } catch (_: Exception) {}
-                            }
+        val pattern = Regex("^data/([^/]+)/${subDir}/.+\\.json\$")
+        forEachZipDatapack(datapacksDir, packFilter) { zip, _ ->
+            for (entry in zip.entries()) {
+                if (entry.isDirectory) continue
+                val match = pattern.matchEntire(entry.name) ?: continue
+                val namespace = match.groupValues[1]
+                try {
+                    val json = zip.getInputStream(entry).use { stream ->
+                        InputStreamReader(stream, Charsets.UTF_8).use { reader ->
+                            JsonParser.parseReader(reader).asJsonObject
                         }
-                    } catch (_: Exception) {}
-                }
+                    }
+                    handler(namespace, entry.name, json)
+                } catch (_: Exception) {}
             }
-        } catch (_: Exception) {}
+        }
     }
 
     // ==================== JSON Helper Extensions ====================

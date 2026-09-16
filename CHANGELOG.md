@@ -2,6 +2,37 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.27.1] - 2026-09-16
+
+### Fixed
+- **2.27.0's type chart override scan had an undefined collision order** if two sources both shipped
+  overrides for the same defending type (e.g. two mega_showdown-based rebalance packs installed
+  together) - whichever file the filesystem walk happened to visit last silently won, with no
+  guarantee that matched what the battle engine actually resolves. Now deterministic (mod jars, then
+  loose datapacks, then zip datapacks, matching the rest of `JarDataCache`'s local-file precedence)
+  and logs a warning naming both sources whenever a collision happens, instead of resolving silently.
+- Deduplicated the mod-jar/datapack/zip-datapack traversal between the JSON-file scanner
+  (`forEachDataFile`) and the new text-file scanner added for type chart scripts - both now share
+  one `collectNamespaceDirs`/`forEachZipDatapack` implementation instead of two near-identical copies.
+
+### Added
+- New `applyTypeChartOverrides` config option (on by default) to fall back to the plain vanilla type
+  chart even when a mega_showdown-based rebalance pack is installed, in case an override is ever
+  parsed wrong for a given pack.
+
+## [2.27.0] - 2026-09-16
+
+### Added
+- **Type Matchups now reflect mega_showdown-based rebalance packs (e.g. Project Lazuli)** instead of
+  always showing the vanilla 18-type chart. Cobblemon's own battle math doesn't change per datapack,
+  but the mega_showdown addon overrides individual matchups via Showdown-style `damageTaken` scripts
+  at `data/<namespace>/mega_showdown/showdown/typecharts/<type>.js`, and those are what actually
+  apply in battle when that mod is installed. `JarDataCache` now scans mod jars, loose datapacks and
+  zip datapacks for these files alongside everything else it already indexes, and `TypeChart` layers
+  the parsed multipliers over its built-in vanilla table. Only takes effect when `mega_showdown` is
+  loaded - without it these files affect nothing in battle, so applying them would misrepresent
+  actual matchups.
+
 ## [2.26.14] - 2026-09-15
 
 ### Fixed

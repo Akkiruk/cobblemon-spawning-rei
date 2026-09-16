@@ -20,6 +20,13 @@ data class CobbleDexConfig(
     val showPokemonDescription: Boolean = true,
     val showFossils: Boolean = true,
     val showTypeChart: Boolean = true,
+    /**
+     * Layer mega_showdown-based rebalance packs' type effectiveness overrides (e.g. Project Lazuli)
+     * onto the Type Matchups page when the mega_showdown mod is loaded. Off falls back to the plain
+     * vanilla 18-type chart even if such a pack is installed - useful if an override is ever parsed
+     * wrong for a given pack.
+     */
+    val applyTypeChartOverrides: Boolean = true,
     val showNatures: Boolean = true,
     val showJobs: Boolean = true,
     val showAlternateForms: Boolean = true,

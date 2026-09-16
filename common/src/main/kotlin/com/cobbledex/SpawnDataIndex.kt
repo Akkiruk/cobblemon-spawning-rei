@@ -1,6 +1,8 @@
 package com.cobbledex
 
 import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
+import com.cobbledex.config.CobbleDexConfig
+import com.cobbledex.platform.PlatformHelper
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
@@ -227,6 +229,7 @@ object SpawnDataIndex {
 
         val speciesCount = try { PokemonSpecies.implemented.count() } catch (_: Exception) { 0 }
 
+        loadTypeChartOverrides()
         loadSpawns()
         deriveHerds()
         loadSpeciesInfo(speciesCount)
@@ -272,6 +275,23 @@ object SpawnDataIndex {
             "${evolutionsBySpecies.size} with evolutions [${evolutionSourceTier.displayName}], " +
             "${obtainmentBySpecies.size} with obtainment)"
         )
+    }
+
+    /**
+     * Type effectiveness overrides from mega_showdown-based rebalance packs (e.g. Project Lazuli).
+     * Those datapack files only take effect in battle when mega_showdown itself is loaded, so the
+     * override is cleared rather than applied when it isn't - otherwise a leftover pack from a
+     * previous modpack could misrepresent matchups nothing in the current battle engine honors.
+     * Also cleared when [CobbleDexConfig.applyTypeChartOverrides] is off, so a bad parse can be
+     * worked around without uninstalling the pack that triggered it.
+     */
+    private fun loadTypeChartOverrides() {
+        val overrides = if (CobbleDexConfig.get().applyTypeChartOverrides && PlatformHelper.isModLoaded("mega_showdown")) {
+            JarDataCache.getCachedTypeChartOverrides()
+        } else {
+            emptyMap()
+        }
+        TypeChart.applyOverrides(overrides)
     }
 
     /**

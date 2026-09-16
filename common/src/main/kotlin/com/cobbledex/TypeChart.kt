@@ -11,8 +11,28 @@ object TypeChart {
     // chart[attacking][defending] = multiplier
     private val chart: Map<String, Map<String, Float>> by lazy { buildChart() }
 
-    fun effectiveness(attacking: String, defending: String): Float =
-        chart[attacking.lowercase()]?.get(defending.lowercase()) ?: 1f
+    // overrides[defending][attacking] = multiplier - datapack-driven deviations from the vanilla
+    // chart above (e.g. mega_showdown-based rebalance packs like Project Lazuli), applied by
+    // [applyOverrides]. Keyed defending-first because that's how those files are laid out: one
+    // per defending type, listing what each attacking type does to it.
+    @Volatile
+    private var overrides: Map<String, Map<String, Float>> = emptyMap()
+
+    /**
+     * Replaces the current datapack-driven overrides. Called after each data load with whatever
+     * [JarDataCache] found under `mega_showdown/showdown/typecharts/`, or an empty map when that
+     * mod isn't loaded - so a chart entry never outlives the pack that defined it.
+     */
+    fun applyOverrides(newOverrides: Map<String, Map<String, Float>>) {
+        overrides = newOverrides
+    }
+
+    fun effectiveness(attacking: String, defending: String): Float {
+        val atk = attacking.lowercase()
+        val def = defending.lowercase()
+        overrides[def]?.get(atk)?.let { return it }
+        return chart[atk]?.get(def) ?: 1f
+    }
 
     fun defensiveMatchups(primary: String, secondary: String?): Map<String, Float> {
         val result = mutableMapOf<String, Float>()
