@@ -2,6 +2,48 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.27.7] - 2026-09-16
+
+### Fixed
+- **The shipped sprite atlas was stale for two months (2026-07-07 to 2026-09-16) and never showed
+  up as an error.** A version bump meant to force-invalidate *players'* cached atlases (for the
+  Fungalith Substitute-doll fix) checks against the same constant as the atlas *shipped in the
+  jar*, and the shipped one was never re-baked to match. It was silently rejected on every load
+  since, with every player instead depending entirely on their own local bake - no crash, no log
+  line, nothing to notice. Re-baked and re-committed; a new test (`ShippedAtlasTest`) now fails the
+  build if the shipped atlas and the loader's required version ever drift apart again.
+- **Sprite baking failed completely on any Cobblemon version other than the one CobbleDex compiles
+  against.** Cobblemon's model-drawing method's signature differs release to release, and a direct
+  call only binds to one of them - so on Cobblemon 1.7.3 (this build targets 1.8.0) every single
+  sprite capture threw `NoSuchMethodError`, silently producing an empty atlas. Sprites don't care
+  which Cobblemon version rendered them, so the call is now bound at runtime instead of compile
+  time and adapts to whichever signature is actually installed.
+- **A failed sprite bake could permanently hide every shipped sprite and block the automatic
+  rebuild that would fix it.** A bake that fails partway still writes a structurally valid (but
+  empty) file, which was being treated as good; that alone was enough to make ~1400 Pokémon icons
+  fall back to Cobblemon's plain item-model rendering instead of CobbleDex's own sprites, with
+  nothing on screen indicating it wasn't intentional. Sprite sources are now a fallback chain
+  (shipped atlas, then a local bake for anything the shipped one doesn't cover) instead of one
+  all-or-nothing pick, so a bad local cache can no longer take shipped sprites away - only fail to
+  add to them.
+- **Type chart overrides from rebalance packs (e.g. Project Lazuli) now apply when the pack is
+  installed as a per-world datapack, not just when installed as a mod.** The prior scan only ran
+  once at launch, before any world existed, and could never see a world's own `datapacks/` folder
+  or anything served by a loader mod like OpenLoader. Type charts are now re-read on world join
+  through the game's own resolved pack list, which already reflects every source the server
+  actually loaded - including loader mods that don't exist yet. Singleplayer/LAN only; a remote
+  server's packs are still unreachable from the client, same as before.
+
+### Added
+- **`/cobbledex icons`** - reports whether each Pokémon in the browse panel is drawn from
+  CobbleDex's own sprite atlas or Cobblemon's item-model fallback, and lists anything neither path
+  can draw. This is what surfaced the stale-atlas bug above.
+- **`/cobbledex datasources`** - diffs CobbleDex's data-pack scanning against what the loaded world
+  actually has installed, folder by folder, to catch the same "can't see this pack" class of bug
+  the type chart fix addresses.
+- `ShippedAtlasTest` and `MANUAL_TASKS.md` now enforce and document the sprite-atlas re-bake step
+  as a required part of ever bumping its version, so this can't regress silently again.
+
 ## [2.27.1] - 2026-09-16
 
 ### Fixed

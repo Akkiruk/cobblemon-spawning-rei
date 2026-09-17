@@ -19,8 +19,32 @@ object PokemonSpriteAtlas {
     // on-disk cache as stale and silently rebuild it once, instead of them
     // being stuck with an old incorrect render (e.g. Fungalith's Substitute-
     // doll bug) until they think to run /cobbledex sprites build themselves.
-    private const val ATLAS_VERSION = 3
-    private const val SPRITE_SIZE = 64
+    //
+    // BUMPING THIS ALSO INVALIDATES THE SHIPPED ATLAS (the one committed at
+    // common/src/main/resources/assets/cobbledex-rei-emi-jei/sprites/) - it's checked against this
+    // same constant in tryLoadBundledAtlas/loadAtlasFromStreams. Forgetting to re-bake it is exactly
+    // what happened 2026-07-07 to 2026-09-16: this got bumped for the Fungalith fix, the shipped
+    // atlas didn't, and every release since silently shipped a 3.7MB atlas the mod refused to ever
+    // load - no crash, no log line, two months unnoticed. ShippedAtlasTest now fails the build if
+    // this happens again, but the manual half is still real. Whenever this or SPRITE_SIZE changes:
+    //   1. Launch a profile with a broad, canonical-only roster (megas/gmax/regional forms, not a
+    //      fakemon pack - see the shipped manifest's own species list for the current baseline).
+    //   2. Run /cobbledex sprites build. Confirm the bake reflects whatever prompted the bump
+    //      (e.g. actually check a Fungalith render) before trusting it.
+    //   3. Copy that profile's cobbledex-sprites/pokemon_atlas.png + .json over the ones in
+    //      common/src/main/resources/assets/cobbledex-rei-emi-jei/sprites/.
+    //   4. Run :common:test - ShippedAtlasTest passing is the actual verification this is done.
+    //   5. Commit the constant bump and the two regenerated files together. Never merge one
+    //      without the other.
+    //
+    // internal, not private: ShippedAtlasTest reads this directly so the check and the value it's
+    // checking against can never drift apart the way the shipped file and this constant already
+    // did once.
+    internal const val ATLAS_VERSION = 3
+    // internal for the same reason as ATLAS_VERSION above - the real loader checks both together
+    // (see tryLoadBundledAtlas/loadAtlasFromStreams), so the test checking the shipped file has to
+    // check both too, against these exact values rather than a copy of them.
+    internal const val SPRITE_SIZE = 64
     private const val ATLAS_COLUMNS = 32
     private const val CACHE_DIR = "cobbledex-sprites"
     private const val SPRITES_DIR = "sprites"
@@ -28,6 +52,9 @@ object PokemonSpriteAtlas {
     private const val MANIFEST_FILE = "pokemon_atlas.json"
     private val bundledAtlasPath = ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "sprites/$ATLAS_FILE")
     private val bundledManifestPath = ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "sprites/$MANIFEST_FILE")
+
+    /** Where the shipped manifest sits on the classpath - same path a plain JUnit test can read. */
+    internal const val SHIPPED_MANIFEST_RESOURCE = "assets/${CobbleDexMod.MOD_ID}/sprites/pokemon_atlas.json"
 
     private val gson = GsonBuilder().setPrettyPrinting().create()
 
@@ -48,7 +75,7 @@ object PokemonSpriteAtlas {
         val renderAspects: Set<String>,
     )
 
-    private data class SpriteEntry(
+    internal data class SpriteEntry(
         val id: String,
         val species: String,
         val aspects: List<String>,
@@ -58,7 +85,7 @@ object PokemonSpriteAtlas {
         val height: Int = SPRITE_SIZE,
     )
 
-    private data class Manifest(
+    internal data class Manifest(
         val version: Int,
         val spriteSize: Int,
         val atlas: String,
@@ -66,6 +93,21 @@ object PokemonSpriteAtlas {
         val height: Int,
         val entries: List<SpriteEntry>,
     )
+
+    /**
+     * Parses the shipped manifest straight off the classpath - no [Minecraft]/`ResourceManager`
+     * involved, so this works from a plain JUnit test, not just in-game.
+     *
+     * This is deliberately the same [gson] and [Manifest] the real bundled-atlas load path uses
+     * ([tryLoadBundledAtlas]), not a second parser of its own - the point is to check the actual
+     * shipped file the game will actually try to load, not a hand-rolled approximation of it that
+     * could itself drift from what `loadAtlasFromStreams` expects.
+     */
+    internal fun readShippedManifestFromClasspath(): Manifest {
+        val stream = PokemonSpriteAtlas::class.java.classLoader.getResourceAsStream(SHIPPED_MANIFEST_RESOURCE)
+            ?: error("Shipped atlas manifest not found on the classpath: $SHIPPED_MANIFEST_RESOURCE")
+        return stream.bufferedReader().use { gson.fromJson(it, Manifest::class.java) }
+    }
 
     private data class LoadedAtlas(
         val textureId: ResourceLocation,
@@ -82,7 +124,7 @@ object PokemonSpriteAtlas {
         val failed: Int,
     )
 
-    @Volatile private var loadedAtlas: LoadedAtlas? = null
+    @Volatile private var loadedAtlases: List<LoadedAtlas>? = null
     @Volatile private var loadAttempted = false
     @Volatile private var buildInProgress = false
     private val ensureAttempted = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -103,11 +145,14 @@ object PokemonSpriteAtlas {
         // time that can't reflect this modpack's own fakemons/fixes, so
         // treating it as sufficient here would mean the auto-build never
         // fires and players stay on a wrong/incomplete atlas forever.
+        // Emptiness matters as much as absence: a bake that failed partway still writes a valid
+        // manifest, and accepting that as "cached" both suppressed this rebuild and (before the
+        // atlases were chained) hid every shipped sprite behind it. Nothing is assigned to
+        // loadedAtlases here either - getLoadedAtlases builds the shipped-first chain itself.
         val cached = tryLoadCacheAtlas()
+        if (cached != null && cached.entriesById.isNotEmpty()) return
         if (cached != null) {
-            loadedAtlas = cached
-            loadAttempted = true
-            return
+            DebugLog.warn("Cached Pokemon sprite atlas has no sprites in it - rebuilding (shipped sprites are used meanwhile)")
         }
         DebugLog.info("No up-to-date cached Pokemon sprite atlas found - building automatically in the background")
         buildAtlas { msg -> DebugLog.info(msg) }
@@ -166,29 +211,31 @@ object PokemonSpriteAtlas {
         y: Int,
         size: Int,
     ): Boolean {
-        val atlas = getLoadedAtlas() ?: return false
         val resolved = resolve(species, aspects)
-        val entry = atlas.entriesById[resolved.key.id] ?: return false
-        graphics.blit(
-            atlas.textureId,
-            x,
-            y,
-            size,
-            size,
-            entry.x.toFloat(),
-            entry.y.toFloat(),
-            entry.width,
-            entry.height,
-            atlas.width,
-            atlas.height,
-        )
-        return true
+        for (atlas in getLoadedAtlases()) {
+            val entry = atlas.entriesById[resolved.key.id] ?: continue
+            graphics.blit(
+                atlas.textureId,
+                x,
+                y,
+                size,
+                size,
+                entry.x.toFloat(),
+                entry.y.toFloat(),
+                entry.width,
+                entry.height,
+                atlas.width,
+                atlas.height,
+            )
+            return true
+        }
+        return false
     }
 
     fun reload(preferCache: Boolean = false): Boolean {
         loadAttempted = false
-        loadedAtlas = null
-        return getLoadedAtlas(preferCache) != null
+        loadedAtlases = null
+        return getLoadedAtlases(preferCache).isNotEmpty()
     }
 
     fun buildAtlas(sender: DiagnosticService.MessageSender): Int {
@@ -251,10 +298,22 @@ object PokemonSpriteAtlas {
                 }
             },
             onFinish = {
-                val result = finishAtlasBuild(images, failed, outputDir)
-                sender.send("§aSprite atlas ready: ${result.captured}/${result.requested} captured, ${result.failed} failed")
-                sender.send("§7${result.atlasPath.toAbsolutePath()}")
-                reload(preferCache = true)
+                // Writing a zero-sprite atlas is strictly worse than writing nothing: it replaces a
+                // good cache with an empty one and, before the atlas chain existed, hid every
+                // shipped sprite behind it. A bake that captured nothing has nothing to say.
+                if (images.isEmpty()) {
+                    sender.send("§cSprite atlas build FAILED: 0/${keys.size} captured - keeping the existing atlas.")
+                    IconCapture.bindingFailure?.let {
+                        sender.send("§cCause: $it")
+                        sender.send("§eThis build of CobbleDex can't call the installed Cobblemon's model renderer.")
+                    } ?: sender.send("§7No sprite could be rendered - see the log for the first failure.")
+                } else {
+                    val result = finishAtlasBuild(images, failed, outputDir)
+                    val colour = if (result.failed > 0) "§e" else "§a"
+                    sender.send("$colour Sprite atlas ready: ${result.captured}/${result.requested} captured, ${result.failed} failed".trimStart())
+                    sender.send("§7${result.atlasPath.toAbsolutePath()}")
+                    reload(preferCache = true)
+                }
             },
         )
     }
@@ -412,6 +471,46 @@ object PokemonSpriteAtlas {
         return 1
     }
 
+    /** How a given icon will actually be painted - the branches of [PokemonIconRenderer.render]. */
+    enum class IconSource {
+        /** Blitted from our own baked atlas. */
+        ATLAS,
+
+        /** Drawn as Cobblemon's `PokemonItem` - correct, but a 3D item model rather than our sprite. */
+        ITEM_FALLBACK,
+
+        /** Neither path can draw it, so the viewers show nothing for it. */
+        NOT_DRAWN,
+    }
+
+    data class IconCoverage(
+        val atlasLoaded: Boolean,
+        val atlasEntries: Int,
+        val bySource: Map<IconSource, List<String>>,
+    )
+
+    /**
+     * How every species the viewers surface will be drawn right now.
+     *
+     * Deliberately asks the same two questions [PokemonIconRenderer.render] asks, in the same order,
+     * so this can't report a coverage the panel doesn't actually match. Atlas membership is per
+     * entry, not global - an atlas can be loaded and still miss a form baked after it was built.
+     */
+    fun iconCoverage(): IconCoverage {
+        val atlases = getLoadedAtlases()
+        val buckets = mutableMapOf<IconSource, MutableList<String>>()
+        for (resolved in collectSpriteKeys()) {
+            val source = when {
+                atlases.any { it.entriesById.containsKey(resolved.key.id) } -> IconSource.ATLAS
+                PokemonItemCache.canRender(resolved.renderSpecies, resolved.renderAspects) -> IconSource.ITEM_FALLBACK
+                else -> IconSource.NOT_DRAWN
+            }
+            buckets.getOrPut(source) { mutableListOf() }.add(resolved.key.id)
+        }
+        val distinctSprites = atlases.flatMap { it.entriesById.keys }.toSet().size
+        return IconCoverage(atlases.isNotEmpty(), distinctSprites, buckets)
+    }
+
     private fun collectSpriteKeys(): List<ResolvedSpriteKey> {
         val queries = SpawnDataIndex.currentQueries()
         val names = SpawnDataIndex.allSpeciesNames.ifEmpty { SpawnDataIndex.speciesInfo.keys.sorted() }
@@ -424,23 +523,34 @@ object PokemonSpriteAtlas {
             .toList()
     }
 
-    private fun getLoadedAtlas(preferCache: Boolean = false): LoadedAtlas? {
-        loadedAtlas?.let { return it }
-        if (loadAttempted) return null
+    /**
+     * Every atlas available, highest priority first - looked up in order, so a species missing from
+     * one simply falls through to the next.
+     *
+     * This used to pick a single atlas and use it for everything, which meant any cache at all hid
+     * the shipped one wholesale: a bake that failed but still wrote a valid manifest left a
+     * zero-entry cache shadowing 1372 shipped sprites, and every icon fell back to an item model.
+     * Chaining them removes that failure mode entirely - a thin or broken cache can now only fail to
+     * *add* sprites, never take the shipped ones away.
+     *
+     * Shipped first: if we ship a sprite for a species, that sprite is what gets drawn. A local bake
+     * covers what the shipped atlas can't know about - this pack's own fakemons and forms - rather
+     * than replacing it. (A consequence worth knowing: rebaking locally can no longer override a
+     * shipped sprite for a species we already ship, only fill gaps around it.)
+     */
+    private fun getLoadedAtlases(preferCache: Boolean = false): List<LoadedAtlas> {
+        loadedAtlases?.let { return it }
+        if (loadAttempted) return emptyList()
         loadAttempted = true
-        return tryLoadAtlas(preferCache).also { loadedAtlas = it }
-    }
 
-    private fun tryLoadAtlas(preferCache: Boolean): LoadedAtlas? {
-        if (preferCache) {
-            tryLoadCacheAtlas()?.let { return it }
-            tryLoadBundledAtlas()?.let { return it }
-            return null
-        }
+        val bundled = tryLoadBundledAtlas()
+        // An empty cache is treated as absent everywhere: it can't contribute a sprite, and letting
+        // it into the chain would only cost a pointless lookup on every icon.
+        val cached = tryLoadCacheAtlas()?.takeIf { it.entriesById.isNotEmpty() }
 
-        tryLoadBundledAtlas()?.let { return it }
-
-        return tryLoadCacheAtlas()
+        val chain = if (preferCache) listOfNotNull(cached, bundled) else listOfNotNull(bundled, cached)
+        loadedAtlases = chain
+        return chain
     }
 
     private fun tryLoadCacheAtlas(): LoadedAtlas? {
@@ -492,7 +602,19 @@ object PokemonSpriteAtlas {
         sourceDescription: String,
     ): LoadedAtlas? {
         val manifest = gson.fromJson(manifestJson, Manifest::class.java) ?: return null
-        if (manifest.version != ATLAS_VERSION || manifest.spriteSize != SPRITE_SIZE) return null
+        if (manifest.version != ATLAS_VERSION || manifest.spriteSize != SPRITE_SIZE) {
+            // This used to fail here with nothing logged at all - which is exactly how a stale
+            // *shipped* atlas (manifest version 2, loader requiring 3) went unnoticed in every
+            // release for two months: the bundled-atlas path silently returned null and the local
+            // per-player cache quietly covered for it, so nothing ever looked broken. ShippedAtlasTest
+            // is what actually stops that file from shipping stale again; this is the field-visible
+            // half, for the day something bypasses that gate anyway.
+            DebugLog.warn(
+                "$sourceDescription rejected: manifest is version=${manifest.version}/spriteSize=" +
+                    "${manifest.spriteSize}, loader requires version=$ATLAS_VERSION/spriteSize=$SPRITE_SIZE"
+            )
+            return null
+        }
 
         val image = atlasStream.use { NativeImage.read(it) }
         val texture = DynamicTexture(image)

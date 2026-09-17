@@ -1,7 +1,6 @@
 package com.cobbledex
 
 import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
-import com.cobblemon.mod.common.client.gui.drawProfilePokemon
 import com.cobblemon.mod.common.client.render.models.blockbench.FloatingState
 import com.cobblemon.mod.common.pokemon.RenderablePokemon
 import com.mojang.blaze3d.pipeline.TextureTarget
@@ -26,9 +25,115 @@ object IconCapture {
     private var fbo: TextureTarget? = null
     private var debugDumped = false
 
+    /**
+     * Set when the model-drawing call can't be bound at all, rather than a single sprite failing -
+     * read by the atlas build so a total wipeout is reported as the one problem it is instead of N
+     * identical per-sprite failures.
+     */
+    @Volatile
+    var bindingFailure: String? = null
+        private set
+
     fun init() {
         debugDumped = false
+        bindingFailure = null
         fbo = TextureTarget(RENDER_SIZE, RENDER_SIZE, true, false)
+    }
+
+    // ── Cobblemon's profile renderer, bound at runtime ───────────────
+    //
+    // drawProfilePokemon's signature moves between Cobblemon versions, and a direct call compiles
+    // against exactly one of them: built against 1.8.0 it throws NoSuchMethodError on every single
+    // sprite under 1.7.3, which is a silent 100% bake failure (0/1409 captured) that then writes an
+    // empty atlas over the good one. Sprites themselves don't care which version rendered them, so
+    // this binds the method at runtime instead of at compile time.
+    //
+    // It calls Kotlin's `$default` bridge rather than the real function: that bridge takes a
+    // trailing bitmask saying which parameters to fill in with their own declared defaults, so only
+    // the arguments this actually cares about need supplying and every other parameter - however
+    // many a given version has, whatever their types - is defaulted by Cobblemon itself. That's what
+    // makes one call work across both signatures without hardcoding either.
+    private const val GUI_UTILS = "com.cobblemon.mod.common.client.gui.PokemonGuiUtilsKt"
+
+    /** Argument slots this supplies; everything else is left to Cobblemon's defaults. */
+    private val SUPPLIED_SLOTS = setOf(0, 1, 2, 4, 5, 6)
+
+    private val profileMethod: java.lang.reflect.Method? by lazy {
+        try {
+            val clazz = Class.forName(GUI_UTILS)
+            clazz.methods.firstOrNull { method ->
+                method.name == "drawProfilePokemon\$default" &&
+                    method.parameterTypes.firstOrNull() == RenderablePokemon::class.java
+            } ?: run {
+                bindingFailure = "Cobblemon's drawProfilePokemon(RenderablePokemon, ...) was not found"
+                null
+            }
+        } catch (t: Throwable) {
+            bindingFailure = "Could not load $GUI_UTILS: ${t.javaClass.simpleName}: ${t.message}"
+            null
+        }
+    }
+
+    /** A harmless placeholder for a slot the mask tells Kotlin to overwrite with its own default. */
+    private fun placeholderFor(type: Class<*>): Any? = when {
+        !type.isPrimitive -> null
+        type == java.lang.Float.TYPE -> 0f
+        type == java.lang.Integer.TYPE -> 0
+        type == java.lang.Boolean.TYPE -> false
+        type == java.lang.Double.TYPE -> 0.0
+        type == java.lang.Long.TYPE -> 0L
+        else -> 0
+    }
+
+    private fun drawProfile(
+        renderable: RenderablePokemon,
+        poseStack: PoseStack,
+        rotation: Quaternionf,
+        state: FloatingState,
+        partialTicks: Float,
+        scale: Float,
+    ): Boolean {
+        val method = profileMethod ?: return false
+        val args = defaultedArgs(
+            method.parameterTypes,
+            mapOf(
+                0 to renderable,
+                1 to poseStack,
+                2 to rotation,
+                4 to state,
+                5 to partialTicks,
+                6 to scale,
+            ),
+        )
+        method.invoke(null, *args)
+        return true
+    }
+
+    /**
+     * Lays out a call to a Kotlin `$default` bridge: [supplied] values in their slots, a placeholder
+     * in every other slot, and the trailing (bitmask, marker) pair the bridge itself takes.
+     *
+     * A set mask bit means "ignore what I passed for this slot and use the declared default", which
+     * is what lets one call satisfy signatures of different lengths and parameter types. Separated
+     * from the reflection so the bit arithmetic - the part that silently produces a wrong render
+     * rather than an error if it's off by one - can be tested against real signatures.
+     */
+    internal fun defaultedArgs(parameterTypes: Array<Class<*>>, supplied: Map<Int, Any?>): Array<Any?> {
+        // The bridge's own two trailing parameters: the defaults bitmask and an unused marker.
+        val realParamCount = parameterTypes.size - 2
+        val args = arrayOfNulls<Any?>(parameterTypes.size)
+        var mask = 0
+        for (slot in 0 until realParamCount) {
+            if (supplied.containsKey(slot)) {
+                args[slot] = supplied[slot]
+            } else {
+                mask = mask or (1 shl slot)
+                args[slot] = placeholderFor(parameterTypes[slot])
+            }
+        }
+        args[realParamCount] = mask
+        args[realParamCount + 1] = null
+        return args
     }
 
     fun cleanup() {
@@ -138,14 +243,12 @@ object IconCapture {
                 0f
             )
 
-            drawProfilePokemon(
-                renderablePokemon = renderable,
-                matrixStack = poseStack,
-                rotation = rotation,
-                state = state,
-                partialTicks = 0f,
-                scale = 210f,
-            )
+            if (!drawProfile(renderable, poseStack, rotation, state, partialTicks = 0f, scale = 210f)) {
+                poseStack.popPose()
+                target.unbindWrite()
+                mc.mainRenderTarget.bindWrite(true)
+                return null
+            }
 
             poseStack.popPose()
             mc.renderBuffers().bufferSource().endBatch()
@@ -224,8 +327,16 @@ object IconCapture {
             // the game instead of just skipping this one sprite). Test profiles in this session
             // have run Cobblemon versions older than what CobbleDex builds against, so this is a
             // real, reachable case, not just a defensive nicety.
-            DebugLog.warnOnce("icon-capture-${e.javaClass.simpleName}") {
-                "Species icon failed for $speciesId: ${e.javaClass.simpleName}: ${e.message}"
+            // Reflection wraps anything the render itself threw; the wrapper tells us nothing.
+            val cause = (e as? java.lang.reflect.InvocationTargetException)?.targetException ?: e
+            // A LinkageError is never about this one species - it means the Cobblemon we were built
+            // against doesn't match the one running, so every remaining sprite will fail the same
+            // way. Recorded so the build reports that once, rather than N identical failures.
+            if (cause is LinkageError && bindingFailure == null) {
+                bindingFailure = "${cause.javaClass.simpleName}: ${cause.message}"
+            }
+            DebugLog.warnOnce("icon-capture-${cause.javaClass.simpleName}") {
+                "Species icon failed for $speciesId: ${cause.javaClass.simpleName}: ${cause.message}"
             }
             null
         }

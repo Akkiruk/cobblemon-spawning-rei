@@ -270,6 +270,131 @@ object DiagnosticService {
         return 1
     }
     
+    /** Every `data/<ns>/...` folder a [JarDataCache] parser reads, with the file type it reads there. */
+    private val DATA_SUBPATHS = listOf(
+        "mega_showdown/showdown/typecharts" to ".js",
+        "species" to ".json",
+        "species_additions" to ".json",
+        "spawn_pool_world" to ".json",
+        "tms" to ".json",
+        "marks" to ".json",
+        "habitat_pools" to ".json",
+        "fossils" to ".json",
+    )
+
+    /**
+     * Diffs the folder scan against the packs this world actually loaded, per data folder.
+     *
+     * The folder scan can only look where it was told to look, so it misses per-world and loader-mod
+     * packs; the resolved packs miss anything the game didn't load at all, which for two known
+     * addons means data shipped inside a *resource*pack. Which of those actually bites can't be
+     * settled by reading either side's code - hence this.
+     *
+     * The line that decides whether the folder scans can be deleted is "only in folder scan". Empty
+     * everywhere means the resolved packs are a superset and the scans are redundant; anything
+     * listed there has to keep a scan, or be confirmed as content the game never loaded.
+     */
+    fun compareDataSources(sender: MessageSender): Int {
+        if (LocalDataSource.localServer() == null) {
+            sender.send("§cOpen a singleplayer or LAN world first - a remote server's packs can't be read from here.")
+            return 0
+        }
+
+        val modRoots = SpawnDataLoader.getModRootPaths()
+        sender.send("§7Comparing folder scan against loaded packs...")
+
+        LocalDataSource.withLocalResourceManager { resourceManager ->
+            val lines = mutableListOf<String>()
+            var totalMissing = 0
+
+            for ((subPath, extension) in DATA_SUBPATHS) {
+                val raw = JarDataCache.rawFileInventory(modRoots, subPath, extension)
+                val loaded = LocalDataSource.readText(resourceManager, subPath, extension).associate { entry ->
+                    val namespace = entry.location.substringBefore(':')
+                    val fileName = entry.location.substringAfterLast('/')
+                    "$namespace:$fileName" to Integer.toHexString(entry.text.hashCode())
+                }
+
+                if (raw.isEmpty() && loaded.isEmpty()) continue
+
+                val onlyInRaw = raw.keys - loaded.keys
+                val onlyInLoaded = loaded.keys - raw.keys
+                val differing = raw.keys.intersect(loaded.keys).filter { raw.getValue(it).hash != loaded.getValue(it) }
+                totalMissing += onlyInRaw.size
+
+                lines.add("§f$subPath §7scan=${raw.size} loaded=${loaded.size}")
+                if (onlyInLoaded.isNotEmpty()) {
+                    lines.add("  §a+${onlyInLoaded.size} only in loaded packs §7(the blind spot)")
+                }
+                if (differing.isNotEmpty()) {
+                    lines.add("  §e~${differing.size} differing contents §7(a pack overrode another)")
+                }
+                if (onlyInRaw.isEmpty()) {
+                    lines.add("  §a✔ nothing missing from loaded packs")
+                } else {
+                    lines.add("  §c-${onlyInRaw.size} ONLY in folder scan §7(would be lost):")
+                    for (key in onlyInRaw.sorted().take(8)) {
+                        lines.add("    §c$key §7<- ${raw.getValue(key).source}")
+                    }
+                    if (onlyInRaw.size > 8) lines.add("    §7... and ${onlyInRaw.size - 8} more")
+                }
+            }
+
+            lines.add(
+                if (totalMissing == 0) "§aLoaded packs are a superset - folder scans look redundant here."
+                else "§c$totalMissing file(s) only the folder scan can see - do not delete it yet."
+            )
+
+            net.minecraft.client.Minecraft.getInstance().execute { lines.forEach(sender::send) }
+        }
+        return 1
+    }
+
+    /**
+     * Reports which icon path each Pokémon in the browse panel is actually drawn by.
+     *
+     * The panel silently mixes the two: our baked sprite where the atlas has one, Cobblemon's
+     * `PokemonItem` model where it doesn't. Both look deliberate on screen, so the only way to know
+     * a species fell back - or isn't drawn at all - is to ask.
+     */
+    fun showIconSources(sender: MessageSender): Int {
+        val coverage = PokemonSpriteAtlas.iconCoverage()
+        val atlas = coverage.bySource[PokemonSpriteAtlas.IconSource.ATLAS].orEmpty()
+        val fallback = coverage.bySource[PokemonSpriteAtlas.IconSource.ITEM_FALLBACK].orEmpty()
+        val notDrawn = coverage.bySource[PokemonSpriteAtlas.IconSource.NOT_DRAWN].orEmpty()
+        val total = atlas.size + fallback.size + notDrawn.size
+
+        if (total == 0) {
+            sender.send("§eNo species surfaced yet - open a world and let the index finish loading.")
+            return 0
+        }
+
+        sender.send("§6CobbleDex icon sources §7($total surfaced)")
+        sender.send(
+            if (coverage.atlasLoaded) "§7Atlas: §aloaded§7, ${coverage.atlasEntries} sprites baked"
+            else "§7Atlas: §cnot loaded §7- everything is falling back to item models"
+        )
+
+        fun percent(n: Int) = if (total == 0) 0 else n * 100 / total
+        sender.send("§a✔ Our sprites: ${atlas.size} §7(${percent(atlas.size)}%)")
+        sender.send("§e▲ PokemonItem fallback: ${fallback.size} §7(${percent(fallback.size)}%)")
+        sender.send("§c✖ Not drawn at all: ${notDrawn.size} §7(${percent(notDrawn.size)}%)")
+
+        fun listSome(label: String, colour: String, ids: List<String>) {
+            if (ids.isEmpty()) return
+            sender.send("$colour$label:")
+            for (id in ids.sorted().take(15)) sender.send("  $colour$id")
+            if (ids.size > 15) sender.send("  §7... and ${ids.size - 15} more")
+        }
+        listSome("Falling back to item model", "§e", fallback)
+        listSome("Nothing draws these", "§c", notDrawn)
+
+        if (fallback.isNotEmpty() && coverage.atlasLoaded) {
+            sender.send("§7Rebake with §f/cobbledex sprites build§7 to pull these into the atlas.")
+        }
+        return 1
+    }
+
     fun reloadData(sender: MessageSender): Int {
         sender.send(tr("cobbledex-rei-emi-jei.cmd.reloading"))
         SpawnDataIndex.loadAll()

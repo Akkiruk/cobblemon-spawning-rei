@@ -4,6 +4,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import net.minecraft.server.packs.resources.ResourceManager
 import java.io.InputStreamReader
 import java.nio.file.Files
 import java.nio.file.Path
@@ -680,6 +681,8 @@ object JarDataCache {
 
     // ==================== Type Chart Override Parsing ====================
 
+    private const val TYPE_CHART_SUBPATH = "mega_showdown/showdown/typecharts"
+
     /**
      * Type effectiveness overrides from `data/<ns>/mega_showdown/showdown/typecharts/<type>.js`
      * - the Showdown-style `damageTaken` scripts that mega_showdown reads to patch Cobblemon's
@@ -695,11 +698,41 @@ object JarDataCache {
     private fun parseTypeChartOverridesFromJars(modRoots: List<Path>): Map<String, Map<String, Float>> {
         val result = mutableMapOf<String, Map<String, Float>>()
         val sourceOf = mutableMapOf<String, String>()
-        forEachDataText(modRoots, "mega_showdown/showdown/typecharts", ".js") { fileName, text, source ->
+        forEachDataText(modRoots, TYPE_CHART_SUBPATH, ".js") { fileName, text, source ->
             applyTypeChartEntry(result, sourceOf, fileName, text, source)
         }
         DebugLog.info("JarDataCache: parsed type chart overrides for ${result.size} defending types")
         return result
+    }
+
+    /**
+     * Re-reads the type chart overrides from the packs the hosted world actually loaded, replacing
+     * whatever [parseTypeChartOverridesFromJars] found at startup.
+     *
+     * That startup scan runs before a world exists, so it can only ever see mod jars and
+     * `<gameDir>/datapacks/` - a rebalance pack installed into the world's own `datapacks/` folder,
+     * or served by a loader mod like OpenLoader, is invisible to it. That's why Project Lazuli's
+     * type chart applied when it was installed as a mod but not as a datapack: same files, a
+     * location the scan never looked in. See [LocalDataSource] for why asking the server is the
+     * complete answer rather than one more folder to guess at.
+     *
+     * Returns whether the overrides actually changed, so a caller only pays for a rebuild when they
+     * did - on the overwhelmingly common join, where the startup scan already had it right, this
+     * finds the same chart and costs nothing further.
+     */
+    fun rescanTypeChartOverrides(resourceManager: ResourceManager): Boolean {
+        val result = mutableMapOf<String, Map<String, Float>>()
+        val sourceOf = mutableMapOf<String, String>()
+        for (entry in LocalDataSource.readText(resourceManager, TYPE_CHART_SUBPATH, ".js")) {
+            applyTypeChartEntry(result, sourceOf, entry.fileName, entry.text, "pack:${entry.sourcePackId}")
+        }
+        if (result == cachedTypeChartOverrides) return false
+        DebugLog.info(
+            "JarDataCache: type chart overrides refreshed from loaded datapacks - " +
+                "${cachedTypeChartOverrides.size} -> ${result.size} defending types"
+        )
+        cachedTypeChartOverrides = result
+        return true
     }
 
     /**
@@ -1433,6 +1466,86 @@ object JarDataCache {
     // files on disk, so they're irrelevant here). Returns just the bare
     // filenames, matching Path.fileName.toString() for the resourcepacks/
     // folder.
+    /** Where one file was found, and a hash of its text, for [rawFileInventory]. */
+    internal data class InventoryEntry(val source: String, val hash: String)
+
+    /**
+     * Every file under `data/<ns>/[subPath]` ending in [extension] that *any* scan in this object can
+     * currently reach, keyed `<namespace>:<file name>`.
+     *
+     * Deliberately the union of all of them - mod jars, loose and zipped datapacks, and the enabled
+     * resourcepacks that only the species and fossil scans read - because its one purpose is to
+     * answer whether [LocalDataSource] sees everything they do. Anything listed here and missing
+     * from the resolved packs is either content the game didn't actually load, or a gap that has to
+     * keep its folder scan; that question can't be settled by reading this code, only by running
+     * both against a real modpack.
+     */
+    internal fun rawFileInventory(
+        modRoots: List<Path>,
+        subPath: String,
+        extension: String,
+    ): Map<String, InventoryEntry> {
+        val out = mutableMapOf<String, InventoryEntry>()
+        fun hashOf(text: String) = Integer.toHexString(text.hashCode())
+
+        fun walkDataDir(dataDir: Path, source: String) {
+            if (!Files.isDirectory(dataDir)) return
+            Files.list(dataDir).use { namespaces ->
+                namespaces.filter { Files.isDirectory(it) }.forEach { ns ->
+                    val target = ns.resolve(subPath)
+                    if (!Files.isDirectory(target)) return@forEach
+                    Files.walk(target, 10).use { files ->
+                        files.filter { it.toString().endsWith(extension) && Files.isRegularFile(it) }.forEach { file ->
+                            try {
+                                val text = Files.readString(file, Charsets.UTF_8)
+                                out["${ns.fileName}:${file.fileName}"] = InventoryEntry(source, hashOf(text))
+                            } catch (_: Exception) {}
+                        }
+                    }
+                }
+            }
+        }
+
+        for (root in modRoots) {
+            try { walkDataDir(root.resolve("data"), "jar:${root.fileName}") } catch (_: Exception) {}
+        }
+
+        try {
+            val gameDir = com.cobbledex.platform.PlatformHelper.getGameDir()
+            val enabled = readEnabledResourcePackFileNames(gameDir)
+            val zipPattern = Regex("^data/([^/]+)/${Regex.escape(subPath)}/.*${Regex.escape(extension)}$")
+
+            for (folderName in listOf("datapacks", "resourcepacks")) {
+                val dir = gameDir.resolve(folderName)
+                if (!Files.isDirectory(dir)) continue
+                val isResourcePacks = folderName == "resourcepacks"
+                val allowed: (Path) -> Boolean = { !isResourcePacks || it.fileName.toString() in enabled }
+
+                Files.list(dir).use { entries ->
+                    entries.filter { Files.isDirectory(it) }.filter(allowed).forEach { pack ->
+                        walkDataDir(pack.resolve("data"), "$folderName:${pack.fileName}")
+                    }
+                }
+
+                forEachZipDatapack(dir, allowed) { zip, zipPath ->
+                    for (entry in zip.entries()) {
+                        if (entry.isDirectory) continue
+                        val match = zipPattern.find(entry.name) ?: continue
+                        try {
+                            val text = zip.getInputStream(entry).use {
+                                InputStreamReader(it, Charsets.UTF_8).readText()
+                            }
+                            val key = "${match.groupValues[1]}:${entry.name.substringAfterLast('/')}"
+                            out[key] = InventoryEntry("$folderName-zip:${zipPath.fileName}", hashOf(text))
+                        } catch (_: Exception) {}
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+
+        return out
+    }
+
     private fun readEnabledResourcePackFileNames(gameDir: Path): Set<String> {
         return try {
             val optionsFile = gameDir.resolve("options.txt")

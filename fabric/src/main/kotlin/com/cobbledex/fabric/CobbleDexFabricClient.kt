@@ -106,6 +106,20 @@ class CobbleDexFabricClient : ClientModInitializer {
                             }
                         }
                     )
+                    .then(ClientCommandManager.literal("datasources")
+                        .executes { ctx ->
+                            DiagnosticService.compareDataSources { msg ->
+                                ctx.source.sendFeedback(Component.literal(msg))
+                            }
+                        }
+                    )
+                    .then(ClientCommandManager.literal("icons")
+                        .executes { ctx ->
+                            DiagnosticService.showIconSources { msg ->
+                                ctx.source.sendFeedback(Component.literal(msg))
+                            }
+                        }
+                    )
                     .then(ClientCommandManager.literal("export")
                         .executes { ctx ->
                             SpreadsheetExporter.export { msg ->

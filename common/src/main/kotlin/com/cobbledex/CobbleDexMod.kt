@@ -93,6 +93,31 @@ object CobbleDexMod {
     fun onJoinedWorld() {
         tickCounter = 0
         PokemonSpriteAtlas.resetEnsureAttempt()
+        refreshLocalDatapackLayer()
+    }
+
+    /**
+     * Re-reads the parts of the local-file layer that only the loaded world can answer for.
+     *
+     * [JarDataCache]'s startup scan cannot see a pack installed into the world's own `datapacks/`
+     * folder or served by a loader mod, because no world exists yet when it runs - so this is the
+     * first moment the real set of packs is knowable. It deliberately does *not* ride on
+     * [CobblemonDataSignal]: that fingerprint is built from species and spawn-pool contents, and a
+     * pack that only rewrites the type chart moves none of them, so the change would never be
+     * reported.
+     *
+     * Only rebuilds when the re-read actually found something different. Type matchups are resolved
+     * when a recipe is built, not when it's drawn, so a changed chart does need the rebuild to
+     * become visible - but rebuilding on *every* join is exactly the multi-second freeze issue #43
+     * removed, and the common case here is a join that changes nothing.
+     */
+    private fun refreshLocalDatapackLayer() {
+        LocalDataSource.withLocalResourceManager { resourceManager ->
+            if (!SpawnDataIndex.typeChartOverridesActive()) return@withLocalResourceManager
+            if (JarDataCache.rescanTypeChartOverrides(resourceManager)) {
+                SpawnDataIndex.rebuildAsync()
+            }
+        }
     }
 
     /** Left the world. See [onJoinedWorld] for why this no longer forces a resample. */

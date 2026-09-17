@@ -286,13 +286,23 @@ object SpawnDataIndex {
      * worked around without uninstalling the pack that triggered it.
      */
     private fun loadTypeChartOverrides() {
-        val overrides = if (CobbleDexConfig.get().applyTypeChartOverrides && PlatformHelper.isModLoaded("mega_showdown")) {
+        val overrides = if (typeChartOverridesActive()) {
             JarDataCache.getCachedTypeChartOverrides()
         } else {
             emptyMap()
         }
         TypeChart.applyOverrides(overrides)
     }
+
+    /**
+     * Whether those overrides can affect anything at all right now - see [loadTypeChartOverrides]
+     * for why each half matters.
+     *
+     * Shared with [CobbleDexMod]'s world-join re-read so that re-reading a chart which would only be
+     * thrown away again never triggers a rebuild, and so the two can't drift apart.
+     */
+    internal fun typeChartOverridesActive(): Boolean =
+        CobbleDexConfig.get().applyTypeChartOverrides && PlatformHelper.isModLoaded("mega_showdown")
 
     /**
      * Spawns. Cobblemon never syncs `WORLD_SPAWN_POOL` to clients (it has no packet at all), so

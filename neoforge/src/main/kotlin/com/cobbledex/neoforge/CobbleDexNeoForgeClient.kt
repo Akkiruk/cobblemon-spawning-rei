@@ -77,6 +77,20 @@ object CobbleDexNeoForgeClient {
                         }
                     }
                 )
+                .then(Commands.literal("datasources")
+                    .executes { ctx ->
+                        DiagnosticService.compareDataSources { msg ->
+                            ctx.source.sendSuccess({ Component.literal(msg) }, false)
+                        }
+                    }
+                )
+                .then(Commands.literal("icons")
+                    .executes { ctx ->
+                        DiagnosticService.showIconSources { msg ->
+                            ctx.source.sendSuccess({ Component.literal(msg) }, false)
+                        }
+                    }
+                )
                 .then(Commands.literal("export")
                     .executes { ctx ->
                         SpreadsheetExporter.export { msg ->
