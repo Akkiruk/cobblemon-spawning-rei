@@ -1,19 +1,93 @@
 package com.cobbledex
 
 /**
- * REI, JEI and EMI all model "a recipe" as one fixed-size rectangle with no internal scroll - none
- * of the three viewer frameworks will scroll inside a single recipe/display. A [RecipeHandle] whose
- * content is taller than a viewer's budget has always silently overflowed or clipped past its
- * bounds (see the removed warning this replaced in [CategorySizer]). The fix all three viewers can
- * use is the one thing they already support: multiple registered recipes/displays for the same
- * lookup, paged through with each viewer's existing multi-recipe UI (REI pages displays, JEI scrolls
- * its recipe list, EMI scrolls its recipe list).
+ * The one home for "split this content so no single page exceeds [PanelLayout.MAX_HEIGHT]" - every
+ * category or viewer that needs that job should extend or call into this file rather than writing a
+ * second bin-packer. There are two entry points because the job happens at two different times:
  *
- * [RecipeHandle.paginate] and [RecipeHandle.contentFor] are that split, written once here instead of
- * once per viewer plugin. [PanelPage.index] `0` always keeps the handle's own id (see [Paged.id]) so
- * a bookmark/favorite made before a data reload grows a panel from one page to several still
- * resolves to the same first page.
+ *  - [MeasuredPagePlanner]: paginates a *list of source items* before any [PanelLayout] exists, using
+ *    caller-supplied height estimates (e.g. Obtainment routes, drop entries, move rows). This is the
+ *    cheap, preferred path - it runs once per category build and produces right-sized [RecipeHandle]s
+ *    from the start.
+ *  - [RecipeHandle.paginate] / [RecipeHandle.contentFor]: splits an *already-built* [PanelLayout] by
+ *    its real rendered geometry. This is the fallback for panels that don't pre-paginate their source
+ *    items (Spawn, Herds) or whose estimate turned out to undercount - it's more precise (it cuts at
+ *    exact pixel boundaries between elements) but only runs after the expensive layout build, and
+ *    only in [RecipeBuildCache]'s callers (REI/JEI/EMI registration), not at data-build time.
+ *
+ * If you're adding a new tall/variable-length panel, prefer pre-paginating its source list with
+ * [MeasuredPagePlanner] (see [RecipeBuilder.buildUnifiedObtainmentPages] or
+ * `RecipeBuilder.paginateDrops` for examples) - only fall back to relying on [RecipeHandle.paginate]
+ * alone for panels with no natural "list of items" to split (a single Pokémon's whole spawn entry).
  */
+data class MeasuredPage<T>(val items: List<T>, val height: Int)
+
+object MeasuredPagePlanner {
+    fun <T> paginate(
+        items: List<T>,
+        maxHeight: Int = PanelLayout.MAX_HEIGHT,
+        fixedHeight: Int = 0,
+        spacingHeight: Int = 0,
+        measureItemHeight: (item: T, precedingOnPage: T?) -> Int,
+    ): List<List<T>> = paginateMeasured(
+        items = items,
+        maxHeight = maxHeight,
+        fixedHeight = fixedHeight,
+        spacingHeight = spacingHeight,
+        measureItemHeight = measureItemHeight,
+    ).map { it.items }
+
+    /**
+     * [measureItemHeight] receives the item immediately before it *on the same page* (`null` for the
+     * first item of any page, including right after a page break) - not just the previous item in
+     * [items] - so a caller whose per-item cost depends on "does this repeat a group header at the
+     * top of a new page" (see `RecipeBuilder.buildMovesPages`) can express that exactly, without the
+     * planner needing to know what a "group" is.
+     */
+    fun <T> paginateMeasured(
+        items: List<T>,
+        maxHeight: Int = PanelLayout.MAX_HEIGHT,
+        fixedHeight: Int = 0,
+        spacingHeight: Int = 0,
+        measureItemHeight: (item: T, precedingOnPage: T?) -> Int,
+    ): List<MeasuredPage<T>> {
+        if (items.isEmpty()) return emptyList()
+
+        val pages = mutableListOf<MeasuredPage<T>>()
+        var currentItems = mutableListOf<T>()
+        var currentHeight = fixedHeight.coerceAtLeast(0)
+
+        for (item in items) {
+            val preceding = currentItems.lastOrNull()
+            val itemHeight = measureItemHeight(item, preceding).coerceAtLeast(0)
+            val spacing = if (preceding == null) 0 else spacingHeight.coerceAtLeast(0)
+            val candidateHeight = currentHeight + spacing + itemHeight
+
+            if (currentItems.isNotEmpty() && candidateHeight > maxHeight) {
+                pages.add(MeasuredPage(currentItems.toList(), currentHeight))
+                currentItems = mutableListOf(item)
+                // Re-measured as the first item of the new page - its cost can differ from the
+                // mid-page candidate just rejected (e.g. it now pays a repeated group-header cost).
+                currentHeight = fixedHeight.coerceAtLeast(0) + measureItemHeight(item, null).coerceAtLeast(0)
+            } else {
+                currentItems.add(item)
+                currentHeight = candidateHeight
+            }
+        }
+
+        if (currentItems.isNotEmpty()) {
+            pages.add(MeasuredPage(currentItems.toList(), currentHeight))
+        }
+
+        return pages
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Post-layout fallback: pages an already-built PanelLayout by its real rendered geometry. See the
+// file-level doc above for when to prefer this over MeasuredPagePlanner.
+// ---------------------------------------------------------------------------------------------
+
 data class PanelPage(val top: Int, val bottom: Int, val shift: Int, val height: Int, val index: Int) {
     operator fun contains(y: Int) = y >= top && y < bottom
 }

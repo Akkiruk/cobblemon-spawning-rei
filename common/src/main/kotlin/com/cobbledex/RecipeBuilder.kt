@@ -228,7 +228,7 @@ object RecipeBuilder {
             items = routes,
             fixedHeight = ObtainmentPageBuilder.measureUnifiedFixedHeight(),
             spacingHeight = ObtainmentPageBuilder.UNIFIED_ROUTE_SPACING,
-            measureItemHeight = { route -> ObtainmentPageBuilder.measureUnifiedRouteHeight(speciesName, route) },
+            measureItemHeight = { route, _ -> ObtainmentPageBuilder.measureUnifiedRouteHeight(speciesName, route) },
         )
         val pageTotal = pages.size
         return pages.mapIndexed { index, pageRoutes ->
@@ -302,7 +302,7 @@ object RecipeBuilder {
         val pages = MeasuredPagePlanner.paginate(
             items = drops,
             fixedHeight = DropPageBuilder.measureFixedHeight(),
-            measureItemHeight = DropPageBuilder::measureEntryHeight,
+            measureItemHeight = { drop, _ -> DropPageBuilder.measureEntryHeight(drop) },
         )
         val totalPages = pages.size
         return pages.mapIndexed { index, pageDrops ->
@@ -438,27 +438,18 @@ object RecipeBuilder {
         val grouped = CobbleDexConfig.get().groupMovesByMethod
         val ordered = entries.sortedWith(if (grouped) groupedComparator() else flatComparator())
 
-        // Paginate by cost: every move row costs 1; in grouped mode a section header costs an extra
-        // 1. The renderer re-emits a section header at the top of every page, so pagination charges
-        // for the first group of each page too (prevMethod starts null).
-        val pages = mutableListOf<List<MoveEntry>>()
-        var i = 0
-        while (i < ordered.size) {
-            val page = mutableListOf<MoveEntry>()
-            var cost = 0
-            var prevMethod: String? = null
-            while (i < ordered.size) {
-                val entry = ordered[i]
-                val method = entry.primaryMethod()
-                val headerCost = if (grouped && method != prevMethod) 1 else 0
-                if (page.isNotEmpty() && cost + headerCost + 1 > MOVES_PER_PAGE) break
-                page.add(entry)
-                cost += headerCost + 1
-                prevMethod = method
-                i++
-            }
-            pages.add(page)
-        }
+        // Paginate by cost: every move row costs 1; in grouped mode, a row that starts a new method
+        // group - or opens a page, since the renderer re-emits the group header at the top of every
+        // page - costs an extra 1 for that header. `preceding` is null exactly at the start of a
+        // page (see MeasuredPagePlanner), which is what forces the repeated per-page header cost.
+        val pages = MeasuredPagePlanner.paginate(
+            items = ordered,
+            maxHeight = MOVES_PER_PAGE,
+            measureItemHeight = { entry, preceding ->
+                val startsGroup = grouped && (preceding == null || preceding.primaryMethod() != entry.primaryMethod())
+                1 + if (startsGroup) 1 else 0
+            },
+        )
 
         val pageCount = pages.size
         return pages.mapIndexed { idx, pageEntries ->
