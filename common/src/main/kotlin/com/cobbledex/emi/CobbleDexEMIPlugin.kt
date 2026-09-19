@@ -42,6 +42,21 @@ open class CobbleDexEMIPlugin : EmiPlugin {
                 }
             }
 
+        /** Opens the species' recipe view (Herds tab included) for the spawn page's category-jump link. */
+        fun openHerdsRecipeFor(species: String) {
+            try {
+                val cat = emiCategory(com.cobbledex.HerdsDex)
+                val handles = com.cobbledex.HerdsDex.buildRecipesFor(species)
+                val recipe = handles.firstOrNull()?.let {
+                    GenericEmiRecipe(it, cat, com.cobbledex.HerdsDex, it.paginate(EmiPanelSlicer.budget()).first())
+                }
+                if (recipe != null) dev.emi.emi.api.EmiApi.displayRecipe(recipe)
+                else if (PokemonItemCache.canRender(species)) dev.emi.emi.api.EmiApi.displayUses(PokemonEmiStack.of(species))
+            } catch (_: Throwable) {
+                if (PokemonItemCache.canRender(species)) dev.emi.emi.api.EmiApi.displayUses(PokemonEmiStack.of(species))
+            }
+        }
+
         // Pre-initialize all known categories
         val SPAWN_CATEGORY get() = emiCategory(com.cobbledex.SpawnDex)
         val EVOLUTION_CATEGORY get() = emiCategory(com.cobbledex.EvolutionDex)
@@ -212,20 +227,19 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             // Move-name links: an invisible clickable over each name → that move's learner grid.
             for (link in content.moveLinks) {
                 widgets.add(
-                    MoveLinkEmiWidget(
-                        dev.emi.emi.api.widget.Bounds(link.x, link.y, link.width, link.height),
-                        link.moveName,
-                    )
+                    LinkEmiWidget(dev.emi.emi.api.widget.Bounds(link.x, link.y, link.width, link.height)) {
+                        // The move is an input on the learner grid, so "uses" is the view that resolves it.
+                        dev.emi.emi.api.EmiApi.displayUses(MoveEmiStack.of(link.moveName))
+                    }
                 )
             }
 
             // Category jump links (spawn page "Spawns in a herd" → the species' recipe view).
             for (link in content.categoryLinks) {
                 widgets.add(
-                    CategoryLinkEmiWidget(
-                        dev.emi.emi.api.widget.Bounds(link.x, link.y, link.width, link.height),
-                        link.species,
-                    )
+                    LinkEmiWidget(dev.emi.emi.api.widget.Bounds(link.x, link.y, link.width, link.height)) {
+                        openHerdsRecipeFor(link.species)
+                    }
                 )
             }
 
@@ -237,10 +251,14 @@ open class CobbleDexEMIPlugin : EmiPlugin {
         }
     }
 
-    /** Invisible click target laid over a move name; faint highlight on hover. */
-    private class MoveLinkEmiWidget(
+    /**
+     * Invisible click target with a faint hover highlight - shared by the move-name link (opens the
+     * move's learner grid) and the category-jump link (opens another category's page for a
+     * species), which otherwise differed only in what [onClick] does.
+     */
+    private class LinkEmiWidget(
         private val bounds: dev.emi.emi.api.widget.Bounds,
-        private val move: String,
+        private val onClick: () -> Unit,
     ) : dev.emi.emi.api.widget.Widget() {
 
         override fun getBounds(): dev.emi.emi.api.widget.Bounds = bounds
@@ -253,41 +271,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
 
         override fun mouseClicked(mouseX: Int, mouseY: Int, button: Int): Boolean {
             if (button == 0 && bounds.contains(mouseX, mouseY)) {
-                // The move is an input on the learner grid, so "uses" is the view that resolves it.
-                dev.emi.emi.api.EmiApi.displayUses(MoveEmiStack.of(move))
-                return true
-            }
-            return false
-        }
-    }
-
-    /** Invisible click target that opens the species' recipe view (Herds tab included). */
-    private class CategoryLinkEmiWidget(
-        private val bounds: dev.emi.emi.api.widget.Bounds,
-        private val species: String,
-    ) : dev.emi.emi.api.widget.Widget() {
-
-        override fun getBounds(): dev.emi.emi.api.widget.Bounds = bounds
-
-        override fun render(graphics: net.minecraft.client.gui.GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {
-            if (bounds.contains(mouseX, mouseY)) {
-                graphics.fill(bounds.x(), bounds.y(), bounds.right(), bounds.bottom(), com.cobbledex.DexColors.HOVER)
-            }
-        }
-
-        override fun mouseClicked(mouseX: Int, mouseY: Int, button: Int): Boolean {
-            if (button == 0 && bounds.contains(mouseX, mouseY)) {
-                try {
-                    val cat = emiCategory(com.cobbledex.HerdsDex)
-                    val handles = com.cobbledex.HerdsDex.buildRecipesFor(species)
-                    val recipe = handles.firstOrNull()?.let {
-                        GenericEmiRecipe(it, cat, com.cobbledex.HerdsDex, it.paginate(EmiPanelSlicer.budget()).first())
-                    }
-                    if (recipe != null) dev.emi.emi.api.EmiApi.displayRecipe(recipe)
-                    else if (PokemonItemCache.canRender(species)) dev.emi.emi.api.EmiApi.displayUses(PokemonEmiStack.of(species))
-                } catch (_: Throwable) {
-                    if (PokemonItemCache.canRender(species)) dev.emi.emi.api.EmiApi.displayUses(PokemonEmiStack.of(species))
-                }
+                onClick()
                 return true
             }
             return false

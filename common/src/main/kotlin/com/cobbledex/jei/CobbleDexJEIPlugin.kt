@@ -416,10 +416,22 @@ open class CobbleDexJEIPlugin : IModPlugin {
             val dy = offsetY(recipe.handle)
             val content = recipe.handle.contentFor(recipe.page)
             for (link in content.moveLinks) {
-                builder.addInputHandler(MoveLinkInputHandler(link, dx, dy, helpers.focusFactory))
+                builder.addInputHandler(LinkInputHandler(link.x + dx, link.y + dy, link.width, link.height) {
+                    runtime?.recipesGui?.show(
+                        helpers.focusFactory.createFocus(RecipeIngredientRole.INPUT, MoveIngredientType, MoveIngredient(link.moveName))
+                    )
+                })
             }
             for (link in content.categoryLinks) {
-                builder.addInputHandler(CategoryLinkInputHandler(link, dx, dy, helpers.focusFactory))
+                builder.addInputHandler(LinkInputHandler(link.x + dx, link.y + dy, link.width, link.height) {
+                    val gui = runtime?.recipesGui
+                    val def = DexCategory.ALL.firstOrNull { it.id == link.categoryId }
+                    if (gui != null && def != null) {
+                        gui.showTypes(listOf(recipeType(def)))
+                    } else {
+                        gui?.show(helpers.focusFactory.createFocus(RecipeIngredientRole.INPUT, PokemonIngredientType, PokemonIngredient(link.species)))
+                    }
+                })
             }
         }
 
@@ -449,16 +461,17 @@ open class CobbleDexJEIPlugin : IModPlugin {
         }
     }
 
-    /** Turns a move-name region on the Moves page into a click → "who can learn this move". */
-    private class MoveLinkInputHandler(
-        link: com.cobbledex.MoveLinkDef,
-        dx: Int,
-        dy: Int,
-        private val focusFactory: mezz.jei.api.recipe.IFocusFactory,
+    /**
+     * A clickable region that runs [onClick] on left-click - shared by the move-name link (opens
+     * "who can learn this move") and the category-jump link (opens another category's page), which
+     * otherwise differed only in what clicking them does.
+     */
+    private class LinkInputHandler(
+        x: Int, y: Int, width: Int, height: Int,
+        private val onClick: () -> Unit,
     ) : mezz.jei.api.gui.inputs.IJeiInputHandler {
 
-        private val move = link.moveName
-        private val area = net.minecraft.client.gui.navigation.ScreenRectangle(link.x + dx, link.y + dy, link.width, link.height)
+        private val area = net.minecraft.client.gui.navigation.ScreenRectangle(x, y, width, height)
 
         override fun getArea(): net.minecraft.client.gui.navigation.ScreenRectangle = area
 
@@ -466,42 +479,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
             mouseX: Double, mouseY: Double, input: mezz.jei.api.gui.inputs.IJeiUserInput,
         ): Boolean {
             if (input.key.value != 0) return false // left mouse only
-            if (!input.isSimulate) {
-                runtime?.recipesGui?.show(
-                    focusFactory.createFocus(RecipeIngredientRole.INPUT, MoveIngredientType, MoveIngredient(move))
-                )
-            }
-            return true
-        }
-    }
-
-    /** The spawn page's "Spawns in a herd" pointer → the species' recipe view (Herds tab included). */
-    private class CategoryLinkInputHandler(
-        link: com.cobbledex.CategoryLinkDef,
-        dx: Int,
-        dy: Int,
-        private val focusFactory: mezz.jei.api.recipe.IFocusFactory,
-    ) : mezz.jei.api.gui.inputs.IJeiInputHandler {
-
-        private val species = link.species
-        private val categoryId = link.categoryId
-        private val area = net.minecraft.client.gui.navigation.ScreenRectangle(link.x + dx, link.y + dy, link.width, link.height)
-
-        override fun getArea(): net.minecraft.client.gui.navigation.ScreenRectangle = area
-
-        override fun handleInput(
-            mouseX: Double, mouseY: Double, input: mezz.jei.api.gui.inputs.IJeiUserInput,
-        ): Boolean {
-            if (input.key.value != 0) return false
-            if (!input.isSimulate) {
-                val gui = runtime?.recipesGui ?: return true
-                val def = DexCategory.ALL.firstOrNull { it.id == categoryId }
-                if (def != null) {
-                    gui.showTypes(listOf(recipeType(def)))
-                } else {
-                    gui.show(focusFactory.createFocus(RecipeIngredientRole.INPUT, PokemonIngredientType, PokemonIngredient(species)))
-                }
-            }
+            if (!input.isSimulate) onClick()
             return true
         }
     }
