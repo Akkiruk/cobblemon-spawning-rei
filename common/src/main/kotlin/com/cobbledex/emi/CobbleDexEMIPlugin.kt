@@ -103,8 +103,11 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             // rebuilding the same recipes from scratch. See RecipeBuildCache.
             val recipes = RecipeBuildCache.getOrBuild(def)
             ViewerParityGuard.warn(def, recipes, "EMI")
+            val budget = EmiPanelSlicer.budget()
             for (handle in recipes) {
-                registry.addRecipe(GenericEmiRecipe(handle, cat, def))
+                EmiPanelSlicer.slice(handle, budget).forEachIndexed { part, slice ->
+                    registry.addRecipe(GenericEmiRecipe(handle, cat, def, slice, part))
+                }
             }
             registeredCats.add("${def.id}(${recipes.size})")
         }
@@ -119,6 +122,8 @@ open class CobbleDexEMIPlugin : EmiPlugin {
         private val handle: RecipeHandle,
         private val emiCategory: EmiRecipeCategory,
         private val def: DexCategory,
+        private val slice: EmiPanelSlicer.Slice,
+        private val part: Int = 0,
     ) : EmiRecipe {
 
         private val cachedInputs: List<EmiIngredient> by lazy(LazyThreadSafetyMode.NONE) {
@@ -155,15 +160,18 @@ open class CobbleDexEMIPlugin : EmiPlugin {
 
         override fun getCategory(): EmiRecipeCategory = emiCategory
 
-        override fun getId(): ResourceLocation =
-            ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "emi_${handle.recipeIdPath}")
+        // The first part keeps the unsliced id so existing favorites still resolve.
+        override fun getId(): ResourceLocation = ResourceLocation.fromNamespaceAndPath(
+            CobbleDexMod.MOD_ID,
+            "emi_${handle.recipeIdPath}" + if (part > 0) "/part_${part + 1}" else "",
+        )
 
         override fun getInputs(): List<EmiIngredient> = cachedInputs
 
         override fun getOutputs(): List<EmiStack> = cachedOutputs
 
         override fun getDisplayWidth(): Int = handle.width
-        override fun getDisplayHeight(): Int = handle.height
+        override fun getDisplayHeight(): Int = slice.height
 
         // CobbleDex categories are informational panels, not craftable recipes: their "inputs" are
         // Pokémon and their "outputs" are data. EMI's recipe-tree / "cost per batch" feature tries to
@@ -175,7 +183,8 @@ open class CobbleDexEMIPlugin : EmiPlugin {
         override fun addWidgets(widgets: dev.emi.emi.api.widget.WidgetHolder) {
             val slots = handle.slots
             val w = handle.width
-            val h = handle.height
+            val h = slice.height
+            val shift = slice.shift
 
             // Opaque surface the mod owns, drawn before the slots so panel text stays readable
             // whatever EMI theme / resource pack is active (issue #42).
@@ -184,28 +193,31 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             }
 
             for (slot in slots.pokemon) {
+                if (slot.y !in slice) continue
                 val stack = PokemonEmiStack.of(slot.species, slot.aspects)
                 if (!stack.isEmpty) {
-                    widgets.addSlot(stack, slot.x, slot.y).recipeContext(this)
+                    widgets.addSlot(stack, slot.x, slot.y - shift).recipeContext(this)
                 }
             }
 
             for (slot in slots.items) {
+                if (slot.y !in slice) continue
                 val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
                 if (!stack.isEmpty) {
-                    widgets.addSlot(EmiStack.of(stack), slot.x, slot.y).recipeContext(this)
+                    widgets.addSlot(EmiStack.of(stack), slot.x, slot.y - shift).recipeContext(this)
                 }
             }
 
             widgets.addDrawable(0, 0, w, h) { gfx, _, _, _ ->
-                handle.layout.render(gfx)
+                handle.layout.renderRange(gfx, slice.top, slice.bottom, shift)
             }
 
             // Move-name links: an invisible clickable over each name → that move's learner grid.
             for (link in handle.moveLinks) {
+                if (link.y !in slice) continue
                 widgets.add(
                     MoveLinkEmiWidget(
-                        dev.emi.emi.api.widget.Bounds(link.x, link.y, link.width, link.height),
+                        dev.emi.emi.api.widget.Bounds(link.x, link.y - shift, link.width, link.height),
                         link.moveName,
                     )
                 )
@@ -213,17 +225,18 @@ open class CobbleDexEMIPlugin : EmiPlugin {
 
             // Category jump links (spawn page "Spawns in a herd" → the species' recipe view).
             for (link in slots.categoryLinks) {
+                if (link.y !in slice) continue
                 widgets.add(
                     CategoryLinkEmiWidget(
-                        dev.emi.emi.api.widget.Bounds(link.x, link.y, link.width, link.height),
+                        dev.emi.emi.api.widget.Bounds(link.x, link.y - shift, link.width, link.height),
                         link.species,
                     )
                 )
             }
 
             for (zone in handle.layout.tooltipZones) {
-                if (zone.lines.isNotEmpty()) {
-                    widgets.addTooltipText(zone.lines, zone.x, zone.y, zone.width, zone.height)
+                if (zone.lines.isNotEmpty() && zone.y in slice) {
+                    widgets.addTooltipText(zone.lines, zone.x, zone.y - shift, zone.width, zone.height)
                 }
             }
         }
@@ -272,7 +285,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
                 try {
                     val cat = emiCategory(com.cobbledex.HerdsDex)
                     val handles = com.cobbledex.HerdsDex.buildRecipesFor(species)
-                    val recipe = handles.firstOrNull()?.let { GenericEmiRecipe(it, cat, com.cobbledex.HerdsDex) }
+                    val recipe = handles.firstOrNull()?.let { GenericEmiRecipe(it, cat, com.cobbledex.HerdsDex, EmiPanelSlicer.slice(it).first()) }
                     if (recipe != null) dev.emi.emi.api.EmiApi.displayRecipe(recipe)
                     else if (PokemonItemCache.canRender(species)) dev.emi.emi.api.EmiApi.displayUses(PokemonEmiStack.of(species))
                 } catch (_: Throwable) {

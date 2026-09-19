@@ -185,12 +185,27 @@ class PanelLayout(val width: Int) {
         }?.lines
     }
 
+    fun occupiedSpans(): List<IntRange> = elements.map { el ->
+        when (el) {
+            is Element.Text -> el.y until el.y + font.lineHeight
+            is Element.Fill -> el.y1 until el.y2
+        }
+    }
+
     // --- Rendering ---
 
-    fun render(graphics: GuiGraphics) {
+    fun render(graphics: GuiGraphics) = renderRange(graphics, Int.MIN_VALUE, Int.MAX_VALUE, 0)
+
+    fun renderRange(graphics: GuiGraphics, fromY: Int, toY: Int, shiftY: Int) {
         for (el in elements) when (el) {
-            is Element.Text -> graphics.drawString(font, el.text, el.x, el.y, el.color, el.shadow)
-            is Element.Fill -> graphics.fill(el.x1, el.y1, el.x2, el.y2, el.color)
+            is Element.Text -> if (el.y in fromY until toY) {
+                graphics.drawString(font, el.text, el.x, el.y - shiftY, el.color, el.shadow)
+            }
+            is Element.Fill -> {
+                val y1 = maxOf(el.y1, fromY)
+                val y2 = minOf(el.y2, toY)
+                if (y1 < y2) graphics.fill(el.x1, y1 - shiftY, el.x2, y2 - shiftY, el.color)
+            }
         }
     }
 
