@@ -27,6 +27,7 @@ desktop.ini
 
 # Logs
 *.log
+*.log.gz
 build-log.txt
 
 # Temporary / one-off files
