@@ -84,20 +84,13 @@ object CategorySizer {
         for (handle in candidates) {
             try {
                 val w = handle.width
-                val h = handle.height
+                // A handle taller than MAX_HEIGHT no longer clips: RecipeBuildCache's callers all
+                // page a too-tall handle into multiple registered recipes/displays (see
+                // RecipeHandle.paginate), each capped at MAX_HEIGHT - so the tallest *page* any
+                // viewer ever actually registers is this cap, not the handle's raw height.
+                val h = minOf(handle.height, PanelLayout.MAX_HEIGHT)
                 if (w > maxW) maxW = w
                 if (h > maxH) maxH = h
-                // The category frame is hard-capped at MAX_HEIGHT below, so a recipe taller than
-                // that renders with its bottom silently cut off by the viewer - no scroll region
-                // exists to show the rest (see audits/PANEL_SIZING_V2_ARCHITECTURE.md, Hole 3).
-                // Per-section content budgets keep this rare; when it does happen, log it once so
-                // the clipping page is discoverable instead of just "looks cut off" with no trace.
-                if (h > PanelLayout.MAX_HEIGHT) {
-                    DebugLog.warnOnce("panel-overflow-${category.id}-${handle.recipeIdPath}") {
-                        "${category.id}/${handle.recipeIdPath} is ${h}px tall, past the ${PanelLayout.MAX_HEIGHT}px " +
-                        "category cap - its bottom will render clipped"
-                    }
-                }
             } catch (_: Exception) {}
         }
         return PanelSize(

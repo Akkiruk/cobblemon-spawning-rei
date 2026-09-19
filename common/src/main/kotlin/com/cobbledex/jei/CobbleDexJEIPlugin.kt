@@ -6,6 +6,8 @@ import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
 import com.cobbledex.DiscoveryAliases
 import com.cobbledex.PanelLayout
+import com.cobbledex.PanelPage
+import com.cobbledex.Paged
 import com.cobbledex.PokemonItemCache
 import com.cobbledex.RecipeBuildCache
 import com.cobbledex.RecipeHandle
@@ -15,6 +17,8 @@ import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpawnDisplayHelper
 import com.cobbledex.ViewerParityGuard
 import com.cobbledex.config.CobbleDexConfig
+import com.cobbledex.contentFor
+import com.cobbledex.paged
 import mezz.jei.api.IModPlugin
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder
 import mezz.jei.api.gui.drawable.IDrawable
@@ -93,7 +97,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
                         emptyList()
                     }
                     ViewerParityGuard.warn(def, handles, "JEI")
-                    ReloadUnit(def, handles.map { GenericRecipe(it) })
+                    ReloadUnit(def, handles.paged().map { GenericRecipe(it) })
                 }
                 reloadTargetVersion = targetVersion
                 unitIndex = 0
@@ -261,7 +265,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
             // build here instead of redoing it saves rebuilding the whole category from scratch.
             val handles = RecipeBuildCache.getOrBuild(def)
             ViewerParityGuard.warn(def, handles, "JEI")
-            val recipes = handles.map { GenericRecipe(it) }
+            val recipes = handles.paged().map { GenericRecipe(it) }
             if (recipes.isNotEmpty()) {
                 registration.addRecipes(recipeType(def), recipes)
             }
@@ -282,7 +286,10 @@ open class CobbleDexJEIPlugin : IModPlugin {
 
     // ----- Generic Recipe wrapping RecipeHandle -----
 
-    data class GenericRecipe(val handle: RecipeHandle)
+    data class GenericRecipe(val paged: Paged) {
+        val handle: RecipeHandle get() = paged.handle
+        val page: PanelPage get() = paged.page
+    }
 
     // ----- Generic Category wrapping DexCategory -----
 
@@ -328,6 +335,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
         override fun setRecipe(builder: IRecipeLayoutBuilder, recipe: GenericRecipe, focuses: IFocusGroup) {
             val handle = recipe.handle
             val slots = handle.slots
+            val content = handle.contentFor(recipe.page)
             val dx = offsetX(handle)
             val dy = offsetY(handle)
 
@@ -336,7 +344,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
             val inputPokemon = mutableListOf<PokemonIngredient>()
             val outputPokemon = mutableListOf<PokemonIngredient>()
 
-            for (slot in slots.pokemon) {
+            for (slot in content.pokemonSlots) {
                 val ingredient = PokemonIngredient(slot.species, slot.aspects)
                 val role = if (slot.role == SlotRole.INPUT) RecipeIngredientRole.INPUT else RecipeIngredientRole.OUTPUT
                 val slotBuilder = builder.addSlot(role, slot.x + dx, slot.y + dy)
@@ -371,7 +379,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
                 for (species in hiddenInputPokemon) inv.addIngredient(PokemonIngredientType, PokemonIngredient(species))
             }
 
-            for (slot in slots.items) {
+            for (slot in content.itemSlots) {
                 val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
                 if (!stack.isEmpty) {
                     val role = when (slot.role) {
@@ -406,21 +414,22 @@ open class CobbleDexJEIPlugin : IModPlugin {
         ) {
             val dx = offsetX(recipe.handle)
             val dy = offsetY(recipe.handle)
-            for (link in recipe.handle.moveLinks) {
+            val content = recipe.handle.contentFor(recipe.page)
+            for (link in content.moveLinks) {
                 builder.addInputHandler(MoveLinkInputHandler(link, dx, dy, helpers.focusFactory))
             }
-            for (link in recipe.handle.slots.categoryLinks) {
+            for (link in content.categoryLinks) {
                 builder.addInputHandler(CategoryLinkInputHandler(link, dx, dy, helpers.focusFactory))
             }
         }
 
         override fun draw(recipe: GenericRecipe, recipeSlotsView: IRecipeSlotsView, guiGraphics: GuiGraphics, mouseX: Double, mouseY: Double) {
             val handle = recipe.handle
-            val slots = handle.slots
+            val page = recipe.page
             val dx = offsetX(handle)
             val dy = offsetY(handle)
             val w = handle.width
-            val h = handle.height
+            val h = page.height
 
             // Content-sized surface the mod owns, centred in JEI's category area. Opaque so panel
             // text keeps its contrast whatever theme JEI/the pack uses (issue #42).
@@ -428,14 +437,15 @@ open class CobbleDexJEIPlugin : IModPlugin {
 
             guiGraphics.pose().pushPose()
             guiGraphics.pose().translate(dx.toFloat(), dy.toFloat(), 0f)
-            handle.layout.render(guiGraphics)
+            handle.layout.renderRange(guiGraphics, page.top, page.bottom, page.shift)
             guiGraphics.pose().popPose()
         }
 
         override fun getTooltipStrings(recipe: GenericRecipe, recipeSlotsView: IRecipeSlotsView, mouseX: Double, mouseY: Double): List<Component> {
             val dx = offsetX(recipe.handle)
             val dy = offsetY(recipe.handle)
-            return recipe.handle.layout.getTooltipAt((mouseX - dx).toInt(), (mouseY - dy).toInt()) ?: emptyList()
+            val zones = recipe.handle.contentFor(recipe.page).tooltipZones
+            return recipe.handle.layout.getTooltipAt((mouseX - dx).toInt(), (mouseY - dy).toInt(), zones) ?: emptyList()
         }
     }
 

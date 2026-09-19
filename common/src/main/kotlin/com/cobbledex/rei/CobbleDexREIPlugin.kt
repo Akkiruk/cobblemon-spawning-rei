@@ -4,6 +4,8 @@ import com.cobbledex.CobbleDexMod
 import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
 import com.cobbledex.PanelLayout
+import com.cobbledex.PanelPage
+import com.cobbledex.Paged
 import com.cobbledex.PokemonItemCache
 import com.cobbledex.RecipeBuildCache
 import com.cobbledex.RecipeHandle
@@ -12,6 +14,8 @@ import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpawnDisplayHelper
 import com.cobbledex.ViewerParityGuard
 import com.cobbledex.config.CobbleDexConfig
+import com.cobbledex.contentFor
+import com.cobbledex.paged
 import com.cobbledex.rei.entry.MoveEntry
 import com.cobbledex.rei.entry.MoveEntryDefinition
 import com.cobbledex.rei.entry.MoveEntryType
@@ -108,7 +112,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             if (def is com.cobbledex.NatureDex) {
                 val handles = RecipeBuildCache.getOrBuild(def)
                 ViewerParityGuard.warn(def, handles, "REI")
-                handles.map { GenericDisplay(it, def) }.forEach { registry.add(it) }
+                handles.paged().forEach { registry.add(GenericDisplay(it, def)) }
             } else {
                 registry.registerDisplayGenerator(categoryId(def), GenericDisplayGenerator(def))
             }
@@ -217,7 +221,10 @@ open class CobbleDexREIPlugin : REIClientPlugin {
 
     // ----- Generic Display wrapping RecipeHandle -----
 
-    class GenericDisplay(val handle: RecipeHandle, val def: DexCategory) : Display {
+    class GenericDisplay(val paged: Paged, val def: DexCategory) : Display {
+
+        val handle: RecipeHandle get() = paged.handle
+        val page: PanelPage get() = paged.page
 
         private val cachedInputEntries: List<EntryIngredient> by lazy {
             val pokemon = handle.lookupInputSpecies().map {
@@ -246,7 +253,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         override fun getCategoryIdentifier(): CategoryIdentifier<*> = categoryId(def)
 
         override fun getDisplayLocation(): Optional<ResourceLocation> = Optional.of(
-            ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, handle.recipeIdPath)
+            ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, paged.id)
         )
     }
 
@@ -264,9 +271,10 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         override fun setupDisplay(display: GenericDisplay, bounds: Rectangle): List<Widget> {
             val widgets = mutableListOf<Widget>()
             val handle = display.handle
-            val slots = handle.slots
+            val page = display.page
+            val content = handle.contentFor(page)
             val w = handle.width
-            val h = handle.height
+            val h = page.height
 
             val yOff = (bounds.height - h).coerceAtLeast(0) / 2
             val px = bounds.x
@@ -279,7 +287,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
                 PanelLayout.renderSurface(gfx, px, py, w, h)
             })
 
-            for (slot in slots.pokemon) {
+            for (slot in content.pokemonSlots) {
                 val entry = EntryStack.of(PokemonEntryType.POKEMON, PokemonEntry(slot.species, slot.aspects))
                 // REI's slot-background sprite is 18x18; blitting it into a 20x20 box bleeds the
                 // neighbouring texels (an arrow + an adjacent slot edge) and paints those "arrow"
@@ -297,7 +305,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
                 widgets.add(s)
             }
 
-            for (slot in slots.items) {
+            for (slot in content.itemSlots) {
                 val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
                 if (!stack.isEmpty) {
                     val s = Widgets.createSlot(Rectangle(px + slot.x, py + slot.y, slot.size, slot.size))
@@ -315,12 +323,12 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             widgets.add(Widgets.createDrawableWidget { gfx, _, _, _ ->
                 gfx.pose().pushPose()
                 gfx.pose().translate(px.toFloat(), py.toFloat(), 0f)
-                handle.layout.render(gfx)
+                handle.layout.renderRange(gfx, page.top, page.bottom, page.shift)
                 gfx.pose().popPose()
             })
 
             // Move-name links: an invisible button over each name that opens the move's learner grid.
-            for (link in handle.moveLinks) {
+            for (link in content.moveLinks) {
                 val move = link.moveName
                 val button = MoveLinkButton(px + link.x, py + link.y, link.width, link.height) {
                     ViewSearchBuilder.builder()
@@ -331,7 +339,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             }
 
             // Category jump links (e.g. the spawn page's "Spawns in a herd" pointer -> Herds tab).
-            for (link in slots.categoryLinks) {
+            for (link in content.categoryLinks) {
                 val button = MoveLinkButton(px + link.x, py + link.y, link.width, link.height) {
                     val catId = CategoryIdentifier.of<GenericDisplay>(CobbleDexMod.MOD_ID, link.categoryId)
                     ViewSearchBuilder.builder()
@@ -343,7 +351,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
                 widgets.add(Widgets.wrapVanillaWidget(button))
             }
 
-            for (zone in handle.layout.tooltipZones) {
+            for (zone in content.tooltipZones) {
                 if (zone.lines.isNotEmpty()) {
                     widgets.add(Widgets.createTooltip(
                         Rectangle(px + zone.x, py + zone.y, zone.width, zone.height),
@@ -366,7 +374,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         private fun forValue(handles: List<RecipeHandle>): Optional<List<GenericDisplay>> {
             if (handles.isEmpty()) return Optional.empty()
             ViewerParityGuard.warn(def, handles, "REI")
-            return Optional.of(handles.map { GenericDisplay(it, def) })
+            return Optional.of(handles.paged().map { GenericDisplay(it, def) })
         }
 
         override fun getRecipeFor(entry: EntryStack<*>): Optional<List<GenericDisplay>> {
@@ -413,7 +421,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
 
             val handles = RecipeBuildCache.getOrBuild(def)
             ViewerParityGuard.warn(def, handles, "REI")
-            val all = handles.map { GenericDisplay(it, def) }
+            val all = handles.paged().map { GenericDisplay(it, def) }
             cachedDisplays = all
             cachedVersion = version
             return if (all.isEmpty()) Optional.empty() else Optional.of(all)

@@ -178,8 +178,10 @@ class PanelLayout(val width: Int) {
         tooltipZones.add(0, TooltipZone(x, y, width, height, lines))
     }
 
-    fun getTooltipAt(mouseX: Int, mouseY: Int): List<Component>? {
-        return tooltipZones.lastOrNull { zone ->
+    /** [zones] defaults to this layout's own, unpaged zones; a paged caller passes
+     *  [RecipeHandle.contentFor]'s already-shifted [PagedContent.tooltipZones] instead. */
+    fun getTooltipAt(mouseX: Int, mouseY: Int, zones: List<TooltipZone> = tooltipZones): List<Component>? {
+        return zones.lastOrNull { zone ->
             mouseX >= zone.x && mouseX < zone.x + zone.width &&
             mouseY >= zone.y && mouseY < zone.y + zone.height
         }?.lines
