@@ -43,6 +43,13 @@ import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceLocation
 import java.util.Optional
 
+/**
+ * Wraps [RecipeHandle]/[DexCategory] for REI. Shared behavior - pagination ([RecipeHandle.paginate],
+ * [RecipeHandle.contentFor]), the clickable move/category-jump links, and per-slot ingredient
+ * resolution - belongs on [RecipeHandle]/[PanelLayout] and gets reused by [com.cobbledex.jei] and
+ * [com.cobbledex.emi] too. If REI needs something the other two viewers would also need, extend the
+ * shared layer rather than adding a REI-only copy here.
+ */
 open class CobbleDexREIPlugin : REIClientPlugin {
 
     companion object {

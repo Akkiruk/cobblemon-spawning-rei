@@ -27,6 +27,14 @@ import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.Items
 
+/**
+ * Wraps [RecipeHandle]/[DexCategory] for EMI. Shared behavior - pagination ([RecipeHandle.paginate],
+ * [RecipeHandle.contentFor]), the clickable move/category-jump links, and per-slot ingredient
+ * resolution - belongs on [RecipeHandle]/[PanelLayout] and gets reused by [com.cobbledex.rei] and
+ * [com.cobbledex.jei] too. If EMI needs something the other two viewers would also need (this is
+ * exactly how the tall-panel overflow fix started as an EMI-only [EmiPanelSlicer] before moving to
+ * [RecipeHandle.paginate]), extend the shared layer rather than adding an EMI-only copy here.
+ */
 open class CobbleDexEMIPlugin : EmiPlugin {
 
     companion object {

@@ -39,6 +39,13 @@ import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.ItemStack
 
 @Suppress("DEPRECATION")
+/**
+ * Wraps [RecipeHandle]/[DexCategory] for JEI. Shared behavior - pagination ([RecipeHandle.paginate],
+ * [RecipeHandle.contentFor]), the clickable move/category-jump links, and per-slot ingredient
+ * resolution - belongs on [RecipeHandle]/[PanelLayout] and gets reused by [com.cobbledex.rei] and
+ * [com.cobbledex.emi] too. If JEI needs something the other two viewers would also need, extend the
+ * shared layer rather than adding a JEI-only copy here.
+ */
 open class CobbleDexJEIPlugin : IModPlugin {
 
     companion object {
