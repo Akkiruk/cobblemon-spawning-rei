@@ -35,15 +35,11 @@ object NativeTmDataLoader {
 
     private fun readTm(tm: Any): TmInfo? {
         return try {
-            val cls = tm.javaClass
-            val moveTemplate = cls.getMethod("getMoveName").invoke(tm) ?: return null
-            val moveName = (moveTemplate.javaClass.getMethod("getName").invoke(moveTemplate) as? String)
-                ?.lowercase() ?: return null
-            val type = (cls.getMethod("getType").invoke(tm) as? String)?.lowercase()?.ifBlank { null }
-            val passive = runCatching { cls.getMethod("isPassivelyObtained").invoke(tm) as? Boolean }
-                .getOrNull() ?: false
-            val recipe = (cls.getMethod("getRecipe").invoke(tm) as? List<*>)
-                ?.mapNotNull(::readIngredient) ?: emptyList()
+            val moveTemplate = Reflect.call<Any>(tm, "getMoveName") ?: return null
+            val moveName = Reflect.call<String>(moveTemplate, "getName")?.lowercase() ?: return null
+            val type = Reflect.call<String>(tm, "getType")?.lowercase()?.ifBlank { null }
+            val passive = Reflect.call<Boolean>(tm, "isPassivelyObtained") ?: false
+            val recipe = Reflect.call<List<*>>(tm, "getRecipe")?.mapNotNull(::readIngredient) ?: emptyList()
             TmInfo(moveName, type, recipe, passive, "cobblemon")
         } catch (_: Throwable) {
             null
@@ -53,9 +49,8 @@ object NativeTmDataLoader {
     private fun readIngredient(recipe: Any?): TmIngredient? {
         recipe ?: return null
         return try {
-            val cls = recipe.javaClass
-            val count = (cls.getMethod("getCount").invoke(recipe) as? Number)?.toInt() ?: 1
-            val ingredient = cls.getMethod("getIngredient").invoke(recipe) as? Ingredient ?: return null
+            val count = Reflect.call<Number>(recipe, "getCount")?.toInt() ?: 1
+            val ingredient = Reflect.call<Ingredient>(recipe, "getIngredient") ?: return null
             val itemIds = ingredient.items.mapNotNull { stack ->
                 BuiltInRegistries.ITEM.getKey(stack.item)?.toString()?.takeUnless { it == "minecraft:air" }
             }.distinct()

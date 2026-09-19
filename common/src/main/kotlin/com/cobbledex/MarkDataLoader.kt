@@ -25,26 +25,21 @@ object MarkDataLoader {
 
     private fun readMark(mark: Any): MarkInfo? {
         return try {
-            fun <T> field(name: String): T? = try {
-                @Suppress("UNCHECKED_CAST")
-                mark.javaClass.getDeclaredField(name).apply { isAccessible = true }.get(mark) as? T
-            } catch (_: Throwable) { null }
+            val id = Reflect.call<Any>(mark, "getIdentifier")?.toString()
+                ?: Reflect.field<Any>(mark, "identifier")?.toString()
+                ?: return null
 
-            val id = try {
-                mark.javaClass.getMethod("getIdentifier").invoke(mark)?.toString()
-            } catch (_: Throwable) { null } ?: field<Any>("identifier")?.toString() ?: return null
-
-            val nameKey = field<String>("name") ?: return null
+            val nameKey = Reflect.field<String>(mark, "name") ?: return null
             MarkInfo(
                 id = id,
                 nameKey = nameKey,
-                descriptionKey = field<String>("description") ?: "$nameKey.desc",
-                titleKey = field<String>("title"),
-                titleColor = field<String>("titleColour"),
-                chance = (field<Number>("chance"))?.toFloat() ?: 0f,
-                group = field<String>("group"),
-                sortOrder = (field<Number>("sortOrder"))?.toInt() ?: 0,
-                indexNumber = (field<Number>("indexNumber"))?.toInt(),
+                descriptionKey = Reflect.field<String>(mark, "description") ?: "$nameKey.desc",
+                titleKey = Reflect.field<String>(mark, "title"),
+                titleColor = Reflect.field<String>(mark, "titleColour"),
+                chance = Reflect.field<Number>(mark, "chance")?.toFloat() ?: 0f,
+                group = Reflect.field<String>(mark, "group"),
+                sortOrder = Reflect.field<Number>(mark, "sortOrder")?.toInt() ?: 0,
+                indexNumber = Reflect.field<Number>(mark, "indexNumber")?.toInt(),
             )
         } catch (_: Throwable) {
             null

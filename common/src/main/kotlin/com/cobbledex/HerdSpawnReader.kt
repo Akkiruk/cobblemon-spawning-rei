@@ -105,12 +105,8 @@ object HerdSpawnReader {
 
     private fun readIntRange(range: Any?): String? {
         range ?: return null
-        return try {
-            val first = (range.javaClass.getMethod("getFirst").invoke(range) as? Number)?.toInt()
-            val last = (range.javaClass.getMethod("getLast").invoke(range) as? Number)?.toInt()
-            if (first != null && last != null) "$first-$last" else null
-        } catch (_: Throwable) {
-            null
-        }
+        val first = Reflect.call<Number>(range, "getFirst")?.toInt()
+        val last = Reflect.call<Number>(range, "getLast")?.toInt()
+        return if (first != null && last != null) "$first-$last" else null
     }
 }

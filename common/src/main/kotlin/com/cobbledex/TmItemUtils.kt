@@ -54,7 +54,7 @@ object TmItemUtils {
             if (itemId != NATIVE_TM_ID) return null
             val compType = BuiltInRegistries.DATA_COMPONENT_TYPE.get(TM_MOVE_COMPONENT) ?: return null
             val comp = stack.get(compType) ?: return null
-            (comp.javaClass.getMethod("getMoveName").invoke(comp) as? String)?.lowercase()
+            Reflect.call<String>(comp, "getMoveName")?.lowercase()
         } catch (_: Throwable) {
             null
         }

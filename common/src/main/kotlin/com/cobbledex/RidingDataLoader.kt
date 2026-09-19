@@ -91,12 +91,8 @@ object RidingDataLoader {
      */
     private fun readSeatCondition(seat: Any?): String? {
         seat ?: return null
-        val expr = try {
-            seat.javaClass.getMethod("getCondition").invoke(seat)
-        } catch (_: Throwable) { null } ?: return null
-        val raw = try {
-            expr.javaClass.getMethod("getOriginalString").invoke(expr) as? String
-        } catch (_: Throwable) { null } ?: return null
+        val expr = Reflect.call<Any>(seat, "getCondition") ?: return null
+        val raw = Reflect.call<String>(expr, "getOriginalString") ?: return null
         return humanizeSeatCondition(raw)
     }
 

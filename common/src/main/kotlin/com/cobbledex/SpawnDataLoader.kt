@@ -82,15 +82,11 @@ object SpawnDataLoader {
      * at runtime, so this stays compatible with both by inspecting the returned value's type.
      */
     private fun extractBucketName(detail: SpawnDetail): String {
-        return try {
-            val raw = detail.javaClass.getMethod("getBucket").invoke(detail)
-            when (raw) {
-                null -> "common"
-                is String -> raw.ifBlank { "common" }
-                else -> (raw.javaClass.getMethod("getName").invoke(raw) as? String)?.ifBlank { "common" } ?: "common"
-            }
-        } catch (e: Throwable) {
-            "common"
+        val raw = Reflect.call<Any>(detail, "getBucket")
+        return when (raw) {
+            null -> "common"
+            is String -> raw.ifBlank { "common" }
+            else -> Reflect.call<String>(raw, "getName")?.ifBlank { "common" } ?: "common"
         }
     }
 

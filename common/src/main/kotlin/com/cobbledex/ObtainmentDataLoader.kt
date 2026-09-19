@@ -24,16 +24,14 @@ object ObtainmentDataLoader {
         try {
             val fabricLoader = Class.forName("net.fabricmc.loader.api.FabricLoader")
             val instance = fabricLoader.getMethod("getInstance").invoke(null)
-            val result = instance.javaClass.getMethod("isModLoaded", String::class.java).invoke(instance, modId)
-            return result as Boolean
+            Reflect.call<Boolean>(instance, "isModLoaded", modId)?.let { return it }
         } catch (_: ClassNotFoundException) {}
         catch (_: Exception) {}
 
         try {
             val modList = Class.forName("net.neoforged.fml.ModList")
             val list = modList.getMethod("get").invoke(null)
-            val result = list.javaClass.getMethod("isLoaded", String::class.java).invoke(list, modId)
-            return result as Boolean
+            Reflect.call<Boolean>(list, "isLoaded", modId)?.let { return it }
         } catch (_: ClassNotFoundException) {}
         catch (_: Exception) {}
 
