@@ -2,6 +2,29 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.28.3] - 2026-09-22
+
+### Fixed
+- **JEI opened to the wrong tab by default.** REI and EMI already opened a Pokémon's page on the
+  Overview tab; JEI opened on Drops (or whichever tab happened to sort first alphabetically), since
+  JEI - unlike REI/EMI - ignores the order tabs are registered in and sorts them itself. JEI now
+  opens on Overview like the other two.
+- **A Pokémon's dark info-card background could cut off the "N form(s)" line at the bottom of the
+  Alternate Forms tab**, slicing through the middle of the text instead of ending below it.
+- **The Moves table's Egg/Tutor/TM/Legacy columns all used the same mark**, so there was no way to
+  tell which method taught a move without hovering every row. Each method now gets its own symbol
+  (already used elsewhere on the same page), matching the column header.
+- **Hovering a hidden ability could show "((HA))" with a doubled parenthesis.** It now reads "(Hidden
+  Ability)".
+- **A Pokémon with no Pokédex flavor text still showed an empty "Pokédex Entry" tab.** The tab is
+  gone entirely when there's nothing to show.
+- **The Overview page's description snippet could cut off mid-sentence with no indication there was
+  more.** It now ends with "…" and hovering shows the rest, the same way the full Pokédex Entry
+  page already handles long entries.
+- **Renamed the Riding page's "Skill" stat to "Maneuver."** Nothing in Cobblemon's own riding system
+  explains what "Skill" means, and its one confirmed effect (found by checking Cobblemon's own
+  code) is turning responsiveness - "Skill" was renamed since it didn't communicate that.
+
 ## [2.28.2] - 2026-09-22
 
 ### Fixed

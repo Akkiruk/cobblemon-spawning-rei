@@ -1,6 +1,7 @@
 package com.cobbledex
 
 import net.minecraft.client.Minecraft
+import net.minecraft.network.chat.Component
 
 object SpawnPageBuilder {
     fun sortedSpawns(spawns: List<SpawnInfo>): List<SpawnDisplayHelper.SortedSpawnEntry> =
@@ -196,9 +197,26 @@ object PokemonInfoPageBuilder {
             // "cobblemon.species.sableye_bloodmoon.desc1" as-is).
             val description = tr(descriptionKey)
             if (description != descriptionKey && description.isNotBlank()) {
-                val lines = SpawnDisplayHelper.wrapText(font, description, right - indentX).take(3)
-                lines.forEach { line ->
-                    layout.clipped(indentX, line, right - indentX, 0xCCCCCC)
+                val maxWidth = right - indentX
+                val allLines = SpawnDisplayHelper.wrapText(font, description, maxWidth)
+                val visibleLines = allLines.take(3)
+                val truncated = allLines.size > visibleLines.size
+                visibleLines.forEachIndexed { index, line ->
+                    val isLast = index == visibleLines.lastIndex
+                    val rowY = layout.y
+                    // Same width-clip-with-hover-reveal as clipped() elsewhere, but this cuts
+                    // whole LINES (there's more description than fits this snippet), not
+                    // characters within one - so the last visible line gets its own "..." plus a
+                    // tooltip with the full text, the way the dedicated Pokedex Entry page already
+                    // signals "there's more" instead of just stopping mid-sentence with no cue.
+                    val text = if (isLast && truncated) SpawnDisplayHelper.clipToWidth(font, "$line ...", maxWidth) else line
+                    layout.clipped(indentX, text, maxWidth, 0xCCCCCC)
+                    if (isLast && truncated) {
+                        layout.addTooltipZone(
+                            indentX, rowY, font.width(text), PanelLayout.LINE_HEIGHT,
+                            listOf(Component.literal(description).withStyle { s -> s.withColor(DexColors.BODY) }),
+                        )
+                    }
                     layout.line()
                 }
                 layout.gap(3)

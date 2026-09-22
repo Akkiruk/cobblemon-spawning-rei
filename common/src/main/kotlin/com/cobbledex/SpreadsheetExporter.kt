@@ -700,7 +700,7 @@ object SpreadsheetExporter {
             "Mount Type", "Riding Style",
             "Speed Min", "Speed Max",
             "Accel Min", "Accel Max",
-            "Skill Min", "Skill Max",
+            "Maneuver Min", "Maneuver Max",
             "Jump Min", "Jump Max",
             "Stamina Min", "Stamina Max"
         ))

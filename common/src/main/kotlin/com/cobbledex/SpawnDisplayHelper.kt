@@ -500,7 +500,11 @@ object SpawnDisplayHelper {
     private fun buildAbilityTooltip(ability: String, hidden: Boolean = false): List<Component> {
         val lines = mutableListOf<Component>()
         val displayName = formatAbilityName(ability)
-        val label = if (hidden) "$displayName §7(${tr("cobbledex-rei-emi-jei.info.hidden_ability")})" else displayName
+        // info.hidden_ability ("(HA)") already carries its own parens for the compact ability-list
+        // tag - wrapping it in another pair here is what produced "((HA))" on hover. The tooltip
+        // has room to spell it out, so it uses its own unparenthesized string instead of reusing
+        // that key.
+        val label = if (hidden) "$displayName §7(${tr("cobbledex-rei-emi-jei.info.hidden_ability_full")})" else displayName
         lines.add(Component.literal("§b§l$label"))
         val descKey = abilityDescKey(ability)
         val desc = tr(descKey)
@@ -1509,14 +1513,17 @@ object SpawnDisplayHelper {
         val moveLinks: List<MoveLinkDef>,
     )
 
-    // Every method uses the same mark - position (which column) carries the meaning, not shape -
-    // so "legacy" follows that existing convention rather than inventing a new glyph.
+    // Same four glyphs the grouped section headers already use (moves.egg/tutor/tm/legacy) - the
+    // compact key row and per-row marks used to share one glyph for all four methods on the theory
+    // that column position alone carries the meaning, but that only holds if you already know
+    // which column is which; reusing the section-header icons here means a player only has to
+    // learn one glyph vocabulary for the whole Moves page instead of two.
     private val METHOD_GLYPHS = mapOf(
         "levelup" to "✦",
-        "egg" to "✦",
-        "tutor" to "✦",
-        "tm" to "✦",
-        "legacy" to "✦",
+        "egg" to "◇",
+        "tutor" to "★",
+        "tm" to "■",
+        "legacy" to "☆",
     )
     private const val METHOD_GLYPH_COLOR = 0xFFCCCCCC.toInt()
     private const val MOVE_LEVEL_COLOR = 0xFF88CCFF.toInt()
@@ -2542,7 +2549,11 @@ object SpawnDisplayHelper {
         val formCount = tr("cobbledex-rei-emi-jei.forms.count", data.totalForms)
         layout.text(padding, formCount, 0x888888)
 
-        layout.gap(padding)
+        // text() places at the current y without advancing it (see its own doc), so the trailing
+        // gap must include the line's own height or the panel's computed height - and the dark
+        // background sized from it - ends mid-glyph on this row instead of below it. Same fix as
+        // the sibling "count" footers elsewhere in this file (Drops, Evolution chain, Moves).
+        layout.gap(font.lineHeight + padding)
         return FormLayoutResult(layout, pokemonSlots)
     }
 
@@ -2557,7 +2568,11 @@ object SpawnDisplayHelper {
     private val RIDING_STAT_COLORS = mapOf(
         "SPEED" to 0xFFFF6655.toInt(),
         "ACCEL" to 0xFFFFAA33.toInt(),
-        "SKILL" to 0xFF55CC55.toInt(),
+        // Cobblemon's own name for this stat ("Skill") gave players no idea what it affects, and
+        // its one confirmed concrete effect in Cobblemon's own riding code (Boat/Liquid turning
+        // responsiveness) is a maneuverability effect - "MANEUVER" reads clearly and matches this
+        // row's other labels' length (SPEED/ACCEL/STAMINA), unlike the unabbreviated word.
+        "MANEUVER" to 0xFF55CC55.toInt(),
         "JUMP" to 0xFF5599FF.toInt(),
         "STAMINA" to 0xFFCC66DD.toInt(),
     )
@@ -2608,7 +2623,7 @@ object SpawnDisplayHelper {
         val stats = listOf(
             "SPEED" to (mount.speedMin to mount.speedMax),
             "ACCEL" to (mount.accelMin to mount.accelMax),
-            "SKILL" to (mount.skillMin to mount.skillMax),
+            "MANEUVER" to (mount.skillMin to mount.skillMax),
             "JUMP" to (mount.jumpMin to mount.jumpMax),
             "STAMINA" to (mount.staminaMin to mount.staminaMax),
         )

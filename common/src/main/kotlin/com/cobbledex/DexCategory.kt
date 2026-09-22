@@ -164,6 +164,16 @@ class RecipeHandle(
 }
 
 interface DexCategory {
+    /**
+     * Numerically prefixed ("01_overview", "02_spawns", ...) matching [DexCategory.ALL]'s order -
+     * not cosmetic. JEI's default recipe-category sort ignores plugin registration order entirely
+     * and sorts by this UID string alphabetically (`RecipeCategorySortingConfig.getDefaultSortOrder`:
+     * vanilla crafting, then `minecraft:`-namespaced types, then natural string order) - with plain
+     * words like "drops"/"evolution" this put Drops before Overview as JEI's default tab. REI and
+     * EMI both already respect our registration order without needing this, so the prefix is a
+     * JEI-only workaround, not a REI/EMI requirement - but keeping every id prefixed either way
+     * means the two never drift apart again.
+     */
     val id: String
     val titleKey: String
     val icon: Item
@@ -203,7 +213,7 @@ private fun pokemonOutput(species: String, x: Int = 8, y: Int = 3) =
 // ----- Pokemon Overview -----
 
 object PokemonOverviewDex : DexCategory {
-    override val id = "overview"
+    override val id = "01_overview"
     override val titleKey = "category.cobbledex-rei-emi-jei.overview"
     override val icon: Item = Items.COMPASS
     override val supportsRecipeTree = true
@@ -229,7 +239,7 @@ object PokemonOverviewDex : DexCategory {
 // ----- Spawn -----
 
 object SpawnDex : DexCategory {
-    override val id = "spawns"
+    override val id = "02_spawns"
     override val titleKey = "category.cobbledex-rei-emi-jei.spawn"
     override val icon: Item = Items.GRASS_BLOCK
     override fun isEnabled(config: CobbleDexConfig) = true
@@ -297,7 +307,7 @@ object SpawnDex : DexCategory {
 // ----- Evolution -----
 
 object EvolutionDex : DexCategory {
-    override val id = "evolution"
+    override val id = "03_evolution"
     override val titleKey = "category.cobbledex-rei-emi-jei.evolution"
     override val icon: Item = Items.EXPERIENCE_BOTTLE
     override fun isEnabled(config: CobbleDexConfig) = config.showEvolutions
@@ -362,7 +372,7 @@ object EvolutionDex : DexCategory {
 // ----- Obtainment -----
 
 object ObtainmentDex : DexCategory {
-    override val id = "obtainment"
+    override val id = "04_obtainment"
     override val titleKey = "category.cobbledex-rei-emi-jei.obtainment"
     override val icon: Item = Items.NETHER_STAR
     override val supportsRecipeTree = true
@@ -400,7 +410,7 @@ object ObtainmentDex : DexCategory {
 // ----- Drops -----
 
 object DropDex : DexCategory {
-    override val id = "drops"
+    override val id = "05_drops"
     override val titleKey = "category.cobbledex-rei-emi-jei.drops"
     override val icon: Item = Items.DIAMOND
     override val supportsRecipeTree = true
@@ -459,7 +469,7 @@ object DropDex : DexCategory {
 // ----- Stats -----
 
 object StatsDex : DexCategory {
-    override val id = "stats"
+    override val id = "06_stats"
     override val titleKey = "category.cobbledex-rei-emi-jei.stats"
     override val icon: Item = Items.BOOK
     override val supportsRecipeTree = true
@@ -485,7 +495,7 @@ object StatsDex : DexCategory {
 // ----- Moves -----
 
 object MovesDex : DexCategory {
-    override val id = "moves"
+    override val id = "07_moves"
     override val titleKey = "category.cobbledex-rei-emi-jei.moves"
     override val icon: Item = Items.PAPER
     override val supportsRecipeTree = true
@@ -550,7 +560,7 @@ object MovesDex : DexCategory {
 // ----- Native TM Recipes -----
 
 object TmRecipeDex : DexCategory {
-    override val id = "tm_recipes"
+    override val id = "08_tm_recipes"
     override val titleKey = "category.cobbledex-rei-emi-jei.tm_recipes"
     override val icon: Item = Items.MUSIC_DISC_CAT
     override val supportsRecipeTree = true
@@ -593,7 +603,7 @@ object TmRecipeDex : DexCategory {
 // ----- Pokédex Info -----
 
 object PokedexInfoDex : DexCategory {
-    override val id = "pokedex_info"
+    override val id = "09_pokedex_info"
     override val titleKey = "category.cobbledex-rei-emi-jei.pokedex_info"
     override val icon: Item = Items.WRITABLE_BOOK
     override val supportsRecipeTree = true
@@ -619,7 +629,7 @@ object PokedexInfoDex : DexCategory {
 // ----- Pokemon Description -----
 
 object PokemonDescriptionDex : DexCategory {
-    override val id = "pokemon_description"
+    override val id = "10_pokemon_description"
     override val titleKey = "category.cobbledex-rei-emi-jei.pokemon_description"
     override val icon: Item = Items.BOOK
     override val supportsRecipeTree = true
@@ -645,7 +655,7 @@ object PokemonDescriptionDex : DexCategory {
 // ----- Fossils -----
 
 object FossilDex : DexCategory {
-    override val id = "fossils"
+    override val id = "11_fossils"
     override val titleKey = "category.cobbledex-rei-emi-jei.fossils"
     override val icon: Item = Items.BONE
     override val supportsRecipeTree = true
@@ -679,7 +689,7 @@ object FossilDex : DexCategory {
 // ----- Type Chart -----
 
 object TypeChartDex : DexCategory {
-    override val id = "type_chart"
+    override val id = "12_type_chart"
     override val titleKey = "category.cobbledex-rei-emi-jei.type_chart"
     override val icon: Item = Items.SHIELD
     override val supportsRecipeTree = true
@@ -705,7 +715,7 @@ object TypeChartDex : DexCategory {
 // ----- Natures -----
 
 object NatureDex : DexCategory {
-    override val id = "natures"
+    override val id = "13_natures"
     override val titleKey = "category.cobbledex-rei-emi-jei.natures"
     override val icon: Item = Items.WRITABLE_BOOK
     override fun isEnabled(config: CobbleDexConfig) = config.showNatures
@@ -731,7 +741,7 @@ private val HERD_ICON: Item by lazy {
 }
 
 object HerdsDex : DexCategory {
-    override val id = "herds"
+    override val id = "18_herds"
     override val titleKey = "category.cobbledex-rei-emi-jei.herds"
     override val icon: Item get() = HERD_ICON
     override val supportsRecipeTree = false
@@ -761,7 +771,7 @@ object HerdsDex : DexCategory {
 // ----- Marks -----
 
 object MarksDex : DexCategory {
-    override val id = "marks"
+    override val id = "14_marks"
     override val titleKey = "category.cobbledex-rei-emi-jei.marks"
     override val icon: Item = Items.NAME_TAG
     override fun isEnabled(config: CobbleDexConfig) = config.showMarks
@@ -781,7 +791,7 @@ object MarksDex : DexCategory {
 // ----- Cobbleworkers Jobs -----
 
 object JobsDex : DexCategory {
-    override val id = "jobs"
+    override val id = "15_jobs"
     override val titleKey = "category.cobbledex-rei-emi-jei.jobs"
     override val icon: Item = Items.IRON_PICKAXE
     override val supportsRecipeTree = true
@@ -809,7 +819,7 @@ object JobsDex : DexCategory {
 // ----- Alternate Forms -----
 
 object FormsDex : DexCategory {
-    override val id = "forms"
+    override val id = "16_forms"
     override val titleKey = "category.cobbledex-rei-emi-jei.forms"
     override val icon: Item = Items.AMETHYST_SHARD
     override val supportsRecipeTree = true
@@ -848,7 +858,7 @@ object FormsDex : DexCategory {
 // ----- Riding Data -----
 
 object RidingDex : DexCategory {
-    override val id = "riding"
+    override val id = "17_riding"
     override val titleKey = "category.cobbledex-rei-emi-jei.riding"
     override val icon: Item = Items.SADDLE
     override val supportsRecipeTree = true

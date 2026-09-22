@@ -52,7 +52,7 @@
   "cobbledex-rei-emi-jei.moves.page": "Page %1$d / %2$d",
   "cobbledex-rei-emi-jei.moves.pow_acc": "Pow | Acc",
   "cobbledex-rei-emi-jei.moves.col_level": "Lv",
-  "cobbledex-rei-emi-jei.moves.legend_hint": "One row per move. Lv: level learned. A ✦ in the Egg, Tutor, TM or Legacy column means that method teaches it. Hover a move for full details; click the disc on the left of a row to see every Pokémon that can learn that move.",
+  "cobbledex-rei-emi-jei.moves.legend_hint": "One row per move. Lv: level learned. ◇ Egg, ★ Tutor, ■ TM, ☆ Legacy - a mark in that column means that method teaches it. Hover a move for full details; click the disc on the left of a row to see every Pokémon that can learn that move.",
   "cobbledex-rei-emi-jei.moves.learners_hint": "Click to see every Pokémon that can learn this move",
   "cobbledex-rei-emi-jei.moves.evo": "Evo",
   "cobbledex-rei-emi-jei.moves.multi_level": "%s+",
@@ -488,6 +488,7 @@
   "cobbledex-rei-emi-jei.info.shoulder": "\u2605 Shoulder-mountable",
 
   "cobbledex-rei-emi-jei.info.hidden_ability": "(HA)",
+  "cobbledex-rei-emi-jei.info.hidden_ability_full": "Hidden Ability",
   "cobbledex-rei-emi-jei.info.added_by": "Added by %s",
 
   "cobbledex-rei-emi-jei.stat.hp": "HP",

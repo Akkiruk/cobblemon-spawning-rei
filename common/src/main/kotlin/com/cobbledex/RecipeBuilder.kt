@@ -564,13 +564,27 @@ object RecipeBuilder {
 
     // --- Pokemon description recipes ---
 
+    /**
+     * `info.description` is a Cobblemon pokedex lang *key*, not the text itself (resolved via
+     * [tr] at render time in [SpawnDisplayHelper.buildPokemonDescriptionLayout]) - a key can be
+     * non-blank while still not resolving to any real translation (e.g. a form's own flavor text
+     * was never authored, so Cobblemon still hands back a key, just one nothing maps to). Checking
+     * only [String.isBlank] on the key let a Pokédex Entry tab register - and open to a blank page -
+     * for exactly that case; this must ask the same question the renderer already does.
+     */
+    private fun hasResolvableDescription(description: String?): Boolean {
+        if (description.isNullOrBlank()) return false
+        val resolved = tr(description)
+        return resolved != description && resolved.isNotBlank()
+    }
+
     fun buildAllDescriptionRecipes(): List<PokemonDescriptionRecipeData> {
         val recipes = mutableListOf<PokemonDescriptionRecipeData>()
         for ((species, info) in SpawnDataIndex.speciesInfo) {
             if (!SpawnDataIndex.shouldSurfaceSpecies(species)) continue
-            val description = info.description ?: continue
-            if (description.isBlank()) continue
-            recipes.add(PokemonDescriptionRecipeData(species, description))
+            val description = info.description
+            if (!hasResolvableDescription(description)) continue
+            recipes.add(PokemonDescriptionRecipeData(species, description!!))
         }
         return recipes
     }
@@ -578,9 +592,9 @@ object RecipeBuilder {
     fun buildDescriptionFor(speciesName: String): PokemonDescriptionRecipeData? {
         if (!SpawnDataIndex.shouldSurfaceSpecies(speciesName)) return null
         val info = SpawnDataIndex.getSpeciesInfo(speciesName) ?: return null
-        val description = info.description ?: return null
-        if (description.isBlank()) return null
-        return PokemonDescriptionRecipeData(speciesName, description)
+        val description = info.description
+        if (!hasResolvableDescription(description)) return null
+        return PokemonDescriptionRecipeData(speciesName, description!!)
     }
 
     // --- Cobbleworkers Jobs ---

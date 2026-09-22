@@ -10,7 +10,7 @@ data class ViewerParityIssue(
 )
 
 object ViewerParityGuard {
-    private val globalCategories = setOf("natures", "marks")
+    private val globalCategories = setOf("13_natures", "14_marks")
     private val validatedContexts = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
 
     fun validate(def: DexCategory, handles: List<RecipeHandle>): List<ViewerParityIssue> =
