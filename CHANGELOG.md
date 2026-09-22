@@ -5,34 +5,36 @@ All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 ## [2.28.1] - 2026-09-22
 
 ### Fixed
-- **JEI's hover-tooltip alias list could grow to 30+ bullet lines and visually bury the item's own
-  name.** JEI echoes every registered search alias as a tooltip bullet by default
-  (`searchIngredientAliases`), with no per-mod way to opt out - it's the same toggle that also
-  controls whether those aliases are searchable at all. CobbleDex was registering both a
-  human-readable and a punctuation-stripped duplicate of nearly every alias, plus internal
-  form-decision debug strings (e.g. "form specific evolution data") that were never meant to be
-  search terms. JEI's alias list is now capped at 5, chosen to cover as many distinct categories
-  (type, ability, base species, form, job) as the species has rather than piling up duplicates of
-  one; the debug-string leak and the duplicate compact tokens are gone from every viewer (REI/EMI
-  still get the fuller, uncapped list for search).
-- **The Pokémon page's "Source" row showed which Minecraft namespace a species' JSON declared,
-  not which mod or datapack actually added it** - so an add-on/rebalance mod that (as many do)
-  declares its species under the `cobblemon` namespace on purpose showed as "Source: Cobblemon"
-  even when a separate mod or datapack was the real author. Provenance is now resolved from which
-  mod jar or datapack folder physically contains the species' (or, for an added form, the
-  patching pack's) declaration - the same file-scanning pass already used for evolutions/moves/
-  traits - instead of the namespace baked into the JSON.
+- **Hovering a Pokémon in JEI could bury its name under a wall of search terms.** JEI prints every
+  search alias a mod registers as a bullet on the hover tooltip, and CobbleDex was registering
+  around thirty per Pokémon - enough to cover the entries underneath, including the name of the
+  Pokémon you were pointing at. JEI offers no way to register an alias that searches without also
+  printing, so the list itself is now trimmed to five per Pokémon, picked to cover as many
+  different ways of finding it as that Pokémon has (base species, typing, ability, form, job)
+  instead of five of the same kind. Internal bookkeeping strings like "form specific evolution
+  data" are no longer registered as search terms at all, and searching by an unpunctuated run-on
+  (`abilitymagicguard`) is gone - the readable forms (`Magic Guard`, `ability:magicguard`) still
+  work. REI and EMI, which don't print aliases into tooltips, keep the full search list.
+- **"Added by" credited the wrong mod, or nothing at all, for Pokémon from add-ons and datapacks.**
+  Attribution was read from the namespace inside a Pokémon's definition file, but add-on and
+  rebalance mods normally declare their Pokémon and forms under Cobblemon's own namespace so they
+  slot in beside the base dex. Anything they added therefore looked like stock Cobblemon - Mega
+  forms from a Mega mod claimed "Source: Cobblemon" and showed no "Added by" line, and a Pokémon
+  from an unidentified datapack did the same. CobbleDex now credits whichever mod jar, datapack or
+  resource pack actually contains the file that introduced that Pokémon - or, for a form added on
+  top of an existing Pokémon, the pack that added the form - so add-on content is attributed to
+  the add-on and base Cobblemon content stays unlabelled.
 
 ## [2.28.0] - 2026-09-19
 
-### Changed
-- Consolidated tall multi-page panel logic - previously duplicated per viewer - into one shared
-  paginator used by REI, JEI, and EMI, and routed the Moves page through the same path.
-- Deduplicated REI's and EMI's near-identical move-link widget classes into one each.
-- Extracted a shared `Reflect` helper and replaced roughly 15 inline reflection call sites with it.
-- Added short discoverability comments to the three viewer plugins' entry points.
-
-No player-visible behavior change.
+### Fixed
+- **Long pages were cut off at the bottom with no way to reach the rest.** A CobbleDex page taller
+  than the recipe window - a long move list, a crowded spawn or evolution entry - rendered with
+  its bottom edge clipped and no scrollbar, so the content past the cut simply wasn't reachable in
+  REI, JEI or EMI. Anything too tall to fit is now split into multiple pages you step through with
+  the recipe viewer's own next/previous arrows, so nothing falls off the end. Splits land in the
+  gaps between rows rather than through them, so a page never breaks a Pokémon icon, a clickable
+  move name or a hover tooltip across the boundary.
 
 ## [2.27.7] - 2026-09-16
 

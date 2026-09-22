@@ -1142,8 +1142,11 @@ object JarDataCache {
                         // rebalance packs (e.g. a Mega evolution pack) normally ship a new form:
                         // patching the vanilla species with an extra forms[] entry rather than
                         // declaring a whole new species. So this form's provenance is recorded
-                        // regardless of isAddition, while the outer name above only ever is not.
-                        if (origin != null) {
+                        // regardless of isAddition - but only when it is genuinely a distinct
+                        // form. An aspect-less entry resolves formKey back to the base species,
+                        // which a patch must never claim authorship of; that key is governed
+                        // solely by the declaration-only rule above.
+                        if (origin != null && formKey != name) {
                             scan.provenance.putIfAbsent(formKey, origin)
                         }
 
@@ -1599,7 +1602,10 @@ object JarDataCache {
     ) {
         val pattern = Regex("^data/([^/]+)/${subDir}/.+\\.json\$")
         forEachZipDatapack(datapacksDir, packFilter) { zip, zipPath ->
-            val packName = zipPath.fileName.toString()
+            // Without the extension: this reaches the player as an attribution line
+            // ("Added by ..."), where "Added by Fakemon Pack.zip" reads like a filename slipped
+            // into the UI.
+            val packName = zipPath.fileName.toString().removeSuffix(".zip")
             for (entry in zip.entries()) {
                 if (entry.isDirectory) continue
                 val match = pattern.matchEntire(entry.name) ?: continue

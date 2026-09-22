@@ -1,11 +1,12 @@
 package com.cobbledex
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class DiscoveryAliasesTest {
     @Test
-    fun formAliasesIncludeBaseSpeciesButNotMaterialReason() {
+    fun formAliasesIncludeBaseSpecies() {
         val aliases = DiscoveryAliases.pokemonAliases(
             DiscoveryAliases.PokemonContext(
                 species = "wooperpaldean",
@@ -14,7 +15,6 @@ class DiscoveryAliasesTest {
                 primaryType = "poison",
                 secondaryType = "ground",
                 formAspects = setOf("paldean"),
-                materialFormReasons = listOf("typing"),
             )
         )
 
@@ -22,9 +22,6 @@ class DiscoveryAliasesTest {
         assertTrue("base:wooper" in aliases)
         assertTrue("type:poison" in aliases)
         assertTrue("form:paldean" in aliases)
-        // materialFormReasons are internal decision strings for the on-page form note, not
-        // player-facing search terms - they must never end up as a registered alias.
-        assertTrue(aliases.none { it.contains("material form", ignoreCase = true) })
     }
 
     @Test
@@ -46,9 +43,10 @@ class DiscoveryAliasesTest {
     }
 
     @Test
-    fun jeiAliasesAreCappedAndFavorVariety() {
-        // Mushette Red has enough categories (base, 2 types, 2 abilities, hidden ability, form)
-        // to fill 5 slots with one alias per category before doubling up on any one.
+    fun jeiAliasesTakeOnePerCategoryBeforeDoublingUp() {
+        // Mushette Red - the species from the bug report - has six categories competing for five
+        // slots, so every slot should go to a different one and the second typing/ability must
+        // lose to a category that has had no slot yet.
         val aliases = DiscoveryAliases.curatedAliases(
             DiscoveryAliases.PokemonContext(
                 species = "mushettered",
@@ -59,21 +57,37 @@ class DiscoveryAliasesTest {
                 abilities = listOf("magicguard", "effectspore"),
                 hiddenAbility = "receiver",
                 formAspects = setOf("mushroomred"),
-            ),
-            limit = 5,
+            )
         )
 
-        assertTrue(aliases.size <= 5)
-        assertTrue("base:mushette" in aliases)
-        assertTrue("type:dark" in aliases)
-        assertTrue("ability:magicguard" in aliases)
-        assertTrue("form:mushroomred" in aliases)
-        // Prefers one alias per category over a second type before the form/base categories get a look in.
-        assertTrue("type:fairy" !in aliases || aliases.size == 5)
+        assertEquals(
+            listOf("base:mushette", "type:dark", "ability:magicguard", "ability:receiver", "form:mushroomred"),
+            aliases,
+        )
     }
 
     @Test
-    fun jeiAliasesCapAtLimitWhenManyCategoriesPresent() {
+    fun jeiAliasesSpendLeftoverSlotsOnCategoriesThatHaveMore() {
+        // Only two categories, so once each has had its first slot the remaining ones go back to
+        // the categories with more to give rather than being left unused.
+        val aliases = DiscoveryAliases.curatedAliases(
+            DiscoveryAliases.PokemonContext(
+                species = "test",
+                displayName = "Test",
+                primaryType = "water",
+                secondaryType = "flying",
+                abilities = listOf("one", "two", "three"),
+            )
+        )
+
+        assertEquals(
+            listOf("type:water", "ability:one", "type:flying", "ability:two", "ability:three"),
+            aliases,
+        )
+    }
+
+    @Test
+    fun jeiAliasesNeverExceedTheLimit() {
         val aliases = DiscoveryAliases.curatedAliases(
             DiscoveryAliases.PokemonContext(
                 species = "test",
@@ -85,11 +99,37 @@ class DiscoveryAliasesTest {
                 hiddenAbility = "three",
                 formAspects = setOf("alpha", "beta"),
                 jobAliases = listOf("job:fishing"),
-            ),
-            limit = 5,
+            )
         )
 
-        assertTrue(aliases.size == 5)
+        assertEquals(DiscoveryAliases.JEI_ALIAS_LIMIT, aliases.size)
+        assertEquals(aliases.distinct(), aliases)
+    }
+
+    @Test
+    fun jeiAliasesDropADuplicateRatherThanSpendASlotOnIt() {
+        // A datapack listing the same ability as both regular and hidden must not burn two of the
+        // five slots printing "ability:overgrow" twice.
+        val aliases = DiscoveryAliases.curatedAliases(
+            DiscoveryAliases.PokemonContext(
+                species = "test",
+                displayName = "Test",
+                primaryType = "grass",
+                abilities = listOf("overgrow"),
+                hiddenAbility = "overgrow",
+            )
+        )
+
+        assertEquals(listOf("type:grass", "ability:overgrow"), aliases)
+    }
+
+    @Test
+    fun curatedAliasesHandlesASpeciesWithNothingToOffer() {
+        val aliases = DiscoveryAliases.curatedAliases(
+            DiscoveryAliases.PokemonContext(species = "test", displayName = "Test")
+        )
+
+        assertTrue(aliases.isEmpty())
     }
 
     @Test

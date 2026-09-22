@@ -535,14 +535,18 @@ object SpawnDataLoader {
 
     fun getModRootPaths(): List<Path> = findAllModRootsWithIds().map { it.path }
 
-    internal fun findAllModRootPaths(): List<Path> = getModRootPaths()
-
     /**
-     * Same discovery as [findAllModRootPaths], but keeps the mod id each root came from - needed
-     * to attribute a species definition file to the mod that actually shipped it (see
-     * [JarDataCache]'s species provenance scan), since the Minecraft namespace declared inside the
-     * JSON is not reliable for that: add-on/rebalance mods often declare their species under the
-     * `cobblemon` namespace on purpose so they integrate as forms of existing dex entries.
+     * Every loaded mod's data root, each tagged with the mod id that ships it.
+     *
+     * The id matters because a species definition file has to be attributed to the mod that
+     * actually shipped it (see [JarDataCache]'s species provenance scan) and the Minecraft
+     * namespace declared inside the JSON can't do that job: add-on/rebalance mods often declare
+     * their species under the `cobblemon` namespace on purpose so they integrate as forms of
+     * existing dex entries.
+     *
+     * The reflection here stays inline rather than going through [Reflect] because each loader's
+     * lookup needs its own failure handling - telling "this loader isn't present" apart from
+     * "present but this call failed", and logging the latter per mod.
      */
     internal fun findAllModRootsWithIds(): List<ModRoot> {
         cachedModRootsWithIds?.let { return it }

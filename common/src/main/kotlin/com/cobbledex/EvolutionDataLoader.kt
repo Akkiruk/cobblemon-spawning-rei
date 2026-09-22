@@ -885,9 +885,14 @@ object EvolutionDataLoader {
      * purpose, so they integrate as forms of existing dex entries - that's the one fallback left
      * here, for the rare species the provenance scan didn't see (e.g. purely server-synced with no
      * matching local file at all).
+     *
+     * [lookupKey] is normalized before the lookup because the provenance map is keyed the same way
+     * every other JarDataCache map is. A base species arrives here as Cobblemon's raw display name
+     * ("great tusk", "ho-oh", "mr. mime"), which would miss the normalized "greattusk"/"hooh"/
+     * "mrmime" keys and silently fall back to the namespace for every multi-word species.
      */
     private fun resolveSpeciesSource(lookupKey: String, species: com.cobblemon.mod.common.pokemon.Species): String? =
-        JarDataCache.getCachedSpeciesProvenance()[lookupKey]
+        JarDataCache.getCachedSpeciesProvenance()[SpeciesNameNormalizer.normalize(lookupKey)]
             ?: try { species.resourceIdentifier?.namespace } catch (_: Exception) { null }
 
     /** Merge a form entry into an existing one (e.g. regional form dedup - O3) */

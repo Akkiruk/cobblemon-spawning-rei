@@ -10,8 +10,8 @@ package com.cobbledex
  * Both functions swallow every failure (wrong version, missing member, wrong cast) and return
  * `null` - callers that need to know *why* a specific reflective call failed (distinct per-instance
  * logging, telling "class not found" apart from "found but threw") should keep their own
- * try/catch instead of reaching for this; [SpawnDataLoader.findAllModRootPaths] is one such case
- * and intentionally isn't routed through here.
+ * try/catch instead of reaching for this; [SpawnDataLoader.findAllModRootsWithIds] is one such
+ * case and intentionally isn't routed through here.
  */
 object Reflect {
     /** Invokes a no-arg or String-arg public method reflectively, casting the result to [T]. */

@@ -13,8 +13,18 @@ object DiscoveryAliases {
         val hiddenAbility: String? = null,
         val formAspects: Set<String> = emptySet(),
         val jobAliases: List<String> = emptyList(),
-        val materialFormReasons: List<String> = emptyList(),
     )
+
+    /**
+     * How many aliases JEI gets per Pokémon.
+     *
+     * JEI renders every alias an ingredient registers as a bullet line on its hover tooltip
+     * (`searchIngredientAliases`, on by default) and its API offers no way to register an alias
+     * that searches but doesn't render. So the only lever on tooltip length is how many aliases
+     * get registered at all, and a full list ran to 30+ lines - tall enough to cover the
+     * ingredient rows underneath it, including the name of the Pokémon being hovered.
+     */
+    const val JEI_ALIAS_LIMIT = 5
 
     private data class CachedSearchText(val dataVersion: Long, val text: String)
 
@@ -77,19 +87,21 @@ object DiscoveryAliases {
         return aliases.distinctBy { it.lowercase() }
     }
 
-    /**
-     * Capped, diversity-first alias set for JEI: JEI echoes every registered alias as a bullet
-     * line on the ingredient's hover tooltip (`searchIngredientAliases`, on by default, with no
-     * per-mod opt-out), so a long list visually buries the tooltip's own item name. This picks at
-     * most [limit] aliases, one per category in priority order before taking a second from any
-     * category, so 5 slots cover as many distinct search angles (type, ability, base species,
-     * form, job) as the species has, rather than 5 abilities or 5 types.
-     */
-    fun pokemonAliasesForJei(species: String, limit: Int = 5): List<String> =
-        curatedAliases(contextFor(SpeciesNameNormalizer.normalize(species)), limit)
+    /** The [JEI_ALIAS_LIMIT] aliases JEI gets for a species, spread across as many categories as it has. */
+    fun pokemonAliasesForJei(species: String): List<String> =
+        curatedAliases(contextFor(SpeciesNameNormalizer.normalize(species)), JEI_ALIAS_LIMIT)
 
-    /** [pokemonAliasesForJei] over an explicit context, for testing without a live species index. */
-    fun curatedAliases(context: PokemonContext, limit: Int = 5): List<String> {
+    /**
+     * Picks at most [limit] aliases, taking one from each category in priority order before
+     * taking a second from any of them - so the slots cover as many distinct ways of finding the
+     * species (base species, typing, ability, form, job) as it actually has, instead of spending
+     * all of them on one category's list. Ordered widest-net first: a form's base species name
+     * finds it when its own name isn't known, then typing, then abilities.
+     *
+     * Exposed (rather than private behind [pokemonAliasesForJei]) so it can be tested against an
+     * explicit context, with no live species index to load.
+     */
+    fun curatedAliases(context: PokemonContext, limit: Int = JEI_ALIAS_LIMIT): List<String> {
         val buckets = mutableListOf<List<String>>()
 
         context.baseSpeciesName?.let { base ->
