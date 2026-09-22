@@ -2,48 +2,17 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
-## [2.28.1] - 2026-09-22
+## [2.28.2] - 2026-09-22
 
 ### Fixed
-- **Hovering a Pokémon in JEI could bury its name under a wall of search terms.** JEI prints every
-  search alias a mod registers as a bullet on the hover tooltip, and CobbleDex was registering
-  around thirty per Pokémon - enough to cover the entries underneath, including the name of the
-  Pokémon you were pointing at. JEI offers no way to register an alias that searches without also
-  printing, so the list is now a deliberate, ranked set instead of everything at once: typing,
-  riding style, base species, rarity (legendary/mythical/ultra beast/paradox), ability, and
-  regional variant, in that priority order, capped at 11 - the most any single Pokémon can ever
-  need across all six, so nothing real ever gets cut. Job tags, cosmetic/custom form names, and
-  internal bookkeeping strings like "form specific evolution data" are no longer registered as
-  search terms at all, and searching by an unpunctuated run-on (`abilitymagicguard`) is gone - the
-  readable forms (`Magic Guard`, `ability:magicguard`) still work. REI and EMI, which don't print
-  aliases into tooltips, keep the full search list including job tags and custom form names.
-- **JEI's own "added by" tag (the small label under an item's tooltip) always said "Cobblemon,"
-  even for Pokémon a different mod added.** That tag comes from the mod id CobbleDex reports for
-  each Pokémon, which was hardcoded - so JEI could never show the real source no matter how
-  accurate CobbleDex's own pages were. It now reports the same real mod/datapack CobbleDex's
-  Source/Added-by lines use, so JEI's built-in tag credits the actual mod when there is one.
-- **"Source" and "Added by" credited the wrong mod, or nothing at all, for Pokémon from add-ons and
-  datapacks.** Attribution was read from the namespace inside a Pokémon's definition file, but
-  add-on and rebalance mods normally declare their Pokémon and forms under Cobblemon's own
-  namespace so they slot in beside the base dex. Anything they added therefore looked like stock
-  Cobblemon - Mega forms from a Mega mod showed "Source: Cobblemon" on the Overview page and no
-  "Added by" line on the Info page, and a Pokémon from an unidentified datapack did the same.
-  CobbleDex now credits whichever mod jar, datapack or resource pack actually contains the file
-  that introduced that Pokémon - or, for a form added on top of an existing Pokémon, the pack that
-  added the form. Base Cobblemon content shows neither line, same as before this was broken -
-  "Source: Cobblemon" on every one of ~1400 vanilla species would just be noise now that the field
-  actually means something.
-
-## [2.28.0] - 2026-09-19
-
-### Fixed
-- **Long pages were cut off at the bottom with no way to reach the rest.** A CobbleDex page taller
-  than the recipe window - a long move list, a crowded spawn or evolution entry - rendered with
-  its bottom edge clipped and no scrollbar, so the content past the cut simply wasn't reachable in
-  REI, JEI or EMI. Anything too tall to fit is now split into multiple pages you step through with
-  the recipe viewer's own next/previous arrows, so nothing falls off the end. Splits land in the
-  gaps between rows rather than through them, so a page never breaks a Pokémon icon, a clickable
-  move name or a hover tooltip across the boundary.
+- Long pages (Moves, Spawn, Evolution, and more) that used to get cut off at the bottom with no
+  way to scroll now split into pages you flip through, in REI, JEI, and EMI - nothing is missing
+  anymore.
+- JEI's search tooltip for a Pokémon could balloon into a huge wall of text that covered the
+  Pokémon's own name. It's now a short, focused list: type, riding style, base species, rarity,
+  ability, and region.
+- "Source" / "Added by" on the Pokédex pages, and JEI's own "added by" tag, now correctly credit
+  the mod or datapack that actually added a Pokémon instead of always saying Cobblemon.
 
 ## [2.27.7] - 2026-09-16
 
