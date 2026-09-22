@@ -573,9 +573,7 @@ object SpawnDisplayHelper {
             }
             lines.add(typeLine)
 
-            val labelBadges = info.labels?.filter {
-                it in setOf("legendary", "mythical", "ultra_beast", "paradox")
-            }
+            val labelBadges = info.labels?.filter { it in RARITY_LABELS }
             if (!labelBadges.isNullOrEmpty()) {
                 val badge = labelBadges.joinToString(", ") {
                     tr("cobbledex-rei-emi-jei.label.${it}")

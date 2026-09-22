@@ -43,33 +43,45 @@ class DiscoveryAliasesTest {
     }
 
     @Test
-    fun jeiAliasesTakeOnePerCategoryBeforeDoublingUp() {
-        // Mushette Red - the species from the bug report - has six categories competing for five
-        // slots, so every slot should go to a different one and the second typing/ability must
-        // lose to a category that has had no slot yet.
+    fun jeiAliasesCoverAllSixCategoriesInPriorityOrder() {
+        // A species hitting every category at its real maximum: 2 types, 3 riding styles, a base
+        // species, a rarity tag, 3 abilities (2 regular + hidden), 1 regional variant - 11 total,
+        // exactly JEI_ALIAS_LIMIT, so nothing gets dropped even though every category is maxed out.
         val aliases = DiscoveryAliases.curatedAliases(
             DiscoveryAliases.PokemonContext(
-                species = "mushettered",
-                displayName = "Mushette Red",
-                baseSpeciesName = "mushette",
+                species = "test",
+                displayName = "Test",
+                baseSpeciesName = "base",
                 primaryType = "dark",
                 secondaryType = "fairy",
                 abilities = listOf("magicguard", "effectspore"),
                 hiddenAbility = "receiver",
-                formAspects = setOf("mushroomred"),
+                ridingStyles = listOf("LAND", "AIR", "LIQUID"),
+                rarityLabels = listOf("legendary"),
+                regionalVariant = "galarian",
             )
         )
 
         assertEquals(
-            listOf("base:mushette", "type:dark", "ability:magicguard", "ability:receiver", "form:mushroomred"),
+            listOf(
+                "type:dark", "type:fairy",
+                "riding:land", "riding:air", "riding:liquid",
+                "base:base",
+                "rarity:legendary",
+                "ability:magicguard", "ability:effectspore", "ability:receiver",
+                "regional:galarian",
+            ),
             aliases,
         )
+        assertEquals(DiscoveryAliases.JEI_ALIAS_LIMIT, aliases.size)
     }
 
     @Test
-    fun jeiAliasesSpendLeftoverSlotsOnCategoriesThatHaveMore() {
-        // Only two categories, so once each has had its first slot the remaining ones go back to
-        // the categories with more to give rather than being left unused.
+    fun jeiAliasesTruncateLowestPriorityCategoriesFirstWhenCapped() {
+        // A cap tighter than the real total drops from the end of the priority order (abilities'
+        // 2nd/3rd values, then regional variant) rather than spreading the cut evenly - a species'
+        // second ability outranks its regional-variant tag, so it must survive a tighter cap that
+        // the regional tag doesn't.
         val aliases = DiscoveryAliases.curatedAliases(
             DiscoveryAliases.PokemonContext(
                 species = "test",
@@ -77,39 +89,18 @@ class DiscoveryAliasesTest {
                 primaryType = "water",
                 secondaryType = "flying",
                 abilities = listOf("one", "two", "three"),
-            )
+                regionalVariant = "alolan",
+            ),
+            limit = 4,
         )
 
-        assertEquals(
-            listOf("type:water", "ability:one", "type:flying", "ability:two", "ability:three"),
-            aliases,
-        )
-    }
-
-    @Test
-    fun jeiAliasesNeverExceedTheLimit() {
-        val aliases = DiscoveryAliases.curatedAliases(
-            DiscoveryAliases.PokemonContext(
-                species = "test",
-                displayName = "Test",
-                baseSpeciesName = "base",
-                primaryType = "water",
-                secondaryType = "flying",
-                abilities = listOf("one", "two"),
-                hiddenAbility = "three",
-                formAspects = setOf("alpha", "beta"),
-                jobAliases = listOf("job:fishing"),
-            )
-        )
-
-        assertEquals(DiscoveryAliases.JEI_ALIAS_LIMIT, aliases.size)
-        assertEquals(aliases.distinct(), aliases)
+        assertEquals(listOf("type:water", "type:flying", "ability:one", "ability:two"), aliases)
     }
 
     @Test
     fun jeiAliasesDropADuplicateRatherThanSpendASlotOnIt() {
-        // A datapack listing the same ability as both regular and hidden must not burn two of the
-        // five slots printing "ability:overgrow" twice.
+        // A datapack listing the same ability as both regular and hidden must not burn two slots
+        // printing "ability:overgrow" twice.
         val aliases = DiscoveryAliases.curatedAliases(
             DiscoveryAliases.PokemonContext(
                 species = "test",
@@ -130,6 +121,24 @@ class DiscoveryAliasesTest {
         )
 
         assertTrue(aliases.isEmpty())
+    }
+
+    @Test
+    fun curatedAliasesIgnoresJobAndGenericFormAspectsEntirely() {
+        // Job tags and non-regional form aspects (e.g. a custom "mushroomred" costume form) are
+        // real, useful search terms for REI/EMI's uncapped list, but they aren't one of the six
+        // categories JEI's eleven slots are reserved for.
+        val aliases = DiscoveryAliases.curatedAliases(
+            DiscoveryAliases.PokemonContext(
+                species = "test",
+                displayName = "Test",
+                primaryType = "dark",
+                formAspects = setOf("mushroomred"),
+                jobAliases = listOf("job:fishing", "Fisher"),
+            )
+        )
+
+        assertEquals(listOf("type:dark"), aliases)
     }
 
     @Test

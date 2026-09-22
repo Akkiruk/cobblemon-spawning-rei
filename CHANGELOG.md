@@ -9,12 +9,19 @@ All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
   search alias a mod registers as a bullet on the hover tooltip, and CobbleDex was registering
   around thirty per Pokémon - enough to cover the entries underneath, including the name of the
   Pokémon you were pointing at. JEI offers no way to register an alias that searches without also
-  printing, so the list itself is now trimmed to five per Pokémon, picked to cover as many
-  different ways of finding it as that Pokémon has (base species, typing, ability, form, job)
-  instead of five of the same kind. Internal bookkeeping strings like "form specific evolution
-  data" are no longer registered as search terms at all, and searching by an unpunctuated run-on
-  (`abilitymagicguard`) is gone - the readable forms (`Magic Guard`, `ability:magicguard`) still
-  work. REI and EMI, which don't print aliases into tooltips, keep the full search list.
+  printing, so the list is now a deliberate, ranked set instead of everything at once: typing,
+  riding style, base species, rarity (legendary/mythical/ultra beast/paradox), ability, and
+  regional variant, in that priority order, capped at 11 - the most any single Pokémon can ever
+  need across all six, so nothing real ever gets cut. Job tags, cosmetic/custom form names, and
+  internal bookkeeping strings like "form specific evolution data" are no longer registered as
+  search terms at all, and searching by an unpunctuated run-on (`abilitymagicguard`) is gone - the
+  readable forms (`Magic Guard`, `ability:magicguard`) still work. REI and EMI, which don't print
+  aliases into tooltips, keep the full search list including job tags and custom form names.
+- **JEI's own "added by" tag (the small label under an item's tooltip) always said "Cobblemon,"
+  even for Pokémon a different mod added.** That tag comes from the mod id CobbleDex reports for
+  each Pokémon, which was hardcoded - so JEI could never show the real source no matter how
+  accurate CobbleDex's own pages were. It now reports the same real mod/datapack CobbleDex's
+  Source/Added-by lines use, so JEI's built-in tag credits the actual mod when there is one.
 - **"Source" and "Added by" credited the wrong mod, or nothing at all, for Pokémon from add-ons and
   datapacks.** Attribution was read from the namespace inside a Pokémon's definition file, but
   add-on and rebalance mods normally declare their Pokémon and forms under Cobblemon's own

@@ -13,6 +13,9 @@ object DiscoveryAliases {
         val hiddenAbility: String? = null,
         val formAspects: Set<String> = emptySet(),
         val jobAliases: List<String> = emptyList(),
+        val ridingStyles: List<String> = emptyList(),
+        val rarityLabels: List<String> = emptyList(),
+        val regionalVariant: String? = null,
     )
 
     /**
@@ -23,8 +26,13 @@ object DiscoveryAliases {
      * that searches but doesn't render. So the only lever on tooltip length is how many aliases
      * get registered at all, and a full list ran to 30+ lines - tall enough to cover the
      * ingredient rows underneath it, including the name of the Pokémon being hovered.
+     *
+     * 11 is not an arbitrary trim: it's the exact ceiling [curatedAliases] can ever produce - 2
+     * types + 3 riding styles + 1 base species + 1 rarity tag + 3 abilities (2 regular + hidden) +
+     * 1 regional variant - so no real species ever gets truncated, only capped against a
+     * datapack that stacks more rarity tags on one species than Cobblemon's own data ever does.
      */
-    const val JEI_ALIAS_LIMIT = 5
+    const val JEI_ALIAS_LIMIT = 11
 
     private data class CachedSearchText(val dataVersion: Long, val text: String)
 
@@ -87,59 +95,44 @@ object DiscoveryAliases {
         return aliases.distinctBy { it.lowercase() }
     }
 
-    /** The [JEI_ALIAS_LIMIT] aliases JEI gets for a species, spread across as many categories as it has. */
+    /** Up to [JEI_ALIAS_LIMIT] aliases JEI gets for a species - see [curatedAliases] for which six categories and why. */
     fun pokemonAliasesForJei(species: String): List<String> =
         curatedAliases(contextFor(SpeciesNameNormalizer.normalize(species)), JEI_ALIAS_LIMIT)
 
     /**
-     * Picks at most [limit] aliases, taking one from each category in priority order before
-     * taking a second from any of them - so the slots cover as many distinct ways of finding the
-     * species (base species, typing, ability, form, job) as it actually has, instead of spending
-     * all of them on one category's list. Ordered widest-net first: a form's base species name
-     * finds it when its own name isn't known, then typing, then abilities.
+     * At most [limit] aliases from exactly six categories, in priority order: typing, riding
+     * style, base species, rarity, ability, regional variant. Unlike the old diversity-first
+     * scheme this replaced, this is a straight concatenation - each category is now an explicit,
+     * ranked choice the player made (see the alias-priority discussion this came out of), not an
+     * arbitrary grab-bag where spreading slots across categories was the only way to get variety.
+     * A cap tight enough to bind should drop the *lowest*-priority category's values first, which
+     * round-robin doesn't do: it hands every category a slot before any category gets a second one,
+     * so "regional variant" could out-rank a species' second ability. At the default
+     * [JEI_ALIAS_LIMIT] the cap never binds at all (see its doc) - it only matters for a smaller
+     * [limit], or the rarity edge case [JEI_ALIAS_LIMIT]'s doc calls out.
      *
      * Exposed (rather than private behind [pokemonAliasesForJei]) so it can be tested against an
      * explicit context, with no live species index to load.
      */
     fun curatedAliases(context: PokemonContext, limit: Int = JEI_ALIAS_LIMIT): List<String> {
-        val buckets = mutableListOf<List<String>>()
+        val ordered = mutableListOf<String>()
 
-        context.baseSpeciesName?.let { base ->
-            buckets.add(listOf("base:${normalizedToken(base)}"))
+        for (type in listOfNotNull(context.primaryType, context.secondaryType)) {
+            ordered.add("type:${normalizedToken(type)}")
         }
-
-        val typeAliases = listOfNotNull(context.primaryType, context.secondaryType)
-            .map { "type:${normalizedToken(it)}" }
-        if (typeAliases.isNotEmpty()) buckets.add(typeAliases)
-
-        val abilityAliases = context.abilities.map { "ability:${normalizedToken(it)}" }
-        if (abilityAliases.isNotEmpty()) buckets.add(abilityAliases)
-
-        context.hiddenAbility?.let { buckets.add(listOf("ability:${normalizedToken(it)}")) }
-
-        val formAliases = context.formAspects.map { "form:${normalizedToken(it)}" }
-        if (formAliases.isNotEmpty()) buckets.add(formAliases)
-
-        val jobAliases = context.jobAliases.filter { it.startsWith("job:") }
-        if (jobAliases.isNotEmpty()) buckets.add(jobAliases)
-
-        val result = mutableListOf<String>()
-        var round = 0
-        while (result.size < limit) {
-            var addedThisRound = false
-            for (bucket in buckets) {
-                if (round >= bucket.size) continue
-                val candidate = bucket[round]
-                if (result.none { it.equals(candidate, ignoreCase = true) }) {
-                    result.add(candidate)
-                    addedThisRound = true
-                    if (result.size >= limit) break
-                }
-            }
-            if (!addedThisRound) break
-            round++
+        for (style in context.ridingStyles) {
+            ordered.add("riding:${normalizedToken(style)}")
         }
-        return result
+        context.baseSpeciesName?.let { ordered.add("base:${normalizedToken(it)}") }
+        for (rarity in context.rarityLabels) {
+            ordered.add("rarity:${normalizedToken(rarity)}")
+        }
+        for (ability in context.abilities + listOfNotNull(context.hiddenAbility)) {
+            ordered.add("ability:${normalizedToken(ability)}")
+        }
+        context.regionalVariant?.let { ordered.add("regional:${normalizedToken(it)}") }
+
+        return ordered.distinctBy { it.lowercase() }.take(limit)
     }
 
     fun moveAliases(moveName: String): List<String> {
@@ -161,6 +154,8 @@ object DiscoveryAliases {
         val jobs = queries.getJobsFor(species).flatMap { match ->
             listOf("job:${match.rule.id}", match.rule.displayName)
         }
+        val formAspects = info?.formAspects.orEmpty()
+        val labels = info?.labels.orEmpty()
         return PokemonContext(
             species = species,
             displayName = formatSpeciesName(species),
@@ -169,8 +164,11 @@ object DiscoveryAliases {
             secondaryType = info?.secondaryType,
             abilities = info?.abilities.orEmpty(),
             hiddenAbility = info?.hiddenAbility,
-            formAspects = info?.formAspects.orEmpty(),
+            formAspects = formAspects,
             jobAliases = jobs,
+            ridingStyles = queries.getRidingFor(species)?.allMountTypes.orEmpty(),
+            rarityLabels = labels.filter { it in RARITY_LABELS },
+            regionalVariant = RegionalForms.suffixFor(formAspects, labels),
         )
     }
 
