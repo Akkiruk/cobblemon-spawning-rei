@@ -2,6 +2,38 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.28.1] - 2026-09-22
+
+### Fixed
+- **JEI's hover-tooltip alias list could grow to 30+ bullet lines and visually bury the item's own
+  name.** JEI echoes every registered search alias as a tooltip bullet by default
+  (`searchIngredientAliases`), with no per-mod way to opt out - it's the same toggle that also
+  controls whether those aliases are searchable at all. CobbleDex was registering both a
+  human-readable and a punctuation-stripped duplicate of nearly every alias, plus internal
+  form-decision debug strings (e.g. "form specific evolution data") that were never meant to be
+  search terms. JEI's alias list is now capped at 5, chosen to cover as many distinct categories
+  (type, ability, base species, form, job) as the species has rather than piling up duplicates of
+  one; the debug-string leak and the duplicate compact tokens are gone from every viewer (REI/EMI
+  still get the fuller, uncapped list for search).
+- **The Pokémon page's "Source" row showed which Minecraft namespace a species' JSON declared,
+  not which mod or datapack actually added it** - so an add-on/rebalance mod that (as many do)
+  declares its species under the `cobblemon` namespace on purpose showed as "Source: Cobblemon"
+  even when a separate mod or datapack was the real author. Provenance is now resolved from which
+  mod jar or datapack folder physically contains the species' (or, for an added form, the
+  patching pack's) declaration - the same file-scanning pass already used for evolutions/moves/
+  traits - instead of the namespace baked into the JSON.
+
+## [2.28.0] - 2026-09-19
+
+### Changed
+- Consolidated tall multi-page panel logic - previously duplicated per viewer - into one shared
+  paginator used by REI, JEI, and EMI, and routed the Moves page through the same path.
+- Deduplicated REI's and EMI's near-identical move-link widget classes into one each.
+- Extracted a shared `Reflect` helper and replaced roughly 15 inline reflection call sites with it.
+- Added short discoverability comments to the three viewer plugins' entry points.
+
+No player-visible behavior change.
+
 ## [2.27.7] - 2026-09-16
 
 ### Fixed

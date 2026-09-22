@@ -34,7 +34,7 @@ object CobbleDexMod {
         // SpawnDataIndex.doLoad.
         Thread({
             try {
-                val modRoots = SpawnDataLoader.getModRootPaths()
+                val modRoots = SpawnDataLoader.findAllModRootsWithIds()
                 if (modRoots.isNotEmpty()) {
                     JarDataCache.initialize(modRoots)
                 } else {

@@ -24,10 +24,3 @@ fun obtainmentStructureText(structure: String): String = tr("cobbledex-rei-emi-j
 fun obtainmentDimensionText(dimension: String): String = tr("cobbledex-rei-emi-jei.obtainment.dimension", dimension)
 
 fun evoBranchText(index: Int, total: Int): String = tr("cobbledex-rei-emi-jei.evo.branch", index, total)
-
-fun sourceLabel(source: String): String = when (source) {
-    "bundled" -> tr("cobbledex-rei-emi-jei.source.builtin")
-    "datapack" -> tr("cobbledex-rei-emi-jei.source.datapack")
-    "mod" -> tr("cobbledex-rei-emi-jei.source.mod")
-    else -> ""
-}

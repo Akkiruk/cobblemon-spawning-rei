@@ -44,6 +44,8 @@ object JarDataCache {
     private var cachedFormTraits: Map<String, JarTraitData> = emptyMap()
     @Volatile
     private var cachedTypeChartOverrides: Map<String, Map<String, Float>> = emptyMap()
+    @Volatile
+    private var cachedSpeciesProvenance: Map<String, String> = emptyMap()
 
     /** Raw move data parsed from species JSON in mod JARs. */
     data class JarMoveData(
@@ -103,6 +105,8 @@ object JarDataCache {
     fun getCachedTraits(): Map<String, JarTraitData> = cachedTraits
     fun getCachedFormTraits(): Map<String, JarTraitData> = cachedFormTraits
     fun getCachedTypeChartOverrides(): Map<String, Map<String, Float>> = cachedTypeChartOverrides
+    /** Species name -> the mod id or datapack/resourcepack name that declared it. See [SpeciesJsonScan.provenance]. */
+    fun getCachedSpeciesProvenance(): Map<String, String> = cachedSpeciesProvenance
 
     /**
      * Wait for the cache to finish initializing (up to timeout).
@@ -117,11 +121,12 @@ object JarDataCache {
      * Initialize the cache from mod JAR files. Safe to call multiple times -
      * only the first call does work. Runs synchronously on whatever thread calls it.
      */
-    fun initialize(modRoots: List<Path>) {
+    fun initialize(modRootsWithIds: List<SpawnDataLoader.ModRoot>) {
         if (initialized.get()) return
         if (!loading.compareAndSet(false, true)) return
 
         try {
+            val modRoots = modRootsWithIds.map { it.path }
             DebugLog.info("JarDataCache: initializing from ${modRoots.size} mod roots")
             val startTime = System.currentTimeMillis()
 
@@ -132,12 +137,13 @@ object JarDataCache {
             cachedHabitatSpawns = parseHabitatPoolsFromJars(modRoots)
             cachedTms = parseTmsFromJars(modRoots)
             cachedMarks = parseMarksFromJars(modRoots)
-            val scan = parseEvolutionsAndMovesFromJars(modRoots)
+            val scan = parseEvolutionsAndMovesFromJars(modRootsWithIds)
             cachedEvolutions = scan.evolutions
             cachedMoves = scan.moves
             cachedFormMoves = scan.formMoves
             cachedTraits = scan.traits
             cachedFormTraits = scan.formTraits
+            cachedSpeciesProvenance = scan.provenance
             cachedFossils = parseFossilsFromJars(modRoots)
             cachedTypeChartOverrides = parseTypeChartOverridesFromJars(modRoots)
 
@@ -219,7 +225,7 @@ object JarDataCache {
                 }
 
                 // Scan ZIP datapacks for presets
-                scanZipDatapacks(datapacksDir, "spawn_detail_presets") { _, entryName, json ->
+                scanZipDatapacks(datapacksDir, "spawn_detail_presets") { _, _, entryName, json ->
                     val name = entryName.substringAfterLast('/').removeSuffix(".json")
                     presets[name] = json
                 }
@@ -280,7 +286,7 @@ object JarDataCache {
         try {
             val datapacksDir = com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
             if (Files.exists(datapacksDir) && Files.isDirectory(datapacksDir)) {
-                scanZipDatapacks(datapacksDir, "spawn_pool_world") { _, _, json ->
+                scanZipDatapacks(datapacksDir, "spawn_pool_world") { _, _, _, json ->
                     if (json.has("enabled") && !json.get("enabled").asBoolean) return@scanZipDatapacks
                     val spawns = json.getAsJsonArray("spawns") ?: return@scanZipDatapacks
                     fileCount++
@@ -674,7 +680,7 @@ object JarDataCache {
         try {
             val datapacksDir = com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
             if (Files.isDirectory(datapacksDir)) {
-                scanZipDatapacks(datapacksDir, subDir) { _, _, json -> handler(json) }
+                scanZipDatapacks(datapacksDir, subDir) { _, _, _, json -> handler(json) }
             }
         } catch (_: Exception) {}
     }
@@ -952,9 +958,13 @@ object JarDataCache {
         val traits = mutableMapOf<String, JarTraitData>()
         val formTraits = mutableMapOf<String, JarTraitData>()
         val counters = EvoMoveParseCounters()
+        /** Species name -> the mod id or datapack/resourcepack name whose "species" json file
+         *  declared it. Only ever set from an outright declaration, never a "species_additions"
+         *  patch, so a patch never misattributes a base-game species to the patching pack. */
+        val provenance = mutableMapOf<String, String>()
     }
 
-    private fun parseEvolutionsAndMovesFromJars(modRoots: List<Path>): SpeciesJsonScan {
+    private fun parseEvolutionsAndMovesFromJars(modRoots: List<SpawnDataLoader.ModRoot>): SpeciesJsonScan {
         val scan = SpeciesJsonScan()
         val result = scan.evolutions
         val counters = scan.counters
@@ -969,7 +979,7 @@ object JarDataCache {
         // (from "species/") parse fine.
         for (root in modRoots) {
             try {
-                scanLooseSpeciesDataDir(root.resolve("data"), scan)
+                scanLooseSpeciesDataDir(root.path.resolve("data"), scan, root.id)
             } catch (_: Exception) {}
         }
 
@@ -1004,7 +1014,7 @@ object JarDataCache {
                     entries.filter { Files.isDirectory(it) }
                         .filter { !isResourcePacks || it.fileName.toString() in enabledResourcePackFiles }
                         .forEach { pack ->
-                            scanLooseSpeciesDataDir(pack.resolve("data"), scan)
+                            scanLooseSpeciesDataDir(pack.resolve("data"), scan, pack.fileName.toString())
                         }
                 }
 
@@ -1012,8 +1022,8 @@ object JarDataCache {
                     !isResourcePacks || path.fileName.toString() in enabledResourcePackFiles
                 }
                 for ((subFolder, isAddition) in listOf("species" to false, "species_additions" to true)) {
-                    scanZipDatapacks(dir, subFolder, zipFilter) { _, _, json ->
-                        processSpeciesJsonObject(json, isAddition, scan)
+                    scanZipDatapacks(dir, subFolder, zipFilter) { packName, _, _, json ->
+                        processSpeciesJsonObject(json, isAddition, scan, packName)
                     }
                 }
             }
@@ -1023,7 +1033,7 @@ object JarDataCache {
         return scan
     }
 
-    private fun scanLooseSpeciesDataDir(dataDir: Path, scan: SpeciesJsonScan) {
+    private fun scanLooseSpeciesDataDir(dataDir: Path, scan: SpeciesJsonScan, origin: String? = null) {
         val counters = scan.counters
         if (!Files.exists(dataDir) || !Files.isDirectory(dataDir)) return
 
@@ -1039,7 +1049,7 @@ object JarDataCache {
                                 val obj = InputStreamReader(Files.newInputStream(file), Charsets.UTF_8).use { reader ->
                                     JsonParser.parseReader(reader).asJsonObject
                                 }
-                                processSpeciesJsonObject(obj, isAddition, scan)
+                                processSpeciesJsonObject(obj, isAddition, scan, origin)
                             } catch (_: Exception) { counters.failCount++ }
                         }
                     }
@@ -1048,7 +1058,7 @@ object JarDataCache {
         }
     }
 
-    private fun processSpeciesJsonObject(obj: JsonObject, isAddition: Boolean, scan: SpeciesJsonScan) {
+    private fun processSpeciesJsonObject(obj: JsonObject, isAddition: Boolean, scan: SpeciesJsonScan, origin: String? = null) {
         val result = scan.evolutions
         val movesResult = scan.moves
         val formMovesResult = scan.formMoves
@@ -1071,6 +1081,15 @@ object JarDataCache {
             // moves, none of its 53 TM + 25 tutor moves).
             val name = SpeciesNameNormalizer.normalize(rawName)
             counters.fileCount++
+
+            // Only an outright "species/" declaration identifies who added this species - a
+            // "species_additions" patch targets a species someone else already declared, so
+            // recording its origin here would misattribute that base species to the patcher.
+            // First declaration found wins; it shouldn't matter in practice since a species name
+            // is normally declared exactly once across all loaded content.
+            if (!isAddition && origin != null) {
+                scan.provenance.putIfAbsent(name, origin)
+            }
 
             // Parse moves
             val movesArray = obj.optArray("moves")
@@ -1116,6 +1135,17 @@ object JarDataCache {
                         val aspects = form.optStringArray("aspects").toSet()
                         val formKey = if (aspects.isEmpty()) name
                             else buildJsonFormEntryKey(name, form)
+
+                        // Unlike the base species name above, a form entry is new content in
+                        // whatever file declares it even when that file is a "species_additions"
+                        // patch on someone else's base species - that's exactly how add-on/
+                        // rebalance packs (e.g. a Mega evolution pack) normally ship a new form:
+                        // patching the vanilla species with an extra forms[] entry rather than
+                        // declaring a whole new species. So this form's provenance is recorded
+                        // regardless of isAddition, while the outer name above only ever is not.
+                        if (origin != null) {
+                            scan.provenance.putIfAbsent(formKey, origin)
+                        }
 
                         val formMovesArray = form.optArray("moves")
                         if (formMovesArray != null) {
@@ -1448,7 +1478,7 @@ object JarDataCache {
                 val zipFilter: (Path) -> Boolean = { path ->
                     !isResourcePacks || path.fileName.toString() in enabledResourcePackFiles
                 }
-                scanZipDatapacks(dir, "fossils", zipFilter) { _, _, json ->
+                scanZipDatapacks(dir, "fossils", zipFilter) { _, _, _, json ->
                     processFossilJson(json)
                 }
             }
@@ -1565,10 +1595,11 @@ object JarDataCache {
         datapacksDir: Path,
         subDir: String,
         packFilter: (Path) -> Boolean = { true },
-        handler: (namespace: String, entryName: String, json: JsonObject) -> Unit
+        handler: (packName: String, namespace: String, entryName: String, json: JsonObject) -> Unit
     ) {
         val pattern = Regex("^data/([^/]+)/${subDir}/.+\\.json\$")
-        forEachZipDatapack(datapacksDir, packFilter) { zip, _ ->
+        forEachZipDatapack(datapacksDir, packFilter) { zip, zipPath ->
+            val packName = zipPath.fileName.toString()
             for (entry in zip.entries()) {
                 if (entry.isDirectory) continue
                 val match = pattern.matchEntire(entry.name) ?: continue
@@ -1579,7 +1610,7 @@ object JarDataCache {
                             JsonParser.parseReader(reader).asJsonObject
                         }
                     }
-                    handler(namespace, entry.name, json)
+                    handler(packName, namespace, entry.name, json)
                 } catch (_: Exception) {}
             }
         }

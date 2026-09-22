@@ -235,7 +235,9 @@ object PokemonInfoPageBuilder {
             layout.wrapped(indentX, tr("cobbledex-rei-emi-jei.overview.form_note", base, reasons), right - indentX, 0xBBBBBB)
         }
 
-        val source = info?.source?.let { sourceLabel(it).ifBlank { titleCase(it) } }
+        // info.source is now real provenance (a mod id or datapack/resourcepack name) rather than
+        // the old bundled/datapack/mod tier label, so it's just title-cased for display.
+        val source = info?.source?.let { titleCase(it) }
         if (!source.isNullOrBlank()) {
             layout.gap(3)
             layout.textRight(tr("cobbledex-rei-emi-jei.overview.source", source), 0x888888)

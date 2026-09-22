@@ -73,9 +73,61 @@ object DiscoveryAliases {
         }
 
         for (jobAlias in context.jobAliases) addAlias(aliases, jobAlias)
-        for (reason in context.materialFormReasons) addAlias(aliases, "material form:${normalizedPhrase(reason)}")
 
         return aliases.distinctBy { it.lowercase() }
+    }
+
+    /**
+     * Capped, diversity-first alias set for JEI: JEI echoes every registered alias as a bullet
+     * line on the ingredient's hover tooltip (`searchIngredientAliases`, on by default, with no
+     * per-mod opt-out), so a long list visually buries the tooltip's own item name. This picks at
+     * most [limit] aliases, one per category in priority order before taking a second from any
+     * category, so 5 slots cover as many distinct search angles (type, ability, base species,
+     * form, job) as the species has, rather than 5 abilities or 5 types.
+     */
+    fun pokemonAliasesForJei(species: String, limit: Int = 5): List<String> =
+        curatedAliases(contextFor(SpeciesNameNormalizer.normalize(species)), limit)
+
+    /** [pokemonAliasesForJei] over an explicit context, for testing without a live species index. */
+    fun curatedAliases(context: PokemonContext, limit: Int = 5): List<String> {
+        val buckets = mutableListOf<List<String>>()
+
+        context.baseSpeciesName?.let { base ->
+            buckets.add(listOf("base:${normalizedToken(base)}"))
+        }
+
+        val typeAliases = listOfNotNull(context.primaryType, context.secondaryType)
+            .map { "type:${normalizedToken(it)}" }
+        if (typeAliases.isNotEmpty()) buckets.add(typeAliases)
+
+        val abilityAliases = context.abilities.map { "ability:${normalizedToken(it)}" }
+        if (abilityAliases.isNotEmpty()) buckets.add(abilityAliases)
+
+        context.hiddenAbility?.let { buckets.add(listOf("ability:${normalizedToken(it)}")) }
+
+        val formAliases = context.formAspects.map { "form:${normalizedToken(it)}" }
+        if (formAliases.isNotEmpty()) buckets.add(formAliases)
+
+        val jobAliases = context.jobAliases.filter { it.startsWith("job:") }
+        if (jobAliases.isNotEmpty()) buckets.add(jobAliases)
+
+        val result = mutableListOf<String>()
+        var round = 0
+        while (result.size < limit) {
+            var addedThisRound = false
+            for (bucket in buckets) {
+                if (round >= bucket.size) continue
+                val candidate = bucket[round]
+                if (result.none { it.equals(candidate, ignoreCase = true) }) {
+                    result.add(candidate)
+                    addedThisRound = true
+                    if (result.size >= limit) break
+                }
+            }
+            if (!addedThisRound) break
+            round++
+        }
+        return result
     }
 
     fun moveAliases(moveName: String): List<String> {
@@ -97,7 +149,6 @@ object DiscoveryAliases {
         val jobs = queries.getJobsFor(species).flatMap { match ->
             listOf("job:${match.rule.id}", match.rule.displayName)
         }
-        val materialReasons = queries.materialFormDecision(species)?.reasons.orEmpty()
         return PokemonContext(
             species = species,
             displayName = formatSpeciesName(species),
@@ -108,7 +159,6 @@ object DiscoveryAliases {
             hiddenAbility = info?.hiddenAbility,
             formAspects = info?.formAspects.orEmpty(),
             jobAliases = jobs,
-            materialFormReasons = materialReasons,
         )
     }
 
@@ -116,13 +166,7 @@ object DiscoveryAliases {
         val cleaned = value?.trim()?.replace(Regex("\\s+"), " ") ?: return
         if (cleaned.isBlank()) return
         aliases.add(cleaned)
-
-        val compact = normalizedToken(cleaned)
-        if (compact.length >= 3 && compact != cleaned.lowercase()) aliases.add(compact)
     }
-
-    private fun normalizedPhrase(value: String): String =
-        value.lowercase().replace(Regex("[^a-z0-9]+"), " ").trim()
 
     private fun normalizedToken(value: String): String =
         value.lowercase().replace(Regex("[^a-z0-9]+"), "").trim()

@@ -22,10 +22,10 @@ import java.nio.file.Path
 object SpawnDataLoader {
 
     @Volatile
-    private var cachedModRoots: List<Path>? = null
+    private var cachedModRootsWithIds: List<ModRoot>? = null
 
     fun invalidateCache() {
-        cachedModRoots = null
+        cachedModRootsWithIds = null
     }
 
     fun loadFromRuntime(): Map<String, List<SpawnInfo>> {
@@ -530,11 +530,23 @@ object SpawnDataLoader {
 
     // --- Mod root paths (kept for ObtainmentDataLoader) ---
 
-    fun getModRootPaths(): List<Path> = findAllModRootPaths()
+    /** A mod's data root path, tagged with the actual mod id that ships it. */
+    data class ModRoot(val id: String, val path: Path)
 
-    internal fun findAllModRootPaths(): List<Path> {
-        cachedModRoots?.let { return it }
-        val paths = mutableListOf<Path>()
+    fun getModRootPaths(): List<Path> = findAllModRootsWithIds().map { it.path }
+
+    internal fun findAllModRootPaths(): List<Path> = getModRootPaths()
+
+    /**
+     * Same discovery as [findAllModRootPaths], but keeps the mod id each root came from - needed
+     * to attribute a species definition file to the mod that actually shipped it (see
+     * [JarDataCache]'s species provenance scan), since the Minecraft namespace declared inside the
+     * JSON is not reliable for that: add-on/rebalance mods often declare their species under the
+     * `cobblemon` namespace on purpose so they integrate as forms of existing dex entries.
+     */
+    internal fun findAllModRootsWithIds(): List<ModRoot> {
+        cachedModRootsWithIds?.let { return it }
+        val roots = mutableListOf<ModRoot>()
 
         try {
             val fabricLoader = Class.forName("net.fabricmc.loader.api.FabricLoader")
@@ -542,9 +554,15 @@ object SpawnDataLoader {
             @Suppress("UNCHECKED_CAST")
             val allMods = instance.javaClass.getMethod("getAllMods").invoke(instance) as Collection<Any>
             for (mod in allMods) {
-                @Suppress("UNCHECKED_CAST")
-                val rootPaths = mod.javaClass.getMethod("getRootPaths").invoke(mod) as List<Path>
-                paths.addAll(rootPaths)
+                try {
+                    val metadata = mod.javaClass.getMethod("getMetadata").invoke(mod)
+                    val modId = metadata.javaClass.getMethod("getId").invoke(metadata) as String
+                    @Suppress("UNCHECKED_CAST")
+                    val rootPaths = mod.javaClass.getMethod("getRootPaths").invoke(mod) as List<Path>
+                    rootPaths.forEach { roots.add(ModRoot(modId, it)) }
+                } catch (e: Exception) {
+                    DebugLog.once("fabric-mod-${mod.hashCode()}") { "Fabric mod id/path lookup failed: ${e.message}" }
+                }
             }
         } catch (_: ClassNotFoundException) {
         } catch (e: Exception) {
@@ -562,7 +580,13 @@ object SpawnDataLoader {
                     val findResource = modFile.javaClass.getMethod("findResource", Array<String>::class.java)
                     val dataPath = findResource.invoke(modFile, arrayOf("data")) as? Path
                     if (dataPath != null && Files.exists(dataPath)) {
-                        paths.add(dataPath.parent)
+                        @Suppress("UNCHECKED_CAST")
+                        val mods = modFileInfo.javaClass.getMethod("getMods").invoke(modFileInfo) as List<Any>
+                        val firstMod = mods.firstOrNull()
+                        val modId = firstMod?.let {
+                            it.javaClass.getMethod("getModId").invoke(it) as? String
+                        } ?: dataPath.parent.fileName.toString()
+                        roots.add(ModRoot(modId, dataPath.parent))
                     }
                 } catch (e: Exception) {
                     DebugLog.once("neoforge-modfile-${modFileInfo.hashCode()}") { "NeoForge mod file scan failed: ${e.message}" }
@@ -573,8 +597,8 @@ object SpawnDataLoader {
             DebugLog.once("neoforge-mod-paths") { "NeoForge mod path discovery failed: ${e.message}" }
         }
 
-        val result = paths.distinct()
-        cachedModRoots = result
+        val result = roots.distinctBy { it.path }
+        cachedModRootsWithIds = result
         return result
     }
 

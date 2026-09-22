@@ -447,7 +447,7 @@ object EvolutionDataLoader {
                 val moves = extractMoves(form, fallbackForm = null)
 
                 val shoulderMount = try { species.shoulderMountable } catch (_: Exception) { false }
-                val source = try { species.resourceIdentifier?.namespace } catch (_: Exception) { null }
+                val source = resolveSpeciesSource(name, species)
 
                 result[name] = SpeciesBasicInfo(
                     name = name,
@@ -873,9 +873,22 @@ object EvolutionDataLoader {
             formName = rawFormName,
             baseSpeciesName = baseName,
             formAspects = formAspects,
-            source = try { species.resourceIdentifier?.namespace } catch (_: Exception) { null }
+            source = resolveSpeciesSource(formKey, species)
         )
     }
+
+    /**
+     * A species' real authoring mod/datapack, preferring [JarDataCache]'s file-provenance scan
+     * (which mod jar or datapack folder physically declared [lookupKey]) over the Minecraft
+     * namespace baked into the species JSON. The namespace is not reliable authorship: add-on and
+     * rebalance mods routinely declare their species/forms under the `cobblemon` namespace on
+     * purpose, so they integrate as forms of existing dex entries - that's the one fallback left
+     * here, for the rare species the provenance scan didn't see (e.g. purely server-synced with no
+     * matching local file at all).
+     */
+    private fun resolveSpeciesSource(lookupKey: String, species: com.cobblemon.mod.common.pokemon.Species): String? =
+        JarDataCache.getCachedSpeciesProvenance()[lookupKey]
+            ?: try { species.resourceIdentifier?.namespace } catch (_: Exception) { null }
 
     /** Merge a form entry into an existing one (e.g. regional form dedup - O3) */
     private fun mergeFormInfo(existing: SpeciesBasicInfo, incoming: SpeciesBasicInfo): SpeciesBasicInfo {

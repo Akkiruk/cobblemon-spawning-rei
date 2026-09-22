@@ -239,7 +239,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
             if (info.isForm && !config.registerFormEntries) continue
             if (!queries.shouldSurfaceSpecies(species)) continue
             if (!PokemonItemCache.canRender(species)) continue
-            val aliases = DiscoveryAliases.pokemonAliasList(species)
+            val aliases = DiscoveryAliases.pokemonAliasesForJei(species)
             if (aliases.isNotEmpty()) {
                 registration.addAliases(PokemonIngredientType, PokemonIngredient(species), aliases)
                 count++
