@@ -10,11 +10,15 @@ data class ViewerParityIssue(
 )
 
 object ViewerParityGuard {
-    private val globalCategories = setOf("13_natures", "14_marks")
     private val validatedContexts = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
 
+    // Asks the category itself rather than matching its id against a list here: an id list would
+    // silently stop matching after a category-id rename (reporting every handle as a parity
+    // failure), and holding [DexCategory] references in this object's own initializer would drag
+    // Minecraft's item registry into it - which this object must stay clear of, since
+    // [validateHandles] is deliberately pure so it can run under unit test with no bootstrap.
     fun validate(def: DexCategory, handles: List<RecipeHandle>): List<ViewerParityIssue> =
-        validateHandles(def.id, handles, allowGlobalHandles = def.id in globalCategories)
+        validateHandles(def.id, handles, allowGlobalHandles = def.allowsGlobalHandles)
 
     fun validateHandles(
         categoryId: String,

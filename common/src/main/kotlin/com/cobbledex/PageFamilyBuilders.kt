@@ -201,21 +201,26 @@ object PokemonInfoPageBuilder {
                 val allLines = SpawnDisplayHelper.wrapText(font, description, maxWidth)
                 val visibleLines = allLines.take(3)
                 val truncated = allLines.size > visibleLines.size
+                // Already wrapped, one Component per line: a tooltip built from the raw
+                // description would be a single unwrapped line far wider than the screen.
+                val fullTooltip = allLines.map { line ->
+                    Component.literal(line).withStyle { s -> s.withColor(DexColors.BODY) }
+                }
                 visibleLines.forEachIndexed { index, line ->
-                    val isLast = index == visibleLines.lastIndex
                     val rowY = layout.y
-                    // Same width-clip-with-hover-reveal as clipped() elsewhere, but this cuts
-                    // whole LINES (there's more description than fits this snippet), not
-                    // characters within one - so the last visible line gets its own "..." plus a
-                    // tooltip with the full text, the way the dedicated Pokedex Entry page already
-                    // signals "there's more" instead of just stopping mid-sentence with no cue.
-                    val text = if (isLast && truncated) SpawnDisplayHelper.clipToWidth(font, "$line ...", maxWidth) else line
-                    layout.clipped(indentX, text, maxWidth, 0xCCCCCC)
-                    if (isLast && truncated) {
-                        layout.addTooltipZone(
-                            indentX, rowY, font.width(text), PanelLayout.LINE_HEIGHT,
-                            listOf(Component.literal(description).withStyle { s -> s.withColor(DexColors.BODY) }),
-                        )
+                    if (index == visibleLines.lastIndex && truncated) {
+                        // This cuts whole LINES (more description than the snippet holds), which
+                        // nothing else here signals, so the last visible line ends in an ellipsis
+                        // and reveals the whole entry on hover - the same "there's more" cue the
+                        // dedicated Pokédex Entry page already uses. clipToWidth appends the
+                        // ellipsis itself when it has to cut, and returns the string untouched
+                        // when it already fits, so passing it the line *with* the ellipsis lands
+                        // exactly one either way.
+                        val text = SpawnDisplayHelper.clipToWidth(font, line + "…", maxWidth)
+                        layout.clipped(indentX, text, maxWidth, 0xCCCCCC)
+                        layout.addTooltipZone(indentX, rowY, font.width(text), PanelLayout.LINE_HEIGHT, fullTooltip)
+                    } else {
+                        layout.clipped(indentX, line, maxWidth, 0xCCCCCC)
                     }
                     layout.line()
                 }

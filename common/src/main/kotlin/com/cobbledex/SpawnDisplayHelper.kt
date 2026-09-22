@@ -1519,7 +1519,6 @@ object SpawnDisplayHelper {
     // which column is which; reusing the section-header icons here means a player only has to
     // learn one glyph vocabulary for the whole Moves page instead of two.
     private val METHOD_GLYPHS = mapOf(
-        "levelup" to "✦",
         "egg" to "◇",
         "tutor" to "★",
         "tm" to "■",
@@ -1535,11 +1534,19 @@ object SpawnDisplayHelper {
 
     private fun moveColumns(layout: PanelLayout): MoveColumns {
         val right = layout.right
+        // Measured, not fixed. The four method glyphs are different characters with different
+        // widths (and a resource pack's font can change any of them), so a column narrower than
+        // its glyph would let that glyph bleed into its neighbour. MOVE_GLYPH_COL_W stays the
+        // floor, so this can only ever widen the columns from what they were, never shrink them.
+        val glyphW = maxOf(
+            MOVE_GLYPH_COL_W,
+            (METHOD_GLYPHS.values.maxOfOrNull { layout.font.width(it) } ?: 0) + 2,
+        )
         // Rightmost of the four: reads as "the three current methods, then the historical one."
-        val legacyX = right - MOVE_SUFFIX_RESERVE - MOVE_COL_GAP - MOVE_GLYPH_COL_W
-        val tmX = legacyX - MOVE_GLYPH_COL_W
-        val tutorX = tmX - MOVE_GLYPH_COL_W
-        val eggX = tutorX - MOVE_GLYPH_COL_W
+        val legacyX = right - MOVE_SUFFIX_RESERVE - MOVE_COL_GAP - glyphW
+        val tmX = legacyX - glyphW
+        val tutorX = tmX - glyphW
+        val eggX = tutorX - glyphW
         val levelX = eggX - MOVE_COL_GAP - MOVE_LEVEL_COL_W
         val nameX = PanelLayout.PADDING + 4
         return MoveColumns(nameX, (levelX - nameX - 4).coerceAtLeast(1), levelX, eggX, tutorX, tmX, legacyX)

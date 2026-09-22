@@ -186,6 +186,14 @@ interface DexCategory {
         get() = CategorySizer.getBounds(this)
     val supportsRecipeTree: Boolean get() = false
 
+    /**
+     * True for a reference page that isn't about any one Pokémon (the nature and mark tables), so
+     * [ViewerParityGuard] doesn't flag its handles for carrying no species/item lookup key - they
+     * legitimately have none. Declared here rather than as a list of ids inside the guard so it
+     * can't drift out of sync with [id] when a category is renamed.
+     */
+    val allowsGlobalHandles: Boolean get() = false
+
     fun isEnabled(config: CobbleDexConfig): Boolean
     fun buildAllRecipes(): List<RecipeHandle>
     fun buildRecipesFor(species: String): List<RecipeHandle>
@@ -718,6 +726,7 @@ object NatureDex : DexCategory {
     override val id = "13_natures"
     override val titleKey = "category.cobbledex-rei-emi-jei.natures"
     override val icon: Item = Items.WRITABLE_BOOK
+    override val allowsGlobalHandles = true
     override fun isEnabled(config: CobbleDexConfig) = config.showNatures
 
     override fun buildAllRecipes() =
@@ -774,6 +783,7 @@ object MarksDex : DexCategory {
     override val id = "14_marks"
     override val titleKey = "category.cobbledex-rei-emi-jei.marks"
     override val icon: Item = Items.NAME_TAG
+    override val allowsGlobalHandles = true
     override fun isEnabled(config: CobbleDexConfig) = config.showMarks
 
     override fun buildAllRecipes() = RecipeBuilder.buildMarkRecipes().map(::toHandle)
