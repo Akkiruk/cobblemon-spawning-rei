@@ -236,8 +236,10 @@ object PokemonInfoPageBuilder {
         }
 
         // info.source is now real provenance (a mod id or datapack/resourcepack name) rather than
-        // the old bundled/datapack/mod tier label, so it's just title-cased for display.
-        val source = info?.source?.let { titleCase(it) }
+        // the old bundled/datapack/mod tier label. Skipped for plain Cobblemon content, same guard
+        // as SpawnDisplayHelper's "Added by" line: showing "Source: Cobblemon" on every one of the
+        // ~1400 vanilla species would be pure noise now that the field is finally accurate.
+        val source = info?.source?.takeIf { it != "cobblemon" }?.let { titleCase(it) }
         if (!source.isNullOrBlank()) {
             layout.gap(3)
             layout.textRight(tr("cobbledex-rei-emi-jei.overview.source", source), 0x888888)

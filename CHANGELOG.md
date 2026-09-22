@@ -15,15 +15,17 @@ All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
   data" are no longer registered as search terms at all, and searching by an unpunctuated run-on
   (`abilitymagicguard`) is gone - the readable forms (`Magic Guard`, `ability:magicguard`) still
   work. REI and EMI, which don't print aliases into tooltips, keep the full search list.
-- **"Added by" credited the wrong mod, or nothing at all, for Pokémon from add-ons and datapacks.**
-  Attribution was read from the namespace inside a Pokémon's definition file, but add-on and
-  rebalance mods normally declare their Pokémon and forms under Cobblemon's own namespace so they
-  slot in beside the base dex. Anything they added therefore looked like stock Cobblemon - Mega
-  forms from a Mega mod claimed "Source: Cobblemon" and showed no "Added by" line, and a Pokémon
-  from an unidentified datapack did the same. CobbleDex now credits whichever mod jar, datapack or
-  resource pack actually contains the file that introduced that Pokémon - or, for a form added on
-  top of an existing Pokémon, the pack that added the form - so add-on content is attributed to
-  the add-on and base Cobblemon content stays unlabelled.
+- **"Source" and "Added by" credited the wrong mod, or nothing at all, for Pokémon from add-ons and
+  datapacks.** Attribution was read from the namespace inside a Pokémon's definition file, but
+  add-on and rebalance mods normally declare their Pokémon and forms under Cobblemon's own
+  namespace so they slot in beside the base dex. Anything they added therefore looked like stock
+  Cobblemon - Mega forms from a Mega mod showed "Source: Cobblemon" on the Overview page and no
+  "Added by" line on the Info page, and a Pokémon from an unidentified datapack did the same.
+  CobbleDex now credits whichever mod jar, datapack or resource pack actually contains the file
+  that introduced that Pokémon - or, for a form added on top of an existing Pokémon, the pack that
+  added the form. Base Cobblemon content shows neither line, same as before this was broken -
+  "Source: Cobblemon" on every one of ~1400 vanilla species would just be noise now that the field
+  actually means something.
 
 ## [2.28.0] - 2026-09-19
 
