@@ -553,24 +553,49 @@ object SpawnDataLoader {
         val roots = mutableListOf<ModRoot>()
 
         try {
-            val fabricLoader = Class.forName("net.fabricmc.loader.api.FabricLoader")
-            val instance = fabricLoader.getMethod("getInstance").invoke(null)
+            val fabricLoaderApi = Class.forName("net.fabricmc.loader.api.FabricLoader")
+            val instance = fabricLoaderApi.getMethod("getInstance").invoke(null)
+            // Resolved against the *public API interfaces*, not each object's own concrete
+            // instance.javaClass/mod.javaClass/metadata.javaClass - those are internal impl
+            // classes (e.g. FabricLoaderImpl, V1ModMetadata) that at least Fabric Loader 0.18.4
+            // does not leave reflectively accessible, even though the method they implement is
+            // public on the interface. getMethod() on the *impl* class still finds the method
+            // (it's inherited), but invoking that Method object throws IllegalAccessException -
+            // confirmed via a real log: "cannot access a member of class
+            // net.fabricmc.loader.impl.metadata.V1ModMetadata with modifiers 'public'". Getting
+            // the same Method off the interface Class instead avoids this because interface
+            // methods are always public on an exported API package.
+            val modContainerApi = Class.forName("net.fabricmc.loader.api.ModContainer")
+            val modMetadataApi = Class.forName("net.fabricmc.loader.api.metadata.ModMetadata")
             @Suppress("UNCHECKED_CAST")
-            val allMods = instance.javaClass.getMethod("getAllMods").invoke(instance) as Collection<Any>
+            val allMods = fabricLoaderApi.getMethod("getAllMods").invoke(instance) as Collection<Any>
+            var perModFailures = 0
+            var firstFailure: Exception? = null
             for (mod in allMods) {
                 try {
-                    val metadata = mod.javaClass.getMethod("getMetadata").invoke(mod)
-                    val modId = metadata.javaClass.getMethod("getId").invoke(metadata) as String
+                    val metadata = modContainerApi.getMethod("getMetadata").invoke(mod)
+                    val modId = modMetadataApi.getMethod("getId").invoke(metadata) as String
                     @Suppress("UNCHECKED_CAST")
-                    val rootPaths = mod.javaClass.getMethod("getRootPaths").invoke(mod) as List<Path>
+                    val rootPaths = modContainerApi.getMethod("getRootPaths").invoke(mod) as List<Path>
                     rootPaths.forEach { roots.add(ModRoot(modId, it)) }
                 } catch (e: Exception) {
+                    perModFailures++
+                    if (firstFailure == null) firstFailure = e
                     DebugLog.once("fabric-mod-${mod.hashCode()}") { "Fabric mod id/path lookup failed: ${e.message}" }
                 }
             }
+            // A total loss here (every mod, not a handful) means the per-mod exceptions above are
+            // the whole story, not noise - and DebugLog.once logs at debug, invisible in a normal
+            // log. Surfaced at warn so a real discovery break (e.g. a loader API signature change)
+            // is diagnosable from latest.log instead of silently starving JarDataCache of every mod
+            // root it needs (confirmed missing entirely: species provenance falls back to the bare
+            // namespace for every species once this happens, since it has nothing else to go on).
+            if (allMods.isNotEmpty() && perModFailures == allMods.size) {
+                DebugLog.warn("Fabric mod root discovery failed for all ${allMods.size} mods - first error: ${firstFailure?.javaClass?.simpleName}: ${firstFailure?.message}")
+            }
         } catch (_: ClassNotFoundException) {
         } catch (e: Exception) {
-            DebugLog.once("fabric-mod-paths") { "Fabric mod path discovery failed: ${e.message}" }
+            DebugLog.warn("Fabric mod path discovery failed: ${e.javaClass.simpleName}: ${e.message}")
         }
 
         try {
@@ -598,7 +623,7 @@ object SpawnDataLoader {
             }
         } catch (_: ClassNotFoundException) {
         } catch (e: Exception) {
-            DebugLog.once("neoforge-mod-paths") { "NeoForge mod path discovery failed: ${e.message}" }
+            DebugLog.warn("NeoForge mod path discovery failed: ${e.javaClass.simpleName}: ${e.message}")
         }
 
         val result = roots.distinctBy { it.path }

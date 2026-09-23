@@ -2,6 +2,22 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.28.8] - 2026-09-22
+
+### Fixed
+- **The "Added by" mod/datapack tag on the Overview page was showing "cobblemon" for every
+  species, on some setups, no matter what actually added it.** On a newer Fabric Loader, the code
+  that figures out which mod ships each species file was tripping over a Java access restriction
+  and silently failing for every single mod at once - so the dex had no idea any add-on/datapack
+  content existed at all, and every species fell back to showing the base game as its source. Fixed
+  by resolving that lookup the correct way; mod/datapack attribution now works again.
+
+## [2.28.7] - 2026-09-22
+
+### Changed
+- Diagnostic build: surfaces the real reason mod/datapack provenance detection can fail completely
+  (logs it at a visible level instead of silently swallowing it) - no player-facing behavior change.
+
 ## [2.28.6] - 2026-09-22
 
 ### Fixed
