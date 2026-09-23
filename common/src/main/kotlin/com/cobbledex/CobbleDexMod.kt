@@ -65,6 +65,11 @@ object CobbleDexMod {
             return
         }
 
+        if (JarDataCache.consumeLateReady()) {
+            SpawnDataIndex.rebuildAsync()
+            return
+        }
+
         if (SpawnDataIndex.isFullyLoaded()) {
             // Fires once per session, right as data finishes loading - builds the icon/render
             // atlas automatically if no valid cache exists yet, so players never have to know

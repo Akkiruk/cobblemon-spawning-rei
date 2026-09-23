@@ -2,6 +2,17 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.28.6] - 2026-09-22
+
+### Fixed
+- **The "Added by" mod/datapack tag on the Overview page was showing "cobblemon" for almost every
+  species, even ones clearly added by an addon mod or datapack.** On a big enough modpack, the
+  background scan that figures out who really added each species could take longer than the fixed
+  5-second grace period the dex gave it on startup - and since nothing ever asked again after that,
+  every species stayed stuck showing its fallback source for the rest of the session once that
+  happened. The dex now notices when that scan finishes late and refreshes itself once, so the real
+  mod/datapack name shows up as soon as it's known instead of never.
+
 ## [2.28.5] - 2026-09-22
 
 ### Fixed

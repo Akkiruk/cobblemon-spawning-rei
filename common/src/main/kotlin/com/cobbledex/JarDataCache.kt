@@ -84,7 +84,27 @@ object JarDataCache {
     private val loading = AtomicBoolean(false)
     private val latch = CountDownLatch(1)
 
+    @Volatile
+    private var lateReadyPending = false
+
     fun isInitialized(): Boolean = initialized.get()
+
+    /**
+     * True at most once per occurrence: this cache finished its background scan *after*
+     * [SpawnDataIndex.doLoad] had already given up waiting on [awaitReady]'s bounded 5s timeout and
+     * built its snapshot without it. Cobblemon's own registries won't change again on their own to
+     * trigger [CobblemonDataSignal]'s retry, so every field this cache supplies - species
+     * provenance chief among them - would otherwise stay stuck on its pre-cache fallback (e.g.
+     * every species reporting its bare namespace, "cobblemon", as its "Added by" source) for the
+     * rest of the session on any modpack big enough that the scan genuinely outlasts the timeout.
+     * Consumed like [CobblemonDataSignal.consumeChange] so [CobbleDexMod.tickClient] can trigger
+     * exactly one catch-up rebuild.
+     */
+    fun consumeLateReady(): Boolean {
+        if (!lateReadyPending) return false
+        lateReadyPending = false
+        return true
+    }
 
     fun getCachedEvolutions(): Map<String, List<EvolutionInfo>> = cachedEvolutions
     fun getCachedSpawns(): Map<String, List<SpawnInfo>> = cachedSpawns
@@ -163,6 +183,9 @@ object JarDataCache {
                 "${cachedTypeChartOverrides.size} type chart overrides")
 
             initialized.set(true)
+            if (SpawnDataIndex.loadState != SpawnDataIndex.LoadState.NOT_LOADED) {
+                lateReadyPending = true
+            }
         } catch (e: Exception) {
             DebugLog.warn("JarDataCache: initialization failed: ${e.message}")
         } finally {
