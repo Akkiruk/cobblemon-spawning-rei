@@ -2,6 +2,15 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.28.4] - 2026-09-22
+
+### Added
+- **The Mega Evolution requirement page now shows the actual mega stone**, when the pack uses the
+  Mega Showdown mod - it previously just said "Mega Evolution" with no item, since Cobblemon's own
+  evolution data has nothing for mega/primal/gigantamax forms at all. Reads Mega Showdown's own
+  stone registry instead, so this only ever shows up when that mod's data is actually present -
+  packs without it see no change.
+
 ## [2.28.3] - 2026-09-22
 
 ### Fixed

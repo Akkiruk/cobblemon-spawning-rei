@@ -46,6 +46,8 @@ object JarDataCache {
     private var cachedTypeChartOverrides: Map<String, Map<String, Float>> = emptyMap()
     @Volatile
     private var cachedSpeciesProvenance: Map<String, String> = emptyMap()
+    @Volatile
+    private var cachedMegaStones: Map<Pair<String, String>, String> = emptyMap()
 
     /** Raw move data parsed from species JSON in mod JARs. */
     data class JarMoveData(
@@ -107,6 +109,8 @@ object JarDataCache {
     fun getCachedTypeChartOverrides(): Map<String, Map<String, Float>> = cachedTypeChartOverrides
     /** Species name -> the mod id or datapack/resourcepack name that declared it. See [SpeciesJsonScan.provenance]. */
     fun getCachedSpeciesProvenance(): Map<String, String> = cachedSpeciesProvenance
+    /** (normalized species, aspect e.g. "mega_x") -> the item id that lets it Mega Evolve. See [parseMegaStonesFromJars]. */
+    fun getCachedMegaStones(): Map<Pair<String, String>, String> = cachedMegaStones
 
     /**
      * Wait for the cache to finish initializing (up to timeout).
@@ -146,6 +150,7 @@ object JarDataCache {
             cachedSpeciesProvenance = scan.provenance
             cachedFossils = parseFossilsFromJars(modRoots)
             cachedTypeChartOverrides = parseTypeChartOverridesFromJars(modRoots)
+            cachedMegaStones = parseMegaStonesFromJars(modRoots)
 
             val elapsed = System.currentTimeMillis() - startTime
             DebugLog.info("JarDataCache: ready in ${elapsed}ms - " +
@@ -1488,6 +1493,70 @@ object JarDataCache {
         } catch (_: Exception) {}
 
         DebugLog.info("JarDataCache: parsed ${result.values.sumOf { it.size }} fossils for ${result.size} species")
+        return result
+    }
+
+    // ==================== Mega Stone Parsing (Mega Showdown) ====================
+
+    /**
+     * Mega Showdown's own data-driven mega-stone registry - the "mega_showdown/mega" folder under
+     * a namespace's data directory, one json file per stone, e.g. "charizardite_x.json":
+     * ```
+     * { "pokemons": ["Charizard"], "aspect_conditions": { "apply": { "aspects": ["mega_evolution=mega_x"] } } }
+     * ```
+     * This is the *only* place "which item lets this Pokémon Mega Evolve" exists at all: Mega
+     * Showdown's mega forms carry no Cobblemon Evolution/item requirement of their own (confirmed -
+     * `evolutions: []` and `battleOnly: true` on the form itself), which is exactly why
+     * [RecipeBuilder]'s aspect-inferred mega/primal/gmax transform path has never had item data to
+     * show. Not hardcoded to the "mega_showdown" mod id: this reads whatever data lives at that
+     * path/namespace, so a compatible fork or reskin needs no code change here to work.
+     *
+     * The item's real id is always `<namespace>:<filename>` - confirmed against Mega Showdown's own
+     * lang keys (`item.mega_showdown.charizardite_x`). The value after "=" in an "apply" aspect
+     * (e.g. "mega_x" from "mega_evolution=mega_x") is what actually matches the target form's real
+     * Cobblemon aspect; the part before "=" is Mega Showdown's own internal state-variable name, not
+     * a Cobblemon aspect, and never matches anything CobbleDex reads elsewhere.
+     */
+    private fun parseMegaStonesFromJars(modRoots: List<Path>): Map<Pair<String, String>, String> {
+        val result = mutableMapOf<Pair<String, String>, String>()
+        val subPath = "mega_showdown/mega"
+        var fileCount = 0
+
+        for ((dir, _) in collectNamespaceDirs(modRoots, subPath)) {
+            // subPath is exactly two segments ("mega_showdown/mega"), so the namespace is always
+            // two levels above this directory - i.e. .../data/<namespace>/mega_showdown/mega.
+            val namespace = try { dir.parent?.parent?.fileName?.toString() } catch (_: Exception) { null }
+                ?: continue
+            try {
+                Files.walk(dir, 10).use { files ->
+                    files.filter { it.toString().endsWith(".json") && Files.isRegularFile(it) }.forEach { file ->
+                        try {
+                            val obj = InputStreamReader(Files.newInputStream(file), Charsets.UTF_8).use { reader ->
+                                JsonParser.parseReader(reader).asJsonObject
+                            }
+                            val itemId = "$namespace:${file.fileName.toString().removeSuffix(".json")}"
+                            val pokemons = obj.optArray("pokemons")
+                                ?.mapNotNull { if (it.isJsonPrimitive) SpeciesNameNormalizer.normalize(it.asString) else null }
+                                .orEmpty()
+                            val applyAspects = obj.optObject("aspect_conditions")?.optObject("apply")
+                                ?.optArray("aspects")
+                                ?.mapNotNull { if (it.isJsonPrimitive) it.asString else null }
+                                .orEmpty()
+                            val aspectValues = applyAspects.mapNotNull { it.substringAfter('=', "").ifBlank { null }?.lowercase() }
+                            if (pokemons.isEmpty() || aspectValues.isEmpty()) return@forEach
+                            fileCount++
+                            for (species in pokemons) {
+                                for (aspect in aspectValues) {
+                                    result[species to aspect] = itemId
+                                }
+                            }
+                        } catch (_: Exception) {}
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        if (fileCount > 0) DebugLog.info("JarDataCache: parsed $fileCount mega stone(s) from Mega Showdown-style data")
         return result
     }
 

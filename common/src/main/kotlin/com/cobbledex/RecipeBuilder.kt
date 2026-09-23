@@ -810,15 +810,24 @@ object RecipeBuilder {
         // whole family (base + every sibling form) and infer parent/child
         // transform edges from them - see resolveTransformParent's comment.
         val sourceAspectsRaw = sourceAspects.map { it.lowercase() }.toSet()
+        val normalizedSource = SpeciesNameNormalizer.normalize(sourceSpeciesName)
+        val megaStones = JarDataCache.getCachedMegaStones()
         val family = buildFamilyAspectMembers(sourceSpeciesName, queries)
         val transformTargets = family.mapNotNull { (targetKey, targetAspects) ->
             if (targetAspects == sourceAspectsRaw || !targetAspects.containsAll(sourceAspectsRaw)) return@mapNotNull null
             val parent = findTransformParent(targetAspects, family) ?: return@mapNotNull null
             if (parent.second != sourceAspectsRaw) return@mapNotNull null
+            // Cobblemon's own data has no item for this transform (see this block's header
+            // comment) - Mega Showdown's separate mega-stone registry is the one place that
+            // mapping exists, keyed by the species that Mega Evolves and the aspect it gains.
+            val addedAspects = targetAspects - parent.second
+            val stoneItems = addedAspects.mapNotNull { aspect -> megaStones[normalizedSource to aspect] }
+                .distinct()
+                .map { itemId -> EvolutionItemInfo(itemId, tr("cobbledex-rei-emi-jei.evo.item.hold")) }
             EvolutionTargetPage(
                 targetSpeciesName = targetKey,
                 targetAspects = targetAspects,
-                methods = listOf(EvolutionMethodRecipeData(parent.third)),
+                methods = listOf(EvolutionMethodRecipeData(parent.third, stoneItems)),
                 priority = 1,
             )
         }
