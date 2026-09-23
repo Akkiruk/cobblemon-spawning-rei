@@ -25,6 +25,12 @@ object TmDiscStacks {
 
     @Volatile private var cacheVersion = -1L
     @Volatile private var cache: List<Entry> = emptyList()
+    // Keyed by lowercased move name for O(1) forMove() - rebuilt alongside [cache], never scanned
+    // independently. forMove() used to linearly scan [cache] (case-insensitive equals over ~800
+    // entries) and gets called once per move-learners recipe during registration - across the
+    // ~800-move pack that's the same class of O(n*m) startup cost already fixed elsewhere in this
+    // codebase (see RecipeBuilder's O(n^2) evolution-recipe fix).
+    @Volatile private var byMove: Map<String, ItemStack> = emptyMap()
 
     data class Entry(val moveName: String, val stack: ItemStack)
 
@@ -52,13 +58,16 @@ object TmDiscStacks {
         }
 
         cache = built
+        byMove = built.associate { it.moveName.lowercase() to it.stack }
         cacheVersion = version
         if (built.isNotEmpty()) DebugLog.info("Built ${built.size} native TM disc entries")
         return built
     }
 
-    fun forMove(moveName: String): ItemStack? =
-        all().firstOrNull { it.moveName.equals(moveName, ignoreCase = true) }?.stack
+    fun forMove(moveName: String): ItemStack? {
+        all() // ensures byMove is populated/current for this dataVersion before reading it
+        return byMove[moveName.lowercase()]
+    }
 
     /** True for a `technical_machine` stack that carries a move (a real TM, not the blank base disc). */
     fun moveOf(stack: ItemStack): String? {

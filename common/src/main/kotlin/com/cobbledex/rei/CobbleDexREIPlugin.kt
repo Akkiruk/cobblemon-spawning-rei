@@ -241,7 +241,15 @@ open class CobbleDexREIPlugin : REIClientPlugin {
                 val stack = SpawnDisplayHelper.resolveItemStack(itemId)
                 if (!stack.isEmpty) EntryIngredient.of(EntryStacks.of(stack)) else null
             }
-            pokemon + items
+            // The move-learners recipe's real native TM disc, if any - "U" on a disc shows what it
+            // teaches. Bare item ids above can't carry this: the native system's move lives in a
+            // data component, not the id, so a generic resolveItemStack(id) would build a blank
+            // disc indistinguishable from every other move's.
+            val tmDisc = handle.slots.tmDiscMoveInput
+                ?.let { com.cobbledex.TmDiscStacks.forMove(it) }
+                ?.let { listOf(EntryIngredient.of(EntryStacks.of(it))) }
+                ?: emptyList()
+            pokemon + items + tmDisc
         }
 
         private val cachedOutputEntries: List<EntryIngredient> by lazy {
@@ -252,7 +260,13 @@ open class CobbleDexREIPlugin : REIClientPlugin {
                 val stack = SpawnDisplayHelper.resolveItemStack(itemId)
                 if (!stack.isEmpty) EntryIngredient.of(EntryStacks.of(stack)) else null
             }
-            pokemonEntries + itemEntries
+            // The TM crafting recipe's real output disc, if any - "R" on a disc shows how to craft
+            // it. Same reasoning as the input side above.
+            val tmDisc = handle.slots.tmDiscMove
+                ?.let { com.cobbledex.TmDiscStacks.forMove(it) }
+                ?.let { listOf(EntryIngredient.of(EntryStacks.of(it))) }
+                ?: emptyList()
+            pokemonEntries + itemEntries + tmDisc
         }
 
         override fun getInputEntries(): List<EntryIngredient> = cachedInputEntries

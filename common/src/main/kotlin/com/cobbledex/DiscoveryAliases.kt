@@ -148,6 +148,19 @@ object DiscoveryAliases {
         ).filter { it.isNotBlank() }.distinctBy { it.lowercase() }
     }
 
+    /**
+     * At most [JEI_MOVE_ALIAS_LIMIT] of [moveAliases] - same tooltip-bullet concern as
+     * [JEI_ALIAS_LIMIT] for Pokémon: JEI echoes every registered alias as a hover-tooltip line,
+     * with no per-mod opt-out. A move's full list tops out at 6 (well under the Pokémon ceiling
+     * that motivated the cap), but reusing it verbatim for JEI would reopen the same issue for a
+     * second ingredient kind rather than actually fixing it. Keeps the raw name, the readable
+     * name, and the two structured search prefixes; drops the legacy "tr:" prefix and the fully
+     * spelled-out "technical machine X" phrase as the least useful of the six.
+     */
+    const val JEI_MOVE_ALIAS_LIMIT = 4
+
+    fun moveAliasesForJei(moveName: String): List<String> = moveAliases(moveName).take(JEI_MOVE_ALIAS_LIMIT)
+
     private fun contextFor(species: String): PokemonContext {
         val queries = SpawnDataIndex.currentQueries()
         val info = queries.getSpeciesInfo(species)

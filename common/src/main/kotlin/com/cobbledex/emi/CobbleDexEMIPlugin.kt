@@ -159,7 +159,17 @@ open class CobbleDexEMIPlugin : EmiPlugin {
                 if (!stack.isEmpty) EmiStack.of(stack) else null
             }
             val move = handle.slots.moveKey?.let { listOf(MoveEmiStack.of(it)) } ?: emptyList()
-            pokemon + items + move
+            // The move-learners recipe's real native TM disc, if any - mirrors cachedOutputs' disc
+            // lookup below, but for the input side ("U" on a disc shows what it teaches).
+            // Deliberately reads tmDiscMoveInput, not tmDiscMove: that field is output-only (see its
+            // own doc) and is already read unconditionally by cachedOutputs above, so reusing it
+            // here would have made every move-learners recipe also claim to produce the disc.
+            val tmDisc = handle.slots.tmDiscMoveInput
+                ?.let { com.cobbledex.TmDiscStacks.forMove(it) }
+                ?.takeUnless { it.isEmpty }
+                ?.let { listOf(EmiStack.of(it)) }
+                ?: emptyList()
+            pokemon + items + move + tmDisc
         }
 
         private val cachedOutputs: List<EmiStack> by lazy(LazyThreadSafetyMode.NONE) {

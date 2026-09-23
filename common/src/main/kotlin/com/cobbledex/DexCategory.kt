@@ -103,8 +103,19 @@ class RecipeHandle(
         val moveLinks: List<MoveLinkDef> = emptyList(),
         /** Set on a move-learner grid: the move it lists learners for, so viewers can key nav on it. */
         val moveKey: String? = null,
-        /** Set on a TM recipe: the move this TM teaches, so viewers can bind its disc entry here. */
+        /**
+         * Set on a TM *crafting* recipe: the move this TM teaches, so viewers can bind its disc
+         * entry here as the recipe's OUTPUT ("R on this disc" -> shows how to craft it).
+         */
         val tmDiscMove: String? = null,
+        /**
+         * Set on a move-learners recipe ("which Pokémon learn move X"): the same move, but as the
+         * recipe's INPUT ("U on this disc" -> shows what it teaches). Deliberately a separate field
+         * from [tmDiscMove] rather than reused for both directions - EMI's existing output-stack
+         * builder reads [tmDiscMove] unconditionally, so setting it here too would have silently
+         * made every move-learners recipe claim to "produce" the disc in EMI as a side effect.
+         */
+        val tmDiscMoveInput: String? = null,
         /** Clickable regions that jump to another category's pages (e.g. spawn -> Herds). */
         val categoryLinks: List<CategoryLinkDef> = emptyList(),
     )
@@ -559,6 +570,7 @@ object MovesDex : DexCategory {
                     pokemon = res().pokemonSlots,
                     catalogInputIds = TmItemUtils.tmItemIds(d.moveName),
                     moveKey = d.moveName,
+                    tmDiscMoveInput = d.moveName,
                 )
             },
         )

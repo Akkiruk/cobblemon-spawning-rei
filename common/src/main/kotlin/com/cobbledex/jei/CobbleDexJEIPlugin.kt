@@ -15,25 +15,33 @@ import com.cobbledex.RecipeViewerReloader
 import com.cobbledex.SlotRole
 import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpawnDisplayHelper
+import com.cobbledex.TmDiscStacks
+import com.cobbledex.TmItemUtils
 import com.cobbledex.ViewerParityGuard
 import com.cobbledex.config.CobbleDexConfig
 import com.cobbledex.contentFor
 import com.cobbledex.paged
 import mezz.jei.api.IModPlugin
+import mezz.jei.api.constants.VanillaTypes
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder
 import mezz.jei.api.gui.drawable.IDrawable
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView
 import mezz.jei.api.helpers.IGuiHelper
+import mezz.jei.api.ingredients.subtypes.ISubtypeInterpreter
+import mezz.jei.api.ingredients.subtypes.UidContext
 import mezz.jei.api.recipe.IFocusGroup
 import mezz.jei.api.recipe.RecipeIngredientRole
 import mezz.jei.api.recipe.RecipeType
 import mezz.jei.api.recipe.category.IRecipeCategory
+import mezz.jei.api.registration.IExtraIngredientRegistration
 import mezz.jei.api.registration.IModIngredientRegistration
 import mezz.jei.api.registration.IRecipeCatalystRegistration
 import mezz.jei.api.registration.IRecipeCategoryRegistration
 import mezz.jei.api.registration.IRecipeRegistration
+import mezz.jei.api.registration.ISubtypeRegistration
 import mezz.jei.api.runtime.IJeiRuntime
 import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.ItemStack
@@ -188,6 +196,27 @@ open class CobbleDexJEIPlugin : IModPlugin {
                 }
             }
 
+            // Re-register native TM discs so a server with a different TM set (or none at all)
+            // doesn't keep whatever was registered from this client's own files at startup -
+            // registerExtraIngredients only ever runs once, before any server is connected to.
+            try {
+                val ingredientManager = rt.ingredientManager
+                val existingDiscs = ingredientManager.getAllIngredients(VanillaTypes.ITEM_STACK)
+                    .filter { TmDiscStacks.isTmDiscItem(it.item) }
+                if (existingDiscs.isNotEmpty()) {
+                    ingredientManager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, existingDiscs)
+                }
+                val updatedDiscs = TmDiscStacks.all().map { it.stack }
+                if (updatedDiscs.isNotEmpty()) {
+                    ingredientManager.addIngredientsAtRuntime(VanillaTypes.ITEM_STACK, updatedDiscs)
+                }
+                if (existingDiscs.isNotEmpty() || updatedDiscs.isNotEmpty()) {
+                    DebugLog.info("JEI: Re-indexed ${updatedDiscs.size} native TM disc ingredients")
+                }
+            } catch (e: Exception) {
+                DebugLog.once("jei-tm-disc-reload") { "JEI TM disc reload failed: ${e.message}" }
+            }
+
             RecipeViewerReloader.jeiLastRegisteredVersion = targetVersion
             DebugLog.info("JEI: Reloaded recipes (dataVersion=$targetVersion)")
         }
@@ -195,6 +224,54 @@ open class CobbleDexJEIPlugin : IModPlugin {
 
     override fun getPluginUid(): ResourceLocation =
         ResourceLocation.fromNamespaceAndPath(CobbleDexMod.MOD_ID, "jei_plugin")
+
+    /**
+     * Tells JEI that two `cobblemon:technical_machine` stacks carrying different moves in their
+     * `cobblemon:tm_move` data component are different ingredients - without this, JEI's default
+     * uniqueId is just the item's registry name (see `StackHelper.getUniqueIdentifierForStack`),
+     * so every TM disc would collapse to one indistinguishable entry no matter how many get
+     * registered as ingredients below.
+     *
+     * Runs in JEI's first plugin-loading phase, before ingredients/recipes and before this mod's
+     * own data is guaranteed loaded - so this is gated purely on the item existing in the registry
+     * (always true by this point; Minecraft's registries are populated at bootstrap, long before
+     * JEI plugins load), never on [SpawnDataIndex] or [TmDiscStacks]. On pre-1.8.0 Cobblemon the
+     * item may not exist at all, or may exist without the component - either way this just
+     * no-ops (empty Optional, or [TmItemUtils.extractMoveFromStack] returning null for every
+     * stack, which per [ISubtypeInterpreter]'s own contract means "no subtype data", the same as
+     * not registering an interpreter at all).
+     */
+    override fun registerItemSubtypes(registration: ISubtypeRegistration) {
+        try {
+            val item = BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(TmItemUtils.NATIVE_TM_ID))
+                .orElse(null) ?: return
+            registration.registerSubtypeInterpreter(item, object : ISubtypeInterpreter<ItemStack> {
+                override fun getSubtypeData(ingredient: ItemStack, context: UidContext): Any? =
+                    TmItemUtils.extractMoveFromStack(ingredient)
+
+                // Only reached for old saved config referencing a string uid from before this
+                // interpreter existed, so there's never real legacy data to preserve here - but
+                // returning the move name instead of always "" still gives each move a distinct
+                // legacy key rather than collapsing them all into one on that one-time migration.
+                override fun getLegacyStringSubtypeInfo(ingredient: ItemStack, context: UidContext): String =
+                    TmItemUtils.extractMoveFromStack(ingredient) ?: ""
+            })
+        } catch (_: Throwable) {}
+    }
+
+    /**
+     * Native TM discs have no creative-tab entry ([TmDiscStacks]'s own doc), so they're invisible
+     * to JEI's default item scan - this is the official hook for exactly that case ("extra
+     * ingredients... not already in the creative menu"). REI/EMI use their own equivalent
+     * per-viewer registration for the same stacks; this is JEI's.
+     */
+    override fun registerExtraIngredients(registration: IExtraIngredientRegistration) {
+        SpawnDataIndex.ensureLoaded()
+        val discs = TmDiscStacks.all()
+        if (discs.isEmpty()) return
+        registration.addExtraItemStacks(discs.map { it.stack })
+        DebugLog.info("JEI: Registered ${discs.size} native TM disc ingredients")
+    }
 
     override fun registerIngredients(registration: IModIngredientRegistration) {
         SpawnDataIndex.ensureLoaded()
@@ -246,6 +323,16 @@ open class CobbleDexJEIPlugin : IModPlugin {
             }
         }
         DebugLog.info("JEI: Registered search aliases for $count Pokémon")
+
+        var tmCount = 0
+        for (entry in TmDiscStacks.all()) {
+            val aliases = DiscoveryAliases.moveAliasesForJei(entry.moveName)
+            if (aliases.isNotEmpty()) {
+                registration.addAliases(VanillaTypes.ITEM_STACK, entry.stack, aliases)
+                tmCount++
+            }
+        }
+        if (tmCount > 0) DebugLog.info("JEI: Registered search aliases for $tmCount native TM discs")
     }
 
     override fun registerCategories(registration: IRecipeCategoryRegistration) {
@@ -411,6 +498,23 @@ open class CobbleDexJEIPlugin : IModPlugin {
             slots.moveKey?.let { move ->
                 builder.addInvisibleIngredients(RecipeIngredientRole.INPUT)
                     .addIngredient(MoveIngredientType, MoveIngredient(move))
+            }
+
+            // Native TM disc, declared invisibly the same way moveKey/catalogInputIds are above -
+            // this is what lets "R"/"U" on the exact disc stack (matched via the subtype
+            // interpreter in registerItemSubtypes) find these recipes, rather than adding a new
+            // visible icon to this page's own hand-drawn layout. Direction matters: the crafting
+            // recipe's disc is its OUTPUT ("R" on the disc shows how to craft it); the
+            // move-learners recipe's disc is its INPUT ("U" on the disc shows what it teaches).
+            slots.tmDiscMove?.let { move ->
+                TmDiscStacks.forMove(move)?.let { stack ->
+                    builder.addInvisibleIngredients(RecipeIngredientRole.OUTPUT).addItemStack(stack)
+                }
+            }
+            slots.tmDiscMoveInput?.let { move ->
+                TmDiscStacks.forMove(move)?.let { stack ->
+                    builder.addInvisibleIngredients(RecipeIngredientRole.INPUT).addItemStack(stack)
+                }
             }
         }
 

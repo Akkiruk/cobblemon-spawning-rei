@@ -2,6 +2,19 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.28.5] - 2026-09-22
+
+### Fixed
+- **Native TMs (Cobblemon 1.8.0's technical machines) were unsearchable in JEI and couldn't be
+  browsed by clicking one to see what it teaches.** JEI treated every TM disc as one indistinguishable
+  item since the move it teaches lives in a data component, not the item id - so at most one disc
+  could ever show up, and pressing R or U on it did nothing. Discs are now registered the same way
+  REI and EMI already do, plus JEI now knows two discs with different moves are different
+  ingredients. Pressing R on a disc shows how to craft it; pressing U shows which Pokémon learn
+  that move. REI and EMI also gained the "U on a disc" direction, which neither had before. Only
+  affects Cobblemon 1.8.0's native TM system - third-party TM mods (tmcraft, simpletms) are
+  unchanged.
+
 ## [2.28.4] - 2026-09-22
 
 ### Added
