@@ -2,6 +2,54 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.29.0] - 2026-10-06
+
+EMI and JEI+EMI support pass: tooltips, duplicate entries, favorites, and a round of reliability
+fixes for EMI.
+
+### Fixed
+- **Pokémon had no tooltip in EMI.** Hovering a Pokémon in the EMI item list or in a recipe page
+  showed nothing at all. They now show the same species tooltip as in JEI and REI, including the
+  mod or datapack that added them.
+- **Every Pokémon appeared twice when JEI and EMI were installed together.** One copy had the
+  recipe tabs but no tooltip, the other had a tooltip but no recipes. With EMI installed, the dex
+  now lives only in EMI, so there is a single entry per Pokémon (TooManyRecipeViewers setups were
+  affected the same way).
+- **Hovering a cell in the move-learners and item-droppers grids showed the generic species
+  tooltip in EMI instead of the per-cell info** ("learns via Legacy TM", "drops 12%"). The per-cell
+  tooltip is now shown.
+- **Pokémon and moves couldn't be favorited or bookmarked in EMI**, and didn't show in EMI's
+  lookup history. They can now. (Favorites previously made on the duplicate JEI-sourced entry can't
+  carry over, since that entry no longer exists.)
+- **Clicking an evolved or regional form's icon inside a recipe in EMI found no recipes.** Pressing
+  R or U on those icons now opens their pages.
+- **In EMI without JEI, pressing U on a TM disc listed the Pokémon for every TM instead of just
+  that move.** Each disc is now its own entry.
+- **EMI could come up with missing or empty CobbleDex pages after joining a world.** EMI builds the
+  dex on its own background thread while the game was measuring pages on the main thread, and both
+  used the same unprotected cache - when they overlapped, the build could fail and EMI would show
+  no CobbleDex recipes until the next reload. Each page set is now built once and shared safely.
+- **EMI could keep showing out-of-date recipes after the dex data changed during a rebuild** (for
+  example when a server sync finished mid-load) - it was marked up to date even though it had been
+  built from the older data, so it never refreshed until you relogged. It now refreshes.
+- **Tall pages got cut off at the bottom in EMI after the window or GUI scale was made smaller.**
+  EMI splits long pages to fit your window when it loads, so shrinking afterwards left pages the
+  screen couldn't show. EMI now re-registers once the new size settles, and only when a page would
+  really be cut off.
+- **EMI drew an extra slot frame and hover highlight around Pokémon icons on pages where REI
+  shows them bare.** EMI now follows the same slot settings as REI.
+- **Add-on Pokémon didn't show up under their mod in EMI's mod filter** (searching `@modname`
+  found nothing, because every Pokémon was filed under Cobblemon). They are now filed under the mod
+  or datapack that added them, as in JEI.
+
+### Changed
+- With EMI installed, the JEI side of the mod now stays idle instead of building recipes EMI
+  discards, which trims load time on large modpacks.
+- **Joining a world with EMI no longer does a hidden build-everything pass on the game thread.**
+  The idle pre-measuring of every category only serves REI and JEI, but it ran for everyone and
+  could stall the game for about a second while EMI built the same pages. It now only runs when REI
+  or JEI is installed, and never waits on a page another thread is already building.
+
 ## [2.28.8] - 2026-09-22
 
 ### Fixed

@@ -91,6 +91,42 @@ object RecipeViewerReloader {
         get() = emi.lastRegisteredVersion
         set(value) { emi.lastRegisteredVersion = value }
 
+    /**
+     * The tallest registered recipe page that a finer split could still fix, plus how to ask EMI how
+     * much height it has now.
+     * Set by CobbleDexEMIPlugin.register(); a function rather than a direct call so EMI's classes
+     * are only ever touched from the plugin itself.
+     */
+    class PageBudget(val tallestSplittablePage: Int, val current: () -> Int)
+
+    @Volatile var emiPageBudget: PageBudget? = null
+
+    private const val BUDGET_CHECK_TICKS = 20
+    private const val BUDGET_STABLE_CHECKS = 3
+    private var budgetCheckCountdown = BUDGET_CHECK_TICKS
+    private var shrunkChecks = 0
+
+    /**
+     * EMI's recipe area follows the window, and a page taller than it is clipped. Pages are split
+     * when EMI registers, so a window or GUI scale that has since shrunk leaves pages the screen
+     * can't show. Re-registering is a full EMI reload, so it only happens when a page really would
+     * be clipped (not just because the window got smaller) and the new size has held steady rather
+     * than being mid-drag. Growing is harmless - just more splits than needed.
+     */
+    private fun checkEmiPageBudget() {
+        if (--budgetCheckCountdown > 0) return
+        budgetCheckCountdown = BUDGET_CHECK_TICKS
+        val budget = emiPageBudget ?: return
+        val shrunk = try { budget.current() < budget.tallestSplittablePage } catch (_: Throwable) { false }
+        shrunkChecks = if (shrunk) shrunkChecks + 1 else 0
+        if (shrunkChecks < BUDGET_STABLE_CHECKS) return
+        shrunkChecks = 0
+        DebugLog.info("EMI recipe area shrank below its tallest page (${budget.tallestSplittablePage}) - re-registering")
+        emiPageBudget = null
+        emi.lastRegisteredVersion = -1L
+        scheduleReload()
+    }
+
     /** Set by CobbleDexJEIPlugin's initial registration and by its incremental reload on completion. */
     @Volatile var jeiLastRegisteredVersion: Long = -1L
 
@@ -112,7 +148,10 @@ object RecipeViewerReloader {
     }
 
     fun tick() {
-        if (!active) return
+        if (!active) {
+            checkEmiPageBudget()
+            if (!active) return
+        }
 
         // If data changed since we started, restart the sequence
         val currentVersion = SpawnDataIndex.dataVersion
@@ -163,7 +202,9 @@ object RecipeViewerReloader {
      * "JEI not installed", which is trivially current).
      */
     private fun stepJei(targetVersion: Long): Boolean {
-        if (!PlatformHelper.isModLoaded(JEI_MOD_ID)) {
+        // With EMI installed the JEI plugin registers nothing (see CobbleDexJEIPlugin.emiPresent), so
+        // there is no JEI-side state to bring up to date.
+        if (!PlatformHelper.isModLoaded(JEI_MOD_ID) || PlatformHelper.isModLoaded("emi")) {
             jeiLastRegisteredVersion = targetVersion
             return true
         }

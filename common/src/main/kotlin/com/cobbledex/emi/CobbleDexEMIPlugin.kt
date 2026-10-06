@@ -17,12 +17,17 @@ import com.cobbledex.config.CobbleDexConfig
 import com.cobbledex.contentFor
 import com.cobbledex.paged
 import com.cobbledex.paginate
+import dev.emi.emi.api.EmiInitRegistry
 import dev.emi.emi.api.EmiPlugin
 import dev.emi.emi.api.EmiRegistry
 import dev.emi.emi.api.recipe.EmiRecipe
 import dev.emi.emi.api.recipe.EmiRecipeCategory
+import dev.emi.emi.api.render.EmiTooltipComponents
+import dev.emi.emi.api.stack.Comparison
 import dev.emi.emi.api.stack.EmiIngredient
 import dev.emi.emi.api.stack.EmiStack
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.Items
@@ -78,8 +83,27 @@ open class CobbleDexEMIPlugin : EmiPlugin {
         val NATURE_CATEGORY get() = emiCategory(com.cobbledex.NatureDex)
     }
 
+    /**
+     * Runs before any plugin's register(). EMI only saves a stack to favorites, bookmarks, lookup
+     * history or its hidden list when its class has a serializer - [PokemonEmiStack] and
+     * [MoveEmiStack] had none, so a Pokémon could not be favorited at all.
+     */
+    override fun initialize(registry: EmiInitRegistry) {
+        registry.addIngredientSerializer(PokemonEmiStack::class.java, PokemonEmiStack.Serializer())
+        registry.addIngredientSerializer(MoveEmiStack::class.java, MoveEmiStack.Serializer())
+    }
+
     override fun register(registry: EmiRegistry) {
         SpawnDataIndex.ensureLoaded()
+        // Stamped at the end, but read now: if a data sync lands while this runs, what's registered
+        // is the *old* data and must not be marked current for the new version, or the reloader
+        // would never ask for the re-registration that fixes it.
+        val registeringVersion = SpawnDataIndex.dataVersion
+        // One budget for the whole pass, so every category pages against the same window size and
+        // the value recorded below is the one the recipes were actually split for.
+        val pageBudget = EmiPanelSlicer.budget()
+        var tallestSplittablePage = 0
+        registerTmDiscComparison(registry)
         val config = CobbleDexConfig.get()
         val queries = SpawnDataIndex.currentQueries()
         val hasSync = SpawnDataIndex.loadState == SpawnDataIndex.LoadState.FULLY_LOADED
@@ -130,14 +154,34 @@ open class CobbleDexEMIPlugin : EmiPlugin {
             // rebuilding the same recipes from scratch. See RecipeBuildCache.
             val recipes = RecipeBuildCache.getOrBuild(def)
             ViewerParityGuard.warn(def, recipes, "EMI")
-            for (paged in recipes.paged(EmiPanelSlicer.budget())) {
+            for (paged in recipes.paged(pageBudget)) {
+                // Only pages that fit this budget can be fixed by splitting finer later; one taller
+                // than it is a single uncuttable block, which no re-registration would change.
+                if (paged.page.height <= pageBudget) tallestSplittablePage = maxOf(tallestSplittablePage, paged.page.height)
                 registry.addRecipe(GenericEmiRecipe(paged.handle, cat, def, paged.page))
             }
             registeredCats.add("${def.id}(${recipes.size})")
         }
 
-        RecipeViewerReloader.emiLastRegisteredVersion = SpawnDataIndex.dataVersion
+        RecipeViewerReloader.emiLastRegisteredVersion = registeringVersion
+        RecipeViewerReloader.emiPageBudget = RecipeViewerReloader.PageBudget(tallestSplittablePage, EmiPanelSlicer::budget)
         DebugLog.info("EMI: Registered $registered Pokémon + $formCount forms, categories: ${registeredCats.joinToString(" + ")} (dataVersion=${SpawnDataIndex.dataVersion})")
+    }
+
+    /**
+     * Native TM discs are one item whose move lives in a data component. EMI's default comparison
+     * ignores components, so every disc was one lookup key - pressing U on a single TM listed the
+     * learners of every TM. JEI got this from its subtype interpreter; EMI needs it said explicitly
+     * (and with JEI installed, EMI's bridge would only have inherited it from JEI by accident).
+     */
+    private fun registerTmDiscComparison(registry: EmiRegistry) {
+        try {
+            val item = BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(com.cobbledex.TmItemUtils.NATIVE_TM_ID))
+                .orElse(null) ?: return
+            registry.setDefaultComparison(item) { Comparison.compareComponents() }
+        } catch (t: Throwable) {
+            DebugLog.warn("EMI: could not set TM disc comparison: ${t.message}")
+        }
     }
 
     // ----- Generic EMI Recipe wrapping RecipeHandle -----
@@ -226,15 +270,19 @@ open class CobbleDexEMIPlugin : EmiPlugin {
 
             for (slot in content.pokemonSlots) {
                 val stack = PokemonEmiStack.of(slot.species, slot.aspects)
-                if (!stack.isEmpty) {
-                    widgets.addSlot(stack, slot.x, slot.y).recipeContext(this)
-                }
+                if (stack.isEmpty) continue
+                widgets.add(
+                    DexSlotWidget(stack, slot.x, slot.y, slot.cellTooltip, highlight = !slot.disableHighlight)
+                        .drawBack(!slot.disableBackground)
+                        .recipeContext(this)
+                )
             }
 
             for (slot in content.itemSlots) {
                 val stack = SpawnDisplayHelper.resolveItemStack(slot.itemId)
                 if (!stack.isEmpty) {
-                    widgets.addSlot(EmiStack.of(stack), slot.x, slot.y).recipeContext(this)
+                    // Item icons sit directly on the panel, as in REI (which never frames them).
+                    widgets.addSlot(EmiStack.of(stack), slot.x, slot.y).drawBack(false).recipeContext(this)
                 }
             }
 
@@ -266,6 +314,35 @@ open class CobbleDexEMIPlugin : EmiPlugin {
                     widgets.addTooltipText(zone.lines, zone.x, zone.y, zone.width, zone.height)
                 }
             }
+        }
+    }
+
+    /**
+     * A Pokémon slot that follows the layout's own slot settings, as REI's does: framed or bare
+     * ([PokemonSlotDef.disableBackground], applied by the caller), hover highlight on or off, and -
+     * for grid cells (see [PokemonSlotDef.cellTooltip]) - the cell's info instead of the species
+     * tooltip. EMI shows the first widget under the cursor that has a tooltip and slots come before
+     * the tooltip zones, so a cell's own text has to replace the species tooltip here or it never
+     * shows.
+     */
+    private class DexSlotWidget(
+        stack: EmiIngredient,
+        x: Int,
+        y: Int,
+        private val cellTooltip: List<Component>?,
+        private val highlight: Boolean,
+    ) : dev.emi.emi.api.widget.SlotWidget(stack, x, y) {
+
+        override fun shouldDrawSlotHighlight(mouseX: Int, mouseY: Int): Boolean =
+            highlight && super.shouldDrawSlotHighlight(mouseX, mouseY)
+
+        override fun getTooltip(mouseX: Int, mouseY: Int): List<ClientTooltipComponent> {
+            val cell = cellTooltip ?: return super.getTooltip(mouseX, mouseY)
+            val list = mutableListOf<ClientTooltipComponent>()
+            if (getStack().isEmpty) return list
+            cell.mapTo(list) { EmiTooltipComponents.of(it) }
+            addSlotTooltip(list)
+            return list
         }
     }
 

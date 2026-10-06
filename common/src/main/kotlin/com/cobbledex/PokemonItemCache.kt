@@ -19,6 +19,16 @@ object PokemonItemCache {
     private val blockedRenderKeys = ConcurrentHashMap.newKeySet<String>()
 
     /**
+     * Bumped whenever a previously renderable Pokémon can stop being one ([markRenderFailed],
+     * [reset]). Lets a long-lived stack remember "I can render" instead of re-resolving the species
+     * on every `isEmpty()` call - which a recipe viewer makes many times per frame per visible entry
+     * - and still notice the moment that stops being true. Only a positive answer is worth
+     * remembering: a species that can't render yet may well be able to later.
+     */
+    @Volatile var generation = 0
+        private set
+
+    /**
      * Aspects to render/resolve [name] with: [explicitAspects] when the caller has them, otherwise
      * the aspects implied by a form-qualified species id (e.g. `alolan_raichu`), cached by normalized
      * name since this is called for every icon render, every frame.
@@ -113,6 +123,7 @@ object PokemonItemCache {
     fun markRenderFailed(name: String, explicitAspects: Set<String> = emptySet(), error: Throwable? = null) {
         val cacheKey = cacheKey(name, explicitAspects)
         if (!blockedRenderKeys.add(cacheKey)) return
+        generation++
         DebugLog.trackMissingModel(name)
         DebugLog.warnOnce("pokemon-render-fail-$cacheKey") {
             val detail = error?.message?.takeIf { it.isNotBlank() }
@@ -123,6 +134,7 @@ object PokemonItemCache {
     }
 
     fun reset() {
+        generation++
         speciesCache.clear()
         aspectCache.clear()
         itemCache.clear()

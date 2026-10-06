@@ -1,26 +1,25 @@
 package com.cobbledex
 
 import com.cobbledex.config.CobbleDexConfig
+import com.cobbledex.platform.PlatformHelper
 import net.minecraft.client.Minecraft
 
 object CategorySizer {
 
     data class PanelSize(val width: Int, val height: Int)
 
-    private val cache = mutableMapOf<String, PanelSize>()
-    @Volatile private var cachedVersion = -1L
-    @Volatile private var cachedLang = ""
+    /** Sizes are valid for one data version in one language (panel text is measured). */
+    private data class Epoch(val dataVersion: Long, val lang: String)
 
-    fun getBounds(category: DexCategory): PanelSize {
-        val ver = SpawnDataIndex.dataVersion
+    private val cache = EpochCache<Epoch, PanelSize>()
+
+    private fun currentEpoch(): Epoch {
         val lang = try { Minecraft.getInstance().languageManager.selected } catch (_: Exception) { "en_us" }
-        if (ver != cachedVersion || lang != cachedLang) {
-            cache.clear()
-            cachedVersion = ver
-            cachedLang = lang
-        }
-        return cache.getOrPut(category.id) { computeBounds(category) }
+        return Epoch(SpawnDataIndex.dataVersion, lang)
     }
+
+    fun getBounds(category: DexCategory): PanelSize =
+        cache.get(currentEpoch(), category.id) { computeBounds(category) }
 
     /**
      * Pre-computes one not-yet-cached category's bounds per call. Driven off the client tick after
@@ -29,23 +28,34 @@ object CategorySizer {
      * handful of ticks during idle time instead. No-op once every enabled category is warm.
      */
     fun warmOneCategory() {
+        if (!sizesAreUsed) return
         if (!SpawnDataIndex.hasData()) return
         val config = try { CobbleDexConfig.get() } catch (_: Exception) { return }
-        val next = DexCategory.ALL.firstOrNull { it.isEnabled(config) && getBoundsIfCached(it.id) == null }
-            ?: return
+        // Skips a category another thread is already building rather than waiting on it - this runs
+        // on the game thread, and that build (EMI registering alongside REI, say) is about to make
+        // the result available anyway. Whatever is left is picked up on a later tick.
+        val next = DexCategory.ALL.firstOrNull {
+            it.isEnabled(config) && getBoundsIfCached(it.id) == null &&
+                !RecipeBuildCache.isBuilding(it) && !cache.isComputing(currentEpoch(), it.id)
+        } ?: return
         try { getBounds(next) } catch (_: Exception) {}
     }
 
-    private fun getBoundsIfCached(id: String): PanelSize? {
-        if (SpawnDataIndex.dataVersion != cachedVersion) return null
-        return cache[id]
+    /**
+     * Only REI and JEI size their categories from these bounds (EMI sizes each recipe itself, and
+     * the JEI plugin stays idle when EMI is installed), so warming them for anyone else would just
+     * be a full build of every category on the game thread that nothing reads.
+     */
+    private val sizesAreUsed: Boolean by lazy {
+        try {
+            PlatformHelper.isModLoaded("roughlyenoughitems") ||
+                (PlatformHelper.isModLoaded("jei") && !PlatformHelper.isModLoaded("emi"))
+        } catch (_: Throwable) { true }
     }
 
-    fun invalidateCache() {
-        cache.clear()
-        cachedVersion = -1L
-        cachedLang = ""
-    }
+    private fun getBoundsIfCached(id: String): PanelSize? = cache.peek(currentEpoch(), id)
+
+    fun invalidateCache() = cache.clear()
 
     /**
      * How many of a category's largest-by-[RecipeHandle.sizeHint] candidates get actually measured

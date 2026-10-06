@@ -16,27 +16,22 @@ package com.cobbledex
  * Not a general-purpose recipe cache - just a same-version dedupe between whichever caller (JEI's
  * category sizing, JEI's recipe registration, REI/EMI's own registration) asks for a category's full
  * list first. A failed build is not cached, so it can be retried rather than sticking on empty.
+ *
+ * Callers run on different threads (EMI registers on its own reload thread while the client tick
+ * warms category sizes), so this is an [EpochCache]: each category builds once per data version no
+ * matter how many threads ask for it at the same moment.
  */
 object RecipeBuildCache {
-    @Volatile private var cachedVersion = -1L
-    private val cache = mutableMapOf<String, List<RecipeHandle>>()
+    private val cache = EpochCache<Long, List<RecipeHandle>>()
 
-    fun getOrBuild(category: DexCategory): List<RecipeHandle> {
-        val version = SpawnDataIndex.dataVersion
-        if (version != cachedVersion) {
-            cache.clear()
-            cachedVersion = version
-        }
-        cache[category.id]?.let { return it }
-        val built = category.buildAllRecipes()
-        cache[category.id] = built
-        return built
-    }
+    fun getOrBuild(category: DexCategory): List<RecipeHandle> =
+        cache.get(SpawnDataIndex.dataVersion, category.id) { category.buildAllRecipes() }
+
+    /** True while another thread is building [category]'s recipes for the current data version. */
+    fun isBuilding(category: DexCategory): Boolean =
+        cache.isComputing(SpawnDataIndex.dataVersion, category.id)
 
     /** Forces the next [getOrBuild] call for any category to rebuild - not currently wired to
      *  anything automatic; the per-version check above already invalidates on a real data change. */
-    fun invalidate() {
-        cache.clear()
-        cachedVersion = -1L
-    }
+    fun invalidate() = cache.clear()
 }

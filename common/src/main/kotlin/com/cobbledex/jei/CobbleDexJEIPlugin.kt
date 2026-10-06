@@ -19,6 +19,7 @@ import com.cobbledex.TmDiscStacks
 import com.cobbledex.TmItemUtils
 import com.cobbledex.ViewerParityGuard
 import com.cobbledex.config.CobbleDexConfig
+import com.cobbledex.platform.PlatformHelper
 import com.cobbledex.contentFor
 import com.cobbledex.paged
 import mezz.jei.api.IModPlugin
@@ -62,6 +63,18 @@ open class CobbleDexJEIPlugin : IModPlugin {
         @Volatile var runtime: IJeiRuntime? = null
             private set
 
+        /**
+         * True when EMI is installed. EMI imports JEI plugins through its built-in JEMI bridge (or
+         * TooManyRecipeViewers) and hides JEI's own UI, so this plugin's work is wasted at best -
+         * and at worst the bridge copies every Pokémon ingredient into EMI as a second entry beside
+         * [com.cobbledex.emi.CobbleDexEMIPlugin]'s own, with a different key (so no recipe tabs)
+         * and a different tooltip path. EMI's own plugin already covers everything, so with EMI
+         * present the JEI side registers nothing visible and does no recipe work.
+         */
+        val emiPresent: Boolean by lazy {
+            try { PlatformHelper.isModLoaded("emi") } catch (_: Throwable) { false }
+        }
+
         fun recipeType(def: DexCategory): RecipeType<GenericRecipe> =
             recipeTypes.getOrPut(def.id) {
                 RecipeType(
@@ -103,6 +116,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
          */
         @JvmStatic
         fun continueReload(targetVersion: Long): Boolean {
+            if (emiPresent) return true
             val rt = runtime ?: return true
             if (reloadUnits == null || reloadTargetVersion != targetVersion) {
                 val config = CobbleDexConfig.get()
@@ -266,6 +280,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
      * per-viewer registration for the same stacks; this is JEI's.
      */
     override fun registerExtraIngredients(registration: IExtraIngredientRegistration) {
+        if (emiPresent) return
         SpawnDataIndex.ensureLoaded()
         val discs = TmDiscStacks.all()
         if (discs.isEmpty()) return
@@ -274,6 +289,13 @@ open class CobbleDexJEIPlugin : IModPlugin {
     }
 
     override fun registerIngredients(registration: IModIngredientRegistration) {
+        if (emiPresent) {
+            // Still register the types (empty) so nothing that looks them up by type breaks.
+            registration.register(PokemonIngredientType, emptyList(), PokemonIngredientHelper(), PokemonIngredientRenderer())
+            registration.register(MoveIngredientType, emptyList(), MoveIngredientHelper(), MoveIngredientRenderer())
+            DebugLog.info("JEI: EMI is installed - Pokémon ingredients are provided by EMI directly, none registered here")
+            return
+        }
         SpawnDataIndex.ensureLoaded()
         val config = CobbleDexConfig.get()
         val queries = SpawnDataIndex.currentQueries()
@@ -307,6 +329,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
     }
 
     override fun registerIngredientAliases(registration: mezz.jei.api.registration.IIngredientAliasRegistration) {
+        if (emiPresent) return
         SpawnDataIndex.ensureLoaded()
         val config = CobbleDexConfig.get()
         val queries = SpawnDataIndex.currentQueries()
@@ -336,6 +359,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
     }
 
     override fun registerCategories(registration: IRecipeCategoryRegistration) {
+        if (emiPresent) return
         val helpers = registration.jeiHelpers
         val config = CobbleDexConfig.get()
         val registered = mutableListOf<String>()
@@ -349,6 +373,10 @@ open class CobbleDexJEIPlugin : IModPlugin {
     }
 
     override fun registerRecipes(registration: IRecipeRegistration) {
+        if (emiPresent) {
+            RecipeViewerReloader.jeiLastRegisteredVersion = SpawnDataIndex.dataVersion
+            return
+        }
         SpawnDataIndex.ensureLoaded()
         val config = CobbleDexConfig.get()
 
