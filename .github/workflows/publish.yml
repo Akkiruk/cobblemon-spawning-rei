@@ -157,3 +157,23 @@ jobs:
             cobblemon-spawning-rei/neoforge/build/libs/cobbledex-rei-emi-jei-neoforge-*.jar
             !cobblemon-spawning-rei/neoforge/build/libs/*-dev*.jar
             !cobblemon-spawning-rei/neoforge/build/libs/*-sources.jar
+
+      # Modrinth derives each version's environment from the jar, which cannot say "optional on the server".
+      # CobbleDex is required on the client and optional on the server, so set it after upload. Best effort:
+      # a failure here only means the value has to be set by hand on the version page.
+      - name: Set Modrinth environment to client required, server optional
+        continue-on-error: true
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
+        run: |
+          for loader in fabric neoforge; do
+            id=$(curl -s -H "User-Agent: Akkiruk/cobblemon-spawning-rei" "https://api.modrinth.com/v2/project/${MODRINTH_PROJECT_ID}/version" \
+              | python3 -c "import sys,json; v=[x for x in json.load(sys.stdin) if x['version_number']=='${VERSION}+${loader}']; print(v[0]['id'] if v else '')")
+            if [ -z "$id" ]; then echo "No ${loader} version ${VERSION} found on Modrinth"; continue; fi
+            code=$(curl -s -o /dev/null -w '%{http_code}' -X PATCH "https://api.modrinth.com/v3/version/${id}" \
+              -H "Authorization: ${MODRINTH_TOKEN}" -H "Content-Type: application/json" -H "User-Agent: Akkiruk/cobblemon-spawning-rei" \
+              -d '{"environment":"client_only_server_optional"}')
+            echo "${loader} ${id}: HTTP ${code}"
+          done

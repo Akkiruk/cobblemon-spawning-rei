@@ -12,8 +12,14 @@
   },
   "license": "MIT",
   "icon": "assets/cobbledex-rei-emi-jei/icon.png",
-  "environment": "client",
+  "environment": "*",
   "entrypoints": {
+    "main": [
+      {
+        "adapter": "kotlin",
+        "value": "com.cobbledex.fabric.CobbleDexFabric"
+      }
+    ],
     "client": [
       {
         "adapter": "kotlin",

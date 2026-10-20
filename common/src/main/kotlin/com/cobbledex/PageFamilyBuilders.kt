@@ -342,7 +342,7 @@ object PokemonInfoPageBuilder {
         if (tmCount > 0) parts.add(countText(tmCount, "TM"))
         // Cobblemon never sends tutor moves to a client, so on a server an empty list is "unknown",
         // not "learns none" - say so rather than let the page read as a fact.
-        if (tutorCount == 0 && !DataAvailability.isLocalWorld()) parts.add(tr("cobbledex-rei-emi-jei.overview.tutor_unknown"))
+        if (tutorCount == 0 && !DataAvailability.worldDataIsComplete()) parts.add(tr("cobbledex-rei-emi-jei.overview.tutor_unknown"))
         return parts.ifEmpty { listOf(tr("cobbledex-rei-emi-jei.overview.none")) }.joinToString(" | ")
     }
 

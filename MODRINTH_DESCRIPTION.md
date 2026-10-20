@@ -92,7 +92,7 @@ It works in:
 - LAN
 - dedicated servers
 
-Players do not need the server to have CobbleDex installed for the mod to be useful.
+Players do not need the server to have CobbleDex installed for the mod to be useful. Server owners can add the same jar to a dedicated server to share data Cobblemon doesn't sync: spawn pools, tutor moves, evolutions and more for datapack content players don't have.
 
 ## Export Support
 

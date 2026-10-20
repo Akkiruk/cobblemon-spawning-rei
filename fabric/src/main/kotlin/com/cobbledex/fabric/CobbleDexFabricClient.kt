@@ -6,7 +6,13 @@ import com.cobbledex.SpawnDataIndex
 import com.cobbledex.SpreadsheetExporter
 import com.cobbledex.PokemonSpriteAtlas
 import com.cobbledex.TmTooltipHandler
+import com.cobbledex.DataAvailability
 import com.cobbledex.network.CobbleworkersJobSyncPayload
+import com.cobbledex.sync.ClientSync
+import com.cobbledex.sync.SyncChunkPayload
+import com.cobbledex.sync.SyncClientTransport
+import com.cobbledex.sync.SyncHeaderPayload
+import com.cobbledex.sync.SyncRequestPayload
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
@@ -16,6 +22,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
 import net.minecraft.network.chat.Component
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload
 
 class CobbleDexFabricClient : ClientModInitializer {
     override fun onInitializeClient() {
@@ -34,7 +41,16 @@ class CobbleDexFabricClient : ClientModInitializer {
             }
         }
 
+        // Data the server offers that Cobblemon does not sync. The packet types are registered by CobbleDexFabric.
+        ClientSync.install(object : SyncClientTransport {
+            override fun canSend(type: CustomPacketPayload.Type<*>): Boolean = ClientPlayNetworking.canSend(type)
+            override fun send(payload: CustomPacketPayload) = ClientPlayNetworking.send(payload)
+        })
+        ClientPlayNetworking.registerGlobalReceiver(SyncHeaderPayload.TYPE) { payload, _ -> ClientSync.onHeader(payload) }
+        ClientPlayNetworking.registerGlobalReceiver(SyncChunkPayload.TYPE) { payload, _ -> ClientSync.onChunk(payload) }
+
         ClientTickEvents.END_CLIENT_TICK.register { client ->
+            ClientSync.tick()
             SpreadsheetExporter.tick()
             if (client.player != null) {
                 CobbleDexMod.tickClient()
@@ -44,6 +60,10 @@ class CobbleDexFabricClient : ClientModInitializer {
         ClientPlayConnectionEvents.JOIN.register { _, _, _ ->
             // Cobblemon's own species_sync lands during login; watch for it rather than assume.
             CobbleDexMod.onJoinedWorld()
+            ClientSync.onJoin(
+                remoteServer = !DataAvailability.isLocalWorld(),
+                serverAddress = net.minecraft.client.Minecraft.getInstance().currentServer?.ip,
+            )
         }
 
         ItemTooltipCallback.EVENT.register { stack, _, _, lines ->
@@ -53,6 +73,7 @@ class CobbleDexFabricClient : ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
             SpawnDataIndex.onDisconnect()
             CobbleDexMod.onLeftWorld()
+            ClientSync.onLeave()
         }
 
         ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->

@@ -16,4 +16,8 @@ object PlatformHelperImpl {
 
     @JvmStatic
     fun isModLoaded(modId: String): Boolean = ModList.get().isLoaded(modId)
+
+    @JvmStatic
+    fun getLoadedMods(): Map<String, String> =
+        ModList.get().mods.associate { it.modId to it.version.toString() }
 }

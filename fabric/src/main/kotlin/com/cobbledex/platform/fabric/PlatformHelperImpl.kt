@@ -15,4 +15,8 @@ object PlatformHelperImpl {
 
     @JvmStatic
     fun isModLoaded(modId: String): Boolean = FabricLoader.getInstance().isModLoaded(modId)
+
+    @JvmStatic
+    fun getLoadedMods(): Map<String, String> =
+        FabricLoader.getInstance().allMods.associate { it.metadata.id to it.metadata.version.friendlyString }
 }

@@ -1,6 +1,7 @@
 package com.cobbledex
 
 import com.cobbledex.config.CobbleDexConfig
+import com.cobbledex.sync.ClientSync
 import org.slf4j.LoggerFactory
 
 object CobbleDexMod {
@@ -27,6 +28,16 @@ object CobbleDexMod {
             CobbleDexConfig.load()
         } catch (e: Exception) {
             DebugLog.warn("Config load deferred: ${e.message}")
+        }
+
+        // Data a companion server supplies replaces this client's own pack scan while it is connected, and the
+        // scan goes back to the client's own files when it is not. Rebuilding takes seconds, so never inline.
+        ClientSync.cache = com.cobbledex.sync.DiskSyncCache(
+            com.cobbledex.platform.PlatformHelper.getGameDir().resolve("cobbledex-server-cache")
+        )
+        ClientSync.listener = { overlay ->
+            ServerDataView.set(overlay)
+            Thread({ JarDataCache.rebuildForDataView() }, "CobbleDex-ServerDataRebuild").apply { isDaemon = true }.start()
         }
 
         // Pre-cache the local-file layer (mod JARs + this client's datapacks) in the background.

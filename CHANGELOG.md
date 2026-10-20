@@ -2,6 +2,23 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.32.0] - 2026-10-20
+
+Servers can now install CobbleDex themselves, so players see the server's spawns, tutor moves and evolutions without having its datapacks.
+
+### Added
+- Drop the same jar into a dedicated server's mods folder (Fabric or NeoForge) and it shares the data Cobblemon doesn't sync with players who have CobbleDex: spawn pools, species files, habitat pools. That brings spawns, tutor and legacy moves, evolutions, catch rates, egg groups and "Added by" names for Pokémon the server added.
+- Players only download what they don't already have, around 0.4 MB on a big pack list, and the client keeps a copy so reconnecting is instant. Players without CobbleDex aren't sent anything, and servers without it work as before.
+- `config/cobbledex-server.json` on the server lets you turn it off, limit it to operators, or hide species and files.
+- `/cobbledex stats` shows whether the server sent data.
+
+### Changed
+- On a server that has CobbleDex, Spawns and Evolutions no longer show the "local files only" warning, and the "tutor moves unknown" note is gone.
+- The Fabric jar now loads on dedicated servers too. It does nothing there unless the sync is used.
+
+### Fixed
+- REI's Pokémon list could be empty on a server. REI sometimes loaded before CobbleDex had its data and never tried again. CobbleDex now asks REI to reload once the data is ready.
+
 ## [2.31.2] - 2026-10-20
 
 TM and egg moves and evolutions for things that only exist on a server, plus a batch of form fixes.

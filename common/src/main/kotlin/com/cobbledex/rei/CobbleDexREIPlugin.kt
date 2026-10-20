@@ -158,6 +158,11 @@ open class CobbleDexREIPlugin : REIClientPlugin {
         var registered = 0
         var formCount = 0
         val (stacks, hiddenNoModel) = buildPokemonStacks()
+        // Read after building: on NeoForge the index is first built from inside this very reload, so a count taken
+        // before would be 0 for entries that were registered with full data. If the build produced nothing while
+        // the index has species by now, REI registered too early and the count stays 0 so it is asked again.
+        val indexSize = com.cobbledex.SpawnDataIndex.speciesInfo.size
+        com.cobbledex.RecipeViewerReloader.reiRegisteredSpeciesCount = if (stacks.isEmpty() && indexSize > 0) 0 else indexSize
         var hidden = hiddenNoModel
         for (entry in stacks) {
             try {

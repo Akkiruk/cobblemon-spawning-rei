@@ -18,7 +18,7 @@ Your viewer-native **Cobblemon in-game reference guide** inside **REI**, **JEI**
 
 - **Viewer-native reference first:** features belong in CobbleDex when they improve Cobblemon data collection, interpretation, search, or display through REI, JEI, and EMI.
 - **Parity by default:** REI, JEI, and EMI should expose the same CobbleDex knowledge unless a viewer API makes exact parity impossible.
-- **Player-truth data:** Cobblemon's own synced client data beats this client's jar/datapack fallback, and bundled defaults are only a last resort. CobbleDex sends no packets and runs no server code — see `docs/DATA_PRECEDENCE.md`.
+- **Player-truth data:** Cobblemon's own synced client data beats this client's jar/datapack fallback, and bundled defaults are only a last resort. A server that installs CobbleDex can also send the data Cobblemon doesn't sync, and that beats the client's own files (see `docs/SERVER_COMPANION.md` and `docs/DATA_PRECEDENCE.md`).
 - **Material forms only:** alternate forms are first-class only when they differ in player-relevant data such as spawns, stats, moves, drops, evolution, obtainment, riding, typing, or abilities. Texture-only variants should stay collapsed.
 - **Export stays secondary:** `/cobbledex export` is a hidden diagnostic/planning tool, not the primary product surface.
 
@@ -64,9 +64,10 @@ CobbleDex adds dedicated viewer pages for:
 - JEI, REI, and EMI all expose the same core information instead of one viewer being a second-class port
 
 ### Multiplayer-friendly client-side design
-- Pure client-side mod: no server install required
+- Works as a client-only mod: no server install required
 - Works in singleplayer, LAN, and dedicated servers
 - Uses synced data and local fallbacks so spawn, evolution, fossil, and related data still appear even when the server does not have CobbleDex installed
+- Optional on the server: put the same jar in a dedicated server's `mods/` folder (Fabric or NeoForge) and players get that server's spawns, tutor moves and evolutions even without the server's datapacks
 - Viewer reload handling keeps JEI and EMI up to date after the data index rebuilds instead of leaving categories empty
 
 ### Hidden diagnostic export
@@ -113,7 +114,7 @@ CobbleDex adds dedicated viewer pages for:
 2. Place in your `mods/` folder
 3. Launch Minecraft
 
-No server installation needed — this mod is pure client-side.
+No server installation is needed. Server owners can optionally add the same jar to the server to share their spawns, tutor moves and evolutions with players.
 
 ## Building from Source
 

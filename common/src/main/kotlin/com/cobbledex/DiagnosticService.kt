@@ -1,5 +1,6 @@
 package com.cobbledex
 
+import com.cobbledex.sync.ClientSync
 import com.cobblemon.mod.common.api.pokemon.PokemonSpecies
 import java.nio.file.Files
 import java.time.LocalDateTime
@@ -49,6 +50,15 @@ object DiagnosticService {
         sender.send(DataAvailability.describe("Riding", index.ridingSourceTier))
         sender.send("§7TM/egg moves: §f" + if (CobblemonSync.tmEggSynced()) "synced by Cobblemon" else "not synced (Cobblemon 1.7 or older, or an empty server registry)")
         sender.send("§7Evolution display sync: §f" + if (CobblemonSync.evolutionDisplaysSynced) "available (Cobblemon 1.8.2+)" else "not available (needs Cobblemon 1.8.2+)")
+        val serverData = ClientSync.overlay
+        sender.send("§7Server data (CobbleDex on the server): §f" + when {
+            serverData != null -> "${serverData.fileCount} files, ${ClientSync.receivedBytes / 1024} KB received"
+            else -> when (ClientSync.state) {
+                ClientSync.State.NO_SERVER_SUPPORT -> "not installed on this server"
+                ClientSync.State.IDLE -> "not used (singleplayer or LAN)"
+                else -> "${ClientSync.state.name.lowercase().replace('_', ' ')} - ${ClientSync.detail}"
+            }
+        })
 
         sender.send(tr("cobbledex-rei-emi-jei.cmd.dump_hint"))
 

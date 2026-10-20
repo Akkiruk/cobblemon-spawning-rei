@@ -327,13 +327,13 @@ object SpawnDataIndex {
             }
             JarDataCache.hasCachedSpawns() -> {
                 val local = normalizeMapKeys(JarDataCache.getCachedSpawns())
-                DebugLog.info("Spawns from local files (${local.size} species) - Cobblemon syncs no spawn pool")
+                DebugLog.info("Spawns from ${fileDataTier().displayName} (${local.size} species) - Cobblemon syncs no spawn pool")
                 spawnsBySpecies = dropMissingModSpawns(mergeSpawnMaps(local, habitat))
-                spawnSourceTier = DataSourceTier.LOCAL_FILES
+                spawnSourceTier = fileDataTier()
             }
             habitat.isNotEmpty() -> {
                 spawnsBySpecies = habitat
-                spawnSourceTier = DataSourceTier.LOCAL_FILES
+                spawnSourceTier = fileDataTier()
             }
             else -> {
                 spawnsBySpecies = emptyMap()
@@ -476,7 +476,7 @@ object SpawnDataIndex {
 
         evolutionsBySpecies = merged
         evolutionSourceTier = if (runtime.isNotEmpty() || local.isEmpty()) DataSourceTier.COBBLEMON
-            else DataSourceTier.LOCAL_FILES
+            else fileDataTier()
         if (runtime.isEmpty() && local.isNotEmpty()) {
             DebugLog.info("Evolutions from local files (${local.size} species) - Cobblemon's species sync omits them")
         }
@@ -489,6 +489,10 @@ object SpawnDataIndex {
     }
 
     /** Adds each edge of [extra] that [into] doesn't already have (same source aspects and target). */
+    /** What the file-based layer is called: the server's own files when a companion supplied them, else this client's. */
+    private fun fileDataTier(): DataSourceTier =
+        if (ServerDataView.isActive()) DataSourceTier.SERVER_DATA else DataSourceTier.LOCAL_FILES
+
     private fun mergeMissingEdges(
         into: MutableMap<String, MutableList<EvolutionInfo>>,
         extra: Map<String, List<EvolutionInfo>>,

@@ -80,6 +80,11 @@ object JarDataCache {
                 labels == null
     }
 
+    /** Where this client's `datapacks/` and `resourcepacks/` live. Replaceable so tests need no platform. */
+    internal var gameDirProvider: () -> Path = { com.cobbledex.platform.PlatformHelper.getGameDir() }
+
+    private fun gameDir(): Path = gameDirProvider()
+
     private val initialized = AtomicBoolean(false)
     private val loading = AtomicBoolean(false)
     private val latch = CountDownLatch(1)
@@ -150,38 +155,8 @@ object JarDataCache {
         if (!loading.compareAndSet(false, true)) return
 
         try {
-            val modRoots = modRootsWithIds.map { it.path }
-            DebugLog.info("JarDataCache: initializing from ${modRoots.size} mod roots")
-            val startTime = System.currentTimeMillis()
-
-            val presets = loadPresetsFromJars(modRoots)
-            DebugLog.info("JarDataCache: loaded ${presets.size} spawn presets")
-
-            cachedSpawns = parseSpawnsFromJars(modRoots, presets)
-            cachedHabitatSpawns = parseHabitatPoolsFromJars(modRoots)
-            cachedTms = parseTmsFromJars(modRoots)
-            cachedMarks = parseMarksFromJars(modRoots)
-            val scan = parseEvolutionsAndMovesFromJars(modRootsWithIds)
-            cachedEvolutions = scan.evolutions
-            cachedMoves = scan.moves
-            cachedFormMoves = scan.formMoves
-            cachedTraits = scan.traits
-            cachedFormTraits = scan.formTraits
-            cachedSpeciesProvenance = scan.provenance
-            cachedFossils = parseFossilsFromJars(modRoots)
-            cachedTypeChartOverrides = parseTypeChartOverridesFromJars(modRoots)
-            cachedMegaStones = parseMegaStonesFromJars(modRoots)
-
-            val elapsed = System.currentTimeMillis() - startTime
-            DebugLog.info("JarDataCache: ready in ${elapsed}ms - " +
-                "${cachedSpawns.size} species with spawns, " +
-                "${cachedHabitatSpawns.size} species with habitat spawns, " +
-                "${cachedEvolutions.size} species with evolutions, " +
-                "${cachedMoves.size} species with moves, " +
-                "${cachedTraits.size} species with breeding/dex traits, " +
-                "${cachedFossils.values.sumOf { it.size }} fossils for ${cachedFossils.size} species, " +
-                "${cachedTypeChartOverrides.size} type chart overrides")
-
+            knownModRoots = modRootsWithIds
+            build(modRootsWithIds)
             initialized.set(true)
             if (SpawnDataIndex.loadState != SpawnDataIndex.LoadState.NOT_LOADED) {
                 lateReadyPending = true
@@ -191,6 +166,93 @@ object JarDataCache {
         } finally {
             latch.countDown()
         }
+        // A companion server's data can arrive while the first scan is still running.
+        if (initialized.get() && rebuildRequested) rebuildForDataView()
+    }
+
+    @Volatile
+    private var knownModRoots: List<SpawnDataLoader.ModRoot> = emptyList()
+
+    @Volatile
+    private var rebuildRequested = false
+
+    private val rebuildLock = Any()
+
+    /**
+     * Rescans with whatever [ServerDataView] now holds (or with nothing, back to this client's own files).
+     * Called when a companion server's data arrives and again when the player leaves it. Runs on the
+     * caller's thread; the finished maps are published together and [consumeLateReady] triggers one rebuild
+     * of the indexes built on top of them.
+     */
+    fun rebuildForDataView() {
+        if (!initialized.get()) {
+            rebuildRequested = true
+            return
+        }
+        rebuildRequested = false
+        synchronized(rebuildLock) {
+            try {
+                build(knownModRoots)
+                lateReadyPending = true
+            } catch (e: Exception) {
+                DebugLog.warn("JarDataCache: rebuild failed: ${e.message}")
+            }
+        }
+    }
+
+    /** Tests only: use these mod roots from now on and rebuild, whatever the cache did before. */
+    internal fun rebuildWith(roots: List<SpawnDataLoader.ModRoot>) {
+        knownModRoots = roots
+        synchronized(rebuildLock) { build(roots) }
+        initialized.set(true)
+        latch.countDown()
+    }
+
+    /**
+     * Reads everything and publishes it at the end in one go, so a reader never sees half of a rebuild.
+     * Mods the server did not confirm are left out while a [ServerDataView] is active.
+     */
+    private fun build(allRoots: List<SpawnDataLoader.ModRoot>) {
+        val modRootsWithIds = allRoots.filter { ServerDataView.modAllowed(it.id) }
+        val modRoots = modRootsWithIds.map { it.path }
+        DebugLog.info("JarDataCache: initializing from ${modRoots.size} mod roots" + if (ServerDataView.isActive()) " (server data active)" else "")
+        val startTime = System.currentTimeMillis()
+
+        val presets = loadPresetsFromJars(modRoots)
+        DebugLog.info("JarDataCache: loaded ${presets.size} spawn presets")
+
+        val spawns = parseSpawnsFromJars(modRoots, presets)
+        val habitat = parseHabitatPoolsFromJars(modRoots)
+        val tms = parseTmsFromJars(modRoots)
+        val marks = parseMarksFromJars(modRoots)
+        val scan = parseEvolutionsAndMovesFromJars(modRootsWithIds)
+        val fossils = parseFossilsFromJars(modRoots)
+        val typeChart = parseTypeChartOverridesFromJars(modRoots)
+        val megaStones = parseMegaStonesFromJars(modRoots)
+
+        cachedSpawns = spawns
+        cachedHabitatSpawns = habitat
+        cachedTms = tms
+        cachedMarks = marks
+        cachedEvolutions = scan.evolutions
+        cachedMoves = scan.moves
+        cachedFormMoves = scan.formMoves
+        cachedTraits = scan.traits
+        cachedFormTraits = scan.formTraits
+        cachedSpeciesProvenance = scan.provenance
+        cachedFossils = fossils
+        cachedTypeChartOverrides = typeChart
+        cachedMegaStones = megaStones
+
+        val elapsed = System.currentTimeMillis() - startTime
+        DebugLog.info("JarDataCache: ready in ${elapsed}ms - " +
+            "${spawns.size} species with spawns, " +
+            "${habitat.size} species with habitat spawns, " +
+            "${scan.evolutions.size} species with evolutions, " +
+            "${scan.moves.size} species with moves, " +
+            "${scan.traits.size} species with breeding/dex traits, " +
+            "${fossils.values.sumOf { it.size }} fossils for ${fossils.size} species, " +
+            "${typeChart.size} type chart overrides")
     }
 
     // ==================== Preset Loading ====================
@@ -224,9 +286,17 @@ object JarDataCache {
             } catch (_: Exception) {}
         }
 
+        // A companion server's presets replace whatever this client's own packs would add.
+        if (ServerDataView.mirrors("spawn_detail_presets")) {
+            for ((id, json) in ServerDataView.files("spawn_detail_presets")) {
+                presets[id.substringAfterLast('/').removeSuffix(".json")] = json
+            }
+            return presets
+        }
+
         // Also scan local datapacks (directories)
         try {
-            val datapacksDir = com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
+            val datapacksDir = gameDir().resolve("datapacks")
             if (Files.exists(datapacksDir) && Files.isDirectory(datapacksDir)) {
                 Files.list(datapacksDir).use { packs ->
                     packs.filter { Files.isDirectory(it) }.forEach { pack ->
@@ -271,6 +341,25 @@ object JarDataCache {
         var spawnCount = 0
         var failCount = 0
 
+        // One spawn pool file: `{ "enabled": true, "spawns": [ ... ] }`. Every source below goes through here.
+        fun ingestPool(obj: JsonObject) {
+            if (obj.has("enabled") && !obj.get("enabled").asBoolean) return
+            val spawns = obj.getAsJsonArray("spawns") ?: return
+            fileCount++
+            for (spawnElem in spawns) {
+                try {
+                    val info = parseSpawnEntry(spawnElem.asJsonObject, presets)
+                    if (info != null) {
+                        result.getOrPut(SpeciesNameNormalizer.normalize(info.pokemon)) { mutableListOf() }.add(info)
+                        spawnCount++
+                    }
+                } catch (_: Exception) { failCount++ }
+            }
+        }
+
+        // With a companion server the spawn pools are the server's, not whatever packs this client has.
+        val fromServer = ServerDataView.mirrors("spawn_pool_world")
+
         val sources = mutableListOf<Pair<Path, String>>() // (dataDir, namespace)
 
         // Collect from mod JARs
@@ -289,49 +378,38 @@ object JarDataCache {
             } catch (_: Exception) {}
         }
 
-        // Collect from local datapacks (directories)
-        try {
-            val datapacksDir = com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
-            if (Files.exists(datapacksDir) && Files.isDirectory(datapacksDir)) {
-                Files.list(datapacksDir).use { packs ->
-                    packs.filter { Files.isDirectory(it) }.forEach { pack ->
-                        val dataDir = pack.resolve("data")
-                        if (!Files.exists(dataDir)) return@forEach
-                        Files.list(dataDir).use { namespaces ->
-                            namespaces.filter { Files.isDirectory(it) }.forEach { ns ->
-                                val spawnDir = ns.resolve("spawn_pool_world")
-                                if (Files.exists(spawnDir) && Files.isDirectory(spawnDir)) {
-                                    sources.add(spawnDir to ns.fileName.toString())
+        if (fromServer) {
+            ServerDataView.files("spawn_pool_world").values.forEach { ingestPool(it) }
+        } else {
+            // Collect from local datapacks (directories)
+            try {
+                val datapacksDir = gameDir().resolve("datapacks")
+                if (Files.exists(datapacksDir) && Files.isDirectory(datapacksDir)) {
+                    Files.list(datapacksDir).use { packs ->
+                        packs.filter { Files.isDirectory(it) }.forEach { pack ->
+                            val dataDir = pack.resolve("data")
+                            if (!Files.exists(dataDir)) return@forEach
+                            Files.list(dataDir).use { namespaces ->
+                                namespaces.filter { Files.isDirectory(it) }.forEach { ns ->
+                                    val spawnDir = ns.resolve("spawn_pool_world")
+                                    if (Files.exists(spawnDir) && Files.isDirectory(spawnDir)) {
+                                        sources.add(spawnDir to ns.fileName.toString())
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
-        } catch (_: Exception) {}
+            } catch (_: Exception) {}
 
-        // Collect spawns from ZIP datapacks
-        try {
-            val datapacksDir = com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
-            if (Files.exists(datapacksDir) && Files.isDirectory(datapacksDir)) {
-                scanZipDatapacks(datapacksDir, "spawn_pool_world") { _, _, _, json ->
-                    if (json.has("enabled") && !json.get("enabled").asBoolean) return@scanZipDatapacks
-                    val spawns = json.getAsJsonArray("spawns") ?: return@scanZipDatapacks
-                    fileCount++
-                    for (spawnElem in spawns) {
-                        try {
-                            val spawnObj = spawnElem.asJsonObject
-                            val info = parseSpawnEntry(spawnObj, presets)
-                            if (info != null) {
-                                val species = SpeciesNameNormalizer.normalize(info.pokemon)
-                                result.getOrPut(species) { mutableListOf() }.add(info)
-                                spawnCount++
-                            }
-                        } catch (_: Exception) { failCount++ }
-                    }
+            // Collect spawns from ZIP datapacks
+            try {
+                val datapacksDir = gameDir().resolve("datapacks")
+                if (Files.exists(datapacksDir) && Files.isDirectory(datapacksDir)) {
+                    scanZipDatapacks(datapacksDir, "spawn_pool_world") { _, _, _, json -> ingestPool(json) }
                 }
-            }
-        } catch (_: Exception) {}
+            } catch (_: Exception) {}
+        }
 
         for ((spawnDir, _) in sources) {
             try {
@@ -341,22 +419,7 @@ object JarDataCache {
                             val obj = InputStreamReader(Files.newInputStream(file), Charsets.UTF_8).use { reader ->
                                 JsonParser.parseReader(reader).asJsonObject
                             }
-                            if (obj.has("enabled") && !obj.get("enabled").asBoolean) return@forEach
-
-                            val spawns = obj.getAsJsonArray("spawns") ?: return@forEach
-                            fileCount++
-
-                            for (spawnElem in spawns) {
-                                try {
-                                    val spawnObj = spawnElem.asJsonObject
-                                    val info = parseSpawnEntry(spawnObj, presets)
-                                    if (info != null) {
-                                        val species = SpeciesNameNormalizer.normalize(info.pokemon)
-                                        result.getOrPut(species) { mutableListOf() }.add(info)
-                                        spawnCount++
-                                    }
-                                } catch (_: Exception) { failCount++ }
-                            }
+                            ingestPool(obj)
                         } catch (_: Exception) { failCount++ }
                     }
                 }
@@ -642,7 +705,7 @@ object JarDataCache {
      * mod jars and directory datapacks. Shared by [forEachDataFile] and [forEachDataText] - zip
      * datapacks are collected separately since they don't expose real filesystem directories.
      */
-    private fun collectNamespaceDirs(modRoots: List<Path>, subPath: String): List<Pair<Path, String>> {
+    private fun collectNamespaceDirs(modRoots: List<Path>, subPath: String, includeLocalPacks: Boolean = true): List<Pair<Path, String>> {
         val dirs = mutableListOf<Pair<Path, String>>()
         for (root in modRoots) {
             try {
@@ -654,8 +717,9 @@ object JarDataCache {
                 } }
             } catch (_: Exception) {}
         }
+        if (!includeLocalPacks) return dirs
         try {
-            val datapacksDir = com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
+            val datapacksDir = gameDir().resolve("datapacks")
             if (Files.isDirectory(datapacksDir)) {
                 Files.list(datapacksDir).use { it.filter { p -> Files.isDirectory(p) }.forEach { pack ->
                     val dataDir = pack.resolve("data")
@@ -690,7 +754,9 @@ object JarDataCache {
      * (like habitat pools); callers that need the `spawns`-array wrapper keep their own loops.
      */
     private inline fun forEachDataFile(modRoots: List<Path>, subDir: String, crossinline handler: (JsonObject) -> Unit) {
-        for ((dir, _) in collectNamespaceDirs(modRoots, subDir)) {
+        // A companion server's files stand in for this client's own packs (see ServerDataView).
+        val fromServer = ServerDataView.mirrors(subDir)
+        for ((dir, _) in collectNamespaceDirs(modRoots, subDir, includeLocalPacks = !fromServer)) {
             try {
                 Files.walk(dir, 10).use { files ->
                     files.filter { it.toString().endsWith(".json") && Files.isRegularFile(it) }.forEach { file ->
@@ -705,8 +771,12 @@ object JarDataCache {
             } catch (_: Exception) {}
         }
 
+        if (fromServer) {
+            ServerDataView.files(subDir).values.forEach { handler(it) }
+            return
+        }
         try {
-            val datapacksDir = com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
+            val datapacksDir = gameDir().resolve("datapacks")
             if (Files.isDirectory(datapacksDir)) {
                 scanZipDatapacks(datapacksDir, subDir) { _, _, _, json -> handler(json) }
             }
@@ -838,7 +908,7 @@ object JarDataCache {
         }
 
         try {
-            val datapacksDir = com.cobbledex.platform.PlatformHelper.getGameDir().resolve("datapacks")
+            val datapacksDir = gameDir().resolve("datapacks")
             if (Files.isDirectory(datapacksDir)) {
                 scanZipDatapackTexts(datapacksDir, subPath, extension, handler)
             }
@@ -1021,8 +1091,20 @@ object JarDataCache {
         // via /cobbledex evo: Fanmade Form Funfair's Roggenrola/Boldore
         // "Overgrown" species_additions files were invisible to JarDataCache
         // entirely, not just misparsed).
+        // With a companion server the species files are the server's, not whatever packs this client has.
+        if (ServerDataView.mirrors("species")) {
+            for ((id, json) in ServerDataView.files("species")) {
+                processSpeciesJsonObject(json, false, scan, ServerDataView.origin(id))
+            }
+            for (json in ServerDataView.files("species_additions").values) {
+                processSpeciesJsonObject(json, true, scan, null)
+            }
+            DebugLog.info("JarDataCache: parsed ${counters.baseEvoCount} base + ${counters.formEvoCount} form evolutions from ${counters.fileCount} species files (${counters.failCount} failed) [server data]")
+            return scan
+        }
+
         try {
-            val gameDir = com.cobbledex.platform.PlatformHelper.getGameDir()
+            val gameDir = gameDir()
             // Global datapacks (via the Globalpacks mod) apply unconditionally,
             // but resourcepacks are opt-in per options.txt's "resourcePacks"
             // list - the folder itself commonly holds disabled packs too (this
@@ -1455,7 +1537,7 @@ object JarDataCache {
         // folders, resourcepacks filtered to the set enabled in options.txt so
         // "do not enable" credit-only packs don't blend in.
         try {
-            val gameDir = com.cobbledex.platform.PlatformHelper.getGameDir()
+            val gameDir = gameDir()
             val enabledResourcePackFiles = readEnabledResourcePackFileNames(gameDir)
             for (folderName in listOf("datapacks", "resourcepacks")) {
                 val dir = gameDir.resolve(folderName)
@@ -1598,7 +1680,7 @@ object JarDataCache {
         }
 
         try {
-            val gameDir = com.cobbledex.platform.PlatformHelper.getGameDir()
+            val gameDir = gameDir()
             val enabled = readEnabledResourcePackFileNames(gameDir)
             val zipPattern = Regex("^data/([^/]+)/${Regex.escape(subPath)}/.*${Regex.escape(extension)}$")
 

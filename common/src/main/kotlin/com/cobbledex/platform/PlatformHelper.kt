@@ -22,4 +22,11 @@ object PlatformHelper {
     fun isModLoaded(modId: String): Boolean {
         throw AssertionError("Expected platform implementation")
     }
+
+    /** Every loaded mod, `id` to `version`. */
+    @JvmStatic
+    @ExpectPlatform
+    fun getLoadedMods(): Map<String, String> {
+        throw AssertionError("Expected platform implementation")
+    }
 }

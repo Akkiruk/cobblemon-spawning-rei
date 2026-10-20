@@ -39,8 +39,15 @@ object DataAvailability {
         false
     }
 
+    /**
+     * True when what the pages show is the world's own data: a world this client hosts, or a server that
+     * supplied its files through the companion channel. Cobblemon still leaves tutor and legacy moves out of
+     * its own sync, so on a server without the companion an empty tutor list proves nothing.
+     */
+    fun worldDataIsComplete(): Boolean = isLocalWorld() || ServerDataView.isActive()
+
     fun confidenceOf(tier: DataSourceTier): Confidence = when (tier) {
-        DataSourceTier.COBBLEMON, DataSourceTier.BUILT_IN -> Confidence.VERIFIED
+        DataSourceTier.COBBLEMON, DataSourceTier.SERVER_DATA, DataSourceTier.BUILT_IN -> Confidence.VERIFIED
         DataSourceTier.LOCAL_FILES -> if (isLocalWorld()) Confidence.VERIFIED else Confidence.LOCAL_ONLY
         DataSourceTier.UNAVAILABLE -> Confidence.MISSING
     }

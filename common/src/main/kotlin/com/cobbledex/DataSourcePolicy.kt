@@ -3,8 +3,8 @@ package com.cobbledex
 /**
  * Where a piece of CobbleDex data came from, best first.
  *
- * CobbleDex sends no packets of its own, so there are only three real sources on a client:
- * Cobblemon's own synced registries, this client's files, and tables compiled into the mod.
+ * The sources on a client are Cobblemon's own synced registries, files a companion server
+ * sent, this client's files, and tables compiled into the mod.
  */
 enum class DataSourceTier(val displayName: String, val rank: Int) {
     /**
@@ -16,22 +16,29 @@ enum class DataSourceTier(val displayName: String, val rank: Int) {
     COBBLEMON("cobblemon", 0),
 
     /**
+     * Files the server itself sent through CobbleDex's companion channel (spawn pools, species files with
+     * their tutor moves and evolutions). They are the server's own, so they are as authoritative as Cobblemon's.
+     */
+    SERVER_DATA("server data", 1),
+
+    /**
      * This client's own files: mod JARs, `datapacks/`, enabled resource packs. Correct in
      * singleplayer and on any modpack where client and server carry the same packs; potentially
      * out of step with a server running packs the client does not have.
      */
-    LOCAL_FILES("local files", 1),
+    LOCAL_FILES("local files", 2),
 
     /** Tables compiled into CobbleDex itself (type chart, natures). Always correct. */
-    BUILT_IN("built-in", 2),
+    BUILT_IN("built-in", 3),
 
     /** Nothing supplied this data. */
-    UNAVAILABLE("unavailable", 3);
+    UNAVAILABLE("unavailable", 4);
 }
 
 object DataSourcePolicy {
     val precedence: List<DataSourceTier> = listOf(
         DataSourceTier.COBBLEMON,
+        DataSourceTier.SERVER_DATA,
         DataSourceTier.LOCAL_FILES,
         DataSourceTier.BUILT_IN,
         DataSourceTier.UNAVAILABLE
@@ -42,6 +49,8 @@ object DataSourcePolicy {
         return when {
             normalized in setOf("cobblemon", "runtime", "cobblemon-runtime", "live", "sync", "synced") ->
                 DataSourceTier.COBBLEMON
+            normalized in setOf("server", "server-data", "companion") ->
+                DataSourceTier.SERVER_DATA
             normalized in setOf("jar", "cache", "jar-cache", "mod", "datapack", "resource-pack", "local", "local-files") ->
                 DataSourceTier.LOCAL_FILES
             normalized in setOf("bundled", "builtin", "built-in", "default", "fallback") ->

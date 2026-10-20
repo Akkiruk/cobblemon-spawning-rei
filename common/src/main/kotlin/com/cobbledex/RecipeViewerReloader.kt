@@ -5,7 +5,9 @@ import com.cobbledex.platform.PlatformHelper
 /**
  * Ensures EMI and JEI have current CobbleDex data after the index rebuilds.
  *
- * REI uses DynamicDisplayGenerator - always reads live data, no reload needed.
+ * REI's recipe pages come from a DynamicDisplayGenerator and always read live data. Its *entry list* does
+ * not: the Pokémon are registered once per REI reload, so a reload that lands before the index is built
+ * leaves REI with none (see [stepRei]).
  *
  * EMI and JEI register recipes statically. When a rebuild lands after their initial registration,
  * their recipes are stale. This reloader:
@@ -127,6 +129,58 @@ object RecipeViewerReloader {
         scheduleReload()
     }
 
+    /** How many species the index held when REI last registered its Pokémon entries; -1 until it registers. */
+    @Volatile var reiRegisteredSpeciesCount = -1
+
+    private const val REI_MOD_ID = "roughlyenoughitems"
+    private const val REI_RELOAD_CLASS = "com.cobbledex.rei.ReiReload"
+    private const val REI_WAIT_TICKS = 20 * 30
+
+    /** The species count we last asked REI to reload for, and how long we have waited for it. */
+    private var reiAskedForCount = -1
+    private var reiWaitedTicks = 0
+
+    /** REI needs a reload when the index now holds a different set of species than REI registered. */
+    internal fun reiNeedsReload(registered: Int, current: Int): Boolean = current > 0 && registered != current
+
+    /**
+     * Brings REI's entry list up to date. Returns true once it is current, or when there is nothing to do
+     * (REI absent, EMI present - the REI plugin stays out of EMI's way - or the index not built yet).
+     */
+    private fun stepRei(): Boolean {
+        if (!PlatformHelper.isModLoaded(REI_MOD_ID) || PlatformHelper.isModLoaded("emi")) return true
+        val current = SpawnDataIndex.speciesInfo.size
+        if (!reiNeedsReload(reiRegisteredSpeciesCount, current)) {
+            reiAskedForCount = -1
+            reiWaitedTicks = 0
+            return true
+        }
+        // Bounded: REI busy, or not registering again, must not keep this going forever.
+        if (++reiWaitedTicks > REI_WAIT_TICKS) {
+            CobbleDexMod.LOGGER.warn("[CobbleDex] REI did not re-register after a reload request; leaving it as it is")
+            reiRegisteredSpeciesCount = current
+            reiAskedForCount = -1
+            reiWaitedTicks = 0
+            return true
+        }
+        if (reiAskedForCount == current) return false   // asked already; waiting for REI to register again
+
+        val started = try {
+            Class.forName(REI_RELOAD_CLASS).getMethod("reload").invoke(null) as? Boolean ?: true
+        } catch (e: Throwable) {
+            DebugLog.warn("REI reload failed: ${e.message}")
+            reiRegisteredSpeciesCount = current   // do not spin on a hard error
+            return true
+        }
+        if (started) {
+            reiAskedForCount = current
+            reiWaitedTicks = 0
+            DebugLog.info("REI registered $reiRegisteredSpeciesCount species but the index has $current - asked REI to reload")
+        }
+        // Not started: REI is mid-reload (its own reload can be what builds the index), so look again next tick.
+        return false
+    }
+
     /** Set by CobbleDexJEIPlugin's initial registration and by its incremental reload on completion. */
     @Volatile var jeiLastRegisteredVersion: Long = -1L
 
@@ -163,6 +217,7 @@ object RecipeViewerReloader {
 
         // JEI reports its own progress, so it's driven every tick regardless of EMI's backoff timer.
         val jeiDone = stepJei(targetDataVersion)
+        val reiDone = stepRei()
 
         if (ticksUntilCheck > 0) {
             ticksUntilCheck--
@@ -190,7 +245,7 @@ object RecipeViewerReloader {
             }
         }
 
-        if (jeiDone && !emi.isStale) {
+        if (jeiDone && reiDone && !emi.isStale) {
             active = false
             DebugLog.info("Recipe viewers verified current (dataVersion=$targetDataVersion)")
         }
@@ -235,5 +290,8 @@ object RecipeViewerReloader {
         targetDataVersion = -1L
         emi.lastRegisteredVersion = -1L
         jeiLastRegisteredVersion = -1L
+        reiRegisteredSpeciesCount = -1
+        reiAskedForCount = -1
+        reiWaitedTicks = 0
     }
 }
