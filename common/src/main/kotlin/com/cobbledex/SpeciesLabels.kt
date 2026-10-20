@@ -12,7 +12,7 @@ val RARITY_LABELS = setOf("legendary", "mythical", "ultra_beast", "paradox")
  * The four vanilla regional-variant tags, keyed however a caller already has the form (its
  * Cobblemon `labels` set, which uses the `_form` suffix, or its `aspects` set, which doesn't).
  * Cobblemon's `FormData.labels` can drift from the correct value at runtime for reasons outside
- * any mod's own JSON (see [EvolutionDataLoader.REGIONAL_ASPECT_TO_SUFFIX]'s Farfetch'd note), so a
+ * any mod's own JSON (see [FormKeys]'s Farfetch'd note), so a
  * caller that has both should check aspects first.
  */
 object RegionalForms {

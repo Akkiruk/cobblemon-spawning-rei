@@ -1274,49 +1274,11 @@ object JarDataCache {
         return JarMoveData(levelUp, egg, tutor, tm)
     }
 
-    // Mirrors EvolutionDataLoader.buildFormEntryKey's scheme exactly (underscore-
-    // joined, regional forms suffixed with no separator) so a form's evolution
-    // ends up keyed identically whether it was read from Cobblemon's live API
-    // or from this raw-JSON fallback. The two used to diverge - this path
-    // joined "$name ${aspects...}" with a SPACE, which normalizeMapKeys' key
-    // normalizer (SpeciesNameNormalizer.normalize) then stripped entirely
-    // (space isn't a permitted character) instead of turning into a separator,
-    // collapsing e.g. "fomantis lunar" into "fomantislunar" - a key that
-    // matched nothing else in the pipeline, silently breaking that form's own
-    // evolution lookup and leaving a phantom, data-less duplicate species key.
-    private val REGIONAL_LABEL_TO_SUFFIX = mapOf(
-        "alolan_form" to "alolan",
-        "galarian_form" to "galarian",
-        "hisuian_form" to "hisuian",
-        "paldean_form" to "paldean"
-    )
-
-    // Mirrors EvolutionDataLoader.REGIONAL_ASPECT_TO_SUFFIX - falls back to
-    // the form's aspect when its labels don't carry a recognized regional
-    // marker, in case a mod's own JSON omits/misdeclares "labels" the way
-    // Cobblemon's runtime FormData was found to for Farfetch'd Galar
-    // (aspect stayed correct even when the runtime label didn't).
-    private val REGIONAL_ASPECT_TO_SUFFIX = mapOf(
-        "alolan" to "alolan",
-        "galarian" to "galarian",
-        "hisuian" to "hisuian",
-        "paldean" to "paldean"
-    )
-
+    // Same key scheme as the live registry path, from one shared builder (see FormKeys), so a form's
+    // evolutions and moves are filed under the identical key whichever source supplied them.
     private fun buildJsonFormEntryKey(name: String, form: JsonObject): String {
-        val labels = form.optStringArray("labels")
-        val regionalLabel = labels.firstOrNull { it in REGIONAL_LABEL_TO_SUFFIX }
-        val regionalSuffix = if (regionalLabel != null) {
-            REGIONAL_LABEL_TO_SUFFIX[regionalLabel]
-        } else {
-            form.optStringArray("aspects").map { it.lowercase() }.firstNotNullOfOrNull { REGIONAL_ASPECT_TO_SUFFIX[it] }
-        }
-        if (regionalSuffix != null) {
-            return "${SpeciesNameNormalizer.normalize(name)}$regionalSuffix"
-        }
-        val formName = form.optString("name")?.lowercase()?.replace(Regex("[^a-z0-9]"), "")
-        if (formName.isNullOrBlank()) return name
-        return "${SpeciesNameNormalizer.normalize(name)}_$formName"
+        if (form.optString("name").isNullOrBlank()) return name
+        return FormKeys.build(name, form.optString("name"), form.optStringArray("labels"), form.optStringArray("aspects"))
     }
 
     private fun parseEvolutionFromJson(fromSpecies: String, fromAspects: Set<String>?, evo: JsonObject): EvolutionInfo? {

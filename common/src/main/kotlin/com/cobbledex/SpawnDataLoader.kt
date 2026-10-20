@@ -90,15 +90,31 @@ object SpawnDataLoader {
         }
     }
 
+    /**
+     * A spawn entry can pick a variant through a species feature instead of a form or aspect:
+     * `"vivillon vivillon_wings=ocean"`, `"cherrim blossom_form=sunshine"`, `"zygarde percent_cells=10"`.
+     * Cobblemon keeps those as custom properties, so reading only `form` and `aspects` left every
+     * Vivillon spawn without its pattern. They are returned as the same `key=value` tokens the
+     * local-file spawn reader produces, so both sources describe a variant identically.
+     */
+    private fun featureTokens(pokemon: com.cobblemon.mod.common.api.pokemon.PokemonProperties): String =
+        Reflect.call<List<*>>(pokemon, "getCustomProperties").orEmpty()
+            .mapNotNull { property -> property?.let { Reflect.call<String>(it, "asString") } }
+            .filter { it.isNotBlank() }
+            .joinToString(" ")
+
     private fun extractSpawnInfo(detail: PokemonSpawnDetail, species: String): SpawnInfo {
         val pokemon = detail.pokemon
         val form = pokemon.form
         val aspects = pokemon.aspects?.joinToString(" ") ?: ""
-        val formAspects = when {
-            form != null && form.isNotBlank() && !form.equals("Normal", ignoreCase = true) -> form
-            aspects.isNotBlank() -> aspects
-            else -> ""
-        }
+        val formAspects = listOf(
+            when {
+                form != null && form.isNotBlank() && !form.equals("Normal", ignoreCase = true) -> form
+                aspects.isNotBlank() -> aspects
+                else -> ""
+            },
+            featureTokens(pokemon),
+        ).filter { it.isNotBlank() }.joinToString(" ")
 
         val bucket = extractBucketName(detail)
         val levelRange = detail.levelRange?.let { "${it.first}-${it.last}" } ?: "1-100"

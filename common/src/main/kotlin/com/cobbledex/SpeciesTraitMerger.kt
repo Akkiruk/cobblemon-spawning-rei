@@ -56,10 +56,13 @@ object SpeciesTraitMerger {
      * siblings) is safe to treat as "Cobblemon never synced this" and fill from local files.
      * Defaults to [DataAvailability.isLocalWorld]'s negation - true after a network sync (where
      * that's guaranteed), false in singleplayer/LAN (where it's merely usually true).
+     * @param tmEggSynced Whether Cobblemon sent real TM/egg lists (see [CobblemonSync]); if so, a
+     * form is never topped up from its base species' local move file.
      */
     fun fillGaps(
         runtime: Map<String, SpeciesBasicInfo>,
         trustSentinelDefaults: Boolean = !DataAvailability.isLocalWorld(),
+        tmEggSynced: Boolean = CobblemonSync.tmEggSynced(),
     ): Result {
         if (runtime.isEmpty()) return Result(runtime, 0, 0)
 
@@ -78,7 +81,10 @@ object SpeciesTraitMerger {
         for ((key, info) in runtime) {
             val baseKey = info.baseSpeciesName?.let { SpeciesNameNormalizer.normalize(it) } ?: key
             val localTraits = formTraits[key] ?: traits[baseKey]
-            val localMoves = formMoves[key] ?: moves[baseKey]
+            // Once a form's own TM/egg lists are synced, the base species' file describes a different
+            // Pokémon, so it must not top up a form that Cobblemon already described.
+            val localMoves = formMoves[key]
+                ?: moves[baseKey]?.takeIf { CobblemonSync.formUsesBaseSpeciesLocalMoves(tmEggSynced, info.isForm) }
 
             if (localTraits == null && localMoves == null) {
                 merged[key] = info

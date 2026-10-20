@@ -2,6 +2,25 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.31.2] - 2026-10-20
+
+TM and egg moves and evolutions for things that only exist on a server, plus a batch of form fixes.
+
+### Added
+- TM and egg moves for forms and for Pokémon the server added, on Cobblemon 1.8 and newer. Forms on a server used to show their base species' lists, and added Pokémon showed none.
+- Evolutions for Pokémon the server added, on Cobblemon 1.8.2 and newer. The requirements read the way Cobblemon words them.
+- The overview page says tutor moves are unknown when you're on a server. Cobblemon never sends them, so an empty list doesn't mean the Pokémon learns none.
+- `/cobbledex stats` tells you whether TM/egg moves and the evolution info came from the server.
+
+### Fixed
+- Forms that are two things at once overwrote each other. Alolan Mega Marowak replaced Alolan Marowak, and the same thing happened with the Hisuian Typhlosion and Zoroark Megas, Galarian Darmanitan and its Zen mode, and the three Paldean Tauros breeds. Each has its own entry now.
+- Unown's ! and ? forms were treated as one form.
+- Type: Null couldn't be found. The colon in its name was read as a mod prefix, so its spawns and Resurrection Machine recipe never attached to it.
+- Zygarde's 10% and 50% forms showed "Format error: cobblemon.ui..." where the name should be. Any form with a % in its name did that.
+- Cherrim's Sunshine form had no entry because its stats match the base form. A form with an aspect of its own gets an entry now.
+- Costume forms with a number on the end (costume2, costume3) were listed as real forms.
+- When hosting a world yourself, spawns that pick their variant through a feature, like Vivillon's wing patterns, lost the variant. A plain on/off variant showed as "True" instead of its name.
+
 ## [2.29.0] - 2026-10-06
 
 EMI and JEI+EMI support pass: tooltips, duplicate entries, favorites, and a round of reliability

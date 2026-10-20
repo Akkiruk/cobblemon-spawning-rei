@@ -38,9 +38,6 @@ data class SpawnInfo(
     /** Present when this entry came from a habitat spawn pool (1.8.0+). */
     val habitat: HabitatContext? = null,
 ) {
-    val hasFormVariant: Boolean
-        get() = formAspects.isNotBlank()
-
     val displayContext: String
         get() = when (context.lowercase()) {
             "grounded" -> tr("cobbledex-rei-emi-jei.context.land")
@@ -404,8 +401,10 @@ fun formatAspect(aspect: String): String {
     if (lower.contains("=")) {
         val key = lower.substringBefore("=").trim()
         val value = lower.substringAfter("=").trim()
-        return when (key) {
-            "region_bias" -> regionFormName(value)
+        return when {
+            key == "region_bias" -> regionFormName(value)
+            // A flag feature ("candle-pot=true") names the variant by its key; "True" would say nothing.
+            value == "true" -> titleCase(key)
             else -> titleCase(value)
         }
     }

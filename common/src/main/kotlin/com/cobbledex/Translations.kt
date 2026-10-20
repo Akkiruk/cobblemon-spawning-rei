@@ -9,8 +9,18 @@ fun tr(key: String, vararg args: Any): String = try {
 } catch (_: NoClassDefFoundError) { key }
 
 private object ClientI18n {
+    /**
+     * A key with no translation comes back as the key itself, untouched. Minecraft's own lookup would
+     * run that missing key through `String.format`, so a key built from a form name like Zygarde's
+     * "10%" returns "Format error: ..." - which no caller's "did it translate?" check
+     * (`tr(key) == key`) recognises as untranslated, and it ended up shown as the form's name.
+     */
     fun get(key: String, vararg args: Any): String =
-        net.minecraft.client.resources.language.I18n.get(key, *args)
+        if (net.minecraft.client.resources.language.I18n.exists(key)) {
+            net.minecraft.client.resources.language.I18n.get(key, *args)
+        } else {
+            key
+        }
 }
 
 // --- Shared text producers (single source of truth for measurement + rendering) ---

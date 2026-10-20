@@ -143,6 +143,8 @@ data class EvolutionRequirement(
 
     val displayText: String
         get() = when (variant) {
+            // Requirement text Cobblemon already rendered for us (its evolution display sync, 1.8.2+).
+            "display" -> data["text"]?.toString().orEmpty()
             "level" -> {
                 val min = (data["minLevel"] as? Number)?.toInt()
                 if (min != null && min > 0) tr("cobbledex-rei-emi-jei.evo.level_min", min) else tr("cobbledex-rei-emi-jei.evo.level_up")

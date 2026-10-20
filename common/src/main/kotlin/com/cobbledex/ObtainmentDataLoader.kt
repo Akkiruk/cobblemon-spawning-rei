@@ -248,7 +248,7 @@ object ObtainmentDataLoader {
 
             resurrection("mewtwo", "lumymon:ancient_dna", "cobblemon:resurrection_machine",
                 "cobbledex-rei-emi-jei.bundled.mewtwo"),
-            resurrection("type_null", "lumymon:fossilized_helmet", "cobblemon:resurrection_machine",
+            resurrection("typenull", "lumymon:fossilized_helmet", "cobblemon:resurrection_machine",
                 "cobbledex-rei-emi-jei.bundled.type_null"),
 
             transformation("lugia", "lumymon:shadow_soul_stone", null,

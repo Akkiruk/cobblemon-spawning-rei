@@ -25,6 +25,7 @@
   "cobbledex-rei-emi-jei.overview.riding": "Riding",
   "cobbledex-rei-emi-jei.overview.jobs": "Jobs",
   "cobbledex-rei-emi-jei.overview.none": "No data",
+  "cobbledex-rei-emi-jei.overview.tutor_unknown": "tutor moves unknown on servers",
   "cobbledex-rei-emi-jei.overview.source": "Source: %s",
   "cobbledex-rei-emi-jei.overview.form_note": "Form of %1$s; surfaced because of %2$s",
 

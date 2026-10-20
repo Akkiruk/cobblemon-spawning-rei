@@ -27,7 +27,7 @@ object SpeciesNameNormalizer {
         "jangmoo" to "jangmo-o",
         "hakamoo" to "hakamo-o",
         "kommoo" to "kommo-o",
-        "type_null" to "type: null",
+        "typenull" to "type: null",
         "tapukoko" to "tapu koko",
         "tapulele" to "tapu lele",
         "tapubulu" to "tapu bulu",
@@ -66,6 +66,9 @@ object SpeciesNameNormalizer {
      * Used for all map keys and lookups.
      */
     fun normalize(name: String): String {
+        // A known display name is matched whole, before any prefix stripping: "Type: Null" has a colon
+        // but is not "<namespace>:<path>", and stripping it as one left "null" - a key nothing uses.
+        DISPLAY_TO_CANONICAL[name.lowercase().trim()]?.let { return it }
         // Strip namespace prefix (e.g. "cobblemon:charizard" -> "charizard")
         val stripped = if (name.contains(':')) name.substringAfter(':') else name
         val lower = stripped.lowercase()

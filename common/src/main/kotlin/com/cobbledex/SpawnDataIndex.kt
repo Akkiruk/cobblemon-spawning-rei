@@ -454,44 +454,60 @@ object SpawnDataIndex {
             normalizeMapKeys(JarDataCache.getCachedEvolutions())
         } else emptyMap()
 
-        if (runtime.isEmpty() && local.isEmpty()) {
+        // Cobblemon 1.8.2+ also syncs a display-only edge list that covers server-only species and
+        // forms - the weakest source (tooltip text, no structure), so it only fills what is missing.
+        val synced = if (speciesCount > 0) normalizeMapKeys(EvolutionDataLoader.loadFromSyncedDisplays()) else emptyMap()
+
+        if (runtime.isEmpty() && local.isEmpty() && synced.isEmpty()) {
             evolutionsBySpecies = emptyMap()
             evolutionSourceTier = DataSourceTier.UNAVAILABLE
             return
         }
 
-        if (runtime.isEmpty()) {
-            DebugLog.info("Evolutions from local files (${local.size} species) - Cobblemon's species sync omits them")
-            evolutionsBySpecies = local
-            evolutionSourceTier = DataSourceTier.LOCAL_FILES
-            return
-        }
+        // Runtime data is kept as-is and local files add any edge it is missing. Cobblemon's
+        // client-side FormData for a species_additions-nested form routinely exposes no evolutions
+        // even when the JSON defines a real one (confirmed via /cobbledex evo: Form Funfair's
+        // Roggenrola/Boldore "Overgrown" forms define level_up/trade evolutions that never reached
+        // the runtime API). With no runtime data (a dedicated server) the local files stand alone.
+        val merged = (if (runtime.isNotEmpty()) runtime else local)
+            .mapValues { it.value.toMutableList() }.toMutableMap()
+        val fromLocal = if (runtime.isNotEmpty()) mergeMissingEdges(merged, local) else 0
+        val fromSynced = mergeMissingEdges(merged, synced)
 
-        // Runtime had data: keep it and add any edge local files know about that it is missing.
-        // Cobblemon's client-side FormData for a species_additions-nested form routinely exposes
-        // no evolutions even when the JSON defines a real one (confirmed via /cobbledex evo:
-        // Form Funfair's Roggenrola/Boldore "Overgrown" forms define level_up/trade evolutions
-        // that never reached the runtime API).
-        val merged = runtime.mapValues { it.value.toMutableList() }.toMutableMap()
+        evolutionsBySpecies = merged
+        evolutionSourceTier = if (runtime.isNotEmpty() || local.isEmpty()) DataSourceTier.COBBLEMON
+            else DataSourceTier.LOCAL_FILES
+        if (runtime.isEmpty() && local.isNotEmpty()) {
+            DebugLog.info("Evolutions from local files (${local.size} species) - Cobblemon's species sync omits them")
+        }
+        if (fromLocal > 0) {
+            DebugLog.info("Merged $fromLocal evolution edges from local files that Cobblemon's runtime didn't expose")
+        }
+        if (fromSynced > 0) {
+            DebugLog.info("Added $fromSynced evolution edges from Cobblemon's evolution display sync")
+        }
+    }
+
+    /** Adds each edge of [extra] that [into] doesn't already have (same source aspects and target). */
+    private fun mergeMissingEdges(
+        into: MutableMap<String, MutableList<EvolutionInfo>>,
+        extra: Map<String, List<EvolutionInfo>>,
+    ): Int {
         var added = 0
-        for ((key, localEvos) in local) {
-            val existing = merged[key].orEmpty()
-            for (evo in localEvos) {
+        for ((key, edges) in extra) {
+            val existing = into[key].orEmpty()
+            for (edge in edges) {
                 val alreadyPresent = existing.any {
-                    it.fromAspects == evo.fromAspects &&
-                        SpeciesNameNormalizer.normalize(it.toSpecies) == SpeciesNameNormalizer.normalize(evo.toSpecies)
+                    it.fromAspects == edge.fromAspects &&
+                        SpeciesNameNormalizer.normalize(it.toSpecies) == SpeciesNameNormalizer.normalize(edge.toSpecies)
                 }
                 if (!alreadyPresent) {
-                    merged.getOrPut(key) { mutableListOf() }.add(evo)
+                    into.getOrPut(key) { mutableListOf() }.add(edge)
                     added++
                 }
             }
         }
-        evolutionsBySpecies = merged
-        evolutionSourceTier = DataSourceTier.COBBLEMON
-        if (added > 0) {
-            DebugLog.info("Merged $added evolution edges from local files that Cobblemon's runtime didn't expose")
-        }
+        return added
     }
 
     /** Special obtainment methods, defined by addon mods and datapacks - never a Cobblemon concept. */

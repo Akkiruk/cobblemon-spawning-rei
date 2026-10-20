@@ -27,7 +27,7 @@ object RidingDataLoader {
 
             for (form in forms) {
                 if (!shouldIncludeForm(form, baseForm)) continue
-                val formKey = buildFormEntryKey(baseName, form)
+                val formKey = FormKeys.build(baseName, form.name, form.labels, form.aspects)
                 buildRidingInfo(formKey, form)?.let { result[formKey] = it }
             }
         }
@@ -133,23 +133,5 @@ object RidingDataLoader {
                 form.primaryType != baseForm?.primaryType ||
                 form.secondaryType != baseForm?.secondaryType
             )
-    }
-
-    private fun buildFormEntryKey(baseName: String, form: com.cobblemon.mod.common.pokemon.FormData): String {
-        val regionalLabel = form.labels.firstOrNull {
-            it == "alolan_form" || it == "galarian_form" || it == "hisuian_form" || it == "paldean_form"
-        }
-        if (regionalLabel != null) {
-            val suffix = when (regionalLabel) {
-                "alolan_form" -> "alolan"
-                "galarian_form" -> "galarian"
-                "hisuian_form" -> "hisuian"
-                else -> "paldean"
-            }
-            return "${SpeciesNameNormalizer.normalize(baseName)}$suffix"
-        }
-
-        val normalizedFormName = form.name.lowercase().replace(Regex("[^a-z0-9]"), "")
-        return "${SpeciesNameNormalizer.normalize(baseName)}_$normalizedFormName"
     }
 }

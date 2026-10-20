@@ -47,6 +47,8 @@ object DiagnosticService {
         sender.send(DataAvailability.describe("Obtainment", index.obtainmentSourceTier))
         sender.send(DataAvailability.describe("Fossils", index.fossilSourceTier))
         sender.send(DataAvailability.describe("Riding", index.ridingSourceTier))
+        sender.send("§7TM/egg moves: §f" + if (CobblemonSync.tmEggSynced()) "synced by Cobblemon" else "not synced (Cobblemon 1.7 or older, or an empty server registry)")
+        sender.send("§7Evolution display sync: §f" + if (CobblemonSync.evolutionDisplaysSynced) "available (Cobblemon 1.8.2+)" else "not available (needs Cobblemon 1.8.2+)")
 
         sender.send(tr("cobbledex-rei-emi-jei.cmd.dump_hint"))
 
@@ -81,8 +83,8 @@ object DiagnosticService {
         val queries = SpawnDataIndex.currentQueries()
         for (form in forms) {
             val isStandard = form === standardForm
-            val included = try { EvolutionDataLoader.shouldIncludeForm(species, form, standardForm) } catch (e: Exception) { "ERROR: ${e.message}" }
-            val formKey = try { EvolutionDataLoader.buildFormEntryKey(species.name.lowercase(), form, species) } catch (e: Exception) { "ERROR: ${e.message}" }
+            val included = try { EvolutionDataLoader.shouldIncludeForm(form, standardForm) } catch (e: Exception) { "ERROR: ${e.message}" }
+            val formKey = try { EvolutionDataLoader.buildFormEntryKey(species.name.lowercase(), form) } catch (e: Exception) { "ERROR: ${e.message}" }
             val inSpeciesInfo = SpawnDataIndex.speciesInfo.containsKey(formKey)
             val surfaced = try { queries.shouldSurfaceSpecies(formKey) } catch (e: Exception) { "ERROR: ${e.message}" }
             sender.send("  §fname=\"${form.name}\" aspects=${form.aspects} labels=${form.labels} isStandard=$isStandard")
@@ -193,7 +195,7 @@ object DiagnosticService {
                 sender.send("  §f  ${forms.size} forms")
                 for (form in forms) {
                     val fEvos = try { form.evolutions } catch (_: Exception) { emptyList() }
-                    val computedKey = EvolutionDataLoader.buildFormEntryKey(prefix, form, sp)
+                    val computedKey = EvolutionDataLoader.buildFormEntryKey(prefix, form)
                     val lvlCount = try { form.moves.levelUpMoves.values.sumOf { it.size } } catch (_: Exception) { -1 }
                     val eggCount = try { form.moves.eggMoves.size } catch (_: Exception) { -1 }
                     val tutorCount = try { form.moves.tutorMoves.size } catch (_: Exception) { -1 }
