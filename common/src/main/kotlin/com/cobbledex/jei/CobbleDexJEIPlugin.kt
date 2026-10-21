@@ -282,6 +282,8 @@ open class CobbleDexJEIPlugin : IModPlugin {
     override fun registerExtraIngredients(registration: IExtraIngredientRegistration) {
         if (emiPresent) return
         SpawnDataIndex.ensureLoaded()
+        // Cobblemon 1.8.2+ already lists every TM in its creative tab; adding ours would show each twice.
+        if (TmDiscStacks.cobblemonHasTmCreativeTab()) return
         val discs = TmDiscStacks.all()
         if (discs.isEmpty()) return
         registration.addExtraItemStacks(discs.map { it.stack })

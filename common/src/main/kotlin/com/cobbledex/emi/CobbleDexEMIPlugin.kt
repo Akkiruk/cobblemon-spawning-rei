@@ -132,9 +132,12 @@ open class CobbleDexEMIPlugin : EmiPlugin {
 
         // One browsable disc per native TM, searchable by move / type / `tm:` token.
         val tmDiscs = com.cobbledex.TmDiscStacks.all()
+        // Cobblemon 1.8.2+ lists every TM in its creative tab already; adding ours would show each twice.
+        // The aliases still attach, since an equal stack is the same entry.
+        val tabHasTms = com.cobbledex.TmDiscStacks.cobblemonHasTmCreativeTab()
         for (entry in tmDiscs) {
             val stack = EmiStack.of(entry.stack)
-            registry.addEmiStack(stack)
+            if (!tabHasTms) registry.addEmiStack(stack)
             val aliases = DiscoveryAliases.moveAliases(entry.moveName)
             if (aliases.isNotEmpty()) registry.addAlias(stack, Component.literal(aliases.joinToString(" ")))
         }

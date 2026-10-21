@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.32.1] - 2026-10-21
+
+### Fixed
+- With Cobblemon 1.8.2, every TM showed up twice in EMI and JEI, once from Cobblemon's new Technical Machines tab and once from CobbleDex. Each TM now appears once and still opens its recipe page.
+
 ## [2.32.0] - 2026-10-20
 
 Servers can now install CobbleDex themselves, so players see the server's spawns, tutor moves and evolutions without having its datapacks.

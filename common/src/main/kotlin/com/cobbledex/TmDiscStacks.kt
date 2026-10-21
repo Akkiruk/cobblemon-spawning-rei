@@ -76,6 +76,11 @@ object TmDiscStacks {
         return TmItemUtils.extractMoveFromStack(stack)
     }
 
+    /** Cobblemon 1.8.2+ lists every TM in its own creative tab, so viewers already have them. */
+    fun cobblemonHasTmCreativeTab(): Boolean = try {
+        BuiltInRegistries.CREATIVE_MODE_TAB.containsKey(ResourceLocation.parse("cobblemon:tm_item"))
+    } catch (_: Throwable) { false }
+
     fun isTmDiscItem(item: net.minecraft.world.item.Item): Boolean =
         BuiltInRegistries.ITEM.getKey(item)?.toString() == TmItemUtils.NATIVE_TM_ID
 }
