@@ -5,7 +5,7 @@ All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 ## [2.32.3] - 2026-10-23
 
 ### Fixed
-- Moves a Pokémon learns when it evolves, like Charmeleon's Wing Attack and Air Slash on becoming Charizard, were missing everywhere. They now show on the evolved Pokémon's Moves page as "Evo", in the "who can learn this move" lists, and in the export as an Evolution learn method.
+- Moves a Pokémon learns by evolving weren't showing up anywhere. Hakamo-o's Clanging Scales on becoming Kommo-o is one example, and a lot of Cobblemon's own evolutions work this way too. They now appear on the evolved Pokémon's moves list as "Evo", count in the "who can learn this move" lists, and are exported as an Evolution move.
 
 ## [2.32.2] - 2026-10-23
 
