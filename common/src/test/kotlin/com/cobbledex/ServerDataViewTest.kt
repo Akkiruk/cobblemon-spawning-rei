@@ -100,6 +100,19 @@ class ServerDataViewTest {
     }
 
     @Test
+    fun legacyMovesInASpeciesFileAreKeptNotDropped() {
+        val overlay = serverOverlay()
+        val species = mapOf("pack:species/legacymon.json" to json("""{"name":"Legacymon","moves":["1:tackle","legacy:toxic","legacy:swagger","tm:rest"]}"""))
+        ServerDataView.set(ServerOverlay(overlay.hash, overlay.categories + ("species" to species), overlay.serverMods, overlay.origins))
+        JarDataCache.rebuildWith(roots())
+        JarDataCache.rebuildForDataView()
+
+        val moves = JarDataCache.getCachedMoves()["legacymon"]
+        assertEquals(listOf("toxic", "swagger"), moves?.legacy)
+        assertEquals(listOf("rest"), moves?.tm)
+    }
+
+    @Test
     fun onlyModsTheServerConfirmedKeepTheirLocalFiles() {
         JarDataCache.rebuildWith(roots())
         ServerDataView.set(serverOverlay())

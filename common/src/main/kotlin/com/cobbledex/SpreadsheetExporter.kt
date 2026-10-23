@@ -65,6 +65,23 @@ object SpreadsheetExporter {
         return "$formatted%"
     }
 
+    /** National dex number of a species key for sorting; species without one go last. */
+    private fun dexOf(key: String): Int =
+        SpawnDataIndex.speciesInfo[key]?.nationalDexNumber?.takeIf { it > 0 } ?: Int.MAX_VALUE
+
+    private fun dexCell(key: String): String =
+        dexOf(key).takeIf { it != Int.MAX_VALUE }?.toString() ?: ""
+
+    /** Cobblemon's own move name when the language file has it ("Will-O-Wisp"), else the id title-cased. */
+    private fun moveName(id: String): String {
+        val key = "cobblemon.move.${id.lowercase()}"
+        val translated = tr(key)
+        return if (translated != key) translated else titleCase(id.replace("_", " "))
+    }
+
+    private fun <T> Map<String, T>.byDex(): List<Map.Entry<String, T>> =
+        entries.sortedWith(compareBy({ dexOf(it.key) }, { it.key }))
+
     fun export(sender: DiagnosticService.MessageSender): Int {
         if (activeExport != null) {
             sender.send("§eCobbleDex export is already running.")
@@ -178,15 +195,20 @@ object SpreadsheetExporter {
         val sheets = mutableListOf<SheetData>()
         buildSpeciesOverview(index)?.let { sheets.add(it) }
         buildSpawnData(index)?.let { sheets.add(it) }
+        buildHerds(index)?.let { sheets.add(it) }
         buildEvolutionData(index)?.let { sheets.add(it) }
         buildItemDrops(index)?.let { sheets.add(it) }
         buildMovesets(index)?.let { sheets.add(it) }
-        buildLevelUpMoves(index)?.let { sheets.add(it) }
+        buildMoveReference(index)?.let { sheets.add(it) }
+        buildAbilityReference(index)?.let { sheets.add(it) }
+        buildTmRecipes(index)?.let { sheets.add(it) }
         buildObtainmentData(index)?.let { sheets.add(it) }
         buildFossilData(index)?.let { sheets.add(it) }
-        buildAbilities(index)?.let { sheets.add(it) }
         buildRidingData(index)?.let { sheets.add(it) }
+        sheets.add(buildNatures())
+        buildMarks(index)?.let { sheets.add(it) }
         buildTypeChart()?.let { sheets.add(it) }
+        sheets.add(0, buildAbout(index, sheets.map { it.name } + "About"))
 
         val iconKeys = sheets
             .asSequence()
@@ -213,6 +235,7 @@ object SpreadsheetExporter {
         thread(name = "CobbleDex Spreadsheet Export", isDaemon = true) {
             try {
                 writeXlsx(export.filePath, export.sheets, iconRegistry)
+                writeJson(jsonPathFor(export.filePath), export.sheets)
                 DebugLog.info(
                     "Icon capture complete: ${iconRegistry.pngByKey.size} succeeded, " +
                         "${export.failures} failed out of ${export.iconKeys.size} unique keys"
@@ -229,6 +252,7 @@ object SpreadsheetExporter {
         IconCapture.cleanup()
         export.sender.send(tr("cobbledex-rei-emi-jei.cmd.export_done", result.sheetNames.size, result.speciesCount))
         export.sender.send("§7${result.filePath.toAbsolutePath()}")
+        export.sender.send("§7${jsonPathFor(result.filePath).toAbsolutePath()}")
         for (name in result.sheetNames) export.sender.send("§7  • $name")
     }
 
@@ -303,14 +327,11 @@ object SpreadsheetExporter {
             "EXP Group", "Base EXP Yield", "Base Friendship",
             "EV HP", "EV Atk", "EV Def", "EV SpA", "EV SpD", "EV Spe",
             "Has Spawns", "Has Drops", "Has Evolutions",
-            "Labels", "Shoulder Mountable"
+            "Labels", "Shoulder Mountable",
+            "Pre-Evolution", "Aspects", "Added By", "Pokedex Description"
         ))
 
-        val sorted = species.entries.sortedWith(
-            compareBy({ it.value.nationalDexNumber.let { d -> if (d > 0) d else Int.MAX_VALUE } }, { it.key })
-        )
-
-        for ((key, info) in sorted) {
+        for ((key, info) in species.byDex()) {
             val stats = info.baseStats
             val evs = info.evYield
             val abilities = info.abilities ?: emptyList()
@@ -333,14 +354,14 @@ object SpreadsheetExporter {
                 stats?.get("spe")?.toString() ?: "",
                 info.baseStatTotal?.toString() ?: "",
                 info.catchRate.toString(),
-                "%.1f".format(info.height),
-                "%.1f".format(info.weight),
+                "%.1f".format(info.height / 10f),
+                "%.1f".format(info.weight / 10f),
                 abilities.getOrElse(0) { "" }.let { if (it.isNotEmpty()) formatAbilityName(it) else "" },
                 abilities.getOrElse(1) { "" }.let { if (it.isNotEmpty()) formatAbilityName(it) else "" },
                 info.hiddenAbility?.let { formatAbilityName(it) } ?: "",
                 eggGroups.getOrElse(0) { "" }.let { if (it.isNotEmpty()) formatEggGroupName(it) else "" },
                 eggGroups.getOrElse(1) { "" }.let { if (it.isNotEmpty()) formatEggGroupName(it) else "" },
-                info.maleRatio?.let { "%.1f%%".format(it * 100) } ?: "",
+                info.maleRatio?.let { if (it < 0f) "Genderless" else "%.1f%%".format(it * 100) } ?: "",
                 info.eggCycles?.toString() ?: "",
                 info.experienceGroup?.let { formatExpGroup(it) } ?: "",
                 info.baseExperienceYield?.toString() ?: "",
@@ -355,7 +376,11 @@ object SpreadsheetExporter {
                 if (info.drops?.isNotEmpty() == true) "Yes" else "No",
                 if (index.evolutionsBySpecies.containsKey(key)) "Yes" else "No",
                 info.labels?.joinToString("; ") { titleCase(it) } ?: "",
-                if (info.shoulderMountable) "Yes" else "No"
+                if (info.shoulderMountable) "Yes" else "No",
+                info.preEvolution?.let { pokemon(it) } ?: "",
+                info.formAspects.joinToString("; ") { formatAspect(it) },
+                info.source?.let { titleCase(it) } ?: "",
+                info.description?.replace(Regex("\\s+"), " ")?.trim() ?: ""
             ))
         }
 
@@ -370,7 +395,7 @@ object SpreadsheetExporter {
         val icons = mutableListOf<CellIcon>()
 
         rows.add(listOf(
-            "", "Pokemon", "Form", "Bucket", "Spawn Weight",
+            "", "Dex #", "Pokemon", "Form", "Bucket", "Spawn Weight",
             "Level Range", "Context",
             "Biomes", "Time", "Weather",
             "Dimensions", "Structures",
@@ -379,10 +404,12 @@ object SpreadsheetExporter {
             "Min Y", "Max Y",
             "Nearby Blocks", "Base Blocks",
             "Moon Phase", "Presets",
-            "Fluid", "Weight Multipliers", "Min Lure Level"
+            "Fluid", "Weight Multipliers", "Min Lure Level",
+            "Excluded Conditions", "Poke Snack Only", "Slime Chunk Only",
+            "Habitat", "Herd", "Warnings", "Spawn ID"
         ))
 
-        for ((_, spawnList) in spawns.entries.sortedBy { it.key }) {
+        for ((speciesKey, spawnList) in spawns.byDex()) {
             for (spawn in spawnList) {
                 val weatherText = buildString {
                     spawn.weather.isRaining?.let { append(if (it) "Rain" else "No Rain") }
@@ -399,6 +426,7 @@ object SpreadsheetExporter {
                 icons.add(CellIcon(spawn.pokemon, rows.size, 0))
                 rows.add(listOf(
                     "",
+                    dexCell(speciesKey),
                     pokemon(spawn.pokemon),
                     if (spawn.formAspects.isNotBlank()) SpawnDisplayHelper.formatFormAspects(spawn.formAspects) else "",
                     titleCase(spawn.bucket),
@@ -423,12 +451,37 @@ object SpreadsheetExporter {
                     spawn.presets.joinToString("; ") { titleCase(it) },
                     spawn.fluid?.let { formatId(it) } ?: "",
                     multipliers,
-                    spawn.minLureLevel?.toString() ?: ""
+                    spawn.minLureLevel?.toString() ?: "",
+                    excludedConditions(spawn.anticondition),
+                    if (spawn.isPokeSnack == true) "Yes" else "",
+                    if (spawn.isSlimeChunk == true) "Yes" else "",
+                    spawn.habitat?.habitatName ?: "",
+                    spawn.herd?.let { herd -> "${herd.members.joinToString(", ") { pokemon(it.species) }} (max ${herd.maxHerdSize})" } ?: "",
+                    spawn.conditionWarnings.joinToString("; "),
+                    spawn.id
                 ))
             }
         }
 
         return SheetData("Spawn Data", rows, icons)
+    }
+
+    /** One cell describing everything a spawn must NOT meet, e.g. `Biomes: Desert; Raining`. */
+    private fun excludedConditions(anti: SpawnAntiCondition?): String {
+        if (anti == null || anti.isEmpty) return ""
+        val parts = mutableListOf<String>()
+        if (anti.biomes.isNotEmpty()) parts.add("Biomes: " + anti.biomes.joinToString(", ") { formatBiomeName(it) })
+        if (anti.structures.isNotEmpty()) parts.add("Structures: " + anti.structures.joinToString(", ") { formatStructureName(it) })
+        if (anti.dimensions.isNotEmpty()) parts.add("Dimensions: " + anti.dimensions.joinToString(", ") { SpawnDisplayHelper.formatDimension(it) })
+        if (anti.neededBaseBlocks.isNotEmpty()) parts.add("Base blocks: " + anti.neededBaseBlocks.joinToString(", ") { formatBlockName(it) })
+        if (anti.neededNearbyBlocks.isNotEmpty()) parts.add("Nearby blocks: " + anti.neededNearbyBlocks.joinToString(", ") { formatBlockName(it) })
+        anti.timeRange?.let { parts.add("Time: " + formatTimeRange(it)) }
+        anti.isRaining?.let { parts.add(if (it) "Rain" else "No rain") }
+        anti.isThundering?.let { parts.add(if (it) "Thunder" else "No thunder") }
+        if (anti.minY != null || anti.maxY != null) parts.add("Y: ${anti.minY ?: "-"} to ${anti.maxY ?: "-"}")
+        if (anti.minLight != null || anti.maxLight != null) parts.add("Light: ${anti.minLight ?: "-"} to ${anti.maxLight ?: "-"}")
+        anti.moonPhase?.let { parts.add("Moon: $it") }
+        return parts.joinToString("; ")
     }
 
     private fun buildEvolutionData(index: SpawnDataIndex): SheetData? {
@@ -439,17 +492,18 @@ object SpreadsheetExporter {
         val icons = mutableListOf<CellIcon>()
 
         rows.add(listOf(
-            "", "From", "From Form",
+            "", "Dex #", "From", "From Form",
             "To", "To Form",
             "Method", "Requirements",
             "Required Item", "Consumes Held Item"
         ))
 
-        for ((_, evoList) in evolutions.entries.sortedBy { it.key }) {
+        for ((fromKey, evoList) in evolutions.byDex()) {
             for (evo in evoList) {
                 icons.add(CellIcon(evo.fromSpecies, rows.size, 0))
                 rows.add(listOf(
                     "",
+                    dexCell(fromKey),
                     pokemon(evo.fromSpecies),
                     evo.fromAspects.joinToString("; ") { formatAspect(it) },
                     pokemon(evo.toSpecies),
@@ -477,11 +531,9 @@ object SpreadsheetExporter {
             "", "Dex #", "Pokemon", "", "Item", "Drop Chance", "Quantity"
         ))
 
-        val sorted = speciesInfo.entries
-            .filter { it.value.drops?.isNotEmpty() == true }
-            .sortedWith(compareBy({ it.value.nationalDexNumber.let { d -> if (d > 0) d else Int.MAX_VALUE } }, { it.key }))
+        val withDrops = speciesInfo.filterValues { it.drops?.isNotEmpty() == true }
 
-        for ((_, info) in sorted) {
+        for ((_, info) in withDrops.byDex()) {
             for (drop in info.drops!!) {
                 val rowIdx = rows.size
                 icons.add(CellIcon(info.name, rowIdx, 0))
@@ -513,88 +565,231 @@ object SpreadsheetExporter {
         val hasMoves = speciesInfo.any {
             val i = it.value
             i.levelUpMoves?.isNotEmpty() == true || i.eggMoves?.isNotEmpty() == true ||
-                i.tutorMoves?.isNotEmpty() == true || i.tmMoves?.isNotEmpty() == true
+                i.tutorMoves?.isNotEmpty() == true || i.tmMoves?.isNotEmpty() == true ||
+                i.legacyMoves?.isNotEmpty() == true
         }
         if (!hasMoves) return null
 
         val rows = mutableListOf<List<String>>()
-        val icons = mutableListOf<CellIcon>()
 
-        rows.add(listOf(
-            "", "Dex #", "Pokemon", "Learn Method", "Level",
-            "Move", "Type", "Category", "Power", "Accuracy", "PP"
-        ))
+        rows.add(listOf("Dex #", "Pokemon", "Form", "Learn Method", "Level", "Move"))
 
-        val sorted = speciesInfo.entries.sortedWith(
-            compareBy({ it.value.nationalDexNumber.let { d -> if (d > 0) d else Int.MAX_VALUE } }, { it.key })
-        )
-
-        for ((_, info) in sorted) {
+        for ((_, info) in speciesInfo.byDex()) {
             fun addMove(method: String, level: String, move: MoveDetail) {
-                icons.add(CellIcon(info.name, rows.size, 0))
                 rows.add(listOf(
-                    "",
                     if (info.nationalDexNumber > 0) info.nationalDexNumber.toString() else "",
                     pokemon(info.name),
+                    info.formName?.let { titleCase(it) } ?: "",
                     method, level,
-                    move.name,
-                    formatTypeName(move.type),
-                    titleCase(move.category),
-                    if (move.power > 0) move.power.toString() else "-",
-                    if (move.accuracy > 0) "${move.accuracy}%" else "-",
-                    move.pp.toString()
+                    moveName(move.name)
                 ))
             }
 
-            info.levelUpMoves?.forEach { lum ->
+            info.levelUpMoves?.sortedBy { it.level }?.forEach { lum ->
                 for (move in lum.moves) addMove("Level Up", lum.level.toString(), move)
             }
             info.eggMoves?.forEach { move -> addMove("Egg", "", move) }
             info.tutorMoves?.forEach { move -> addMove("Tutor", "", move) }
             info.tmMoves?.forEach { move -> addMove("TM", "", move) }
+            info.legacyMoves?.forEach { move -> addMove("Legacy", "", move) }
         }
 
-        return SheetData("All Moves", rows, icons)
+        return SheetData("Learnsets", rows)
     }
 
-    private fun buildLevelUpMoves(index: SpawnDataIndex): SheetData? {
-        val speciesInfo = index.speciesInfo
-        val hasLevelUp = speciesInfo.any { it.value.levelUpMoves?.isNotEmpty() == true }
-        if (!hasLevelUp) return null
+    /** Every move once, with its stats, how many species learn it, and whether it has a TM. */
+    private fun buildMoveReference(index: SpawnDataIndex): SheetData? {
+        val byName = linkedMapOf<String, MoveDetail>()
+        for (info in index.speciesInfo.values) {
+            info.levelUpMoves?.forEach { lum -> lum.moves.forEach { byName.putIfAbsent(it.name.lowercase(), it) } }
+            listOfNotNull(info.eggMoves, info.tutorMoves, info.tmMoves, info.legacyMoves)
+                .forEach { list -> list.forEach { byName.putIfAbsent(it.name.lowercase(), it) } }
+        }
+        if (byName.isEmpty()) return null
+
+        val rows = mutableListOf<List<String>>()
+        rows.add(listOf(
+            "Move", "Type", "Category", "Power", "Accuracy", "PP", "Priority", "Target",
+            "Secondary Effect Chance", "Species That Learn It", "Has TM", "Description"
+        ))
+        for ((id, move) in byName.entries.sortedBy { moveName(it.key).lowercase() }) {
+            val template = moveTemplate(id)
+            rows.add(listOf(
+                moveName(move.name),
+                formatTypeName(move.type),
+                titleCase(move.category),
+                if (move.power > 0) move.power.toString() else "-",
+                if (move.accuracy > 0) "${move.accuracy}%" else "-",
+                move.pp.toString(),
+                template?.let { runCatching { it.priority.toString() }.getOrNull() } ?: "",
+                template?.let { runCatching { titleCase(it.target.name.replace(Regex("([a-z])([A-Z])"), "$1 $2").replace('_', ' ')) }.getOrNull() } ?: "",
+                template?.let { secondaryEffectChance(it) } ?: "-",
+                (index.speciesByMove[id]?.size ?: 0).toString(),
+                if (index.tmInfoByMove.containsKey(id)) "Yes" else "No",
+                moveDescription(id, template)
+            ))
+        }
+        return SheetData("Moves", rows)
+    }
+
+    /** Cobblemon's own move definition; null on a Cobblemon build or pack that doesn't have it. */
+    private fun moveTemplate(id: String): com.cobblemon.mod.common.api.moves.MoveTemplate? =
+        try { com.cobblemon.mod.common.api.moves.Moves.getByName(id.lowercase()) } catch (_: Throwable) { null }
+
+    private fun moveDescription(id: String, template: com.cobblemon.mod.common.api.moves.MoveTemplate?): String {
+        val key = "cobblemon.move.${id.lowercase()}.desc"
+        val translated = tr(key)
+        if (translated != key) return translated
+        return try { template?.description?.string.orEmpty() } catch (_: Throwable) { "" }
+    }
+
+    /** The chance (in percent) of the move's side effect, e.g. Thunderbolt's 10% paralysis; "-" if it has none. */
+    private fun secondaryEffectChance(template: com.cobblemon.mod.common.api.moves.MoveTemplate): String {
+        val chance = try { template.effectChances.firstOrNull { it > 0.0 } } catch (_: Throwable) { null } ?: return "-"
+        return if (chance == chance.toLong().toDouble()) "${chance.toLong()}%" else "%.1f%%".format(chance)
+    }
+
+    /** Every ability once, with its description and how many species have it (counting a species once, forms included in it). */
+    private fun buildAbilityReference(index: SpawnDataIndex): SheetData? {
+        class Holders(val raw: String) {
+            val normal = mutableSetOf<String>()
+            val hidden = mutableSetOf<String>()
+        }
+        fun idOf(name: String) = name.lowercase().replace(" ", "").replace("-", "").replace("_", "")
+
+        val byAbility = linkedMapOf<String, Holders>()
+        for ((key, info) in index.speciesInfo) {
+            val species = info.baseSpeciesName ?: key
+            info.abilities?.forEach { byAbility.getOrPut(idOf(it)) { Holders(it) }.normal.add(species) }
+            info.hiddenAbility?.let { byAbility.getOrPut(idOf(it)) { Holders(it) }.hidden.add(species) }
+        }
+        if (byAbility.isEmpty()) return null
+
+        val rows = mutableListOf<List<String>>()
+        rows.add(listOf("Ability", "Species With It", "Species With It As Hidden", "Total Species", "Description"))
+        for ((id, holders) in byAbility.entries.sortedBy { formatAbilityName(it.value.raw).lowercase() }) {
+            val descKey = "cobblemon.ability.$id.desc"
+            val description = tr(descKey).takeIf { it != descKey } ?: ""
+            rows.add(listOf(
+                formatAbilityName(holders.raw),
+                holders.normal.size.toString(),
+                holders.hidden.size.toString(),
+                (holders.normal + holders.hidden).size.toString(),
+                description
+            ))
+        }
+        return SheetData("Abilities", rows)
+    }
+
+    private fun buildTmRecipes(index: SpawnDataIndex): SheetData? {
+        val tms = index.allTms()
+        if (tms.isEmpty()) return null
+
+        val rows = mutableListOf<List<String>>()
+        rows.add(listOf("Move", "Type", "Ingredients", "Recipe Unlock", "Species That Learn It"))
+        for (tm in tms.sortedBy { moveName(it.moveName).lowercase() }) {
+            val ingredients = tm.ingredients.joinToString("; ") { ing ->
+                val name = ing.displayItemId?.let { item(it) } ?: ing.tagId?.let { "#${formatId(it)}" } ?: "?"
+                "${ing.count}x $name"
+            }
+            rows.add(listOf(
+                moveName(tm.moveName),
+                tm.elementalType?.let { formatTypeName(it) } ?: "",
+                ingredients,
+                if (tm.passivelyObtained) "Always available" else "Own a Pokemon that knows the move",
+                (index.speciesByMove[tm.moveName.lowercase()]?.size ?: 0).toString()
+            ))
+        }
+        return SheetData("TM Recipes", rows)
+    }
+
+    private fun buildHerds(index: SpawnDataIndex): SheetData? {
+        val herds = index.allHerds
+        if (herds.isEmpty()) return null
 
         val rows = mutableListOf<List<String>>()
         val icons = mutableListOf<CellIcon>()
-
         rows.add(listOf(
-            "", "Dex #", "Pokemon", "Level",
-            "Move", "Type", "Category", "Power", "Accuracy", "PP"
+            "", "Leader", "Members", "Max Herd Size", "Has Alpha", "Bucket",
+            "Level Range", "Biomes", "Time", "Weather"
         ))
-
-        val sorted = speciesInfo.entries
-            .filter { it.value.levelUpMoves?.isNotEmpty() == true }
-            .sortedWith(compareBy({ it.value.nationalDexNumber.let { d -> if (d > 0) d else Int.MAX_VALUE } }, { it.key }))
-
-        for ((_, info) in sorted) {
-            for (lum in (info.levelUpMoves ?: continue).sortedBy { it.level }) {
-                for (move in lum.moves) {
-                    icons.add(CellIcon(info.name, rows.size, 0))
-                    rows.add(listOf(
-                        "",
-                        if (info.nationalDexNumber > 0) info.nationalDexNumber.toString() else "",
-                        pokemon(info.name),
-                        lum.level.toString(),
-                        move.name,
-                        formatTypeName(move.type),
-                        titleCase(move.category),
-                        if (move.power > 0) move.power.toString() else "-",
-                        if (move.accuracy > 0) "${move.accuracy}%" else "-",
-                        move.pp.toString()
-                    ))
-                }
-            }
+        for (herd in herds.sortedBy { dexOf(it.leader.species) }) {
+            val c = herd.conditions
+            icons.add(CellIcon(herd.leader.species, rows.size, 0))
+            rows.add(listOf(
+                "",
+                pokemon(herd.leader.species),
+                herd.members.joinToString("; ") { m -> pokemon(m.species) + (if (m.isAlpha) " (Alpha)" else "") },
+                herd.maxHerdSize.toString(),
+                if (herd.hasAlpha) "Yes" else "No",
+                titleCase(herd.bucket),
+                c.levelRange,
+                c.biomes.joinToString("; ") { formatBiomeName(it) },
+                c.timeRange?.let { formatTimeRange(it) } ?: "Any",
+                weatherText(c)
+            ))
         }
+        return SheetData("Herds", rows, icons)
+    }
 
-        return SheetData("Level-Up Moves", rows, icons)
+    private fun weatherText(spawn: SpawnInfo): String = buildString {
+        spawn.weather.isRaining?.let { append(if (it) "Rain" else "No Rain") }
+        spawn.weather.isThundering?.let {
+            if (isNotEmpty()) append(", ")
+            append(if (it) "Thunder" else "No Thunder")
+        }
+    }.ifEmpty { "Any" }
+
+    private fun buildNatures(): SheetData {
+        fun stat(code: String?) = when (code) {
+            "atk" -> "Attack"
+            "def" -> "Defense"
+            "spa" -> "Sp. Atk"
+            "spd" -> "Sp. Def"
+            "spe" -> "Speed"
+            null -> "-"
+            else -> code
+        }
+        val rows = mutableListOf<List<String>>()
+        rows.add(listOf("Nature", "Increased Stat", "Decreased Stat"))
+        for (n in NatureData.NATURES) rows.add(listOf(n.name, stat(n.increasedStat), stat(n.decreasedStat)))
+        return SheetData("Natures", rows)
+    }
+
+    private fun buildMarks(index: SpawnDataIndex): SheetData? {
+        val marks = index.allMarks()
+        if (marks.isEmpty()) return null
+        val rows = mutableListOf<List<String>>()
+        rows.add(listOf("Mark", "Title", "Description", "Chance", "Group"))
+        for (m in marks.sortedBy { it.sortOrder }) {
+            rows.add(listOf(
+                tr(m.nameKey),
+                m.titleKey?.let { tr(it, "[Pokemon]") } ?: "",
+                tr(m.descriptionKey),
+                m.rarityPercent?.let { "%.2f%%".format(it) } ?: "",
+                m.group?.let { titleCase(it) } ?: ""
+            ))
+        }
+        return SheetData("Marks", rows)
+    }
+
+    /** What this export contains and where each kind of data came from. */
+    private fun buildAbout(index: SpawnDataIndex, sheetNames: List<String>): SheetData {
+        val mods = try { com.cobbledex.platform.PlatformHelper.getLoadedMods() } catch (_: Throwable) { emptyMap() }
+        val rows = mutableListOf<List<String>>()
+        rows.add(listOf("Item", "Value"))
+        rows.add(listOf("Exported", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))))
+        rows.add(listOf("CobbleDex version", mods[CobbleDexMod.MOD_ID] ?: mods[CobbleDexMod.NEOFORGE_MOD_ID] ?: "unknown"))
+        rows.add(listOf("Cobblemon version", mods["cobblemon"] ?: "unknown"))
+        rows.add(listOf("Species and forms", index.allSpeciesNames.size.toString()))
+        rows.add(listOf("World", if (DataAvailability.isLocalWorld()) "Singleplayer / LAN" else "Server"))
+        rows.add(listOf("Server sent CobbleDex data", if (ServerDataView.isActive()) "Yes" else "No"))
+        rows.add(listOf("Species data from", index.speciesInfoSourceTier.displayName))
+        rows.add(listOf("Spawn data from", index.spawnSourceTier.displayName))
+        rows.add(listOf("Evolution data from", index.evolutionSourceTier.displayName))
+        rows.add(listOf("Obtainment data from", index.obtainmentSourceTier.displayName))
+        rows.add(listOf("Sheets", sheetNames.joinToString(", ")))
+        return SheetData("About", rows)
     }
 
     private fun buildObtainmentData(index: SpawnDataIndex): SheetData? {
@@ -654,38 +849,6 @@ object SpreadsheetExporter {
         }
 
         return SheetData("Fossils", rows, icons)
-    }
-
-    private fun buildAbilities(index: SpawnDataIndex): SheetData? {
-        val speciesInfo = index.speciesInfo
-        val hasAbilities = speciesInfo.any { it.value.abilities?.isNotEmpty() == true }
-        if (!hasAbilities) return null
-
-        val rows = mutableListOf<List<String>>()
-        val icons = mutableListOf<CellIcon>()
-
-        rows.add(listOf("", "Dex #", "Pokemon", "Type 1", "Type 2", "Ability 1", "Ability 2", "Hidden Ability"))
-
-        val sorted = speciesInfo.entries
-            .filter { it.value.abilities?.isNotEmpty() == true || it.value.hiddenAbility != null }
-            .sortedWith(compareBy({ it.value.nationalDexNumber.let { d -> if (d > 0) d else Int.MAX_VALUE } }, { it.key }))
-
-        for ((_, info) in sorted) {
-            val abilities = info.abilities ?: emptyList()
-            icons.add(CellIcon(info.name, rows.size, 0))
-            rows.add(listOf(
-                "",
-                if (info.nationalDexNumber > 0) info.nationalDexNumber.toString() else "",
-                pokemon(info.name),
-                formatTypeName(info.primaryType),
-                info.secondaryType?.let { formatTypeName(it) } ?: "",
-                abilities.getOrElse(0) { "" }.let { if (it.isNotEmpty()) formatAbilityName(it) else "" },
-                abilities.getOrElse(1) { "" }.let { if (it.isNotEmpty()) formatAbilityName(it) else "" },
-                info.hiddenAbility?.let { formatAbilityName(it) } ?: ""
-            ))
-        }
-
-        return SheetData("Abilities", rows, icons)
     }
 
     private fun buildRidingData(index: SpawnDataIndex): SheetData? {
@@ -775,12 +938,48 @@ object SpreadsheetExporter {
     }
 
     // ══════════════════════════════════════════════════════════════════
+    //  JSON companion - the same sheets as plain data for wikis and tools
+    // ══════════════════════════════════════════════════════════════════
+
+    private fun jsonPathFor(xlsx: Path): Path =
+        xlsx.resolveSibling(xlsx.fileName.toString().removeSuffix(".xlsx") + ".json")
+
+    /** `{ "<sheet name>": [ { "<column>": "<value>", ... }, ... ] }`; icon columns (blank header) are left out. */
+    private fun writeJson(path: Path, sheets: List<SheetData>) {
+        val root = com.google.gson.JsonObject()
+        for (sheet in sheets) {
+            val header = sheet.rows.firstOrNull() ?: continue
+            val columns = header.indices.filter { header[it].isNotBlank() }
+            val array = com.google.gson.JsonArray()
+            for (row in sheet.rows.drop(1)) {
+                val obj = com.google.gson.JsonObject()
+                for (c in columns) {
+                    val cell = row.getOrElse(c) { "" }
+                    if (cell.isEmpty()) continue
+                    if (isNumeric(cell)) {
+                        val number: Number = if (cell.contains('.')) cell.toDouble() else cell.toLong()
+                        obj.addProperty(header[c], number)
+                    } else {
+                        obj.addProperty(header[c], cell)
+                    }
+                }
+                array.add(obj)
+            }
+            root.add(sheet.name, array)
+        }
+        Files.writeString(path, com.google.gson.GsonBuilder().disableHtmlEscaping().create().toJson(root))
+    }
+
+    // ══════════════════════════════════════════════════════════════════
     //  XLSX writer - OOXML SpreadsheetML + DrawingML icons
     // ══════════════════════════════════════════════════════════════════
 
     private const val ICON_COL_WIDTH = 5.5
     private const val DATA_ROW_HEIGHT_ICON = 30.0    // rows with icons
     private const val DATA_ROW_HEIGHT_PLAIN = 18.0   // rows without icons
+    private const val MAX_COL_WIDTH = 55.0
+    private const val MAX_WRAP_LINES = 20            // Excel caps a row at 409pt
+    private val WRAP_CHARS_PER_LINE = ((MAX_COL_WIDTH - 3) / 1.2).toInt()
     private const val HEADER_ROW_HEIGHT = 24.0
     private const val EMU_PER_PX = 9525              // Excel EMU units per pixel
     private const val ICON_EMU = IconCapture.ICON_SIZE * EMU_PER_PX // 32 * 9525 = 304800
@@ -874,7 +1073,7 @@ object SpreadsheetExporter {
                 ICON_COL_WIDTH
             } else {
                 val maxLen = sheet.rows.maxOf { row -> row.getOrElse(col) { "" }.length }
-                (maxLen * 1.2 + 3).coerceIn(8.0, 55.0)
+                (maxLen * 1.2 + 3).coerceIn(8.0, MAX_COL_WIDTH)
             }
         }
     }
@@ -961,10 +1160,12 @@ $sheetEntries
 <border><left/><right/><top/><bottom/><diagonal/></border>
 </borders>
 <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-<cellXfs count="3">
+<cellXfs count="5">
 <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
 <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>
 <xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
 </cellXfs>
 </styleSheet>"""
 
@@ -992,6 +1193,9 @@ $sheetEntries
         val numCols = sheet.rows.maxOfOrNull { it.size } ?: 0
         val widths = autoColumnWidths(sheet)
         val dataRowHt = if (sheet.hasIcons) DATA_ROW_HEIGHT_ICON else DATA_ROW_HEIGHT_PLAIN
+        // A column that hit the width cap wraps its text and grows the row to fit, so nothing is cut off.
+        // The last column is left alone: its text spills into the empty cells to its right.
+        val wrapCols = widths.indices.filter { it != numCols - 1 && it !in sheet.iconColumns && widths[it] >= MAX_COL_WIDTH }.toSet()
 
         sb.append("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>""")
         sb.append("""<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">""")
@@ -1014,14 +1218,23 @@ $sheetEntries
         sb.append("<sheetData>")
         for ((rowIdx, row) in sheet.rows.withIndex()) {
             val rowNum = rowIdx + 1
-            val ht = if (rowIdx == 0) HEADER_ROW_HEIGHT else dataRowHt
+            val wrapLines = if (rowIdx == 0 || wrapCols.isEmpty()) 1 else wrapCols.maxOf { c ->
+                (row.getOrElse(c) { "" }.length + WRAP_CHARS_PER_LINE - 1) / WRAP_CHARS_PER_LINE
+            }.coerceIn(1, MAX_WRAP_LINES)
+            val ht = if (rowIdx == 0) HEADER_ROW_HEIGHT else maxOf(dataRowHt, wrapLines * DATA_ROW_HEIGHT_PLAIN)
             sb.append("""<row r="$rowNum" ht="${"%.1f".format(ht)}" customHeight="1">""")
 
             for ((colIdx, cell) in row.withIndex()) {
                 val ref = "${colLetter(colIdx)}$rowNum"
                 if (cell.isEmpty()) continue
 
-                val style = if (rowIdx == 0) " s=\"2\"" else ""
+                val style = when {
+                    rowIdx == 0 -> " s=\"2\""
+                    isNumeric(cell) || cell == "-" || cell == "Yes" || cell == "No" ||
+                        (cell.endsWith("%") && isNumeric(cell.dropLast(1))) -> " s=\"3\""
+                    colIdx in wrapCols -> " s=\"4\""
+                    else -> ""
+                }
 
                 if (isNumeric(cell)) {
                     sb.append("""<c r="$ref"$style><v>$cell</v></c>""")

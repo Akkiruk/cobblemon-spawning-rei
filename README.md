@@ -72,7 +72,8 @@ CobbleDex adds dedicated viewer pages for:
 
 ### Hidden diagnostic export
 - Includes `/cobbledex export`, which generates a multi-sheet `.xlsx` workbook in `cobbledex-export/`
-- Export includes species overview, spawn data, evolutions, drops, movesets, level-up moves, special obtainment, fossils, abilities, type chart, and riding data
+- Export includes an about sheet, species overview, spawn data, herds, evolutions, drops, learnsets (with legacy moves), move and ability references, TM recipes, special obtainment, fossils, riding data, natures, marks, and the type chart
+- A `.json` copy of the same data is written next to the workbook
 - Useful for debugging, pack documentation, balancing, guide writing, and theorycrafting outside the game, but the in-viewer pages remain the primary CobbleDex experience
 
 ### Extra quality-of-life details

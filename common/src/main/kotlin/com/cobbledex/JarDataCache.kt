@@ -55,6 +55,7 @@ object JarDataCache {
         val egg: List<String>,
         val tutor: List<String>,
         val tm: List<String>,
+        val legacy: List<String> = emptyList(),
     )
 
     /**
@@ -1335,6 +1336,7 @@ object JarDataCache {
         val egg = mutableListOf<String>()
         val tutor = mutableListOf<String>()
         val tm = mutableListOf<String>()
+        val legacy = mutableListOf<String>()
         for (elem in movesArray) {
             try {
                 val str = elem.asString
@@ -1346,14 +1348,15 @@ object JarDataCache {
                     "egg" -> egg.add(moveName)
                     "tm" -> tm.add(moveName)
                     "tutor" -> tutor.add(moveName)
+                    "legacy" -> legacy.add(moveName)
                     else -> prefix.toIntOrNull()?.let { level ->
                         levelUp.getOrPut(level) { mutableListOf() }.add(moveName)
                     }
                 }
             } catch (_: Exception) {}
         }
-        if (levelUp.isEmpty() && egg.isEmpty() && tutor.isEmpty() && tm.isEmpty()) return null
-        return JarMoveData(levelUp, egg, tutor, tm)
+        if (levelUp.isEmpty() && egg.isEmpty() && tutor.isEmpty() && tm.isEmpty() && legacy.isEmpty()) return null
+        return JarMoveData(levelUp, egg, tutor, tm, legacy)
     }
 
     // Same key scheme as the live registry path, from one shared builder (see FormKeys), so a form's

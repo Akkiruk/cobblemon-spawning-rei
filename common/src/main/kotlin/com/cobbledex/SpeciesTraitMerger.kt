@@ -70,6 +70,7 @@ object SpeciesTraitMerger {
         val formTraits = JarDataCache.getCachedFormTraits()
         val moves = JarDataCache.getCachedMoves()
         val formMoves = JarDataCache.getCachedFormMoves()
+        val showLegacy = com.cobbledex.config.CobbleDexConfig.get().showLegacyMoves
         if (traits.isEmpty() && formTraits.isEmpty() && moves.isEmpty() && formMoves.isEmpty()) {
             return Result(runtime, 0, 0)
         }
@@ -124,6 +125,12 @@ object SpeciesTraitMerger {
                 if (updated.tmMoves == null && localMoves.tm.isNotEmpty()) {
                     localMoves.tm.mapNotNull(::resolveMove).takeIf { it.isNotEmpty() }?.let {
                         updated = updated.copy(tmMoves = it); fieldsForThisSpecies++
+                    }
+                }
+                // Cobblemon never syncs legacy moves, so on a server they only exist in the files.
+                if (showLegacy && updated.legacyMoves == null && localMoves.legacy.isNotEmpty()) {
+                    localMoves.legacy.mapNotNull(::resolveMove).takeIf { it.isNotEmpty() }?.let {
+                        updated = updated.copy(legacyMoves = it); fieldsForThisSpecies++
                     }
                 }
             }

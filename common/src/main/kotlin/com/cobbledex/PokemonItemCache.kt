@@ -44,6 +44,20 @@ object PokemonItemCache {
         }
     }
 
+    /**
+     * [aspects] plus a gender when the species has one and none was given. Some species (Lively Mons'
+     * Fungalith) define only `male`/`female` model variations; rendering them with
+     * neither aspect matches nothing and Cobblemon draws the Substitute doll. Same convention as
+     * Cobblemon's own box/party UI for a species with no live Pokémon to take a gender from.
+     */
+    fun withRenderGender(name: String, aspects: Set<String>): Set<String> {
+        if ("male" in aspects || "female" in aspects) return aspects
+        val maleRatio = SpawnDataIndex.getSpeciesInfo(SpeciesNameNormalizer.normalize(name))?.maleRatio
+            ?: return aspects
+        if (maleRatio == -1f) return aspects
+        return aspects + if (maleRatio == 0f) "female" else "male"
+    }
+
     private fun cacheKey(name: String, explicitAspects: Set<String> = emptySet()): String {
         val normalized = SpeciesNameNormalizer.normalize(name)
         val aspects = resolveAspects(name, explicitAspects)
@@ -101,8 +115,9 @@ object PokemonItemCache {
         if (blockedRenderKeys.contains(cacheKey)) return null
         itemCache[cacheKey]?.let { return it }
         val species = resolveSpecies(name) ?: return null
+        val renderAspects = withRenderGender(name, aspects)
         val item = try {
-            if (aspects.isNotEmpty()) PokemonItem.from(species, aspects)
+            if (renderAspects.isNotEmpty()) PokemonItem.from(species, renderAspects)
             else PokemonItem.from(species)
         } catch (_: Exception) {
             try { PokemonItem.from(species) } catch (_: Exception) { null }

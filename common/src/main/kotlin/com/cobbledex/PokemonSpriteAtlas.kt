@@ -178,27 +178,10 @@ object PokemonSpriteAtlas {
             }
         )
 
-        // Most species' bedrock resolvers have a model variation that matches
-        // with no gender aspect at all, so this normally doesn't matter - but
-        // some (e.g. Lively Mons' Fungalith) define ONLY "male"/"female"
-        // variations with no genderless fallback. Requesting a render with
-        // neither aspect then matches nothing, and Cobblemon silently falls
-        // back to the "Substitute" placeholder doll instead of the species'
-        // own model. Default to a gender aspect whenever the species isn't
-        // genderless (maleRatio == -1), same convention Cobblemon's own box/
-        // party UI uses when showing a species with no live Pokemon instance
-        // to pull an actual gender from. Kept OUT of the SpriteKey/id itself
-        // (only affects the actual render call) so the atlas/website
-        // filenames stay exactly as every other lookup already expects them -
-        // this is purely "which pose Cobblemon renders", not a new identity.
-        val renderAspects = if ("male" in aspects || "female" in aspects) {
-            aspects
-        } else {
-            val maleRatio = info?.maleRatio
-            if (maleRatio != null && maleRatio != -1f) {
-                aspects + if (maleRatio == 0f) "female" else "male"
-            } else aspects
-        }
+        // The gender default (see PokemonItemCache.withRenderGender) is kept OUT of the SpriteKey/id
+        // itself - it only affects the actual render call - so the atlas/website filenames stay exactly
+        // as every other lookup already expects them.
+        val renderAspects = PokemonItemCache.withRenderGender(normalized, aspects)
 
         return ResolvedSpriteKey(SpriteKey(renderSpecies, aspects), renderSpecies, renderAspects)
     }

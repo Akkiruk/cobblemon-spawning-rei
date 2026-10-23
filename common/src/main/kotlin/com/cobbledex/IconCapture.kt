@@ -23,7 +23,6 @@ object IconCapture {
     const val ICON_SIZE = 32
     private const val RENDER_SIZE = 512
     private var fbo: TextureTarget? = null
-    private var debugDumped = false
 
     /**
      * Set when the model-drawing call can't be bound at all, rather than a single sprite failing -
@@ -35,7 +34,6 @@ object IconCapture {
         private set
 
     fun init() {
-        debugDumped = false
         bindingFailure = null
         fbo = TextureTarget(RENDER_SIZE, RENDER_SIZE, true, false)
     }
@@ -294,22 +292,6 @@ object IconCapture {
             val cx0 = (cx - cropSide / 2).coerceIn(0, RENDER_SIZE - cropSide)
             val cy0 = (cy - cropSide / 2).coerceIn(0, RENDER_SIZE - cropSide)
             val cropped = raw.getSubimage(cx0, cy0, cropSide, cropSide)
-
-            // Debug: dump first species to verify rendering pipeline
-            if (!debugDumped) {
-                debugDumped = true
-                try {
-                    val gameDir = com.cobbledex.platform.PlatformHelper.getGameDir()
-                    val debugDir = gameDir.resolve("cobbledex-export").also { java.nio.file.Files.createDirectories(it) }
-                    ImageIO.write(raw, "PNG", debugDir.resolve("debug_fbo_raw.png").toFile())
-                    val croppedCopy = BufferedImage(cropSide, cropSide, BufferedImage.TYPE_INT_ARGB)
-                    croppedCopy.createGraphics().apply { drawImage(cropped, 0, 0, null); dispose() }
-                    ImageIO.write(croppedCopy, "PNG", debugDir.resolve("debug_fbo_cropped.png").toFile())
-                    DebugLog.info("Icon debug [$speciesId]: bounds=($minX,$minY)-($maxX,$maxY) crop=($cx0,$cy0)+$cropSide → saved to $debugDir")
-                } catch (e: Exception) {
-                    DebugLog.warn("Debug dump failed: ${e.message}")
-                }
-            }
 
             val scaled = BufferedImage(outputSize, outputSize, BufferedImage.TYPE_INT_ARGB)
             val g2d = scaled.createGraphics()

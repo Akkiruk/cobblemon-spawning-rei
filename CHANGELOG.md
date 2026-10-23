@@ -2,6 +2,24 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.32.2] - 2026-10-23
+
+### Added
+- `/cobbledex export` also writes a .json file next to the spreadsheet, with the same data, for wikis and other tools.
+- New export sheets: About (versions, date and where each kind of data came from), Moves, Abilities, TM Recipes, Herds, Natures and Marks.
+- The Moves sheet has each move's description, priority, target and secondary effect chance. The Abilities sheet has each ability's description and how many species have it, normally and as a hidden ability.
+- Species Overview now has the Pokédex description, pre-evolution, form aspects and which pack added the species. Spawn Data has excluded conditions, Poké Snack and slime chunk flags, habitat, herd and spawn ID.
+
+### Changed
+- The export's two move sheets are now one Learnsets sheet that includes legacy moves, with the move stats in the new Moves sheet. The old Abilities sheet is replaced by one with descriptions and species counts.
+- Every export sheet is sorted by Dex number, and move names match the game's own.
+
+### Fixed
+- Genderless Pokémon showed a male ratio of -100% in the export, and heights and weights were ten times too large.
+- Long values in the export, like biome lists and requirements, were cut off at the edge of the cell. They now wrap and the row grows to fit.
+- Legacy moves now show up on servers. Cobblemon never sends them to players, and CobbleDex was dropping them when it read species files, so the Legacy column was empty for server and datapack Pokémon.
+- Pokémon whose model only exists for a gender (like Fungalith) no longer appear as a Substitute doll in the recipe viewer list when they have no cached sprite.
+
 ## [2.32.1] - 2026-10-21
 
 ### Fixed
