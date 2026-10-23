@@ -195,7 +195,7 @@ object SpeciesTraitMerger {
      * Move *details* always come from Cobblemon's synced `Moves` registry - the local files only
      * supply which moves a species learns, never their power/accuracy/type.
      */
-    private fun resolveMove(name: String): MoveDetail? = try {
+    internal fun resolveMove(name: String): MoveDetail? = try {
         Moves.getByName(name)?.let { template ->
             MoveDetail(
                 name = template.name,

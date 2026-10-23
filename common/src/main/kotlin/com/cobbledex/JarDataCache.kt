@@ -1425,7 +1425,8 @@ object JarDataCache {
             variant = variant,
             requirements = requirements,
             requiredContext = requiredContext,
-            consumeHeldItem = consumeHeldItem
+            consumeHeldItem = consumeHeldItem,
+            learnableMoves = evo.optStringArray("learnableMoves").map { it.substringAfter(':').lowercase() }
         )
     }
 

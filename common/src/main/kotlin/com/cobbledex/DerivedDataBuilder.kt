@@ -105,6 +105,23 @@ object DerivedDataBuilder {
             backfilled++
         }
 
+        // What a Pokémon learns on evolving joins the result's movepool as the "Evo" level (level 0),
+        // the same slot the Moves page already labels "Evo" - so it shows as a normal move row, in
+        // the learner lists and in the export, without a column of its own.
+        for ((targetKey, evos) in reverseMap) {
+            val granted = evos.flatMap { it.learnableMoves }.distinct()
+            if (granted.isEmpty()) continue
+            val info = enriched[targetKey] ?: continue
+            val existing = info.levelUpMoves.orEmpty()
+            val atEvo = existing.firstOrNull { it.level <= 0 }?.moves.orEmpty()
+            val added = granted.mapNotNull(SpeciesTraitMerger::resolveMove)
+                .filter { move -> atEvo.none { it.name.equals(move.name, ignoreCase = true) } }
+            if (added.isEmpty()) continue
+            enriched[targetKey] = info.copy(
+                levelUpMoves = listOf(LevelUpMove(0, atEvo + added)) + existing.filter { it.level > 0 },
+            )
+        }
+
         val allNames = mutableSetOf<String>()
         allNames.addAll(snapshot.spawnsBySpecies.keys)
         allNames.addAll(mutableEvolutionsBySpecies.keys)

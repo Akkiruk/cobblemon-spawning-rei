@@ -113,6 +113,22 @@ class ServerDataViewTest {
     }
 
     @Test
+    fun movesLearnedOnEvolvingAreKeptOnTheEvolutionEdge() {
+        val overlay = serverOverlay()
+        val species = mapOf(
+            "pack:species/digmon.json" to json(
+                """{"name":"Digmon","evolutions":[{"id":"digmon_dugmon","variant":"level_up","result":"dugmon","requirements":[{"variant":"level","minLevel":26}],"learnableMoves":["sandtomb","cobblemon:earthquake"]}]}""",
+            ),
+        )
+        ServerDataView.set(ServerOverlay(overlay.hash, overlay.categories + ("species" to species), overlay.serverMods, overlay.origins))
+        JarDataCache.rebuildWith(roots())
+        JarDataCache.rebuildForDataView()
+
+        val edge = JarDataCache.getCachedEvolutions()["digmon"]?.single()
+        assertEquals(listOf("sandtomb", "earthquake"), edge?.learnableMoves)
+    }
+
+    @Test
     fun onlyModsTheServerConfirmedKeepTheirLocalFiles() {
         JarDataCache.rebuildWith(roots())
         ServerDataView.set(serverOverlay())

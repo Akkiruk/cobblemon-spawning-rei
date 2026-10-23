@@ -10,7 +10,9 @@ data class EvolutionInfo(
     val requirements: List<EvolutionRequirement>,
     val requiredContext: String?,
     val consumeHeldItem: Boolean,
-    val collapsedVariantCount: Int = 0
+    val collapsedVariantCount: Int = 0,
+    /** Move ids the result learns on evolving (an evolution's `learnableMoves`); they join its movepool as the "Evo" level. */
+    val learnableMoves: List<String> = emptyList()
 ) {
     fun withVariantNote(count: Int) = copy(collapsedVariantCount = count)
 

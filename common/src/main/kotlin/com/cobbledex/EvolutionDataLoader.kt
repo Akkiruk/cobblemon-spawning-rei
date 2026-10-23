@@ -206,7 +206,8 @@ object EvolutionDataLoader {
             variant = variant,
             requirements = requirements,
             requiredContext = requiredContext,
-            consumeHeldItem = evo.consumeHeldItem
+            consumeHeldItem = evo.consumeHeldItem,
+            learnableMoves = try { evo.learnableMoves.map { it.name } } catch (_: Throwable) { emptyList() }
         )
     }
 

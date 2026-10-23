@@ -586,7 +586,10 @@ object SpreadsheetExporter {
             }
 
             info.levelUpMoves?.sortedBy { it.level }?.forEach { lum ->
-                for (move in lum.moves) addMove("Level Up", lum.level.toString(), move)
+                // Level 0 is how a move learned on evolving is stored.
+                for (move in lum.moves) {
+                    if (lum.level <= 0) addMove("Evolution", "", move) else addMove("Level Up", lum.level.toString(), move)
+                }
             }
             info.eggMoves?.forEach { move -> addMove("Egg", "", move) }
             info.tutorMoves?.forEach { move -> addMove("Tutor", "", move) }
