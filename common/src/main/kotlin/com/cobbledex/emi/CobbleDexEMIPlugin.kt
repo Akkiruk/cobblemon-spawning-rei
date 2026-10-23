@@ -167,7 +167,7 @@ open class CobbleDexEMIPlugin : EmiPlugin {
         }
 
         RecipeViewerReloader.emiLastRegisteredVersion = registeringVersion
-        RecipeViewerReloader.emiPageBudget = RecipeViewerReloader.PageBudget(tallestSplittablePage, EmiPanelSlicer::budget)
+        RecipeViewerReloader.emiPageBudget = RecipeViewerReloader.PageBudget(tallestSplittablePage, pageBudget, EmiPanelSlicer::budget)
         DebugLog.info("EMI: Registered $registered Pokémon + $formCount forms, categories: ${registeredCats.joinToString(" + ")} (dataVersion=${SpawnDataIndex.dataVersion})")
     }
 

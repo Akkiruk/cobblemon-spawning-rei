@@ -8,14 +8,14 @@ object CategorySizer {
 
     data class PanelSize(val width: Int, val height: Int)
 
-    /** Sizes are valid for one data version in one language (panel text is measured). */
-    private data class Epoch(val dataVersion: Long, val lang: String)
+    /** Sizes are valid for one data version in one language, at one screen-height budget (panel text is measured). */
+    private data class Epoch(val dataVersion: Long, val lang: String, val budgetBucket: Int)
 
     private val cache = EpochCache<Epoch, PanelSize>()
 
     private fun currentEpoch(): Epoch {
         val lang = try { Minecraft.getInstance().languageManager.selected } catch (_: Exception) { "en_us" }
-        return Epoch(SpawnDataIndex.dataVersion, lang)
+        return Epoch(SpawnDataIndex.dataVersion, lang, ViewerBudget.bucket(ViewerBudget.current()))
     }
 
     fun getBounds(category: DexCategory): PanelSize =
@@ -79,6 +79,8 @@ object CategorySizer {
         val candidates = if (recipes.size > SIZE_CANDIDATES && recipes.any { it.sizeHint > 0 })
             recipes.sortedByDescending { it.sizeHint }.take(SIZE_CANDIDATES)
         else recipes
+        // The tallest page the screen can show, so the viewer's panel is never taller than its window.
+        val budget = ViewerBudget.current()
         var maxW = PanelLayout.MIN_WIDTH
         var maxH = 80
         // This result is cached per category+dataVersion+language (getBounds
@@ -98,14 +100,14 @@ object CategorySizer {
                 // page a too-tall handle into multiple registered recipes/displays (see
                 // RecipeHandle.paginate), each capped at MAX_HEIGHT - so the tallest *page* any
                 // viewer ever actually registers is this cap, not the handle's raw height.
-                val h = minOf(handle.height, PanelLayout.MAX_HEIGHT)
+                val h = minOf(handle.height, budget)
                 if (w > maxW) maxW = w
                 if (h > maxH) maxH = h
             } catch (_: Exception) {}
         }
         return PanelSize(
             maxW.coerceIn(PanelLayout.MIN_WIDTH, PanelLayout.MAX_WIDTH),
-            maxH.coerceAtMost(PanelLayout.MAX_HEIGHT)
+            maxH.coerceAtMost(budget)
         )
     }
 }

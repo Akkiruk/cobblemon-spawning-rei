@@ -5,6 +5,7 @@ import com.cobbledex.DebugLog
 import com.cobbledex.DexCategory
 import com.cobbledex.PanelLayout
 import com.cobbledex.PanelPage
+import com.cobbledex.ViewerBudget
 import com.cobbledex.Paged
 import com.cobbledex.PokemonItemCache
 import com.cobbledex.RecipeBuildCache
@@ -119,7 +120,7 @@ open class CobbleDexREIPlugin : REIClientPlugin {
             if (def is com.cobbledex.NatureDex) {
                 val handles = RecipeBuildCache.getOrBuild(def)
                 ViewerParityGuard.warn(def, handles, "REI")
-                handles.paged().forEach { registry.add(GenericDisplay(it, def)) }
+                handles.paged(ViewerBudget.current()).forEach { registry.add(GenericDisplay(it, def)) }
             } else {
                 registry.registerDisplayGenerator(categoryId(def), GenericDisplayGenerator(def))
             }
@@ -395,12 +396,13 @@ open class CobbleDexREIPlugin : REIClientPlugin {
     private inner class GenericDisplayGenerator(private val def: DexCategory) : DynamicDisplayGenerator<GenericDisplay> {
 
         @Volatile private var cachedVersion = -1L
+        @Volatile private var cachedBudgetBucket = -1
         @Volatile private var cachedDisplays: List<GenericDisplay>? = null
 
         private fun forValue(handles: List<RecipeHandle>): Optional<List<GenericDisplay>> {
             if (handles.isEmpty()) return Optional.empty()
             ViewerParityGuard.warn(def, handles, "REI")
-            return Optional.of(handles.paged().map { GenericDisplay(it, def) })
+            return Optional.of(handles.paged(ViewerBudget.current()).map { GenericDisplay(it, def) })
         }
 
         override fun getRecipeFor(entry: EntryStack<*>): Optional<List<GenericDisplay>> {
@@ -443,13 +445,16 @@ open class CobbleDexREIPlugin : REIClientPlugin {
 
             if (!SpawnDataIndex.hasData()) return Optional.empty()
             val version = SpawnDataIndex.dataVersion
-            cachedDisplays?.let { if (cachedVersion == version) return Optional.of(it) }
+            val budget = ViewerBudget.current()
+            val bucket = ViewerBudget.bucket(budget)
+            cachedDisplays?.let { if (cachedVersion == version && cachedBudgetBucket == bucket) return Optional.of(it) }
 
             val handles = RecipeBuildCache.getOrBuild(def)
             ViewerParityGuard.warn(def, handles, "REI")
-            val all = handles.paged().map { GenericDisplay(it, def) }
+            val all = handles.paged(budget).map { GenericDisplay(it, def) }
             cachedDisplays = all
             cachedVersion = version
+            cachedBudgetBucket = bucket
             return if (all.isEmpty()) Optional.empty() else Optional.of(all)
         }
     }

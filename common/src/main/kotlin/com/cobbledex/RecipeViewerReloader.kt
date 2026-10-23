@@ -99,7 +99,7 @@ object RecipeViewerReloader {
      * Set by CobbleDexEMIPlugin.register(); a function rather than a direct call so EMI's classes
      * are only ever touched from the plugin itself.
      */
-    class PageBudget(val tallestSplittablePage: Int, val current: () -> Int)
+    class PageBudget(val tallestSplittablePage: Int, val registered: Int, val current: () -> Int)
 
     @Volatile var emiPageBudget: PageBudget? = null
 
@@ -115,15 +115,59 @@ object RecipeViewerReloader {
      * be clipped (not just because the window got smaller) and the new size has held steady rather
      * than being mid-drag. Growing is harmless - just more splits than needed.
      */
-    private fun checkEmiPageBudget() {
+    private fun checkPageBudgets() {
         if (--budgetCheckCountdown > 0) return
         budgetCheckCountdown = BUDGET_CHECK_TICKS
+        checkEmiPageBudget()
+        checkJeiPageBudget()
+    }
+
+    /** The page budget JEI's recipes were last built with; -1 until JEI registers (and with EMI present). */
+    @Volatile var jeiPageBudget = -1
+
+    /** Set when the screen's budget changed, so JEI's registered pages are rebuilt at the new one. */
+    @Volatile var jeiPagesStale = false
+
+    private var jeiPendingBudget = -1
+    private var jeiBudgetStableChecks = 0
+
+    /**
+     * JEI registers its pages once, so a GUI scale or window change that leaves them cut for the wrong
+     * height needs them rebuilt. Only a change that has held for a few seconds counts, so dragging the
+     * window edge doesn't start a reload per step.
+     */
+    private fun checkJeiPageBudget() {
+        val registered = jeiPageBudget
+        if (registered < 0) return
+        val now = ViewerBudget.current()
+        if (ViewerBudget.bucket(now) == ViewerBudget.bucket(registered)) {
+            jeiBudgetStableChecks = 0
+            return
+        }
+        if (ViewerBudget.bucket(now) != ViewerBudget.bucket(jeiPendingBudget)) {
+            jeiPendingBudget = now
+            jeiBudgetStableChecks = 1
+            return
+        }
+        if (++jeiBudgetStableChecks < BUDGET_STABLE_CHECKS) return
+        jeiBudgetStableChecks = 0
+        DebugLog.info("JEI recipe area changed (pages built for $registered, now $now) - rebuilding pages")
+        jeiPagesStale = true
+        jeiLastRegisteredVersion = -1L
+        scheduleReload()
+    }
+
+    private fun checkEmiPageBudget() {
         val budget = emiPageBudget ?: return
-        val shrunk = try { budget.current() < budget.tallestSplittablePage } catch (_: Throwable) { false }
-        shrunkChecks = if (shrunk) shrunkChecks + 1 else 0
+        val now = try { budget.current() } catch (_: Throwable) { return }
+        // Shrunk: a page is now taller than the screen. Grown: pages were cut for a smaller screen than
+        // this one, and would stay cut (a few rows each, many pages) until the next reload.
+        val shrunk = now < budget.tallestSplittablePage
+        val grew = budget.registered < PanelLayout.MAX_HEIGHT && now >= budget.registered + maxOf(32, budget.registered / 4)
+        shrunkChecks = if (shrunk || grew) shrunkChecks + 1 else 0
         if (shrunkChecks < BUDGET_STABLE_CHECKS) return
         shrunkChecks = 0
-        DebugLog.info("EMI recipe area shrank below its tallest page (${budget.tallestSplittablePage}) - re-registering")
+        DebugLog.info("EMI recipe area changed (pages built for ${budget.registered}, now $now) - re-registering")
         emiPageBudget = null
         emi.lastRegisteredVersion = -1L
         scheduleReload()
@@ -203,7 +247,7 @@ object RecipeViewerReloader {
 
     fun tick() {
         if (!active) {
-            checkEmiPageBudget()
+            checkPageBudgets()
             if (!active) return
         }
 

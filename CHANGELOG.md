@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.32.4] - 2026-10-23
+
+### Fixed
+- On a big GUI scale or a small window, REI and JEI cut the bottom off long pages like Moves, and there was no way to scroll down to the rest. Pages are now split to fit your screen, and they get rebuilt if you change the GUI scale or resize the window.
+- EMI had the opposite problem. If the game opened in a small window or at a big GUI scale, the pages stayed chopped into tiny pieces even after you went back to normal. You'd get lots of pages with a few rows each and a big empty gap underneath. They now fix themselves a few seconds after the size settles.
+
 ## [2.32.3] - 2026-10-23
 
 ### Fixed

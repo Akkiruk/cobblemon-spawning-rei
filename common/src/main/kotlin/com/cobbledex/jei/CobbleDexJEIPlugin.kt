@@ -8,6 +8,7 @@ import com.cobbledex.DiscoveryAliases
 import com.cobbledex.PanelLayout
 import com.cobbledex.PanelPage
 import com.cobbledex.Paged
+import com.cobbledex.ViewerBudget
 import com.cobbledex.PokemonItemCache
 import com.cobbledex.RecipeBuildCache
 import com.cobbledex.RecipeHandle
@@ -118,15 +119,18 @@ open class CobbleDexJEIPlugin : IModPlugin {
         fun continueReload(targetVersion: Long): Boolean {
             if (emiPresent) return true
             val rt = runtime ?: return true
-            if (reloadUnits == null || reloadTargetVersion != targetVersion) {
+            if (reloadUnits == null || reloadTargetVersion != targetVersion || RecipeViewerReloader.jeiPagesStale) {
                 val config = CobbleDexConfig.get()
+                val pageBudget = ViewerBudget.current()
+                RecipeViewerReloader.jeiPageBudget = pageBudget
+                RecipeViewerReloader.jeiPagesStale = false
                 reloadUnits = DexCategory.ALL.filter { it.isEnabled(config) }.map { def ->
                     val handles = try { def.buildAllRecipes() } catch (e: Exception) {
                         DebugLog.warn("JEI reload: ${def.id} buildAllRecipes failed: ${e.message}")
                         emptyList()
                     }
                     ViewerParityGuard.warn(def, handles, "JEI")
-                    ReloadUnit(def, handles.paged().map { GenericRecipe(it) })
+                    ReloadUnit(def, handles.paged(pageBudget).map { GenericRecipe(it) })
                 }
                 reloadTargetVersion = targetVersion
                 unitIndex = 0
@@ -382,6 +386,7 @@ open class CobbleDexJEIPlugin : IModPlugin {
         SpawnDataIndex.ensureLoaded()
         val config = CobbleDexConfig.get()
 
+        val pageBudget = ViewerBudget.current()
         for (def in DexCategory.ALL) {
             if (!def.isEnabled(config)) continue
             // Shared with CategorySizer - JEI's own registerCategories() (just before this) already
@@ -389,12 +394,13 @@ open class CobbleDexJEIPlugin : IModPlugin {
             // build here instead of redoing it saves rebuilding the whole category from scratch.
             val handles = RecipeBuildCache.getOrBuild(def)
             ViewerParityGuard.warn(def, handles, "JEI")
-            val recipes = handles.paged().map { GenericRecipe(it) }
+            val recipes = handles.paged(pageBudget).map { GenericRecipe(it) }
             if (recipes.isNotEmpty()) {
                 registration.addRecipes(recipeType(def), recipes)
             }
             addedRecipes[def.id] = recipes
         }
+        RecipeViewerReloader.jeiPageBudget = pageBudget
         RecipeViewerReloader.jeiLastRegisteredVersion = SpawnDataIndex.dataVersion
         DebugLog.info("JEI: All recipes registered (dataVersion=${SpawnDataIndex.dataVersion})")
     }
