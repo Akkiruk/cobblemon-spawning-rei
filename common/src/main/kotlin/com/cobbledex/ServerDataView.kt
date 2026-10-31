@@ -31,6 +31,15 @@ object ServerDataView {
     /** Where the server says a species file came from, for the "Added by" line. */
     fun origin(fileId: String): String? = overlay?.origins?.get(fileId)
 
+    /** What exists on the server, by namespace. Null with no view, or from a server too old to say. */
+    fun namespaces(): Set<String>? = overlay?.namespaces
+
+    /** What a mod gate on one of this client's own files should be checked against; null means this client's mods. */
+    fun installed(): Set<String>? {
+        val o = overlay ?: return null
+        return o.namespaces?.let { it + o.serverMods }
+    }
+
     /** A mod whose files this client may use: any mod when no view is active, otherwise only ones the server matched. */
     fun modAllowed(modId: String?): Boolean {
         val o = overlay ?: return true

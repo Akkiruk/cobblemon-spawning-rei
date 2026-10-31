@@ -112,6 +112,7 @@ object PayloadWriter {
         exclude: (SourceFile, JsonObject) -> Boolean = { _, _ -> false },
         skippedMods: Collection<String> = emptyList(),
         origin: (SourceFile) -> String? = { null },
+        namespaces: Collection<String> = emptyList(),
     ): BuiltPayload {
         val sink = ByteArrayOutputStream()
         var raw = 0
@@ -140,6 +141,11 @@ object PayloadWriter {
             w.name("mods").beginArray()
             skippedMods.sorted().forEach { w.value(it) }
             w.endArray()
+            if (namespaces.isNotEmpty()) {
+                w.name("namespaces").beginArray()
+                namespaces.sorted().forEach { w.value(it) }
+                w.endArray()
+            }
             w.name("categories").beginObject()
             val byCategory = files.groupBy { it.category }
             for (category in SyncProtocol.CATEGORIES) {
@@ -181,6 +187,8 @@ class ServerOverlay(
     val serverMods: Set<String> = emptySet(),
     /** Species file id to the pack or mod it came from. */
     val origins: Map<String, String> = emptyMap(),
+    /** Every namespace that exists on the server; null from a server too old to say. */
+    val namespaces: Set<String>? = null,
 ) {
     val fileCount: Int get() = categories.values.sumOf { it.size }
 }
@@ -218,7 +226,8 @@ object OverlayDecoder {
             val mods = root.getAsJsonArray("mods")?.mapNotNull { if (it.isJsonPrimitive) it.asString else null }?.toSet().orEmpty()
             val origins = LinkedHashMap<String, String>()
             root.getAsJsonObject("origins")?.entrySet()?.forEach { (id, v) -> if (v.isJsonPrimitive) origins[id] = v.asString }
-            ServerOverlay(hash, cats, mods, origins)
+            val namespaces = root.getAsJsonArray("namespaces")?.mapNotNull { if (it.isJsonPrimitive) it.asString else null }?.toSet()
+            ServerOverlay(hash, cats, mods, origins, namespaces)
         }
     } catch (_: Exception) {
         null

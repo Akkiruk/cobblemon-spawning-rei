@@ -4,6 +4,8 @@ data class SpawnInfo(
     val id: String,
     val pokemon: String,
     val formAspects: String,
+    /** Filed under the form it spawns as (see [FormRouter]), so its page needn't name the variant. */
+    val onOwnFormPage: Boolean = false,
     val bucket: String,
     val weight: Float,
     val levelRange: String,
@@ -37,6 +39,20 @@ data class SpawnInfo(
     val herd: HerdContext? = null,
     /** Present when this entry came from a habitat spawn pool (1.8.0+). */
     val habitat: HabitatContext? = null,
+    val maxLureLevel: Int? = null,
+    /** The rod and bait a fishing spawn needs, as registry ids. */
+    val rodType: String? = null,
+    val bait: String? = null,
+    /** World-coordinate limits, such as Shellos' east and west seas. */
+    val minX: Int? = null,
+    val maxX: Int? = null,
+    val minZ: Int? = null,
+    val maxZ: Int? = null,
+    /** How much vertical space the spawn needs. */
+    val minHeight: Int? = null,
+    val maxHeight: Int? = null,
+    /** What this particular spawn drops instead of the species' normal table. */
+    val spawnDrops: List<DropEntryInfo> = emptyList(),
 ) {
     val displayContext: String
         get() = when (context.lowercase()) {
@@ -97,7 +113,7 @@ data class HerdContext(
 
     /** Stable identity for a roster, used to merge the biome-variant copies of one herd. */
     fun rosterKey(): String =
-        members.map { it.species }.sorted().joinToString("-") + "-x$maxHerdSize"
+        members.map { "${it.species}:${it.formTokens()}" }.sorted().joinToString("-") + "-x$maxHerdSize"
 }
 
 data class HerdMemberRef(
@@ -113,6 +129,10 @@ data class HerdMemberRef(
     /** Relative roll weight among herd members, for ordering the roster. */
     val weight: Float,
 )
+
+/** What sets this member apart as a form. Being an alpha doesn't, and is already [HerdMemberRef.isAlpha]. */
+private fun HerdMemberRef.formTokens(): String =
+    formAspects.split(" ").filter { it.isNotBlank() && it != "alpha" }.sorted().joinToString(" ")
 
 enum class HerdRole { LEADER, FOLLOWER, ANY }
 
@@ -164,7 +184,11 @@ data class SpawnAntiCondition(
     val isThundering: Boolean? = null,
     val minLight: Int? = null,
     val maxLight: Int? = null,
-    val moonPhase: String? = null
+    val moonPhase: String? = null,
+    val minLureLevel: Int? = null,
+    val maxLureLevel: Int? = null,
+    val isSlimeChunk: Boolean? = null,
+    val isPokeSnack: Boolean? = null,
 ) {
     val isEmpty: Boolean
         get() = biomes.isEmpty() && structures.isEmpty() &&
@@ -172,7 +196,8 @@ data class SpawnAntiCondition(
             minY == null && maxY == null &&
             timeRange == null && dimensions.isEmpty() &&
             isRaining == null && isThundering == null &&
-            minLight == null && maxLight == null && moonPhase == null
+            minLight == null && maxLight == null && moonPhase == null &&
+            minLureLevel == null && maxLureLevel == null && isSlimeChunk == null && isPokeSnack == null
 }
 
 data class WeightMultiplier(
@@ -193,28 +218,69 @@ fun WeightMultiplier.displayConditionSummary(): String {
         return conditionSummary.ifBlank { tr("cobbledex-rei-emi-jei.weight.conditional") }
     }
 
-    val parts = conditionParts.mapNotNull { part ->
-        when (part.type) {
-            "always" -> tr("cobbledex-rei-emi-jei.weight.always")
-            "thunderstorm" -> tr("cobbledex-rei-emi-jei.weight.thunderstorm")
-            "rain" -> tr("cobbledex-rei-emi-jei.weight.rain")
-            "conditional" -> tr("cobbledex-rei-emi-jei.weight.conditional")
-            "time_range" -> part.text?.let { formatTimeRange(it) }
-            "biomes" -> {
-                if (part.ids.isEmpty()) null
-                else {
-                    val names = part.ids.map { formatId(it) }
-                    if (names.size <= 3) names.joinToString(", ")
-                    else "${names.take(2).joinToString(", ")} " + tr("cobbledex-rei-emi-jei.weight.and_more", names.size - 2)
-                }
-            }
-            "lure" -> part.number?.let { tr("cobbledex-rei-emi-jei.weight.lure", it) }
-            else -> part.text
-        }
-    }
-
+    val parts = conditionParts.mapNotNull(::weightPartText)
     if (parts.isNotEmpty()) return parts.joinToString(", ")
     return conditionSummary.ifBlank { tr("cobbledex-rei-emi-jei.weight.conditional") }
+}
+
+private fun weightPartText(part: WeightConditionPart): String? {
+    if (part.type.startsWith("not_")) {
+        return weightPartText(part.copy(type = part.type.removePrefix("not_")))
+            ?.let { tr("cobbledex-rei-emi-jei.weight.not", it) }
+    }
+    fun names(format: (String) -> String): String? {
+        if (part.ids.isEmpty()) return null
+        val names = part.ids.map(format)
+        return if (names.size <= 3) names.joinToString(", ")
+        else "${names.take(2).joinToString(", ")} " + tr("cobbledex-rei-emi-jei.weight.and_more", names.size - 2)
+    }
+    return when (part.type) {
+        "always" -> tr("cobbledex-rei-emi-jei.weight.always")
+        "thunderstorm" -> tr("cobbledex-rei-emi-jei.weight.thunderstorm")
+        "rain" -> tr("cobbledex-rei-emi-jei.weight.rain")
+        "clear" -> tr("cobbledex-rei-emi-jei.weight.clear")
+        "open_sky" -> tr("cobbledex-rei-emi-jei.weight.open_sky")
+        "covered" -> tr("cobbledex-rei-emi-jei.weight.covered")
+        "sky_light" -> part.text?.let { tr("cobbledex-rei-emi-jei.weight.sky_light", it) }
+        "dimensions" -> names(SpawnDisplayHelper::formatDimension)
+        "conditional" -> tr("cobbledex-rei-emi-jei.weight.conditional")
+        "time_range" -> part.text?.let { formatSpawnTime(it) }
+        "biomes" -> names(::formatBiomeName)
+        "structures" -> names(::formatStructureName)
+        "nearby_blocks" -> names(::formatBlockName)?.let { tr("cobbledex-rei-emi-jei.weight.near", it) }
+        "lure" -> part.text?.let { tr("cobbledex-rei-emi-jei.weight.lure_range", it) }
+            ?: part.number?.let { tr("cobbledex-rei-emi-jei.weight.lure", it) }
+        "poke_snack" -> tr("cobbledex-rei-emi-jei.weight.poke_snack")
+        "slime_chunk" -> tr("cobbledex-rei-emi-jei.weight.slime_chunk")
+        "moon" -> part.text?.let { formatMoonPhase(it) }
+        "light" -> part.text?.let { tr("cobbledex-rei-emi-jei.weight.light", it) }
+        "height" -> part.text?.let { tr("cobbledex-rei-emi-jei.weight.height", it) }
+        else -> part.text
+    }
+}
+
+/**
+ * Moon phases are stored as Minecraft's phase numbers, as ranges (`1-3`) or lists (`0,4`), or
+ * sometimes by name. `0` is the full moon and they run round to `7`.
+ */
+fun formatMoonPhase(raw: String): String {
+    val phases = raw.split(",").map { it.trim() }.filter { it.isNotBlank() }.flatMap { segment ->
+        val ends = segment.split("-").mapNotNull { it.trim().toIntOrNull() }
+        when {
+            ends.size == 2 && ends[0] <= ends[1] -> (ends[0]..ends[1]).toList()
+            ends.size == 1 && '-' !in segment -> ends
+            else -> return titleCase(raw)
+        }
+    }.distinct()
+    return phases.joinToString(", ") { tr("cobbledex-rei-emi-jei.moon.${it.mod(8)}") }
+}
+
+/** An item id's in-game name, or a readable fallback when there is no such item. */
+fun formatItemId(id: String): String {
+    val clean = id.removePrefix("#")
+    val key = "item.${clean.substringBefore(':', "minecraft")}.${clean.substringAfter(':').replace('/', '.')}"
+    val translated = tr(key)
+    return if (translated != key) translated else titleCase(stripNamespace(id).replace("/", " "))
 }
 
 fun titleCase(raw: String): String {
@@ -242,11 +308,16 @@ fun formatSpeciesName(speciesName: String): String {
         val specificFormKey = "cobblemon.ui.pokedex.info.form.${info.baseSpeciesName}-$formNameLower"
         val genericFormKey = "cobblemon.ui.pokedex.info.form.$formNameLower"
         // Also try with hyphens preserved (Cobblemon uses inconsistent separators)
+        // Cobblemon labels some forms with text that names nothing: all of Arceus' are "Arceus" and
+        // all of Unown's are "One form", the same as the species' own entry.
+        val speciesFormLabel = tr("cobblemon.ui.pokedex.info.form.${info.baseSpeciesName}")
         val translatedForm = tr(specificFormKey).let { specific ->
-            if (specific == specificFormKey) tr(genericFormKey).let { generic ->
-                if (generic == genericFormKey) titleCase(formNameLower.replace("-", " "))
+            val usable = specific != specificFormKey && specific.isNotBlank() &&
+                specific != translatedSpecies && specific != speciesFormLabel
+            if (usable) specific else tr(genericFormKey).let { generic ->
+                if (generic == genericFormKey || generic.isBlank()) titleCase(formNameLower.replace("-", " "))
                 else generic
-            } else specific
+            }
         }
         return tr("cobbledex-rei-emi-jei.display.form_name", translatedSpecies, translatedForm)
     }
@@ -365,6 +436,18 @@ fun formatTimeRange(raw: String): String {
     }
 }
 
+/** A spawn's time as a player would say it: a tick range covering the night just reads "Night". */
+fun formatSpawnTime(raw: String): String {
+    if (raw.any { it.isLetter() }) return formatTimeRange(raw)
+    return when (SpawnPageModel.normalizeTime(raw)) {
+        SpawnPageModel.TimeLabel.DAY -> tr("cobbledex-rei-emi-jei.spawn.time.day")
+        SpawnPageModel.TimeLabel.NIGHT -> tr("cobbledex-rei-emi-jei.spawn.time.night")
+        SpawnPageModel.TimeLabel.DAWN -> tr("cobbledex-rei-emi-jei.spawn.time.dawn")
+        SpawnPageModel.TimeLabel.DUSK -> tr("cobbledex-rei-emi-jei.spawn.time.dusk")
+        else -> formatTimeRange(raw)
+    }
+}
+
 private fun tickToTime(tick: Int): String {
     // Minecraft: tick 0 = 6:00 AM, tick 6000 = 12:00, tick 12000 = 18:00, tick 18000 = 0:00
     val totalMinutes = ((tick + 6000) % 24000) * 60 / 1000
@@ -375,6 +458,10 @@ private fun tickToTime(tick: Int): String {
 
 fun formatBiomeName(id: String): String {
     if (id.lowercase().endsWith("custom_spawn")) return tr("cobbledex-rei-emi-jei.biome.altar_only")
+    // Cobblemon's regional evolution tags, e.g. `#cobblemon:evolution/regional/pikachu_alolabiome`.
+    REGIONAL_EVOLUTION_BIOME.find(id.lowercase())?.let {
+        return tr("cobbledex-rei-emi-jei.biome.regional", titleCase(it.groupValues[1]))
+    }
     val cleaned = stripNamespace(id)
         .split("/")
         .joinToString("_") { it.removePrefix("is_").removePrefix("has_") }
@@ -382,6 +469,8 @@ fun formatBiomeName(id: String): String {
     val translated = tr(key)
     return if (translated != key) translated else titleCase(cleaned)
 }
+
+private val REGIONAL_EVOLUTION_BIOME = Regex("evolution/regional/.*_([a-z]+)biome$")
 
 fun sanitizePath(s: String): String = s.lowercase().replace(Regex("[^a-z0-9/._-]"), "")
 

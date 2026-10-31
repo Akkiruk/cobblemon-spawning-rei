@@ -49,7 +49,7 @@ class EvolutionRequirementSpecTest {
     @Test
     fun everyVariantDeclaresFieldsExceptTheWrapper() {
         for (spec in EvolutionRequirementSpec.ALL) {
-            if (spec.variant == EvolutionRequirementSpec.ANY) continue
+            if (spec.variant == EvolutionRequirementSpec.ANY || spec.variant == EvolutionRequirementSpec.NEGATE) continue
             assertTrue(spec.fields.isNotEmpty(), "${spec.variant} declares no fields")
             val keys = spec.fields.map { it.key }
             assertEquals(keys.size, keys.toSet().size, "${spec.variant} repeats a field key")

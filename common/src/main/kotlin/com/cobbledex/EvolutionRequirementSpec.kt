@@ -65,6 +65,8 @@ object EvolutionRequirementSpec {
         Spec("attack_defence_ratio", listOf(str("ratio"))),
         // "any" carries no fields of its own - both readers unwrap it to its first possibility.
         Spec("any", emptyList()),
+        // "negate" wraps another requirement; both readers carry it whole, under "inner".
+        Spec("negate", emptyList()),
     )
 
     /** Canonical variant names, for coverage assertions. */
@@ -96,4 +98,7 @@ object EvolutionRequirementSpec {
 
     /** The name of the requirement whose possibilities are unwrapped rather than rendered. */
     const val ANY = "any"
+
+    /** The name of the requirement that inverts the one nested inside it. */
+    const val NEGATE = "negate"
 }

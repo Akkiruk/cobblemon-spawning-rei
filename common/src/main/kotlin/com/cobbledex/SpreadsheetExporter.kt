@@ -380,7 +380,7 @@ object SpreadsheetExporter {
                 info.preEvolution?.let { pokemon(it) } ?: "",
                 info.formAspects.joinToString("; ") { formatAspect(it) },
                 info.source?.let { titleCase(it) } ?: "",
-                info.description?.replace(Regex("\\s+"), " ")?.trim() ?: ""
+                info.description?.let { key -> tr(key).takeUnless { it == key } }?.replace(Regex("\\s+"), " ")?.trim() ?: ""
             ))
         }
 
@@ -404,7 +404,8 @@ object SpreadsheetExporter {
             "Min Y", "Max Y",
             "Nearby Blocks", "Base Blocks",
             "Moon Phase", "Presets",
-            "Fluid", "Weight Multipliers", "Min Lure Level",
+            "Fluid", "Weight Multipliers", "Min Lure Level", "Max Lure Level", "Rod", "Bait",
+            "X Range", "Z Range", "Spawn Drops",
             "Excluded Conditions", "Poke Snack Only", "Slime Chunk Only",
             "Habitat", "Herd", "Warnings", "Spawn ID"
         ))
@@ -420,7 +421,7 @@ object SpreadsheetExporter {
                 }
 
                 val multipliers = spawn.weightMultipliers.joinToString("; ") { wm ->
-                    "${wm.multiplier}x ${wm.conditionSummary}".trim()
+                    "${wm.multiplier}x ${wm.displayConditionSummary()}".trim()
                 }
 
                 icons.add(CellIcon(spawn.pokemon, rows.size, 0))
@@ -434,7 +435,7 @@ object SpreadsheetExporter {
                     spawn.levelRange,
                     titleCase(spawn.context),
                     spawn.biomes.joinToString("; ") { formatBiomeName(it) },
-                    spawn.timeRange?.let { formatTimeRange(it) } ?: "Any",
+                    spawn.timeRange?.let { formatSpawnTime(it) } ?: "Any",
                     weatherText.ifEmpty { "Any" },
                     spawn.dimensions.joinToString("; ") { SpawnDisplayHelper.formatDimension(it) },
                     spawn.structures.joinToString("; ") { formatStructureName(it) },
@@ -447,11 +448,17 @@ object SpreadsheetExporter {
                     spawn.maxY?.toString() ?: "",
                     spawn.neededNearbyBlocks.joinToString("; ") { formatBlockName(it) },
                     spawn.neededBaseBlocks.joinToString("; ") { formatBlockName(it) },
-                    spawn.moonPhase ?: "",
+                    spawn.moonPhase?.let { formatMoonPhase(it) } ?: "",
                     spawn.presets.joinToString("; ") { titleCase(it) },
                     spawn.fluid?.let { formatId(it) } ?: "",
                     multipliers,
                     spawn.minLureLevel?.toString() ?: "",
+                    spawn.maxLureLevel?.toString() ?: "",
+                    spawn.rodType?.let { formatItemId(it) } ?: "",
+                    spawn.bait?.let { formatItemId(it) } ?: "",
+                    WeightConditionParts.rangeText(spawn.minX, spawn.maxX) ?: "",
+                    WeightConditionParts.rangeText(spawn.minZ, spawn.maxZ) ?: "",
+                    spawn.spawnDrops.joinToString("; ") { formatItemId(it.itemId) },
                     excludedConditions(spawn.anticondition),
                     if (spawn.isPokeSnack == true) "Yes" else "",
                     if (spawn.isSlimeChunk == true) "Yes" else "",
@@ -643,7 +650,7 @@ object SpreadsheetExporter {
         val key = "cobblemon.move.${id.lowercase()}.desc"
         val translated = tr(key)
         if (translated != key) return translated
-        return try { template?.description?.string.orEmpty() } catch (_: Throwable) { "" }
+        return try { template?.description?.string.orEmpty().takeUnless { it == key }.orEmpty() } catch (_: Throwable) { "" }
     }
 
     /** The chance (in percent) of the move's side effect, e.g. Thunderbolt's 10% paralysis; "-" if it has none. */

@@ -2,6 +2,39 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.32.11] - 2026-10-31
+
+Big one. This started as "why don't form spawns show up properly" and turned into a pile of fixes, because a lot of other stuff was wrong for the same reasons. Servers get most of the benefit.
+
+### Forms
+- Forms show their own spawns now. Paldean Tauros, Alolan Rattata and datapack forms had nothing on their own page and all of it was dumped on the base Pokémon. Base pages only list the base form's spawns now.
+- Same deal for fossils, special obtain methods and herds. They go on the form they actually give you.
+- Every Arceus type was "Arceus (Arceus)" and every Unown was "Unown (One form)". You get "Arceus (Bug)" and "Unown (B)" now.
+
+### Servers
+- Herds work on servers! They were missing completely, so something like Vespiquen that only spawns in a herd looked like it didn't spawn at all.
+- If the server has CobbleDex too, spawns go by what the server has and not what you have. Nullscape spawns will show even if you don't have Nullscape yourself, and spawns for a mod only you have stay hidden.
+- Spawns that need a Poké Snack or a slime chunk actually say so. They used to look like normal wild spawns.
+- Forms had junk stats. Alolan Rattata showed catch rate 45 when it's really 255, plus no egg group and 0 friendship. Forms use their own numbers now and borrow the rest from their species, same as in game.
+- Removed the "Natural" and "Farmland" lines that were on pretty much every Pokémon.
+- Evolutions don't show up twice anymore.
+
+### Spawn pages
+- A spawn used to vanish just for mentioning a mod you don't have, even if that was only an excluded biome. Now it's only hidden when everything it needs is missing, and datapack biomes and structures count as installed.
+- Spawn bonuses tell you what they're for. Most just said "conditional", and some that excluded a biome said "always". You'll see stuff like "more common with a Poké Snack" or "near Lava" now, and bonuses with more than one condition list them all.
+- Added rods and bait for fishing spawns, max lure levels, coordinate limits (Shellos' east and west seas), headroom, drops that only come from that spawn, and excluded lure levels and slime chunks.
+- Moon phases have names instead of numbers.
+- Night bonuses showed up as "18:32-05:27" in singleplayer. It just says Night now.
+
+### Evolutions
+- "Not" requirements were backwards. Pikachu and Cubone showed a random "Negate" next to a raw tag name, which read like the exact opposite of what you need. It says "Not in Alola biomes" now.
+- Time-of-day evolutions said "Time-based" in singleplayer. Now it's "Nighttime" or "Daytime".
+- Pikachu had a copy of its evolution for every cosmetic item it can hold. Those are gone.
+- "Type=dark in party" on Pancham is finally "Dark-type Pokémon in party".
+
+### Export
+- `/cobbledex export` has real Pokédex descriptions instead of text keys, says what each weight multiplier is for, and has new columns for rod, bait, max lure, coordinates and spawn drops.
+
 ## [2.32.4] - 2026-10-23
 
 ### Fixed

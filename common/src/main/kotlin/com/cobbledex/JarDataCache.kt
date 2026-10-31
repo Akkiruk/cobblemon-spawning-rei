@@ -79,6 +79,17 @@ object JarDataCache {
             get() = catchRate == null && eggGroups == null && eggCycles == null &&
                 baseFriendship == null && baseExperienceYield == null && evYield == null &&
                 labels == null
+
+        /** These traits, with anything unset taken from [fallback]. */
+        fun orElse(fallback: JarTraitData?): JarTraitData = if (fallback == null) this else JarTraitData(
+            catchRate = catchRate ?: fallback.catchRate,
+            eggGroups = eggGroups ?: fallback.eggGroups,
+            eggCycles = eggCycles ?: fallback.eggCycles,
+            baseFriendship = baseFriendship ?: fallback.baseFriendship,
+            baseExperienceYield = baseExperienceYield ?: fallback.baseExperienceYield,
+            evYield = evYield ?: fallback.evYield,
+            labels = labels ?: fallback.labels,
+        )
     }
 
     /** Where this client's `datapacks/` and `resourcepacks/` live. Replaceable so tests need no platform. */
@@ -343,14 +354,17 @@ object JarDataCache {
         var failCount = 0
 
         // One spawn pool file: `{ "enabled": true, "spawns": [ ... ] }`. Every source below goes through here.
-        fun ingestPool(obj: JsonObject) {
+        fun ingestPool(obj: JsonObject, gatedByServer: Boolean = false) {
             if (obj.has("enabled") && !obj.get("enabled").asBoolean) return
+            if (!gatedByServer && !poolAppliesToLoadedMods(obj)) return
             val spawns = obj.getAsJsonArray("spawns") ?: return
             fileCount++
             for (spawnElem in spawns) {
                 try {
-                    val info = parseSpawnEntry(spawnElem.asJsonObject, presets)
-                    if (info != null) {
+                    val spawn = spawnElem.asJsonObject
+                    val infos = if (spawn.has("herdablePokemon")) parseHerdSpawn(spawn, presets)
+                        else listOfNotNull(parseSpawnEntry(spawn, presets))
+                    for (info in infos) {
                         result.getOrPut(SpeciesNameNormalizer.normalize(info.pokemon)) { mutableListOf() }.add(info)
                         spawnCount++
                     }
@@ -380,7 +394,8 @@ object JarDataCache {
         }
 
         if (fromServer) {
-            ServerDataView.files("spawn_pool_world").values.forEach { ingestPool(it) }
+            val gated = ServerDataView.namespaces() != null
+            ServerDataView.files("spawn_pool_world").values.forEach { ingestPool(it, gatedByServer = gated) }
         } else {
             // Collect from local datapacks (directories)
             try {
@@ -431,8 +446,80 @@ object JarDataCache {
         return result
     }
 
-    private fun parseSpawnEntry(spawn: JsonObject, presets: Map<String, JsonObject>): SpawnInfo? {
-        val pokemon = spawn.optString("pokemon") ?: return null
+    /** The same gate Cobblemon puts on a whole pool file, which it only applies on the server. */
+    private fun poolAppliesToLoadedMods(pool: JsonObject): Boolean {
+        val mods = ServerDataView.installed()
+            ?: runCatching { com.cobbledex.platform.PlatformHelper.getLoadedMods().keys }.getOrNull()
+            ?: return true
+        val needed = pool.optStringArray("neededInstalledMods")
+        val barred = pool.optStringArray("neededUninstalledMods")
+        return needed.all { it in mods } && barred.none { it in mods }
+    }
+
+    /** Every `data/<namespace>` this client can see in its mods and local datapacks, zipped or not. */
+    fun localDataNamespaces(): Set<String> {
+        val found = mutableSetOf<String>()
+        fun addFrom(root: Path) {
+            val data = root.resolve("data")
+            if (!Files.isDirectory(data)) return
+            Files.list(data).use { dirs -> dirs.forEach { found.add(it.fileName.toString().trimEnd('/')) } }
+        }
+        SpawnDataLoader.getModRootPaths().forEach { root -> runCatching { addFrom(root) } }
+
+        val datapacks = gameDir().resolve("datapacks")
+        if (Files.isDirectory(datapacks)) {
+            Files.list(datapacks).use { packs ->
+                packs.forEach { pack ->
+                    runCatching {
+                        if (Files.isDirectory(pack)) {
+                            addFrom(pack)
+                        } else if (pack.toString().endsWith(".zip")) {
+                            java.util.zip.ZipFile(pack.toFile()).use { zip ->
+                                zip.entries().asSequence()
+                                    .map { it.name.split('/') }
+                                    .filter { it.size > 2 && it[0] == "data" }
+                                    .forEach { found.add(it[1]) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return found
+    }
+
+    /** A `pokemon-herd` entry, one [SpawnInfo] per member. See [HerdSpawnReader.spawnInfos]. */
+    internal fun parseHerdSpawn(spawn: JsonObject, presets: Map<String, JsonObject>): List<SpawnInfo> {
+        val base = parseSpawnEntry(spawn, presets, herd = true) ?: return emptyList()
+        val members = spawn.optArray("herdablePokemon")?.mapNotNull { element ->
+            runCatching { parseHerdMember(element.asJsonObject) }.getOrNull()
+        }.orEmpty()
+        if (members.isEmpty()) return emptyList()
+        return HerdSpawnReader.spawnInfos(base, members, spawn.optInt("maxHerdSize") ?: 10).map { it.second }
+    }
+
+    private fun parseHerdMember(member: JsonObject): HerdSpawnReader.HerdMember? {
+        val tokens = member.optString("pokemon")?.lowercase()?.split(" ")?.filter { it.isNotBlank() }.orEmpty()
+        val species = tokens.firstOrNull()?.substringAfter(':') ?: return null
+        val properties = tokens.drop(1)
+        val isAlpha = properties.any { it == "alpha" || it == "alpha=true" }
+        val variant = properties.filterNot { it == "alpha=true" || it == "alpha" || it.startsWith("held_item=") }
+        val isLeader = member.optBool("isLeader") ?: false
+        val isFollower = member.optBool("isFollower") ?: true
+        return HerdSpawnReader.HerdMember(
+            species = species,
+            formAspects = (listOfNotNull("alpha".takeIf { isAlpha }) + variant).joinToString(" "),
+            role = if (isLeader) HerdRole.LEADER else if (isFollower) HerdRole.FOLLOWER else HerdRole.ANY,
+            isAlpha = isAlpha,
+            heldItemId = properties.firstOrNull { it.startsWith("held_item=") }?.substringAfter('='),
+            levelRange = member.optString("levelRange"),
+            maxCount = member.optInt("maxTimes") ?: 1,
+            weight = member.optFloat("weight") ?: 1f,
+        )
+    }
+
+    internal fun parseSpawnEntry(spawn: JsonObject, presets: Map<String, JsonObject>, herd: Boolean = false): SpawnInfo? {
+        val pokemon = spawn.optString("pokemon") ?: if (herd) "" else return null
         val species = pokemon.split(" ").firstOrNull()?.lowercase() ?: return null
 
         // Extract form/aspects from the pokemon property string (e.g. "raichu alolan")
@@ -440,7 +527,7 @@ object JarDataCache {
         val formAspects = if (parts.size > 1) parts.drop(1).joinToString(" ").lowercase() else ""
 
         val bucket = spawn.optString("bucket") ?: "common"
-        val levelStr = spawn.optString("level") ?: "1-100"
+        val levelStr = spawn.optString("level") ?: spawn.optString("levelRange") ?: "1-100"
         val weight = spawn.optFloat("weight") ?: 1.0f
         val context = spawn.optString("spawnablePositionType") ?: spawn.optString("context") ?: spawn.optString("type") ?: "grounded"
 
@@ -462,7 +549,8 @@ object JarDataCache {
         val structures = condition.optStringArray("structures")
         val dimensions = condition.optStringArray("dimensions")
         val neededNearbyBlocks = condition.optStringArray("neededNearbyBlocks")
-        val neededBaseBlocks = condition.optStringArray("neededBaseBlocks")
+        // The same preset noise the runtime reader drops; see SpawnDataLoader.NATURAL_GROUND_TAG.
+        val neededBaseBlocks = condition.optStringArray("neededBaseBlocks").filterNot { it == SpawnDataLoader.NATURAL_GROUND_TAG }
         val canSeeSky = condition?.optBool("canSeeSky")
         val minLight = condition?.optInt("minLight")
         val maxLight = condition?.optInt("maxLight")
@@ -505,7 +593,7 @@ object JarDataCache {
             SpawnAntiCondition(
                 biomes = anticondition.optStringArray("biomes"),
                 structures = anticondition.optStringArray("structures"),
-                neededBaseBlocks = anticondition.optStringArray("neededBaseBlocks"),
+                neededBaseBlocks = anticondition.optStringArray("neededBaseBlocks").filterNot { it == SpawnDataLoader.FARMLAND_ID },
                 neededNearbyBlocks = anticondition.optStringArray("neededNearbyBlocks"),
                 minY = anticondition.optInt("minY"),
                 maxY = anticondition.optInt("maxY"),
@@ -515,7 +603,11 @@ object JarDataCache {
                 isThundering = anticondition.optBool("isThundering"),
                 minLight = anticondition.optInt("minLight"),
                 maxLight = anticondition.optInt("maxLight"),
-                moonPhase = anticondition.optString("moonPhase")
+                moonPhase = anticondition.optString("moonPhase"),
+                minLureLevel = anticondition.optInt("minLureLevel"),
+                maxLureLevel = anticondition.optInt("maxLureLevel"),
+                isSlimeChunk = anticondition.optBool("isSlimeChunk"),
+                isPokeSnack = anticondition.optBool("isPokeSnack"),
             )
         } else null
 
@@ -546,9 +638,33 @@ object JarDataCache {
             fluid = fluid,
             anticondition = if (anti?.isEmpty == true) null else anti,
             weightMultipliers = weightMults,
-            minLureLevel = minLureLevel
+            minLureLevel = minLureLevel,
+            isPokeSnack = condition?.optBool("isPokeSnack"),
+            isSlimeChunk = condition?.optBool("isSlimeChunk"),
+            maxLureLevel = condition?.optInt("maxLureLevel"),
+            rodType = condition?.optString("rodType"),
+            bait = condition?.optString("bait"),
+            minX = condition?.optInt("minX"),
+            maxX = condition?.optInt("maxX"),
+            minZ = condition?.optInt("minZ"),
+            maxZ = condition?.optInt("maxZ"),
+            minHeight = condition?.optInt("minHeight"),
+            maxHeight = condition?.optInt("maxHeight"),
+            spawnDrops = parseSpawnDrops(spawn),
         )
     }
+
+    private fun parseSpawnDrops(spawn: JsonObject): List<DropEntryInfo> =
+        spawn.optObject("drops")?.optArray("entries")?.mapNotNull { element ->
+            val entry = runCatching { element.asJsonObject }.getOrNull() ?: return@mapNotNull null
+            val item = entry.optString("item") ?: return@mapNotNull null
+            DropEntryInfo(
+                itemId = item,
+                percentage = entry.optFloat("percentage") ?: 100f,
+                quantity = entry.optInt("quantity") ?: 1,
+                quantityRange = entry.optString("quantityRange"),
+            )
+        }.orEmpty()
 
     // ==================== Habitat Pool Parsing ====================
 
@@ -943,65 +1059,55 @@ object JarDataCache {
      * - "condition": {...} (single condition object)
      */
     private fun parseWeightMultiplierConditions(wm: JsonObject): List<WeightConditionPart> {
-        // Try plural array first, then singular object
-        val condArray = wm.optArray("conditions")
-        if (condArray != null && !condArray.isEmpty) {
-            return summarizeWeightConditionsFromJson(condArray)
-        }
-        val condObj = wm.optObject("condition")
-        if (condObj != null) {
-            return summarizeWeightConditionFromObject(condObj)
-        }
-        return listOf(WeightConditionPart(type = "always"))
+        // Plural arrays and singular objects both appear in the wild.
+        fun objects(plural: String, singular: String): List<JsonObject> =
+            wm.optArray(plural)?.mapNotNull { runCatching { it.asJsonObject }.getOrNull() }.orEmpty() +
+                listOfNotNull(wm.optObject(singular))
+
+        val conditions = objects("conditions", "condition")
+        val anticonditions = objects("anticonditions", "anticondition")
+        if (conditions.isEmpty() && anticonditions.isEmpty()) return WeightConditionParts.ALWAYS
+        val parts = conditions.flatMap(::weightParts) + anticonditions.flatMap(::weightParts).map(WeightConditionParts::negated)
+        return parts.ifEmpty { WeightConditionParts.CONDITIONAL }
     }
 
-    private fun summarizeWeightConditionFromObject(cond: JsonObject): List<WeightConditionPart> {
-        val parts = mutableListOf<WeightConditionPart>()
-        parseConditionFields(cond, parts)
-        return if (parts.isEmpty()) listOf(WeightConditionPart(type = "conditional")) else parts
-    }
+    private fun weightParts(cond: JsonObject): List<WeightConditionPart> =
+        WeightConditionParts.of(
+            WeightConditionParts.Facts(
+                isThundering = cond.optBool("isThundering"),
+                isRaining = cond.optBool("isRaining"),
+                timeRange = weightTimeRange(cond),
+                moonPhase = cond.optString("moonPhase"),
+                biomes = cond.optStringArray("biomes"),
+                structures = cond.optStringArray("structures"),
+                nearbyBlocks = cond.optStringArray("neededNearbyBlocks"),
+                minLureLevel = cond.optInt("minLureLevel"),
+                maxLureLevel = cond.optInt("maxLureLevel"),
+                minLight = cond.optInt("minLight"),
+                maxLight = cond.optInt("maxLight"),
+                minY = cond.optInt("minY"),
+                maxY = cond.optInt("maxY"),
+                isPokeSnack = cond.optBool("isPokeSnack"),
+                isSlimeChunk = cond.optBool("isSlimeChunk"),
+                canSeeSky = cond.optBool("canSeeSky"),
+                minSkyLight = cond.optInt("minSkyLight"),
+                maxSkyLight = cond.optInt("maxSkyLight"),
+                dimensions = cond.optStringArray("dimensions"),
+            )
+        )
 
-    private fun summarizeWeightConditionsFromJson(conditions: JsonArray?): List<WeightConditionPart> {
-        if (conditions == null || conditions.isEmpty) return listOf(WeightConditionPart(type = "always"))
-        val parts = mutableListOf<WeightConditionPart>()
-        for (condElem in conditions) {
-            try {
-                val cond = condElem.asJsonObject
-                parseConditionFields(cond, parts)
-            } catch (_: Exception) {}
-        }
-        return if (parts.isEmpty()) listOf(WeightConditionPart(type = "conditional")) else parts
-    }
-
-    private fun parseConditionFields(cond: JsonObject, parts: MutableList<WeightConditionPart>) {
-        cond.optBool("isThundering")?.let { if (it) parts.add(WeightConditionPart(type = "thunderstorm")) }
-        cond.optBool("isRaining")?.let { if (it) parts.add(WeightConditionPart(type = "rain")) }
-
+    private fun weightTimeRange(cond: JsonObject): String? {
         // timeRange can be a string ("twilight", "night") or an object with ranges
-        val timeRangeElem = cond.get("timeRange")
-        if (timeRangeElem != null) {
-            if (timeRangeElem.isJsonPrimitive) {
-                parts.add(WeightConditionPart(type = "time_range", text = timeRangeElem.asString))
-            } else if (timeRangeElem.isJsonObject) {
-                val ranges = timeRangeElem.asJsonObject.optArray("ranges")
-                if (ranges != null && !ranges.isEmpty) {
-                    val str = ranges.mapNotNull {
-                        if (!it.isJsonArray) return@mapNotNull null
-                        val arr = it.asJsonArray
-                        if (arr.size() < 2) return@mapNotNull null
-                        "${arr[0].asInt}-${arr[1].asInt}"
-                    }.joinToString(",")
-                    if (str.isNotBlank()) parts.add(WeightConditionPart(type = "time_range", text = str))
-                }
-            }
-        }
-
-        val biomes = cond.optStringArray("biomes")
-        if (biomes.isNotEmpty()) {
-            parts.add(WeightConditionPart(type = "biomes", ids = biomes))
-        }
-
-        cond.optInt("minLureLevel")?.let { parts.add(WeightConditionPart(type = "lure", number = it)) }
+        val timeRangeElem = cond.get("timeRange") ?: return null
+        if (timeRangeElem.isJsonPrimitive) return timeRangeElem.asString
+        if (!timeRangeElem.isJsonObject) return null
+        val ranges = timeRangeElem.asJsonObject.optArray("ranges") ?: return null
+        return ranges.mapNotNull {
+            if (!it.isJsonArray) return@mapNotNull null
+            val arr = it.asJsonArray
+            if (arr.size() < 2) return@mapNotNull null
+            "${arr[0].asInt}-${arr[1].asInt}"
+        }.joinToString(",").ifBlank { null }
     }
 
     /**
@@ -1452,6 +1558,12 @@ object JarDataCache {
             return EvolutionRequirement(EvolutionRequirementSpec.ANY, emptyMap())
         }
 
+        // "negate" flips the requirement nested in `inner`.
+        if (spec?.variant == EvolutionRequirementSpec.NEGATE) {
+            val inner = req.optObject("inner")?.let { runCatching { parseRequirementFromJson(it) }.getOrNull() }
+            return EvolutionRequirement(EvolutionRequirementSpec.NEGATE, listOfNotNull(inner?.let { "inner" to it }).toMap())
+        }
+
         if (spec == null) {
             // Unrecognised variant - keep whatever primitives it carries so the page can still say
             // something useful, rather than dropping the requirement entirely.
@@ -1773,14 +1885,15 @@ object JarDataCache {
 
     private fun JsonObject.optInt(key: String): Int? {
         val elem = get(key) ?: return null
-        if (elem.isJsonPrimitive && elem.asJsonPrimitive.isNumber) return elem.asInt
-        return null
+        if (!elem.isJsonPrimitive) return null
+        // Packs sometimes quote their numbers, and Cobblemon's parser accepts that.
+        return if (elem.asJsonPrimitive.isNumber) elem.asInt else elem.asString.toIntOrNull()
     }
 
     private fun JsonObject.optFloat(key: String): Float? {
         val elem = get(key) ?: return null
-        if (elem.isJsonPrimitive && elem.asJsonPrimitive.isNumber) return elem.asFloat
-        return null
+        if (!elem.isJsonPrimitive) return null
+        return if (elem.asJsonPrimitive.isNumber) elem.asFloat else elem.asString.toFloatOrNull()
     }
 
     private fun JsonObject.optBool(key: String): Boolean? {

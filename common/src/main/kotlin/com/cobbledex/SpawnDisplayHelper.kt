@@ -67,13 +67,8 @@ object SpawnDisplayHelper {
         return groups.map { (_, group) ->
             val primary = group.first()
             val variants = group
-                .filter { it.formAspects.isNotBlank() }
-                .map {
-                    it.formAspects
-                        .split(" ")
-                        .filter { w -> w.isNotBlank() }
-                        .joinToString(", ") { w -> formatAspect(w) }
-                }
+                .filter { it.formAspects.isNotBlank() && !it.onOwnFormPage }
+                .map { formatFormAspects(it.formAspects) }
                 .distinct()
             MergedSpawn(primary, variants)
         }
@@ -88,6 +83,8 @@ object SpawnDisplayHelper {
             "${s.moonPhase}|${s.presets.sorted()}|${s.fluid}|${serializeAntiCondition(s.anticondition)}|" +
             "${serializeWeightMultipliers(s.weightMultipliers)}|${s.minLureLevel}|${s.conditionWarnings.sorted()}|" +
             "${s.isPokeSnack}|${s.isSlimeChunk}|${s.herd?.rosterKey()}|" +
+            "${s.maxLureLevel}|${s.rodType}|${s.bait}|${s.minX}|${s.maxX}|${s.minZ}|${s.maxZ}|" +
+            "${s.minHeight}|${s.maxHeight}|${s.spawnDrops.map { it.itemId }.sorted()}|" +
             "${s.habitat?.habitatNameKey}:${s.habitat?.phases}"
     }
 
@@ -107,6 +104,10 @@ object SpawnDisplayHelper {
             anticondition.minLight?.toString().orEmpty(),
             anticondition.maxLight?.toString().orEmpty(),
             anticondition.moonPhase.orEmpty(),
+            anticondition.minLureLevel?.toString().orEmpty(),
+            anticondition.maxLureLevel?.toString().orEmpty(),
+            anticondition.isSlimeChunk?.toString().orEmpty(),
+            anticondition.isPokeSnack?.toString().orEmpty(),
         ).joinToString("|")
     }
 
@@ -178,12 +179,35 @@ object SpawnDisplayHelper {
                 spawn.maxY != null -> list.add(tr("cobbledex-rei-emi-jei.spawn.cond.y_max", spawn.maxY!!))
             }
         }
-        spawn.moonPhase?.let { list.add(tr("cobbledex-rei-emi-jei.spawn.cond.moon", titleCase(it))) }
-        if (spawn.isFishing) {
-            val lure = spawn.minLureLevel
-            if (lure != null && lure > 0) list.add(tr("cobbledex-rei-emi-jei.spawn.cond.fishing_lure", lure)) else list.add(tr("cobbledex-rei-emi-jei.spawn.cond.fishing"))
-        }
+        spawn.moonPhase?.let { list.add(tr("cobbledex-rei-emi-jei.spawn.cond.moon", formatMoonPhase(it))) }
+        if (spawn.isFishing) list.addAll(fishingLines(spawn))
+        list.addAll(placementLines(spawn))
         return list
+    }
+
+    /** The lure, rod and bait a fishing spawn needs. */
+    fun fishingLines(spawn: SpawnInfo): List<String> = buildList {
+        val min = spawn.minLureLevel?.takeIf { it > 0 }
+        add(when {
+            spawn.maxLureLevel != null -> tr(
+                "cobbledex-rei-emi-jei.spawn.cond.fishing_lure_range",
+                WeightConditionParts.rangeText(min, spawn.maxLureLevel).orEmpty(),
+            )
+            min != null -> tr("cobbledex-rei-emi-jei.spawn.cond.fishing_lure", min)
+            else -> tr("cobbledex-rei-emi-jei.spawn.cond.fishing")
+        })
+        spawn.rodType?.let { add(tr("cobbledex-rei-emi-jei.spawn.cond.rod", formatItemId(it))) }
+        spawn.bait?.let { add(tr("cobbledex-rei-emi-jei.spawn.cond.bait", formatItemId(it))) }
+    }
+
+    /** World-coordinate limits, the space a spawn needs, and any drops of its own. */
+    fun placementLines(spawn: SpawnInfo): List<String> = buildList {
+        WeightConditionParts.rangeText(spawn.minX, spawn.maxX)?.let { add(tr("cobbledex-rei-emi-jei.spawn.cond.coord", "X", it)) }
+        WeightConditionParts.rangeText(spawn.minZ, spawn.maxZ)?.let { add(tr("cobbledex-rei-emi-jei.spawn.cond.coord", "Z", it)) }
+        WeightConditionParts.rangeText(spawn.minHeight, spawn.maxHeight)?.let { add(tr("cobbledex-rei-emi-jei.spawn.cond.space", it)) }
+        if (spawn.spawnDrops.isNotEmpty()) {
+            add(tr("cobbledex-rei-emi-jei.spawn.drops_here", spawn.spawnDrops.joinToString(", ") { formatItemId(it.itemId) }))
+        }
     }
 
 
@@ -217,8 +241,13 @@ object SpawnDisplayHelper {
             lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.light", r.joinToString(", ")))
         }
         if (anti.moonPhase != null) {
-            lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.moon", titleCase(anti.moonPhase)))
+            lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.moon", formatMoonPhase(anti.moonPhase)))
         }
+        WeightConditionParts.rangeText(anti.minLureLevel, anti.maxLureLevel)?.let {
+            lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.lure", it))
+        }
+        if (anti.isSlimeChunk == true) lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.slime_chunk"))
+        if (anti.isPokeSnack == true) lines.add(tr("cobbledex-rei-emi-jei.spawn.excluded.poke_snack"))
         return lines
     }
 
@@ -235,7 +264,7 @@ object SpawnDisplayHelper {
     }
 
     fun formatFormAspects(aspects: String): String =
-        aspects.split(" ").filter { it.isNotBlank() }.joinToString(", ") { formatAspect(it) }
+        aspects.split(" ").filter { it.isNotBlank() }.map { formatAspect(it) }.distinct().joinToString(", ")
 
     // --- Text layout ---
 
@@ -746,6 +775,7 @@ object SpawnDisplayHelper {
         val posLine = if (spawn.context != "grounded" && spawn.context != "fishing") spawn.displayContext else null
         val regions = SpawnDataIndex.spawnRegionsForSpecies(spawn.pokemon)
         val spatialMults = mults.filter { it.second }
+        val placement = placementLines(spawn)
         val altLine = when {
             spawn.minY != null && spawn.maxY != null -> tr("cobbledex-rei-emi-jei.spawn.cond.y_range", spawn.minY!!, spawn.maxY!!)
             spawn.minY != null -> tr("cobbledex-rei-emi-jei.spawn.cond.y_min", spawn.minY!!)
@@ -767,7 +797,8 @@ object SpawnDisplayHelper {
         val whereHas = biomeIds.isNotEmpty() || spawn.structures.isNotEmpty() || dimLabels.isNotEmpty() ||
             extraDims.isNotEmpty() || posLine != null || altLine != null || lavaLine != null ||
             habitatList.isNotEmpty() || antiSplit.positiveWhere.isNotEmpty() ||
-            regions.isNotEmpty() || spawn.isPokeSnack == true || spawn.herd != null || spatialMults.isNotEmpty()
+            regions.isNotEmpty() || spawn.isPokeSnack == true || spawn.herd != null || spatialMults.isNotEmpty() ||
+            placement.isNotEmpty()
         if (whereHas) {
             bandLabel(layout, "cobbledex-rei-emi-jei.spawn.band.where")
             for (h in habitatList) {
@@ -831,6 +862,7 @@ object SpawnDisplayHelper {
                 layout.wrapped(indentX, text, contentW, 0xFFFFCC66.toInt())
                 categoryLinks.add(CategoryLinkDef(HerdsDex.id, speciesName, indentX, hy, contentW - indentX, layout.y - hy))
             }
+            placement.forEach { layout.wrapped(indentX, it, contentW, 0xFFAAAAAA.toInt()) }
             spatialMults.forEach { layout.wrapped(indentX, it.first, contentW, 0xFFCC9999.toInt()) }
             bandRule(layout)
         }
@@ -847,13 +879,9 @@ object SpawnDisplayHelper {
             val tw = listOfNotNull(timeStr, weatherStr)
             if (tw.isNotEmpty()) { layout.text(indentX, tw.joinToString("    "), 0xFFDDDDDD.toInt()); layout.line() }
             lightStr?.let { layout.wrapped(indentX, it, contentW, 0xFFBBBBBB.toInt()) }
-            spawn.moonPhase?.let { layout.wrapped(indentX, tr("cobbledex-rei-emi-jei.spawn.cond.moon", titleCase(it)), contentW, 0xFFBBBBBB.toInt()) }
+            spawn.moonPhase?.let { layout.wrapped(indentX, tr("cobbledex-rei-emi-jei.spawn.cond.moon", formatMoonPhase(it)), contentW, 0xFFBBBBBB.toInt()) }
             if (spawn.isSlimeChunk == true) layout.wrapped(indentX, tr("cobbledex-rei-emi-jei.spawn.slime_chunk"), contentW, 0xFFBBBBBB.toInt())
-            if (spawn.isFishing) {
-                val lure = spawn.minLureLevel
-                val txt = if (lure != null && lure > 0) tr("cobbledex-rei-emi-jei.spawn.cond.fishing_lure", lure) else tr("cobbledex-rei-emi-jei.spawn.cond.fishing")
-                layout.wrapped(indentX, txt, contentW, 0xFFBBBBBB.toInt())
-            }
+            if (spawn.isFishing) fishingLines(spawn).forEach { layout.wrapped(indentX, it, contentW, 0xFFBBBBBB.toInt()) }
             tempMults.forEach { layout.wrapped(indentX, it.first, contentW, 0xFFCC9999.toInt()) }
             bandRule(layout)
         }

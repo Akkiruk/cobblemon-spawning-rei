@@ -248,15 +248,31 @@ data class EvolutionRequirement(
                 val amount = (data["amount"] as? Number)?.toInt()
                 if (amount != null) tr("cobbledex-rei-emi-jei.evo.critical_hits_count", amount) else tr("cobbledex-rei-emi-jei.evo.critical_hits")
             }
+            "negate" -> {
+                val inner = data["inner"] as? EvolutionRequirement
+                val negatedBiome = inner?.takeIf { it.variant == "biome" }?.let { cleanValue(it.data["biomeCondition"]) }
+                val negatedStructure = inner?.takeIf { it.variant == "structure" }?.let { cleanValue(it.data["structureCondition"]) }
+                when {
+                    negatedBiome != null -> tr("cobbledex-rei-emi-jei.evo.not_in_biome", formatBiome(negatedBiome))
+                    negatedStructure != null -> tr("cobbledex-rei-emi-jei.evo.not_in_structure", formatStructure(negatedStructure))
+                    inner != null -> tr("cobbledex-rei-emi-jei.evo.not", inner.displayText)
+                    else -> tr("cobbledex-rei-emi-jei.evo.special_condition")
+                }
+            }
             "party_member", "party" -> {
-                val target = cleanValue(data["target"])?.split(" ")?.firstOrNull()?.let { titleCase(it) }
+                val rawTarget = cleanValue(data["target"])
+                val target = rawTarget?.split(" ")?.firstOrNull()?.let { titleCase(it) }
                 val contains = data["contains"] as? Boolean ?: true
-                if (target != null && target.isNotBlank()) {
+                val typeTarget = rawTarget?.split(" ")?.firstOrNull { it.startsWith("type=", ignoreCase = true) }?.substringAfter('=')
+                if (typeTarget != null) {
+                    val type = formatTypeName(typeTarget)
+                    if (contains) tr("cobbledex-rei-emi-jei.evo.party_type", type) else tr("cobbledex-rei-emi-jei.evo.party_no_type", type)
+                } else if (target != null && target.isNotBlank()) {
                     if (contains) tr("cobbledex-rei-emi-jei.evo.party_has", target) else tr("cobbledex-rei-emi-jei.evo.party_no", target)
                 } else tr("cobbledex-rei-emi-jei.evo.party_condition")
             }
             "moon_phase" -> {
-                val phase = cleanValue(data["moonPhase"])?.let { titleCase(it) } ?: "Full Moon"
+                val phase = cleanValue(data["moonPhase"])?.let { formatMoonPhase(it) } ?: "Full Moon"
                 phase
             }
             "weather" -> {

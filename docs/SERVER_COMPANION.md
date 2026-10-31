@@ -110,7 +110,7 @@ Keyed by resource path, so the client replaces the same key from its own files. 
 
 No species key filtering in v1. Measured: `moves` is 56% of species bytes and is needed (tutor and legacy moves), and everything else compresses to very little, so filtering saved ~30% raw and almost nothing compressed while coupling the server to Cobblemon's file format. Files are sent whole (parsed and re-emitted, so a broken file is dropped without spoiling the rest). The exclude list in the server config is the privacy control.
 
-The document also carries `"mods"` (mod ids whose files were left out because the client's copy is the same version) and `"origins"` (species file id to a display name for the "Added by" line; only the last path segment of a pack, never a server path).
+The document also carries `"namespaces"` (every namespace with a biome, structure, dimension or block on the server, tags included, so the client can tell which spawn conditions can be met; absent from older servers, and the client then falls back to its own mods and files), `"mods"` (mod ids whose files were left out because the client's copy is the same version) and `"origins"` (species file id to a display name for the "Added by" line; only the last path segment of a pack, never a server path).
 
 Measured (Zaderos's packs plus Cobblemon 1.8.2, minified, one deflate stream): packs only 0.37 MB, everything 0.84 MB.
 
@@ -122,6 +122,7 @@ Skipping what the client already has:
 
 ## 8. Server behaviour
 
+- Spawn pool files whose `neededInstalledMods` / `neededUninstalledMods` don't pass on the server are left out, which is why the full mod list never has to be sent.
 - Build the payload lazily on the first request and on each datapack reload, from `server.getResourceManager()` (resolved winners, so pack priority is applied). Build off the tick thread. Cache the compressed bytes and the hash. Invalidate on reload.
 - On a request: reject if protocol differs, if the player is on cooldown (default 60 s), if `canSend(sync_chunk)` is false, or if the feature is disabled (header status 2). If `cachedHash` equals the current hash and the skip set matches, answer status 0 and send nothing.
 - Stream chunks at most 2 per player and 6 in total per tick. Stop if the player disconnects.

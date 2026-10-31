@@ -133,26 +133,57 @@ object SpawnPageModel {
         if (m == 1f) return null
         val dir = if (m > 1f) tr("cobbledex-rei-emi-jei.spawn.mult.more") else tr("cobbledex-rei-emi-jei.spawn.mult.less")
         val much = if (m >= 3f || (m > 0f && m <= 0.34f)) tr("cobbledex-rei-emi-jei.spawn.mult.much") + " " else ""
-        val part = wm.conditionParts.firstOrNull { it.type !in setOf("always", "conditional") } ?: return null
+        val parts = wm.conditionParts.filter { it.type !in setOf("always", "conditional") }
+        if (parts.isEmpty()) return null
+        val phrases = parts.map { phrasePart(it) ?: return null }
+        return MultPhrase("$much$dir ${phrases.joinToString(", ") { it.first }}", phrases.any { it.second })
+    }
 
-        val (cond, spatial) = when (part.type) {
+    /** The condition half of a multiplier phrase, and whether it says where rather than when. */
+    private fun phrasePart(part: WeightConditionPart): Pair<String, Boolean>? {
+        return when (part.type) {
             "rain" -> tr("cobbledex-rei-emi-jei.spawn.mult.in_rain") to false
+            "clear" -> tr("cobbledex-rei-emi-jei.spawn.mult.in_clear") to false
+            "open_sky" -> tr("cobbledex-rei-emi-jei.spawn.mult.open_sky") to true
+            "covered" -> tr("cobbledex-rei-emi-jei.spawn.mult.covered") to true
+            "sky_light" -> part.text?.let { tr("cobbledex-rei-emi-jei.spawn.mult.in_sky_light", it) to false }
+            "dimensions" -> tr("cobbledex-rei-emi-jei.spawn.mult.in_biomes", part.ids.joinToString(", ") { SpawnDisplayHelper.formatDimension(it) }) to true
             "thunderstorm" -> tr("cobbledex-rei-emi-jei.spawn.mult.in_storm") to false
             "time_range" -> when (normalizeTime(part.text)) {
                 TimeLabel.NIGHT -> tr("cobbledex-rei-emi-jei.spawn.mult.at_night") to false
                 TimeLabel.DAY -> tr("cobbledex-rei-emi-jei.spawn.mult.by_day") to false
                 TimeLabel.DAWN, TimeLabel.DUSK -> tr("cobbledex-rei-emi-jei.spawn.mult.at_twilight") to false
-                else -> return null
+                else -> null
             }
             "biomes" -> {
                 val names = part.ids.map { formatBiomeName(it) }
                 tr("cobbledex-rei-emi-jei.spawn.mult.in_biomes", names.take(2).joinToString(", ")) to true
             }
-            "moon" -> tr("cobbledex-rei-emi-jei.spawn.mult.by_moon") to false
-            "lure" -> tr("cobbledex-rei-emi-jei.spawn.mult.with_lure", part.number ?: 1) to false
-            else -> return null
+            "not_biomes" -> {
+                val names = part.ids.map { formatBiomeName(it) }
+                tr("cobbledex-rei-emi-jei.spawn.mult.outside", names.take(2).joinToString(", ")) to true
+            }
+            "structures" -> {
+                val names = part.ids.map { formatStructureName(it) }
+                tr("cobbledex-rei-emi-jei.spawn.mult.in_biomes", names.take(2).joinToString(", ")) to true
+            }
+            "nearby_blocks" -> {
+                val names = part.ids.map { formatBlockName(it) }
+                tr("cobbledex-rei-emi-jei.spawn.mult.near_blocks", names.take(2).joinToString(", ")) to true
+            }
+            "moon" -> {
+                val phase = part.text?.let { formatMoonPhase(it) }
+                (phase?.let { tr("cobbledex-rei-emi-jei.spawn.mult.on_moon", it) }
+                    ?: tr("cobbledex-rei-emi-jei.spawn.mult.by_moon")) to false
+            }
+            "lure" -> (part.text?.let { tr("cobbledex-rei-emi-jei.spawn.mult.with_lure_range", it) }
+                ?: tr("cobbledex-rei-emi-jei.spawn.mult.with_lure", part.number ?: 1)) to false
+            "poke_snack" -> tr("cobbledex-rei-emi-jei.spawn.mult.poke_snack") to false
+            "slime_chunk" -> tr("cobbledex-rei-emi-jei.spawn.mult.slime_chunk") to true
+            "light" -> part.text?.let { tr("cobbledex-rei-emi-jei.spawn.mult.in_light", it) to false }
+            "height" -> part.text?.let { tr("cobbledex-rei-emi-jei.spawn.mult.at_height", it) to true }
+            else -> null
         }
-        return MultPhrase("$much$dir $cond", spatial)
     }
 
     // ---------------------------------------------------------------- anticondition interpretation
@@ -244,6 +275,8 @@ object SpawnPageModel {
         lightBucket(s.minSkyLight, s.maxSkyLight, s.minLight, s.maxLight, s.canSeeSky),
         s.moonPhase ?: "-",
         "${s.minY}/${s.maxY}",
+        "${s.minX}/${s.maxX}/${s.minZ}/${s.maxZ}",
+        "${s.rodType}/${s.bait}/${s.maxLureLevel}",
         (s.isPokeSnack == true).toString(),
         (s.herd != null).toString(),
         s.isFishing.toString(),

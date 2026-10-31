@@ -44,11 +44,13 @@ class ServerSyncService(
     @Volatile
     private var snapshot: List<SourceFile> = emptyList()
 
+    private var namespaces: Set<String> = emptySet()
+
     /** Bumped with every new snapshot, so a payload built from an older one is never cached. */
     private var generation = 0
 
     /** A snapshot collected on another thread, applied on the next tick so server state stays single-threaded. */
-    private val pendingSnapshot = AtomicReference<List<SourceFile>?>(null)
+    private val pendingSnapshot = AtomicReference<Pair<List<SourceFile>, Set<String>>?>(null)
 
     private val cache = object : LinkedHashMap<String, BuiltPayload>(8, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, BuiltPayload>) = size > MAX_CACHED_VARIANTS
@@ -69,8 +71,9 @@ class ServerSyncService(
         private set
 
     /** Replaces the data the server offers. Running transfers finish with the data they started with. */
-    fun setSnapshot(files: List<SourceFile>) {
+    fun setSnapshot(files: List<SourceFile>, namespaces: Set<String> = emptySet()) {
         snapshot = files
+        this.namespaces = namespaces
         generation++
         cache.clear()
         log.info("CobbleDex sync: {} data files ready to offer", files.size)
@@ -81,8 +84,8 @@ class ServerSyncService(
     }
 
     /** Safe from any thread. */
-    fun submitSnapshot(files: List<SourceFile>) {
-        pendingSnapshot.set(files)
+    fun submitSnapshot(files: List<SourceFile>, namespaces: Set<String> = emptySet()) {
+        pendingSnapshot.set(files to namespaces)
     }
 
     fun handleRequest(player: UUID, name: String, request: SyncRequestPayload) {
@@ -134,15 +137,19 @@ class ServerSyncService(
         }
         building[key] = mutableListOf(waiting)
         val files = snapshot
+        val knownNamespaces = namespaces
         val builtFrom = generation
         buildExecutor.execute {
             val built = try {
                 PayloadWriter.write(
                     files,
                     skip = { f -> packMod(f.packId) in skipMods },
-                    exclude = { f, json -> config.excludesFile(f.id) || config.excludesSpecies(speciesNameOf(json)) },
+                    exclude = { f, json ->
+                        config.excludesFile(f.id) || config.excludesSpecies(speciesNameOf(json)) || !poolApplies(json)
+                    },
                     skippedMods = skipMods,
                     origin = { f -> PackNames.display(f.packId, serverMods.keys) },
+                    namespaces = knownNamespaces,
                 )
             } catch (e: Throwable) {
                 log.warn("CobbleDex sync: building the payload failed: {}", e.toString())
@@ -158,7 +165,7 @@ class ServerSyncService(
             val cutoff = clock() - REMEMBER_TRANSFERS_MS
             lastTransfer.values.removeIf { it < cutoff }
         }
-        pendingSnapshot.getAndSet(null)?.let { setSnapshot(it) }
+        pendingSnapshot.getAndSet(null)?.let { (files, namespaces) -> setSnapshot(files, namespaces) }
         while (true) {
             val done = finished.poll() ?: break
             val waiters = building.remove(done.key).orEmpty()
@@ -253,6 +260,15 @@ class ServerSyncService(
      * mod id (`cobblemon`) and NeoForge as `mod/<id>`; datapacks always carry a prefix (`file/...`, `openloader/...`),
      * so an id that is exactly an installed mod's cannot be a datapack.
      */
+    /**
+     * Cobblemon's mod gate on a spawn pool file. Decided here because only the server knows its mods,
+     * and a file that doesn't apply is one the client shouldn't list.
+     */
+    private fun poolApplies(json: com.google.gson.JsonObject): Boolean {
+        fun ids(key: String) = json.getAsJsonArray(key)?.mapNotNull { if (it.isJsonPrimitive) it.asString else null }.orEmpty()
+        return ids("neededInstalledMods").all { it in serverMods } && ids("neededUninstalledMods").none { it in serverMods }
+    }
+
     private fun packMod(packId: String): String? {
         val id = packId.removePrefix("mod/")
         return if (id in serverMods) id else null

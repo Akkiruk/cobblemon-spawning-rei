@@ -243,4 +243,18 @@ class TransferTest {
         list.dropLast(1).forEach { a.accept(it) }
         assertIs<TransferAssembler.Outcome.Complete>(a.accept(list.last()))
     }
+
+    @Test
+    fun namespacesReachTheClient() {
+        val p = PayloadWriter.write(sampleFiles(), skip = { false }, namespaces = listOf("nullscape", "bca"))
+
+        assertEquals(setOf("nullscape", "bca"), OverlayDecoder.decode(p.compressed, p.hash)?.namespaces)
+    }
+
+    @Test
+    fun aServerThatSaysNothingAboutNamespacesIsNotTakenToHaveNone() {
+        val p = PayloadWriter.write(sampleFiles(), skip = { false })
+
+        assertEquals(null, OverlayDecoder.decode(p.compressed, p.hash)?.namespaces)
+    }
 }

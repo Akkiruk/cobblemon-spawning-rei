@@ -81,7 +81,8 @@ object SpeciesTraitMerger {
 
         for ((key, info) in runtime) {
             val baseKey = info.baseSpeciesName?.let { SpeciesNameNormalizer.normalize(it) } ?: key
-            val localTraits = formTraits[key] ?: traits[baseKey]
+            // A form only states what differs from its species and inherits the rest, as it does in Cobblemon.
+            val localTraits = formTraits[key]?.orElse(traits[baseKey]) ?: traits[baseKey]
             // Once a form's own TM/egg lists are synced, the base species' file describes a different
             // Pokémon, so it must not top up a form that Cobblemon already described.
             val localMoves = formMoves[key]

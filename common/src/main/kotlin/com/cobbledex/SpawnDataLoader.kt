@@ -49,7 +49,6 @@ object SpawnDataLoader {
                         // Strip namespace prefix for consistent keying (e.g. "cobblemon:charizard" -> "charizard")
                         val species = if (rawSpecies.contains(':')) rawSpecies.substringAfter(':') else rawSpecies
                         val info = extractSpawnInfo(detail, species)
-                        if (ModFilter.spawnReferencesMissingMod(info)) continue
                         result.getOrPut(species) { mutableListOf() }.add(info)
                         count++
                     }
@@ -103,18 +102,16 @@ object SpawnDataLoader {
             .filter { it.isNotBlank() }
             .joinToString(" ")
 
+    /** Everything on a property string that can pick a variant, as one space-separated string. */
+    internal fun variantTokens(pokemon: com.cobblemon.mod.common.api.pokemon.PokemonProperties): String {
+        val form = pokemon.form?.takeUnless { it.isBlank() || it.equals("Normal", ignoreCase = true) }
+        return listOfNotNull(form, pokemon.aspects?.joinToString(" "), featureTokens(pokemon))
+            .filter { it.isNotBlank() }
+            .joinToString(" ")
+    }
+
     private fun extractSpawnInfo(detail: PokemonSpawnDetail, species: String): SpawnInfo {
-        val pokemon = detail.pokemon
-        val form = pokemon.form
-        val aspects = pokemon.aspects?.joinToString(" ") ?: ""
-        val formAspects = listOf(
-            when {
-                form != null && form.isNotBlank() && !form.equals("Normal", ignoreCase = true) -> form
-                aspects.isNotBlank() -> aspects
-                else -> ""
-            },
-            featureTokens(pokemon),
-        ).filter { it.isNotBlank() }.joinToString(" ")
+        val formAspects = variantTokens(detail.pokemon)
 
         val bucket = extractBucketName(detail)
         val levelRange = detail.levelRange?.let { "${it.first}-${it.last}" } ?: "1-100"
@@ -129,7 +126,7 @@ object SpawnDataLoader {
         val minLureLevel = conditions.filterIsInstance<FishingSpawningCondition>().firstOrNull()?.minLureLevel
         val fluid = conditions.filterIsInstance<SubmergedTypeSpawningCondition<*>>().firstOrNull()?.fluid?.let { extractRegistryId(it) }
 
-        return SpawnInfo(
+        return withConditionExtras(SpawnInfo(
             id = detail.id ?: species,
             pokemon = species,
             formAspects = formAspects,
@@ -160,6 +157,19 @@ object SpawnDataLoader {
             conditionWarnings = merged.warnings,
             isPokeSnack = merged.isPokeSnack,
             isSlimeChunk = merged.isSlimeChunk,
+        ), conditions).copy(spawnDrops = EvolutionDataLoader.dropEntriesOf(Reflect.call<Any>(detail, "getDrops")))
+    }
+
+    /** Conditions read by name, because not every Cobblemon this jar loads on has all of them. */
+    private fun withConditionExtras(info: SpawnInfo, conditions: List<SpawningCondition<*>>): SpawnInfo {
+        fun <T> first(getter: String): T? = conditions.firstNotNullOfOrNull { Reflect.call<T>(it, getter) }
+        fun int(getter: String): Int? = first<Number>(getter)?.toInt()
+        return info.copy(
+            maxLureLevel = int("getMaxLureLevel"),
+            rodType = first<Any>("getRodType")?.toString(),
+            bait = first<Any>("getBait")?.toString(),
+            minX = int("getMinX"), maxX = int("getMaxX"), minZ = int("getMinZ"), maxZ = int("getMaxZ"),
+            minHeight = int("getMinHeight"), maxHeight = int("getMaxHeight"),
         )
     }
 
@@ -176,8 +186,8 @@ object SpawnDataLoader {
         val anti = buildAntiCondition(sd.anticonditions ?: emptyList(), sd.compositeCondition)
         val context = try { sd.spawnablePositionType?.name } catch (_: Throwable) { null } ?: "grounded"
 
-        val base = SpawnInfo(
-            id = "", pokemon = "", formAspects = "",
+        val base = withConditionExtras(SpawnInfo(
+            id = sd.id ?: "", pokemon = "", formAspects = "",
             bucket = extractBucketName(sd), weight = sd.weight,
             levelRange = read.detailLevelRange, context = context,
             biomes = merged.biomes, timeRange = merged.timeRange,
@@ -190,31 +200,10 @@ object SpawnDataLoader {
             moonPhase = merged.moonPhase, presets = emptyList(), fluid = null,
             anticondition = anti, weightMultipliers = extractWeightMultipliers(sd),
             minLureLevel = null, conditionWarnings = merged.warnings,
-        )
+            isPokeSnack = merged.isPokeSnack, isSlimeChunk = merged.isSlimeChunk,
+        ), sd.conditions ?: emptyList())
 
-        // One roster description, shared by every member's SpawnInfo, ordered leader/alpha first then
-        // by roll weight so the page can render the formation without re-sorting.
-        val memberRefs = read.members
-            .map {
-                HerdMemberRef(
-                    species = it.species, formAspects = it.formAspects, role = it.role,
-                    isAlpha = it.isAlpha, heldItemId = it.heldItemId,
-                    levelRange = it.levelRange ?: read.detailLevelRange,
-                    maxCount = it.maxCount, weight = it.weight,
-                )
-            }
-            .sortedWith(compareByDescending<HerdMemberRef> { it.role == HerdRole.LEADER }.thenByDescending { it.weight })
-        val herdContext = HerdContext(memberRefs, read.maxHerdSize)
-
-        return read.members.map { member ->
-            member.species to base.copy(
-                id = "${sd.id ?: member.species}#herd:${member.species}",
-                pokemon = member.species,
-                formAspects = member.formAspects,
-                levelRange = member.levelRange ?: read.detailLevelRange,
-                herd = herdContext,
-            )
-        }
+        return HerdSpawnReader.spawnInfos(base, read.members, read.maxHerdSize)
     }
 
     // --- Condition extraction ---
@@ -247,8 +236,8 @@ object SpawnDataLoader {
      * for every wild Pokémon. Stripped so it never renders as a bogus "Spawns on: Natural" line. The
      * same tag as an *anticondition* (from `derelict`/`urban`) is kept - there it means the opposite.
      */
-    private const val NATURAL_GROUND_TAG = "#cobblemon:natural"
-    private const val FARMLAND_ID = "minecraft:farmland"
+    internal const val NATURAL_GROUND_TAG = "#cobblemon:natural"
+    internal const val FARMLAND_ID = "minecraft:farmland"
 
     private data class ListMerge(
         val values: List<String>,
@@ -350,6 +339,8 @@ object SpawnDataLoader {
         var isRaining: Boolean? = null; var isThundering: Boolean? = null
         var minLight: Int? = null; var maxLight: Int? = null
         var moonPhase: String? = null
+        var minLure: Int? = null; var maxLure: Int? = null
+        var isSlimeChunk: Boolean? = null; var isPokeSnack: Boolean? = null
 
         for (cond in allAnti) {
             val data = readCondition(cond)
@@ -366,6 +357,10 @@ object SpawnDataLoader {
             minLight = minLight ?: data.minLight
             maxLight = maxLight ?: data.maxLight
             moonPhase = moonPhase ?: data.moonPhase
+            minLure = minLure ?: Reflect.call<Number>(cond, "getMinLureLevel")?.toInt()
+            maxLure = maxLure ?: Reflect.call<Number>(cond, "getMaxLureLevel")?.toInt()
+            isSlimeChunk = isSlimeChunk ?: data.isSlimeChunk
+            isPokeSnack = isPokeSnack ?: data.isPokeSnack
         }
 
         val anti = SpawnAntiCondition(
@@ -377,7 +372,8 @@ object SpawnDataLoader {
             neededNearbyBlocks = allNearbyBlocks.distinct(),
             minY = minY, maxY = maxY, timeRange = timeRange, dimensions = allDimensions.distinct(),
             isRaining = isRaining, isThundering = isThundering,
-            minLight = minLight, maxLight = maxLight, moonPhase = moonPhase
+            minLight = minLight, maxLight = maxLight, moonPhase = moonPhase,
+            minLureLevel = minLure, maxLureLevel = maxLure, isSlimeChunk = isSlimeChunk, isPokeSnack = isPokeSnack,
         )
         return if (anti.isEmpty) null else anti
     }
@@ -390,31 +386,39 @@ object SpawnDataLoader {
             try {
                 WeightMultiplier(
                     multiplier = wm.multiplier,
-                    conditionParts = summarizeWeightConditions(wm.conditions ?: emptyList())
+                    conditionParts = summarizeWeightConditions(
+                        wm.conditions ?: emptyList(),
+                        Reflect.call<List<SpawningCondition<*>>>(wm, "getAnticonditions").orEmpty(),
+                    )
                 )
             } catch (_: Exception) { null }
         }
     }
 
-    private fun summarizeWeightConditions(conditions: List<SpawningCondition<*>>): List<WeightConditionPart> {
-        if (conditions.isEmpty()) return listOf(WeightConditionPart(type = "always"))
-        val parts = mutableListOf<WeightConditionPart>()
-        for (cond in conditions) {
-            cond.isThundering?.let { if (it) parts.add(WeightConditionPart(type = "thunderstorm")) }
-            cond.isRaining?.let { if (it) parts.add(WeightConditionPart(type = "rain")) }
-            cond.timeRange?.let { tr ->
-                val str = tr.ranges.joinToString(",") { "${it.first}-${it.last}" }
-                if (str.isNotBlank()) parts.add(WeightConditionPart(type = "time_range", text = str))
-            }
-            val biomes = cond.biomes?.mapNotNull { extractRegistryId(it) } ?: emptyList()
-            if (biomes.isNotEmpty()) {
-                parts.add(WeightConditionPart(type = "biomes", ids = biomes))
-            }
-            if (cond is FishingSpawningCondition) {
-                cond.minLureLevel?.let { parts.add(WeightConditionPart(type = "lure", number = it)) }
-            }
-        }
-        return if (parts.isEmpty()) listOf(WeightConditionPart(type = "conditional")) else parts
+    private fun summarizeWeightConditions(
+        conditions: List<SpawningCondition<*>>,
+        anticonditions: List<SpawningCondition<*>>,
+    ): List<WeightConditionPart> {
+        if (conditions.isEmpty() && anticonditions.isEmpty()) return WeightConditionParts.ALWAYS
+        val parts = conditions.flatMap(::weightParts) + anticonditions.flatMap(::weightParts).map(WeightConditionParts::negated)
+        return parts.ifEmpty { WeightConditionParts.CONDITIONAL }
+    }
+
+    private fun weightParts(cond: SpawningCondition<*>): List<WeightConditionPart> {
+        val d = readCondition(cond)
+        return WeightConditionParts.of(
+            WeightConditionParts.Facts(
+                isThundering = d.isThundering, isRaining = d.isRaining, timeRange = d.timeRange,
+                moonPhase = d.moonPhase, biomes = d.biomes, structures = d.structures,
+                nearbyBlocks = d.neededNearbyBlocks,
+                minLureLevel = Reflect.call<Number>(cond, "getMinLureLevel")?.toInt(),
+                maxLureLevel = Reflect.call<Number>(cond, "getMaxLureLevel")?.toInt(),
+                minLight = d.minLight, maxLight = d.maxLight, minY = d.minY, maxY = d.maxY,
+                isPokeSnack = d.isPokeSnack, isSlimeChunk = d.isSlimeChunk,
+                canSeeSky = d.canSeeSky, minSkyLight = d.minSkyLight, maxSkyLight = d.maxSkyLight,
+                dimensions = d.dimensions,
+            )
+        )
     }
 
     // --- Registry ID helpers ---

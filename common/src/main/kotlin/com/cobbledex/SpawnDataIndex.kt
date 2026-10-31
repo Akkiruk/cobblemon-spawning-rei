@@ -231,7 +231,6 @@ object SpawnDataIndex {
 
         loadTypeChartOverrides()
         loadSpawns()
-        deriveHerds()
         loadSpeciesInfo(speciesCount)
         loadEvolutions(speciesCount)
         loadObtainment()
@@ -239,6 +238,8 @@ object SpawnDataIndex {
         loadRiding()
         loadTms()
         loadMarks()
+        routeFormData()
+        deriveHerds()
         loadSpawnRegions()
 
         rebuildDerivedData()
@@ -311,6 +312,7 @@ object SpawnDataIndex {
      */
     private fun loadSpawns() {
         SpawnDataLoader.invalidateCache()
+        ModFilter.refresh()
 
         // Habitat pools (1.8.0+) are never synced by Cobblemon - same as the world spawn pool - so
         // they always come from this client's jars/datapacks. They are additive: a species can spawn
@@ -345,7 +347,7 @@ object SpawnDataIndex {
     private fun dropMissingModSpawns(map: Map<String, List<SpawnInfo>>): Map<String, List<SpawnInfo>> {
         var removed = 0
         val out = map.mapValues { (_, list) ->
-            list.filterNot { ModFilter.spawnReferencesMissingMod(it).also { hit -> if (hit) removed++ } }
+            list.mapNotNull { spawn -> ModFilter.withoutMissingMods(spawn).also { if (it == null) removed++ } }
         }.filterValues { it.isNotEmpty() }
         if (removed > 0) DebugLog.info("Hid $removed spawn entries needing a mod that isn't installed")
         return out
@@ -353,9 +355,19 @@ object SpawnDataIndex {
 
     /**
      * Groups the per-member herd [SpawnInfo]s (1.8.0+) back into one [HerdInfo] per roster, merging
-     * the biome-variant copies. Empty when spawns came from the jar cache (which does not parse herd
-     * files) or on pre-1.8.0 Cobblemon.
+     * the biome-variant copies. Empty on pre-1.8.0 Cobblemon.
      */
+    /** Everything loaded under a base species that really belongs to one of its forms. See [FormRouter]. */
+    private fun routeFormData() {
+        val forms = FormRouter.formsByBase(speciesInfo)
+        spawnsBySpecies = FormRouter.route(spawnsBySpecies, forms) { it.formAspects }
+            .mapValues { (key, spawns) ->
+                spawns.map { if (SpeciesNameNormalizer.normalize(it.pokemon) == key) it else it.copy(onOwnFormPage = true) }
+            }
+        obtainmentBySpecies = FormRouter.route(obtainmentBySpecies, forms) { it.formAspects }
+        fossilsBySpecies = FormRouter.route(fossilsBySpecies, forms) { it.extraTags }
+    }
+
     private fun deriveHerds() {
         val byRoster = LinkedHashMap<String, MutableList<SpawnInfo>>()
         for (infos in spawnsBySpecies.values) {
@@ -373,11 +385,13 @@ object SpawnDataIndex {
         val herds = byRoster.values.mapNotNull { HerdInfo.from(it) }
             .sortedWith(compareByDescending<HerdInfo> { it.hasAlpha }.thenBy { it.leader.species })
 
+        val forms = FormRouter.formsByBase(speciesInfo)
         val bySpecies = HashMap<String, MutableList<HerdInfo>>()
         for (herd in herds) {
             // A member species can appear twice in one roster (e.g. Farigiraf as leader and follower);
             // list the herd once per species.
-            for (species in herd.members.map { SpeciesNameNormalizer.normalize(it.species) }.distinct()) {
+            val keys = herd.members.map { FormRouter.keyFor(SpeciesNameNormalizer.normalize(it.species), it.formAspects, forms) }
+            for (species in keys.distinct()) {
                 bySpecies.getOrPut(species) { mutableListOf() }.add(herd)
             }
         }
@@ -472,9 +486,9 @@ object SpawnDataIndex {
         val merged = (if (runtime.isNotEmpty()) runtime else local)
             .mapValues { it.value.toMutableList() }.toMutableMap()
         val fromLocal = if (runtime.isNotEmpty()) mergeMissingEdges(merged, local) else 0
-        val fromSynced = mergeMissingEdges(merged, synced)
+        val fromSynced = mergeMissingEdges(merged, synced, anySourceForm = true)
 
-        evolutionsBySpecies = merged
+        evolutionsBySpecies = EvolutionEdges.withoutCosmeticCopies(merged)
         evolutionSourceTier = if (runtime.isNotEmpty() || local.isEmpty()) DataSourceTier.COBBLEMON
             else fileDataTier()
         if (runtime.isEmpty() && local.isNotEmpty()) {
@@ -496,12 +510,16 @@ object SpawnDataIndex {
     private fun mergeMissingEdges(
         into: MutableMap<String, MutableList<EvolutionInfo>>,
         extra: Map<String, List<EvolutionInfo>>,
+        anySourceForm: Boolean = false,
     ): Int {
+        // Cobblemon's display sync names the source form differently and files it elsewhere, so for
+        // that source an edge counts as known when any form of the species already reaches the target.
+        val known = if (anySourceForm) into.values.flatten().mapTo(HashSet(), EvolutionEdges::destination) else emptySet()
         var added = 0
         for ((key, edges) in extra) {
             val existing = into[key].orEmpty()
             for (edge in edges) {
-                val alreadyPresent = existing.any {
+                val alreadyPresent = EvolutionEdges.destination(edge) in known || existing.any {
                     it.fromAspects == edge.fromAspects &&
                         SpeciesNameNormalizer.normalize(it.toSpecies) == SpeciesNameNormalizer.normalize(edge.toSpecies)
                 }
@@ -603,7 +621,7 @@ object SpawnDataIndex {
     /** Optional CobbleRegions region names - that mod exposes them to the client itself. */
     private fun loadSpawnRegions() {
         spawnRegionsBySpecies = try {
-            CobbleRegionsIntegration.regionsBySpecies(spawnsBySpecies.keys)
+            CobbleRegionsIntegration.regionsBySpecies(spawnsBySpecies.values.flatten().map { it.pokemon }.toSet())
         } catch (e: Exception) {
             DebugLog.warn("Spawn region lookup failed: ${e.message}")
             emptyMap()

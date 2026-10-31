@@ -33,6 +33,36 @@ object HerdSpawnReader {
         val members: List<HerdMember>,
     )
 
+    /**
+     * One [SpawnInfo] per member of a herd, each a copy of [base] with the member's own details. Both
+     * the runtime reader and the file reader end here, so a herd is described the same on a server.
+     */
+    fun spawnInfos(base: SpawnInfo, members: List<HerdMember>, maxHerdSize: Int): List<Pair<String, SpawnInfo>> {
+        // One roster description, shared by every member's SpawnInfo, ordered leader/alpha first then
+        // by roll weight so the page can render the formation without re-sorting.
+        val memberRefs = members
+            .map {
+                HerdMemberRef(
+                    species = it.species, formAspects = it.formAspects, role = it.role,
+                    isAlpha = it.isAlpha, heldItemId = it.heldItemId,
+                    levelRange = it.levelRange ?: base.levelRange,
+                    maxCount = it.maxCount, weight = it.weight,
+                )
+            }
+            .sortedWith(compareByDescending<HerdMemberRef> { it.role == HerdRole.LEADER }.thenByDescending { it.weight })
+        val herdContext = HerdContext(memberRefs, maxHerdSize)
+
+        return members.map { member ->
+            member.species to base.copy(
+                id = "${base.id.ifBlank { member.species }}#herd:${member.species}",
+                pokemon = member.species,
+                formAspects = member.formAspects,
+                levelRange = member.levelRange ?: base.levelRange,
+                herd = herdContext,
+            )
+        }
+    }
+
     fun isHerdDetail(detail: Any): Boolean =
         generateSequence<Class<*>>(detail.javaClass) { it.superclass }.any { it.name == HERD_CLASS }
 
@@ -55,7 +85,7 @@ object HerdSpawnReader {
                     val isFollower = runCatching { hc.getMethod("isFollower").invoke(herdable) as? Boolean }.getOrNull() ?: true
                     val role = if (isLeader) HerdRole.LEADER else if (isFollower) HerdRole.FOLLOWER else HerdRole.ANY
 
-                    val aspects = herdFormAspects(props)
+                    val aspects = SpawnDataLoader.variantTokens(props)
                     val isAlpha = readIsAlpha(props) || aspects.contains("alpha", ignoreCase = true)
                     val heldItem = runCatching { hc.getMethod("getHeldItem").invoke(herdable)?.toString() }.getOrNull()
                     val ownRange = runCatching { readIntRange(hc.getMethod("getLevelRange").invoke(herdable)) }.getOrNull()
@@ -91,16 +121,6 @@ object HerdSpawnReader {
             ?.invoke(props) as? Boolean ?: false
     } catch (_: Throwable) {
         false
-    }
-
-    private fun herdFormAspects(props: PokemonProperties): String {
-        val form = try { props.form } catch (_: Throwable) { null }
-        val aspects = try { props.aspects?.joinToString(" ") } catch (_: Throwable) { null }
-        return when {
-            !form.isNullOrBlank() && !form.equals("Normal", ignoreCase = true) -> form
-            !aspects.isNullOrBlank() -> aspects
-            else -> ""
-        }
     }
 
     private fun readIntRange(range: Any?): String? {

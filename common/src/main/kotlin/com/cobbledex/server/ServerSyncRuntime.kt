@@ -51,12 +51,13 @@ object ServerSyncRuntime {
      */
     private fun collectInBackground(s: ServerSyncService, server: MinecraftServer) {
         val manager = server.resourceManager
+        val namespaces = ServerNamespaces.collect(server)
         executor.execute {
             try {
                 val started = System.nanoTime()
                 val files = ResourceCollector.collect(manager)
                 log.info("CobbleDex sync: read {} data files in {} ms", files.size, (System.nanoTime() - started) / 1_000_000)
-                s.submitSnapshot(files)
+                s.submitSnapshot(files, namespaces)
             } catch (e: Throwable) {
                 log.warn("CobbleDex sync could not read the server data: {}", e.toString())
             }

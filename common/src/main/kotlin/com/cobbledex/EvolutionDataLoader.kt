@@ -247,6 +247,12 @@ object EvolutionDataLoader {
     }
 
     private fun parseRequirement(req: Any): EvolutionRequirement {
+        if (req.javaClass.simpleName.contains("Negate", ignoreCase = true)) {
+            val inner = (Reflect.call<Any>(req, "getInner") ?: Reflect.call<Any>(req, "getRequirement"))
+                ?.let { runCatching { parseRequirement(it) }.getOrNull() }
+            return EvolutionRequirement(EvolutionRequirementSpec.NEGATE, listOfNotNull(inner?.let { "inner" to it }).toMap())
+        }
+
         val data = mutableMapOf<String, Any>()
 
         val variant: String = when (req) {
@@ -391,6 +397,16 @@ object EvolutionDataLoader {
     private fun resolveTimeRange(range: Any?): String? {
         if (range == null) return null
         if (range.javaClass.isEnum) return (range as Enum<*>).name.lowercase()
+        // Cobblemon's TimeRange: its registered name if it has one, else whatever window its ticks cover.
+        val ticks = Reflect.call<Collection<*>>(range, "getRanges")?.filterIsInstance<IntRange>().orEmpty()
+        if (ticks.isNotEmpty()) {
+            val named = try {
+                com.cobblemon.mod.common.api.spawning.TimeRange.timeRanges.entries
+                    .firstOrNull { (_, value) -> value.ranges.toList() == ticks }?.key
+            } catch (_: Throwable) { null }
+            return named ?: SpawnPageModel.normalizeTime(ticks.joinToString(",") { "${it.first}-${it.last}" })
+                .takeUnless { it == SpawnPageModel.TimeLabel.ODD || it == SpawnPageModel.TimeLabel.ANY }?.name?.lowercase()
+        }
         if (range is IntRange) {
             return when {
                 range.isEmpty() -> null
@@ -670,6 +686,20 @@ object EvolutionDataLoader {
             .map { it.showdownID }
             .ifEmpty { null }
     } catch (_: Exception) { null }
+
+    /** The items on a Cobblemon drop table, or nothing when [table] isn't one. */
+    fun dropEntriesOf(table: Any?): List<DropEntryInfo> = try {
+        Reflect.call<Collection<*>>(table ?: emptyList<Any>(), "getEntries").orEmpty()
+            .filterIsInstance<ItemDropEntry>()
+            .map { entry ->
+                DropEntryInfo(
+                    itemId = entry.item.toString(),
+                    percentage = entry.percentage,
+                    quantity = entry.quantity,
+                    quantityRange = entry.quantityRange?.let { "${it.first}-${it.last}" },
+                )
+            }
+    } catch (_: Throwable) { emptyList() }
 
     private fun extractDrops(
         form: com.cobblemon.mod.common.pokemon.FormData?,
