@@ -2,6 +2,31 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.32.14] - 2026-11-01
+
+Icon fixes! Someone showed me Dialga's head floating off its body and that one turned out to affect a lot more than Dialga.
+
+### Icons
+- Big Pokémon were missing chunks of themselves. Dialga had no neck, Ultra Necrozma lost half its body, and Lugia, Guzzlord and Eternamax had the same problem.
+- Anything too wide for the render got its edges chopped off. That was over a hundred sprites, including Kyogre, Ho-Oh and Mewtwo. They fit properly now.
+- Sprites are a lot less noisy, thin parts like wings and tails don't break up anymore.
+- A bunch of Gigantamax forms were just the normal Pokémon with a different name. Lapras, Kingler, Inteleon and Centiskorch have their real G-Max sprites now.
+- Added sprites for a lot of forms that didn't have one, like Unown letters, Vivillon patterns and Furfrou trims.
+- If a Pokémon has no model on your install you no longer get a Substitute doll baked in as its icon.
+
+### Modpacks and servers
+- Icons match what your game actually draws. If a pack remodels a Pokémon, the icon shows the remodel instead of the stock one.
+- Change your mods or resource packs and icons get redone automatically.
+- Forms that only exist on a server get proper icons when you join.
+- Icons won't randomly look different after a restart.
+
+### Performance
+- Baking icons is way easier on your framerate. It takes a bit longer but you can actually play while it runs.
+- No more little hitch every time you join or leave a world.
+- Your icons rebake once in the background after updating. Just keep playing, it's done in about a minute.
+
+`/cobbledex sprites export` works on NeoForge too now.
+
 ## [2.32.11] - 2026-10-31
 
 Big one. This started as "why don't form spawns show up properly" and turned into a pile of fixes, because a lot of other stuff was wrong for the same reasons. Servers get most of the benefit.

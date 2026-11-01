@@ -158,7 +158,7 @@ class CobbleDexFabricClient : ClientModInitializer {
                         )
                         .then(ClientCommandManager.literal("reload")
                             .executes { ctx ->
-                                val loaded = PokemonSpriteAtlas.reload(preferCache = true)
+                                val loaded = PokemonSpriteAtlas.reload()
                                 ctx.source.sendFeedback(Component.literal(if (loaded) "§aCobbleDex sprite atlas reloaded." else "§eNo CobbleDex sprite atlas found."))
                                 1
                             }

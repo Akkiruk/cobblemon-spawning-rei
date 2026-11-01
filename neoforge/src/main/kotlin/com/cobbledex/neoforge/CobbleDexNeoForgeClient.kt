@@ -128,10 +128,25 @@ object CobbleDexNeoForgeClient {
                     )
                     .then(Commands.literal("reload")
                         .executes { ctx ->
-                            val loaded = PokemonSpriteAtlas.reload(preferCache = true)
+                            val loaded = PokemonSpriteAtlas.reload()
                             ctx.source.sendSuccess({ Component.literal(if (loaded) "§aCobbleDex sprite atlas reloaded." else "§eNo CobbleDex sprite atlas found.") }, false)
                             1
                         }
+                    )
+                    .then(Commands.literal("export")
+                        .executes { ctx ->
+                            PokemonSpriteAtlas.exportWebsiteSprites(512) { msg ->
+                                ctx.source.sendSuccess({ Component.literal(msg) }, false)
+                            }
+                        }
+                        .then(Commands.argument("size", com.mojang.brigadier.arguments.IntegerArgumentType.integer(32, 1024))
+                            .executes { ctx ->
+                                val size = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "size")
+                                PokemonSpriteAtlas.exportWebsiteSprites(size) { msg ->
+                                    ctx.source.sendSuccess({ Component.literal(msg) }, false)
+                                }
+                            }
+                        )
                     )
                 )
         )

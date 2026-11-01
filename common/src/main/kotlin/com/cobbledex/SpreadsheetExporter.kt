@@ -116,7 +116,7 @@ object SpreadsheetExporter {
             } else {
                 sender.send("§7Rendering icons gradually to reduce lag...")
                 sender.send("§7Icons: 0/${export.iconKeys.size}")
-                IconCapture.init()
+                IconCapture.init(CAPTURE_OWNER)
             }
         } catch (e: Exception) {
             sender.send(tr("cobbledex-rei-emi-jei.cmd.export_failed", e.message ?: "unknown"))
@@ -224,7 +224,7 @@ object SpreadsheetExporter {
         if (export.writingStarted) return
 
         export.writingStarted = true
-        IconCapture.cleanup()
+        IconCapture.cleanup(CAPTURE_OWNER)
         export.sender.send("§7Writing workbook in background...")
 
         val iconRegistry = IconRegistry(
@@ -249,7 +249,7 @@ object SpreadsheetExporter {
 
     private fun finishSuccess(export: ActiveExport, result: ExportResult) {
         activeExport = null
-        IconCapture.cleanup()
+        IconCapture.cleanup(CAPTURE_OWNER)
         export.sender.send(tr("cobbledex-rei-emi-jei.cmd.export_done", result.sheetNames.size, result.speciesCount))
         export.sender.send("§7${result.filePath.toAbsolutePath()}")
         export.sender.send("§7${jsonPathFor(result.filePath).toAbsolutePath()}")
@@ -258,7 +258,7 @@ object SpreadsheetExporter {
 
     private fun finishFailure(export: ActiveExport, error: Throwable) {
         activeExport = null
-        IconCapture.cleanup()
+        IconCapture.cleanup(CAPTURE_OWNER)
         export.sender.send(tr("cobbledex-rei-emi-jei.cmd.export_failed", error.message ?: "unknown"))
         DebugLog.warn("Spreadsheet export failed: ${error.message}")
         error.printStackTrace()
@@ -992,6 +992,7 @@ object SpreadsheetExporter {
     private val WRAP_CHARS_PER_LINE = ((MAX_COL_WIDTH - 3) / 1.2).toInt()
     private const val HEADER_ROW_HEIGHT = 24.0
     private const val EMU_PER_PX = 9525              // Excel EMU units per pixel
+    private const val CAPTURE_OWNER = "spreadsheet-export"
     private const val ICON_EMU = IconCapture.ICON_SIZE * EMU_PER_PX // 32 * 9525 = 304800
     private const val ICON_OFFSET_EMU = 19050        // 2px padding
 

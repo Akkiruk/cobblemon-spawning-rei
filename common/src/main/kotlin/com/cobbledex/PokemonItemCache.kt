@@ -154,5 +154,6 @@ object PokemonItemCache {
         aspectCache.clear()
         itemCache.clear()
         blockedRenderKeys.clear()
+        PokemonSpriteAtlas.resetResolved()
     }
 }
