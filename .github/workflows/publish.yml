@@ -64,7 +64,7 @@ jobs:
           cat current_changelog.txt
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.get_version.outputs.TAG }}
           name: "v${{ steps.get_version.outputs.VERSION }}"
