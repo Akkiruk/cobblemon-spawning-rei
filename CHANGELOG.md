@@ -4,16 +4,14 @@ All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
 ## [2.32.16] - 2026-11-17
 
-### Evolutions
-- Kingambit's page only said "Defeat 3x Bisharp". They have to be Bisharp holding a King's Rock, so the item is listed next to the name now.
-
-## [2.32.15] - 2026-11-17
-
 ### Forms
 - Looking up an alternate form in EMI or JEI only gave you that one form on the Forms tab, with no way to get to the others. You get the whole family now, same as from the base Pokémon.
 - Morpeko Hangry was missing. Any form that looks different but has the same stats and moves as its base was getting hidden, so Furfrou trims, Minior cores, both Cramorant forms, Tatsugiri Droopy and Stretchy, Zarude Dada and Xerneas Active show up too.
 
 Costumes are still left out.
+
+### Evolutions
+- Kingambit's page only said "Defeat 3x Bisharp". They have to be Bisharp holding a King's Rock, so the item is listed next to the name now.
 
 ## [2.32.14] - 2026-11-01
 
