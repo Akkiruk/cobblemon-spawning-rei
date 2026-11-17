@@ -55,4 +55,13 @@ class EvolutionRequirementSpecTest {
             assertEquals(keys.size, keys.toSet().size, "${spec.variant} repeats a field key")
         }
     }
+
+    @Test
+    fun defeatTargetNamesTheItemTheTargetMustHold() {
+        val kingambit = EvolutionRequirement("defeat", mapOf("target" to "bisharp helditem=cobblemon:kings_rock", "amount" to 3))
+        assertEquals("Bisharp (Kings Rock)", kingambit.defeatTargetName())
+
+        val plain = EvolutionRequirement("defeat", mapOf("target" to "bisharp", "amount" to 3))
+        assertEquals("Bisharp", plain.defeatTargetName())
+    }
 }

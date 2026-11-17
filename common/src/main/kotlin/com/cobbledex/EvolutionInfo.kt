@@ -231,9 +231,8 @@ data class EvolutionRequirement(
                 if (amount != null) tr("cobbledex-rei-emi-jei.evo.use_move_times", move, amount) else tr("cobbledex-rei-emi-jei.evo.use_move", move)
             }
             "defeat" -> {
-                val target = cleanValue(data["target"]) ?: ""
                 val amount = (data["amount"] as? Number)?.toInt()
-                val targetName = target.split(" ").firstOrNull()?.let { titleCase(it) } ?: target
+                val targetName = defeatTargetName()
                 if (amount != null) tr("cobbledex-rei-emi-jei.evo.defeat_count", amount, targetName) else tr("cobbledex-rei-emi-jei.evo.defeat", targetName)
             }
             "recoil" -> {
@@ -415,6 +414,20 @@ data class EvolutionRequirement(
             }
         }
         return results.joinToString(", ").ifBlank { null }
+    }
+
+    /**
+     * Who has to be beaten, with the item they must be holding when the target names one: Kingambit
+     * needs Bisharp that hold a King's Rock, and "Defeat 3x Bisharp" alone sends players after the
+     * wrong ones. The item goes in brackets so it reads the same in every language.
+     */
+    internal fun defeatTargetName(): String {
+        val tokens = (cleanValue(data["target"]) ?: "").split(" ").filter { it.isNotBlank() }
+        val species = tokens.firstOrNull { '=' !in it }?.let { formatItemName(it) } ?: tokens.firstOrNull().orEmpty()
+        val held = tokens.firstOrNull { it.startsWith("helditem=") || it.startsWith("held_item=") }
+            ?.substringAfter('=')?.takeIf { it.isNotBlank() }
+            ?: return species
+        return "$species (${formatItemName(held)})"
     }
 
     private fun formatItemName(item: String?): String {

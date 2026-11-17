@@ -95,13 +95,20 @@ class DerivedDataBuilderTest {
                     baseSpeciesName = "vivillon",
                     formAspects = setOf("fancy"),
                 ),
+                "vivillonparty" to speciesInfo(
+                    "vivillonparty",
+                    baseSpeciesName = "vivillon",
+                    formAspects = setOf("party-costume"),
+                ),
             )
         )
         val queries = CobbleDexDataQueries(snapshot)
 
         assertTrue(queries.isForm("vivillonfancy"))
         assertEquals("vivillon", queries.getBaseOf("vivillonfancy"))
-        assertFalse(queries.shouldSurfaceSpecies("vivillonfancy"))
+        // A pattern is a form of its own even with the base's numbers; a costume is not.
+        assertTrue(queries.shouldSurfaceSpecies("vivillonfancy"))
+        assertFalse(queries.shouldSurfaceSpecies("vivillonparty"))
     }
 
     // findMentionedSpecies replaced a per-species-name Regex("\\b${escape(name)}\\b") scan (2.26.13,

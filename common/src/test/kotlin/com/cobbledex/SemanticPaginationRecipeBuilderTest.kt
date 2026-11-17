@@ -272,6 +272,43 @@ class SemanticPaginationRecipeBuilderTest {
         assertTrue(pages.all { it.totalForms == 2 })
     }
 
+    @Test
+    fun everyFormPageIsFoundFromAnySiblingForm() {
+        val snapshot = CobbleDexDataSnapshot(
+            speciesInfo = mapOf(
+                "rotom" to speciesInfo("rotom", nationalDexNumber = 479),
+                "rotom_heat" to speciesInfo("rotom_heat", nationalDexNumber = 479, primaryType = "fire", baseSpeciesName = "rotom", formAspects = setOf("heat-appliance")),
+                "rotom_wash" to speciesInfo("rotom_wash", nationalDexNumber = 479, primaryType = "water", baseSpeciesName = "rotom", formAspects = setOf("wash-appliance")),
+                "rotom_mow" to speciesInfo("rotom_mow", nationalDexNumber = 479, primaryType = "grass", baseSpeciesName = "rotom", formAspects = setOf("mow-appliance")),
+            ),
+            allSpeciesNames = listOf("rotom", "rotom_heat", "rotom_wash", "rotom_mow"),
+        )
+
+        val pages = RecipeBuilder.buildFormsFor("rotom", snapshot)
+
+        assertEquals(3, pages.size)
+        for (key in listOf("rotom", "rotom_heat", "rotom_wash", "rotom_mow")) {
+            assertTrue(pages.all { key in it.lookupSpecies() }, "$key should reach every page")
+        }
+    }
+
+    @Test
+    fun aFormThatOnlyLooksDifferentStillGetsItsPage() {
+        val snapshot = CobbleDexDataSnapshot(
+            speciesInfo = mapOf(
+                "morpeko" to speciesInfo("morpeko", nationalDexNumber = 877),
+                "morpeko_hangry" to speciesInfo("morpeko_hangry", nationalDexNumber = 877, baseSpeciesName = "morpeko", formAspects = setOf("hangry-mode")),
+                "morpeko_chef" to speciesInfo("morpeko_chef", nationalDexNumber = 877, baseSpeciesName = "morpeko", formAspects = setOf("chef-costume")),
+            ),
+            allSpeciesNames = listOf("morpeko", "morpeko_hangry", "morpeko_chef"),
+        )
+
+        val pages = RecipeBuilder.buildFormsFor("morpeko", snapshot)
+
+        assertEquals(listOf("morpeko_hangry"), pages.map { it.form.formKey })
+        assertEquals(listOf("Looks different from the base species."), pages.single().differenceReasons)
+    }
+
     private fun evolution(
         fromSpecies: String,
         toSpecies: String,

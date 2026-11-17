@@ -23,11 +23,11 @@ Legend: 🟢 context on existing page · 🔵 new page (justified) · ⚪ delibe
 | 5 | Marks page | ✅ 2.19.0 — new page |
 | 8 | Size variation | ⚪ skipped (runtime-computed, no per-species datum) |
 | 9 | NPC party datapacks | ⚪ skipped (outside the viewer-reference mission) |
-| 10 | New species/forms/evos | ⏳ verification only — during your 1.8.0 test pass |
+| 10 | New species/forms/evos | ✅ verified in game 2026-11-17 (2.32.16, Cobblemon 1.8.2) — see §10 |
 
 **All planned code is implemented.** Everything is on the test profile (2.19.0, Cobblemon 1.8.0).
-Remaining work is your in-game test pass across items 1–7 + the item-10 checks (Arbok patterns stay
-collapsed, new evo items resolve, Yamask/Avalugg chains link).
+The item-10 checks (Arbok patterns stay collapsed, new evo items resolve, Yamask/Avalugg chains link)
+were run in game on 2026-11-17, results in §10. Still open: your in-game test pass across items 1–7.
 
 Native TM slice: `NativeTmDataLoader` (reflection over `TechnicalMachines.tmMap`, no 1.8.0 symbols on
 the load path), `JarDataCache` fallback from `data/*/tms/`, `TmItemUtils` native branch reading the
@@ -279,6 +279,18 @@ Wurmple line) appear automatically. To verify in your test pass:
 - Galarian Yamask → Runerigus and Hisuian forms link correctly in `EvolutionChainBuilder`.
 
 No code planned here unless the test pass finds a gap.
+
+**Verified 2026-11-17** on the test profile (CobbleDex 2.32.16, Cobblemon 1.8.2, EMI + JEI):
+
+- Arbok: no pattern entries in the index (only `ekans` and `arbok`), no Forms page. The patterns are
+  not registered as forms at all on 1.8.2, so this no longer depends on `MaterialFormPolicy` (which
+  since 2.32.15 lets any form with its own non-costume aspect through).
+- Syrupy / Tart / Sweet Apple and Metal Alloy resolve to real items on Applin and Duraludon's pages.
+- Leader's Crest does not exist in Cobblemon 1.8.2. Bisharp's evolution asks for 3 Bisharp holding
+  `cobblemon:kings_rock` instead. **Gap found:** the page said "Defeat 3x Bisharp" and dropped the
+  held item. Fixed in 2.32.16, it now reads "Defeat 3x Bisharp (Kings Rock)".
+- Galarian Yamask → Runerigus links both ways; plain Yamask → Cofagrigus is untouched. Bergmite →
+  Avalugg and → Hisuian Avalugg both link, from Bergmite and from Hisuian Avalugg's own page.
 
 ---
 

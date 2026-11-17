@@ -29,6 +29,7 @@ object RecipeBuilder {
         "base friendship",
         "shoulder mount",
         "form-specific fossil data",
+        MaterialFormPolicy.OWN_LOOK_REASON,
     ).withIndex().associate { (index, value) -> value to index }
 
     private data class EvolutionTargetPage(
@@ -985,6 +986,7 @@ object RecipeBuilder {
                     "form-specific evolution data" -> "Evolution routes differ from the base species."
                     "form-specific fossil data" -> "Fossil data differs from the base species."
                     "form-specific riding data" -> "Riding data differs from the base species."
+                    MaterialFormPolicy.OWN_LOOK_REASON -> "Looks different from the base species."
                     else -> "${reason.replaceFirstChar { ch -> ch.uppercase() }}."
                 }
             }

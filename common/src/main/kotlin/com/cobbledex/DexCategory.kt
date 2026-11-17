@@ -862,7 +862,7 @@ object FormsDex : DexCategory {
         var formResult: SpawnDisplayHelper.FormLayoutResult? = null
         return RecipeHandle(
             recipeIdPath = "forms/${sanitizePath(d.baseSpeciesName)}_${d.pageIndex}",
-            inputSpecies = listOf(d.baseSpeciesName, d.form.formKey),
+            inputSpecies = d.lookupSpecies(),
             outputSpecies = emptyList(),
             layoutFactory = {
                 val r = formResult ?: PokemonInfoPageBuilder.buildForms(d)

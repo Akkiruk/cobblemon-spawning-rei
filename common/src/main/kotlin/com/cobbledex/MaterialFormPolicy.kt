@@ -35,10 +35,18 @@ object MaterialFormPolicy {
         val hasFormSpecificObtainment: Boolean = false,
         val hasFormSpecificEvolutions: Boolean = false,
         val hasFormSpecificFossils: Boolean = false,
-        val hasFormSpecificRiding: Boolean = false
+        val hasFormSpecificRiding: Boolean = false,
+        /**
+         * The form has an aspect of its own that isn't a costume, so it looks or behaves differently
+         * even when every number matches the base (Morpeko Hangry, Furfrou trims). Same rule
+         * [FormInclusion] applies when forms are loaded.
+         */
+        val hasOwnLook: Boolean = false
     )
 
     data class Decision(val surface: Boolean, val reasons: List<String>)
+
+    const val OWN_LOOK_REASON = "appearance"
 
     fun decide(base: SpeciesSnapshot?, form: SpeciesSnapshot, signals: DomainSignals = DomainSignals()): Decision {
         val reasons = mutableListOf<String>()
@@ -71,6 +79,7 @@ object MaterialFormPolicy {
         if (signals.hasFormSpecificEvolutions) reasons.add("form-specific evolution data")
         if (signals.hasFormSpecificFossils) reasons.add("form-specific fossil data")
         if (signals.hasFormSpecificRiding) reasons.add("form-specific riding data")
+        if (signals.hasOwnLook) reasons.add(OWN_LOOK_REASON)
 
         return Decision(reasons.isNotEmpty(), reasons.distinct())
     }
@@ -105,7 +114,9 @@ object MaterialFormPolicy {
                         evo.toAspects.any { normalizedAspectToken(it) in formAspects }
                 },
             hasFormSpecificFossils = fossilsBySpecies[normalizedForm].orEmpty().isNotEmpty(),
-            hasFormSpecificRiding = ridingBySpecies.containsKey(normalizedForm)
+            hasFormSpecificRiding = ridingBySpecies.containsKey(normalizedForm),
+            hasOwnLook = formInfo.formAspects.any { it.isNotBlank() } &&
+                formInfo.formAspects.none(FormInclusion::isCosmeticAspect)
         )
 
         return decide(baseSnapshot, formSnapshot, signals)
