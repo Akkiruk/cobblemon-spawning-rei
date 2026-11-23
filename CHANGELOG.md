@@ -2,6 +2,12 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.32.17] - 2026-11-23
+
+### Fossils
+- Lost Lore's clone fossils (Bulbasaur, Charmander and Squirtle) showed up on the normal Pokémon instead of the Clone forms. They're on the clones now.
+- Fossils that a pack ships twice, like in a mod and again in a datapack, are only listed once.
+
 ## [2.32.16] - 2026-11-17
 
 ### Forms

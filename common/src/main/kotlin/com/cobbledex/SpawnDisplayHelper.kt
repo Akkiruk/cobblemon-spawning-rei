@@ -1775,7 +1775,7 @@ object SpawnDisplayHelper {
             layout.gap(4)
             val tagParts = tags.split(" ")
             for (part in tagParts) {
-                val tagText = part.replace("_", " ")
+                val tagText = part.removeSuffix("=true").replace("_", " ")
                 layout.text(padding + 4, tagText, 0xFF999999.toInt())
                 layout.gap(lineHeight)
             }

@@ -1596,26 +1596,24 @@ object JarDataCache {
     // ==================== Fossil Parsing ====================
 
     private fun parseFossilsFromJars(modRoots: List<Path>): Map<String, List<FossilCombo>> {
-        val result = mutableMapOf<String, MutableList<FossilCombo>>()
+        // Keyed by file id like the game does, so a fossil reachable twice (mod jar plus a
+        // datapack copy of it) is one entry and the later copy overrides.
+        val byId = LinkedHashMap<String, FossilCombo>()
 
-        fun processFossilJson(json: JsonObject) {
+        fun processFossilJson(id: String, json: JsonObject) {
             val resultStr = json.optString("result") ?: return
             val fossilArr = json.optArray("fossils") ?: return
             val items = fossilArr.mapNotNull { if (it.isJsonPrimitive) it.asString else null }
             if (items.isEmpty()) return
 
-            // Parse "species form=X aspect=Y min_perfect_ivs=2" format
-            val parts = resultStr.split(" ")
+            // "species form=X aspect=Y clone=true min_perfect_ivs=2". Every property is kept, since
+            // add-ons pick their form with things like clone=true (Lost Lore) and FormRouter needs them.
+            val parts = resultStr.trim().split(Regex("\\s+"))
             val species = parts.first().lowercase()
-            val extraParts = parts.drop(1)
-            val formPart = extraParts.firstOrNull { it.startsWith("form=") }
-            val aspectParts = extraParts.filter { it.startsWith("aspect=") }.map { it.removePrefix("aspect=") }
-            val extras = mutableListOf<String>()
-            formPart?.let { extras.add(it) }
-            extras.addAll(aspectParts)
-            val extraTags = extras.joinToString(" ").takeIf { it.isNotBlank() }
+            val extraTags = parts.drop(1).joinToString(" ") { it.removePrefix("aspect=") }.takeIf { it.isNotBlank() }
 
-            result.getOrPut(species) { mutableListOf() }.add(FossilCombo(species, items, extraTags))
+            byId.remove(id)
+            byId[id] = FossilCombo(species, items, extraTags)
         }
 
         fun scanFossilDataDir(dataDir: Path) {
@@ -1630,7 +1628,8 @@ object JarDataCache {
                                 val json = InputStreamReader(Files.newInputStream(file), Charsets.UTF_8).use { reader ->
                                     JsonParser.parseReader(reader).asJsonObject
                                 }
-                                processFossilJson(json)
+                                val ns = namespace.fileName.toString().trimEnd('/')
+                                processFossilJson("$ns:" + fossilDir.relativize(file).toString().replace('\\', '/'), json)
                             } catch (_: Exception) {}
                         }
                     }
@@ -1669,13 +1668,14 @@ object JarDataCache {
                 val zipFilter: (Path) -> Boolean = { path ->
                     !isResourcePacks || path.fileName.toString() in enabledResourcePackFiles
                 }
-                scanZipDatapacks(dir, "fossils", zipFilter) { _, _, _, json ->
-                    processFossilJson(json)
+                scanZipDatapacks(dir, "fossils", zipFilter) { _, ns, entry, json ->
+                    processFossilJson("$ns:" + entry.substringAfter("/fossils/"), json)
                 }
             }
         } catch (_: Exception) {}
 
-        DebugLog.info("JarDataCache: parsed ${result.values.sumOf { it.size }} fossils for ${result.size} species")
+        val result = byId.values.groupBy { it.resultSpecies }
+        DebugLog.info("JarDataCache: parsed ${byId.size} fossils for ${result.size} species")
         return result
     }
 
