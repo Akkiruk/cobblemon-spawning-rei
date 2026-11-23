@@ -2,6 +2,11 @@
 
 All notable changes to CobbleDex REI/EMI/JEI will be documented in this file.
 
+## [2.32.18] - 2026-11-23
+
+### Icons
+- Pokémon icons in the EMI, JEI and REI panel changed as soon as you hovered over it, getting light outlines around them. They look the same all the time now.
+
 ## [2.32.17] - 2026-11-23
 
 ### Fossils

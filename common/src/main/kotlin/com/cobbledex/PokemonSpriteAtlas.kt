@@ -2,6 +2,7 @@ package com.cobbledex
 
 import com.cobbledex.platform.PlatformHelper
 import com.google.gson.GsonBuilder
+import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.platform.NativeImage
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
@@ -240,6 +241,10 @@ object PokemonSpriteAtlas {
         val resolved = resolve(species, aspects)
         for (atlas in getLoadedAtlases()) {
             val entry = atlas.entriesById[resolved.key.id] ?: continue
+            // blit doesn't set blending, it uses whatever was left on. A tooltip turns it off, so
+            // without this the soft sprite edges went opaque as soon as you hovered the panel.
+            RenderSystem.enableBlend()
+            RenderSystem.defaultBlendFunc()
             graphics.blit(
                 atlas.textureId,
                 x,
@@ -253,6 +258,7 @@ object PokemonSpriteAtlas {
                 atlas.width,
                 atlas.height,
             )
+            RenderSystem.disableBlend()
             return true
         }
         return false
